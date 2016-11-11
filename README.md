@@ -5,7 +5,7 @@ GameEngine is mini engine that demonstrates how to use Spire to manange shader l
 ## How to Run:
 - Open "GameEngine.sln" in Visual Studio 2015.
 - Build the solution.
-- Set GameEngine project as start-up object.
+- Set GameEngine as start-up project.
 - Right click GameEngine project and set the following start-up command:
 
 `
