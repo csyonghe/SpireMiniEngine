@@ -1,6 +1,6 @@
-# GameEngine
+# SpireMiniEngine
 
-GameEngine is mini engine that demonstrates how to use Spire to manange shader library and generate shaders for different platforms.
+SpireMiniEngine is mini engine that demonstrates how to use Spire to manange shader library and generate shaders for different platforms.
 
 ## How to Run:
 - Open "GameEngine.sln" in Visual Studio 2015.
