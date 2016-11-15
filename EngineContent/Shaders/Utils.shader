@@ -125,7 +125,7 @@ module SkeletalAnimation
         result.pos = vec3(0.0);
         result.normal = vec3(0.0);
         result.tangent = vec3(0.0);
-        for (int i = 0 : 3)
+        for (int i = 0; i < 4; i++)
         {
             uint boneId = (boneIds >> (i*8)) & 255;
             if (boneId == 255) continue;
@@ -293,7 +293,7 @@ module ParallaxOcclusionMapping
 
         // binary search to increase precision of Steep Paralax Mapping
         int numSearches = 5;
-        for (int i=0:numSearches)
+        for (int i = 0; i <= numSearches; i++)
         {
             // decrease shift and height of layer by half
             deltaTexCoord /= 2;
