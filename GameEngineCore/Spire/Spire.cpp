@@ -11908,18 +11908,18 @@ extern "C" {  // only need to export C interface if
 #define SPIRE_ERROR_INSUFFICIENT_BUFFER -1
 #define SPIRE_ERROR_INVALID_PARAMETER -2
 
-			  /*!
-			  @brief Represents a compilation context. Created by spCreateCompilationContext().
+	/*!
+	@brief Represents a compilation context. Created by spCreateCompilationContext().
 
-			  Related Functions
-			  - spCreateCompilationContext()
-			  - spDestroyCompilationContext()
-			  - spCreateShader()
-			  - spCompileShader()
-			  - spSetCodeGenTarget()
-			  - spAddSearchPath()
-			  - spSetBackendParameter()
-			  */
+	Related Functions
+	- spCreateCompilationContext()
+	- spDestroyCompilationContext()
+	- spCreateShader()
+	- spCompileShader()
+	- spSetCodeGenTarget()
+	- spAddSearchPath()
+	- spSetBackendParameter()
+	*/
 	struct SpireCompilationContext {};
 
 	/*!
@@ -11928,6 +11928,7 @@ extern "C" {  // only need to export C interface if
 
 	Related Functions
 	- spShaderAddModule()
+	- spShaderAddModuleByName()
 	- spShaderTargetPipeline()
 	*/
 	struct SpireShader {};
@@ -11938,10 +11939,9 @@ extern "C" {  // only need to export C interface if
 
 	Related Functions
 	- spLoadModuleLibrary()
+	- spLoadModuleLibraryFromSource()
 	- spFindModule()
-	- spModuleGetAllComponentsByWorld()
-	- spModuleGetComponentCountByWorld()
-	- spModuleGetComponentByWorld()
+	- spModuleGetComponentsByWorld()
 	- spModuleGetRequiredComponents()
 	*/
 	struct SpireModule {};
@@ -11951,7 +11951,9 @@ extern "C" {  // only need to export C interface if
 
 	Related Functions
 	- spCompileShader()
+	- spCompileShaderFromSource()
 	- spIsCompilationSucessful()
+	- spGetCompilerOutput()
 	- spGetMessageCount()
 	- spGetMessageContent()
 	- spGetCompiledShaderNames()
@@ -11988,6 +11990,10 @@ extern "C" {  // only need to export C interface if
 
 	/*!
 	@brief Represents a collection of SpireComponentInfo.
+
+	Related Functions
+	- spComponentInfoCollectionGetCount()
+	- spComponentInfoCollectionGetComponent()
 	*/
 	struct SpireComponentInfoCollection {};
 
@@ -12095,6 +12101,14 @@ extern "C" {  // only need to export C interface if
 	SPIRE_API SpireModule * spFindModule(SpireCompilationContext * ctx, const char * moduleName);
 
 	/*!
+	@brief Retrieve the name of a SpireModule.
+	@param module The module to get the name of.
+	@return The name of the module as a null-terminated string, or NULL if ther are any errors.
+	@note The memory for the return value will be freed when the containing SpireCopmilationContext is destroyed.
+	*/
+	SPIRE_API const char * spGetModuleName(SpireModule * module);
+
+	/*!
 	@brief Retrieves components that are qualified with the specified world.
 	@param module The module from which to retrieve components.
 	@param worldName The world name of requesting components.
@@ -12109,7 +12123,7 @@ extern "C" {  // only need to export C interface if
 	@brief Retrieves component info from SpireComponentInfoCollection.
 	@param collection The collection from which to retrieve components.
 	@param index Index of the requesting component.
-	@param result A pointer to a SpireComponentInfo structure used to recieve info on the specified component.
+	@param result A pointer to a SpireComponentInfo structure used to receive info on the specified component.
 	@return
 	If successful, this function returns 0. 
 	Otherwise, the return value is one of the following error codes:
@@ -12197,9 +12211,22 @@ extern "C" {  // only need to export C interface if
 	- SPIRE_WARNING. compiler warnings.
 	@param index The index of the compiler message to retrieve.
 	@param pMsg A pointer to a SpireErrorMessage structure to receive the error message.
-	@return 1 if successful. SPIRE_ERROR_INVALID_PARAMETER if any of the parameters are invalid.
+	@return 1 if successful. SPIRE_ERROR_INVALID_PARAMETER if any of the parameters is invalid.
 	*/
 	SPIRE_API int spGetMessageContent(SpireCompilationResult * result, int messageType, int index, SpireErrorMessage * pMsg);
+
+	/*!
+	@brief Get compiler output messages as a single string.
+	@param result A SpireCompilationResult object.
+	@param buffer The buffer used to receive compiler messages. If this parameter is NULL, the function returns the number of bytes required for the buffer.
+	@param bufferSize The size of @p buffer (in bytes).
+	@return
+		If successful, the return value is the number of bytes written to @p buffer. If @p buffer is NULL, the return value is the number of bytes required for @p buffer
+		to store the entire output message. Otherwise, the function returns one of the following error codes:
+		- SPIRE_ERROR_INSUFFICIENT_BUFFER. if @p bufferSize is smaller than required buffer size.
+		- SPIRE_ERROR_INVALID_PARAMETER. if any of the parameters is invalid.
+	*/
+	SPIRE_API int spGetCompilerOutput(SpireCompilationResult * result, char * buffer, int bufferSize);
 
 	/*!
 	@brief Retrieve a list of shader names that has been compiled.
@@ -16213,6 +16240,10 @@ namespace Spire
 			EnumerableDictionary<String, String> compSub;
 			for (auto & comp : shader->AllComponents)
 			{
+				// if this component is required by pipeline (e.g. gl_Position), do not attempt to remove it
+				if (shader->Pipeline->Components.ContainsKey(comp.Key))
+					continue;
+
 				if (comp.Value->Implementations.Count() == 1 &&
 					comp.Value->Implementations.First()->SyntaxNode->Expression &&
 					!comp.Value->Implementations.First()->SyntaxNode->IsOutput)
@@ -33499,6 +33530,13 @@ SpireModule * spFindModule(SpireCompilationContext * ctx, const char * moduleNam
 	return reinterpret_cast<SpireModule*>(CTX(ctx)->FindModule(moduleName));
 }
 
+const char * spGetModuleName(SpireModule * module)
+{
+	if (!module) return nullptr;
+	auto moduleNode = MODULE(module);
+	return moduleNode->Name.ToMultiByteString();
+}
+
 int spComponentInfoCollectionGetComponent(SpireComponentInfoCollection * collection, int index, SpireComponentInfo * result)
 {
 	auto list = reinterpret_cast<List<ComponentMetaData>*>(collection);
@@ -33642,6 +33680,18 @@ int ReturnStr(const char * content, char * buffer, int bufferSize)
 	}
 	else
 		return len + 1;
+}
+
+int spGetCompilerOutput(SpireCompilationResult * result, char * buffer, int bufferSize)
+{
+	StringBuilder sb;
+	auto rs = RS(result);
+	for (auto & x : rs->Errors)
+		sb << L"error " << x.Message << L":" << x.Position.ToString() << L": " << x.Message << L"\n";
+	for (auto & x : rs->Warnings)
+		sb << L"error " << x.Message << L":" << x.Position.ToString() << L": " << x.Message << L"\n";
+	auto str = sb.ProduceString();
+	return ReturnStr(str.ToMultiByteString(), buffer, bufferSize);
 }
 
 int spGetCompiledShaderNames(SpireCompilationResult * result, char * buffer, int bufferSize)
