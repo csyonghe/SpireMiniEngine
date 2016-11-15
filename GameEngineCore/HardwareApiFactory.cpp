@@ -41,15 +41,15 @@ namespace GameEngine
 		SpireCompilationResult * compileResult;
 		if (actualFilename.Length())
 		{
-			spLoadModuleLibrary(spireCtx, pipelineDef.ToMultiByteString(), "pipeline_def");
+			spLoadModuleLibraryFromSource(spireCtx, pipelineDef.ToMultiByteString(), "pipeline_def");
 			auto fileContent = CoreLib::IO::File::ReadAllText(actualFilename) + vertexDef + meshProcessingDef;
-			compileResult = spCompileShader(spireCtx, fileContent.ToMultiByteString(), actualFilename.ToMultiByteString());
+			compileResult = spCompileShaderFromSource(spireCtx, fileContent.ToMultiByteString(), actualFilename.ToMultiByteString());
 			shaderSrc = pipelineDef + vertexDef + fileContent;
 		}
 		else
 		{
 			shaderSrc = defaultShader + vertexDef + meshProcessingDef;
-			compileResult = spCompileShader(spireCtx, shaderSrc.ToMultiByteString(), "default_shader");
+			compileResult = spCompileShaderFromSource(spireCtx, shaderSrc.ToMultiByteString(), "default_shader");
 		}
 
 		int warningCount = spGetMessageCount(compileResult, SPIRE_WARNING);

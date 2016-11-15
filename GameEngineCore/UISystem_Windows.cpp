@@ -794,7 +794,7 @@ namespace GraphicsUI
 			else
 				spSetCodeGenTarget(spireCtx, SPIRE_SPIRV);
 			String spireShaderSrc(uberSpireShader);
-			auto result = spCompileShader(spireCtx, uberSpireShader, "ui_uber_shader");
+			auto result = spCompileShaderFromSource(spireCtx, uberSpireShader, "ui_uber_shader");
 			if (spIsCompilationSucessful(result))
 			{
 				int len = 0;

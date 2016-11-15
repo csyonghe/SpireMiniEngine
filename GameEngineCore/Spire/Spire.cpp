@@ -5939,7 +5939,10 @@ namespace Spire
 	namespace Compiler
 	{
 		using namespace CoreLib::Basic;
-
+		enum class LayoutRule
+		{
+			Std140, Std430, Packed
+		};
 		enum ILBaseType
 		{
 			Int = 16, Int2 = 17, Int3 = 18, Int4 = 19,
@@ -5949,7 +5952,7 @@ namespace Spire
 			TextureShadow = 49,
 			TextureCube = 50,
 			TextureCubeShadow = 51,
-			Bool = 128,
+			Bool = 128, Bool2 = 129, Bool3 = 130, Bool4 = 131,
 			UInt = 512, UInt2 = 513, UInt3 = 514, UInt4 = 515,
 		};
 		int SizeofBaseType(ILBaseType type);
@@ -5965,15 +5968,16 @@ namespace Spire
 			bool IsFloat();
 			bool IsScalar()
 			{
-				return IsInt() || IsUInt() || IsFloat();
+				return IsInt() || IsUInt() || IsFloat() || IsBool();
 			}
+			bool IsBoolVector(); 
 			bool IsIntVector();
 			bool IsUIntVector();
 			bool IsFloatVector();
 			bool IsFloatMatrix();
 			bool IsVector()
 			{
-				return IsIntVector() || IsUIntVector() || IsFloatVector();
+				return IsIntVector() || IsUIntVector() || IsFloatVector() || IsBoolVector();
 			}
 			bool IsTexture();
 			bool IsNonShadowTexture();
@@ -5981,8 +5985,8 @@ namespace Spire
 			virtual ILType * Clone() = 0;
 			virtual String ToString() = 0;
 			virtual bool Equals(ILType* type) = 0;
-			virtual int GetSize() = 0;
-			virtual int GetAlignment() = 0;
+			virtual int GetSize(LayoutRule rule = LayoutRule::Std430) = 0;
+			virtual int GetAlignment(LayoutRule rule = LayoutRule::Std430) = 0;
 		};
 
 		RefPtr<ILType> TypeFromString(CoreLib::Text::Parser & parser);
@@ -6004,8 +6008,8 @@ namespace Spire
 			virtual ILType * Clone() override;
 			virtual String ToString() override;
 			virtual bool Equals(ILType* type) override;
-			virtual int GetSize() override;
-			virtual int GetAlignment() override;
+			virtual int GetSize(LayoutRule rule) override;
+			virtual int GetAlignment(LayoutRule rule) override;
 		};
 
 		class ILBasicType : public ILType
@@ -6077,8 +6081,10 @@ namespace Spire
 				else
 					return L"?unkown";
 			}
-			virtual int GetAlignment() override
+			virtual int GetAlignment(LayoutRule rule) override
 			{
+				if (rule == LayoutRule::Packed)
+					return 0;
 				switch (Type)
 				{
 				case ILBaseType::Int:
@@ -6118,7 +6124,7 @@ namespace Spire
 					return 0;
 				}
 			}
-			virtual int GetSize() override
+			virtual int GetSize(LayoutRule /*rule*/) override
 			{
 				switch (Type)
 				{
@@ -6179,13 +6185,19 @@ namespace Spire
 				else
 					return BaseType->ToString() + L"[]";
 			}
-			virtual int GetSize() override
+			virtual int GetSize(LayoutRule layoutRule) override
 			{
-				return BaseType->GetSize() * ArrayLength;
+				return BaseType->GetSize(layoutRule) * ArrayLength;
 			}
-			virtual int GetAlignment() override
+			virtual int GetAlignment(LayoutRule layoutRule) override
 			{
-				return BaseType->GetAlignment();
+				int baseAlignment = BaseType->GetAlignment(layoutRule);
+				if (layoutRule == LayoutRule::Std140)
+				{
+					if (baseAlignment < 16)
+						return 16;
+				}
+				return baseAlignment;
 			}
 		};
 
@@ -6212,13 +6224,13 @@ namespace Spire
 			{
 				return GenericTypeName + L"<" + BaseType->ToString() + L">";
 			}
-			virtual int GetSize() override
+			virtual int GetSize(LayoutRule rule) override
 			{
-				return 0;
+				return BaseType->GetSize(rule);
 			}
-			virtual int GetAlignment() override
+			virtual int GetAlignment(LayoutRule rule) override
 			{
-				return BaseType->GetAlignment();
+				return BaseType->GetAlignment(rule);
 			}
 		};
 
@@ -6237,8 +6249,8 @@ namespace Spire
 			virtual ILType * Clone() override;
 			virtual String ToString() override;
 			virtual bool Equals(ILType * type) override;
-			virtual int GetSize() override;
-			virtual int GetAlignment() override;
+			virtual int GetSize(LayoutRule rule) override;
+			virtual int GetAlignment(LayoutRule rule) override;
 		};
 
 		class ILOperand;
@@ -8525,13 +8537,13 @@ namespace Spire
 			Int = 16, Int2 = 17, Int3 = 18, Int4 = 19,
 			Float = 32, Float2 = 33, Float3 = 34, Float4 = 35,
 			UInt = 512, UInt2 = 513, UInt3 = 514, UInt4 = 515,
+			Bool = 128, Bool2 = 129, Bool3 = 130, Bool4 = 131,
 			Float3x3 = 40, Float4x4 = 47,
 			Texture2D = 48,
 			TextureShadow = 49,
 			TextureCube = 50,
 			TextureCubeShadow = 51,
 			Function = 64,
-			Bool = 128,
 			Shader = 256,
 			Struct = 1024,
 			Record = 2048,
@@ -8624,7 +8636,6 @@ namespace Spire
 			static RefPtr<ExpressionType> Error;
 		public:
 			virtual String ToString() const = 0;
-			virtual int GetSize() const = 0;
 			virtual bool IsIntegral() const = 0;
 			virtual bool Equals(const ExpressionType * type) const = 0;
 			virtual bool IsVectorType() const = 0;
@@ -8676,7 +8687,6 @@ namespace Spire
 				this->Shader = shaderSym;
 			}
 			virtual bool IsIntegral() const override;
-			virtual int GetSize() const override;
 			virtual bool Equals(const ExpressionType * type) const override;
 			virtual bool IsVectorType() const override;
 			virtual bool IsArray() const override;
@@ -8708,7 +8718,6 @@ namespace Spire
 			virtual bool IsIntegral() const override;
 			virtual bool IsArray() const override;
 
-			virtual int GetSize() const override;
 			virtual bool Equals(const ExpressionType * type) const override;
 			virtual bool IsVectorType() const override;
 			virtual CoreLib::Basic::String ToString() const override;
@@ -8737,7 +8746,6 @@ namespace Spire
 			RefPtr<ExpressionType> BaseType;
 			String GenericTypeName;
 			virtual bool IsIntegral() const override;
-			virtual int GetSize() const override;
 			virtual bool IsArray() const override;
 
 			virtual bool Equals(const ExpressionType * type) const override;
@@ -11866,20 +11874,25 @@ SPIRELIB\INCLUDE\SPIRE.H
 #define SPIRE_API
 #endif
 
-/*!
-@mainpage Introduction
-Spire is a shading language and compiler framework that facilitates modular shader authoring and rapid exploration of
-shader optimization choices (such as frequency reduction and algorithmic approximation) afforded by modern real-time 
-graphics engines. The current implementation of the Spire compiler can generate either GLSL or SPIR-V output for use 
-with OpenGL and Vulkan based engines.
+#ifdef __cplusplus  
+extern "C" {  // only need to export C interface if  
+			  // used by C++ source code  
+#endif  
 
-Paper: http://graphics.cs.cmu.edu/projects/spire/
+			  /*!
+			  @mainpage Introduction
+			  Spire is a shading language and compiler framework that facilitates modular shader authoring and rapid exploration of
+			  shader optimization choices (such as frequency reduction and algorithmic approximation) afforded by modern real-time
+			  graphics engines. The current implementation of the Spire compiler can generate either GLSL or SPIR-V output for use
+			  with OpenGL and Vulkan based engines.
+
+			  Paper: http://graphics.cs.cmu.edu/projects/spire/
 
 
-API Reference: Spire.h
+			  API Reference: Spire.h
 
-@file Spire.h
-*/
+			  @file Spire.h
+			  */
 
 #define SPIRE_ERROR 0
 #define SPIRE_WARNING 1
@@ -11888,49 +11901,55 @@ API Reference: Spire.h
 #define SPIRE_HLSL 1
 #define SPIRE_SPIRV 2
 
+#define SPIRE_LAYOUT_UNIFORM 0
+#define SPIRE_LAYOUT_PACKED 1
+#define SPIRE_LAYOUT_STORAGE 2
+
 #define SPIRE_ERROR_INSUFFICIENT_BUFFER -1
 #define SPIRE_ERROR_INVALID_PARAMETER -2
 
-/*!
-@brief Represents a compilation context. Created by spCreateCompilationContext().
+			  /*!
+			  @brief Represents a compilation context. Created by spCreateCompilationContext().
 
-Related Functions
-	- spCreateCompilationContext()
-	- spDestroyCompilationContext()
-	- spCreateShader()
-	- spCompileShader()
-	- spSetCodeGenTarget()
-	- spAddSearchPath()
-	- spSetBackendParameter()
-*/
-struct SpireCompilationContext {};
+			  Related Functions
+			  - spCreateCompilationContext()
+			  - spDestroyCompilationContext()
+			  - spCreateShader()
+			  - spCompileShader()
+			  - spSetCodeGenTarget()
+			  - spAddSearchPath()
+			  - spSetBackendParameter()
+			  */
+	struct SpireCompilationContext {};
 
-/*!
-@brief Represents a shader. A SpireShader can be assembled by calling spCreateShader(). 
-       Modules can be added to a shader by calling spShaderAddModule().
+	/*!
+	@brief Represents a shader. A SpireShader can be assembled by calling spCreateShader().
+	Modules can be added to a shader by calling spShaderAddModule().
 
-Related Functions
-	   - spShaderAddModule()
-	   - spShaderTargetPipeline()
-*/
-struct SpireShader {};
+	Related Functions
+	- spShaderAddModule()
+	- spShaderTargetPipeline()
+	*/
+	struct SpireShader {};
 
-/*!
-@brief SpireModule objects provide reflection data about a module.
-    Module objects can be obtained by calling spFindModule() once a module library is loaded via spLoadModuleLibrary(). 
+	/*!
+	@brief SpireModule objects provide reflection data about a module.
+	Module objects can be obtained by calling spFindModule() once a module library is loaded via spLoadModuleLibrary().
 
-Related Functions
+	Related Functions
 	- spLoadModuleLibrary()
 	- spFindModule()
-	- spModuleGetComponentsByWorld()
+	- spModuleGetAllComponentsByWorld()
+	- spModuleGetComponentCountByWorld()
+	- spModuleGetComponentByWorld()
 	- spModuleGetRequiredComponents()
-*/
-struct SpireModule {};
+	*/
+	struct SpireModule {};
 
-/*!
-@brief Represents the compilation result, including error messages and compiled source code for each stage.
+	/*!
+	@brief Represents the compilation result, including error messages and compiled source code for each stage.
 
-Related Functions
+	Related Functions
 	- spCompileShader()
 	- spIsCompilationSucessful()
 	- spGetMessageCount()
@@ -11939,262 +11958,297 @@ Related Functions
 	- spGetCompiledShaderStageNames()
 	- spGetShaderStageSource()
 	- spDestroyCompilationResult()
-*/
-struct SpireCompilationResult {};
+	*/
+	struct SpireCompilationResult {};
 
-/*!
-@brief Represents an error message from the compiler.
-*/
-struct SpireErrorMessage
-{
-	const char * Message;    /**< Content of the message. Storage is owned by SpireCompilationContext.*/
-	int ErrorId;             /**< A unique identifier for this type of error.*/
-	const char * FileName;   /**< The source file name of this error. Storage is owned by SpireCompilationContext*/
-	int Line;                /**< The line number of this error.*/
-	int Col;                 /**< The column position of this error.*/
-};
+	/*!
+	@brief Represents an error message from the compiler.
+	*/
+	struct SpireErrorMessage
+	{
+		const char * Message;    /**< Content of the message. Storage is owned by SpireCompilationContext.*/
+		int ErrorId;             /**< A unique identifier for this type of error.*/
+		const char * FileName;   /**< The source file name of this error. Storage is owned by SpireCompilationContext*/
+		int Line;                /**< The line number of this error.*/
+		int Col;                 /**< The column position of this error.*/
+	};
 
-/*!
-@brief Stores description of a component.
-*/
-struct SpireComponentInfo
-{
-	const char * Name;         /**< The name of the component. Storage is owned by SpireCompilationContext.*/
-	const char * TypeName;     /**< The type name of the component. Storage is owned by SpireCompilationContext.*/
-	const char * Register;     /**< The register binding (if available) of the component. Storage is owned by SpireCompilationContext.*/
-	int Size;                  /**< The size (in bytes) of the component. For opaque types (e.g. sampler and texture), this value is 0.*/
-	int Alignment;             /**< The alignment (in bytes) of the component. For opaque types (e.g. sampler and texture), this value is 0.*/
-	int Offset;				   /**< The offset (in bytes) of the component. For opaque types (e.g. sampler and texture), this value is 0.*/
-};
+	/*!
+	@brief Stores description of a component.
+	*/
+	struct SpireComponentInfo
+	{
+		const char * Name;         /**< The name of the component. Storage is owned by SpireCompilationContext.*/
+		const char * TypeName;     /**< The type name of the component. Storage is owned by SpireCompilationContext.*/
+		const char * Register;     /**< The register binding (if available) of the component. Storage is owned by SpireCompilationContext.*/
+		int Size;                  /**< The size (in bytes) of the component. For opaque types (e.g. sampler and texture), this value is 0.*/
+		int Alignment;             /**< The alignment (in bytes) of the component. For opaque types (e.g. sampler and texture), this value is 0.*/
+		int Offset;				   /**< The offset (in bytes) of the component. For opaque types (e.g. sampler and texture), this value is 0.*/
+	};
 
-/*!
-@brief Create a compilation context. 
-@param cacheDir The directory used to store cached compilation results. Pass NULL to disable caching.
-@return A new compilation context.
-*/
-SPIRE_API SpireCompilationContext * spCreateCompilationContext(const char * cacheDir);
+	/*!
+	@brief Represents a collection of SpireComponentInfo.
+	*/
+	struct SpireComponentInfoCollection {};
 
-/*!
-@brief Sets the target for code generation.
-@param ctx The compilation context.
-@param target The code generation target. Possible values are:
+	/*!
+	@brief Create a compilation context.
+	@param cacheDir The directory used to store cached compilation results. Pass NULL to disable caching.
+	@return A new compilation context.
+	*/
+	SPIRE_API SpireCompilationContext * spCreateCompilationContext(const char * cacheDir);
+
+	/*!
+	@brief Sets the target for code generation.
+	@param ctx The compilation context.
+	@param target The code generation target. Possible values are:
 	- SPIRE_GLSL. Generates GLSL code.
 	- SPIRE_HLSL. Generates HLSL code.
 	- SPIRE_SPIRV. Generates SPIR-V code.
-*/
-SPIRE_API void spSetCodeGenTarget(SpireCompilationContext * ctx, int target);
+	*/
+	SPIRE_API void spSetCodeGenTarget(SpireCompilationContext * ctx, int target);
 
-/*!
-@brief Add a path in which source files are being search. When the programmer specifies @code using <file_name> @endcode in code, the compiler searches the file
-       in all search pathes in order.
-@param ctx The compilation context.
-@param searchDir The additional search directory.
-*/
-SPIRE_API void spAddSearchPath(SpireCompilationContext * ctx, const char * searchDir);
+	/*!
+	@brief Add a path in which source files are being search. When the programmer specifies @code using <file_name> @endcode in code, the compiler searches the file
+	in all search pathes in order.
+	@param ctx The compilation context.
+	@param searchDir The additional search directory.
+	*/
+	SPIRE_API void spAddSearchPath(SpireCompilationContext * ctx, const char * searchDir);
 
-/*!
-@brief Sets a parameter used by the compiler back-end.
-@param ctx The compilation context.
-@param paramName The name of the parameter.
-@param value The value of the parameter.
-*/
-SPIRE_API void spSetBackendParameter(SpireCompilationContext * ctx, const char * paramName, const char * value);
+	/*!
+	@brief Sets a parameter used by the compiler back-end.
+	@param ctx The compilation context.
+	@param paramName The name of the parameter.
+	@param value The value of the parameter.
+	*/
+	SPIRE_API void spSetBackendParameter(SpireCompilationContext * ctx, const char * paramName, const char * value);
 
-/*!
-@brief Sets a shader to compile. By default, the compiler will generate code for all shaders in current context. After setting this option,
-       the compiler will only generate code for the specified shader.
-@param ctx The compilation context.
-@param shaderName The name of the shader to compile.
-*/
-SPIRE_API void spSetShaderToCompile(SpireCompilationContext * ctx, const char * shaderName);
+	/*!
+	@brief Sets a shader to compile. By default, the compiler will generate code for all shaders in current context. After setting this option,
+	the compiler will only generate code for the specified shader.
+	@param ctx The compilation context.
+	@param shaderName The name of the shader to compile.
+	*/
+	SPIRE_API void spSetShaderToCompile(SpireCompilationContext * ctx, const char * shaderName);
 
-/*!
-@brief Destorys the compilation context. Destorying a compilation context will free the memory for all strings owned by the 
-       SpireComilationContext and all SpireModule objects. These objects will not be available after a call to spDestroyCompilationContext.
-	   However, all SpireCompilationResult objects will continue to be available until they are destroyed.
-@param ctx The compilation context to destroy.
-*/
-SPIRE_API void spDestroyCompilationContext(SpireCompilationContext * ctx);
+	/*!
+	@brief Destorys the compilation context. Destorying a compilation context will free the memory for all strings owned by the
+	SpireComilationContext and all SpireModule objects. These objects will not be available after a call to spDestroyCompilationContext.
+	However, all SpireCompilationResult objects will continue to be available until they are destroyed.
+	@param ctx The compilation context to destroy.
+	*/
+	SPIRE_API void spDestroyCompilationContext(SpireCompilationContext * ctx);
 
-/*!
-@brief Load and precompile spire modules from spire source file. Compilation status and error messages can be obtained via spIsCompilationSucessful(),
-       spGetMessageCount() and spGetMessageContent() functions.
-@param ctx The compilation context.
-@param fileName The filename of the spire source code.
-*/
-SPIRE_API void spLoadModuleLibrary(SpireCompilationContext * ctx, const char * fileName);
+	/*!
+	@brief Load and precompile spire modules from spire source file. Compilation status and error messages can be obtained via spIsCompilationSucessful(),
+	spGetMessageCount() and spGetMessageContent() functions.
+	@param ctx The compilation context.
+	@param fileName The filename of the spire source code.
+	*/
+	SPIRE_API void spLoadModuleLibrary(SpireCompilationContext * ctx, const char * fileName);
 
-/*!
-@brief Load and precompile spire modules from spire source code in memory. Compilation status and error messages can be obtained via spIsCompilationSucessful(),
-spGetMessageCount() and spGetMessageContent() functions.
-@param ctx The compilation context.
-@param source The spire source code to precompile. All strings should be in UTF-8 encoding.
-@param fileName The filename used to report error messages regarding to code in @p source.
-*/
-SPIRE_API void spLoadModuleLibrary(SpireCompilationContext * ctx, const char * source, const char * fileName);
+	/*!
+	@brief Load and precompile spire modules from spire source code in memory. Compilation status and error messages can be obtained via spIsCompilationSucessful(),
+	spGetMessageCount() and spGetMessageContent() functions.
+	@param ctx The compilation context.
+	@param source The spire source code to precompile. All strings should be in UTF-8 encoding.
+	@param fileName The filename used to report error messages regarding to code in @p source.
+	*/
+	SPIRE_API void spLoadModuleLibraryFromSource(SpireCompilationContext * ctx, const char * source, const char * fileName);
 
-/*!
-@brief Create a shader object that can be used to assemble a final shader from modules.
-@param ctx The compilation context.
-@param name The name of the shader.
-*/
-SPIRE_API SpireShader* spCreateShader(SpireCompilationContext * ctx, const char * name);
+	/*!
+	@brief Create a shader object that can be used to assemble a final shader from modules.
+	@param ctx The compilation context.
+	@param name The name of the shader.
+	*/
+	SPIRE_API SpireShader* spCreateShader(SpireCompilationContext * ctx, const char * name);
 
-/*!
-@brief Adds a module to a shader.
-@param shader A shader object.
-@param moduleName The name of the module to add to @p shader.
-*/
-SPIRE_API void spShaderAddModule(SpireShader * shader, const char * moduleName);
+	/*!
+	@brief Adds a module to a shader.
+	@param shader A shader object.
+	@param moduleName The name of the module to add to @p shader.
+	*/
+	SPIRE_API void spShaderAddModuleByName(SpireShader * shader, const char * moduleName);
 
-/*!
-@brief Sets the target pipeline of a shader
-@param shader A shader object.
-@param pipelineName The name of the Pipeline that @p shader targets.
-*/
-SPIRE_API void spShaderSetPipeline(SpireShader * shader, const char * pipelineName);
+	/*!
+	@brief Adds a module to a shader.
+	@param shader A shader object.
+	@param module The handle of the module to add to @p shader.
+	*/
+	SPIRE_API void spShaderAddModule(SpireShader * shader, SpireModule * moduleName);
 
-/*!
-@brief Find a precompiled module in a SpireCompilationContext.
-@param ctx The compilation context.
-@param moduleName The name of the module to find.
-@return If a module with the specified name exists in the current context, a handle to the module is returned. Otherwise, the return value is NULL.
-@note All SpireModule objects are destroyed when its containing SpireCompilationContext is destroyed.
-*/
-SPIRE_API SpireModule * spFindModule(SpireCompilationContext * ctx, const char * moduleName);
+	/*!
+	@brief Sets the target pipeline of a shader
+	@param shader A shader object.
+	@param pipelineName The name of the Pipeline that @p shader targets.
+	*/
+	SPIRE_API void spShaderSetPipeline(SpireShader * shader, const char * pipelineName);
 
-/*!
-@brief Retrieves components that are qualified with the specified world.
-@param module The module from where to retrieve components.
-@param worldName The world name of requesting components.
-@param buffer A user allocated buffer of SpireComponentInfo for receiving outputs.
-@param bufferSize The size (in number of SpireComponentInfo structs) of the specified buffer.
-@return
-    If @p buffer is NULL, the return value is the required size, in number of SpireComponentInfo. 
-    Otherwise, if the function suceeds, the return value is the number of SpireComponentInfo instances written to 
-    @p buffer. The function returns a negative value if it does not suceed. Possible error codes are:
-    - SPIRE_ERROR_INSUFFICIENT_BUFFER. The supplied buffer size was not large enough.
-    - SPIRE_ERROR_INVALID_PARAMETER. Any of the parameter values was invalid.
-*/
-SPIRE_API int spModuleGetComponentsByWorld(SpireModule * module, const char * worldName, SpireComponentInfo * buffer, int bufferSize);
+	/*!
+	@brief Find a precompiled module in a SpireCompilationContext.
+	@param ctx The compilation context.
+	@param moduleName The name of the module to find.
+	@return If a module with the specified name exists in the current context, a handle to the module is returned. Otherwise, the return value is NULL.
+	@note All SpireModule objects are destroyed when its containing SpireCompilationContext is destroyed.
+	*/
+	SPIRE_API SpireModule * spFindModule(SpireCompilationContext * ctx, const char * moduleName);
 
-/*!
-@brief Retrieve a list of components that are required by the specified module.
-@param module The module from where to retrieve components.
-@param buffer A user allocated buffer of SpireComponentInfo for receiving outputs.
-@param bufferSize The size (in number of SpireComponentInfo structs) of the specified buffer.
-@return
+	/*!
+	@brief Retrieves components that are qualified with the specified world.
+	@param module The module from which to retrieve components.
+	@param worldName The world name of requesting components.
+	@param layout The layout rule used to compute offsets of the components. Can be SPIRE_LAYOUT_UNIFORM, SPIRE_LAYOUT_STORAGE or SPIRE_LAYOUT_PACKED.
+	@return
+	A handle to a collection of SpireComponentInfo structures. Individual components can be retrieved from
+	the collection using spComponentInfoCollectionGetComponent() function.
+	*/
+	SPIRE_API SpireComponentInfoCollection * spModuleGetComponentsByWorld(SpireModule * module, const char * worldName, int layout);
+
+	/*!
+	@brief Retrieves component info from SpireComponentInfoCollection.
+	@param collection The collection from which to retrieve components.
+	@param index Index of the requesting component.
+	@param result A pointer to a SpireComponentInfo structure used to recieve info on the specified component.
+	@return
+	If successful, this function returns 0. 
+	Otherwise, the return value is one of the following error codes:
+	- SPIRE_ERROR_INVALID_PARAMETER if any of the parameters are invalid.
+	*/
+	SPIRE_API int spComponentInfoCollectionGetComponent(SpireComponentInfoCollection * collection, int index, SpireComponentInfo * result);
+
+	/*!
+	@brief Get the number of components contained in a SpireComponentInfoCollection.
+	@param collection The collection from which to retrieve components.
+	@return
+	If successful, this function the number of components in @p collection.
+	Otherwise, the return value is one of the following error codes:
+	- SPIRE_ERROR_INVALID_PARAMETER if any of the parameters are invalid.
+	*/
+	SPIRE_API int spComponentInfoCollectionGetCount(SpireComponentInfoCollection * collection);
+
+	
+	/*!
+	@brief Retrieve a list of components that are required by the specified module.
+	@param module The module from where to retrieve components.
+	@param buffer A user allocated buffer of SpireComponentInfo for receiving outputs.
+	@param bufferSize The size (in number of SpireComponentInfo structs) of the specified buffer.
+	@return
 	If @p buffer is NULL, the return value is the required size, in number of SpireComponentInfo.
 	Otherwise, if the function suceeds, the return value is the number of SpireComponentInfo instances written to
 	@p buffer. The function returns a negative value if it does not suceed. Possible error codes are:
 	- SPIRE_ERROR_INSUFFICIENT_BUFFER. The supplied buffer size was not large enough.
 	- SPIRE_ERROR_INVALID_PARAMETER. Any of the parameter values was invalid.
-*/
-SPIRE_API int spModuleGetRequiredComponents(SpireModule * module, SpireComponentInfo * buffer, int bufferSize);
+	*/
+	SPIRE_API int spModuleGetRequiredComponents(SpireModule * module, SpireComponentInfo * buffer, int bufferSize);
 
-/*!
-@brief Destroys a shader object.
-@param shader The shader object to destroy.
-@note You are responsible for destorying a shader object when it is no longer used (e.g. after it has been compiled). Destroying a SpireCompilationContext
-      does not automatically destroy SpireShader objects.
-*/
-SPIRE_API void spDestroyShader(SpireShader * shader);
+	/*!
+	@brief Destroys a shader object.
+	@param shader The shader object to destroy.
+	@note You are responsible for destorying a shader object when it is no longer used (e.g. after it has been compiled). Destroying a SpireCompilationContext
+	does not automatically destroy SpireShader objects.
+	*/
+	SPIRE_API void spDestroyShader(SpireShader * shader);
 
-/*!
-@brief Compiles a shader object.
-@param ctx A shader compilation context.
-@param shader The shader object to compile.
-@return The return value is a handle to a SpireCompilationResult object that contains error messages and compiled source code.
-@note You are responsible for destorying a SpireCompilationResult object when it is no longer used. Destroying a SpireCompilationContext
-does not automatically destroy SpireCompilationResult objects.
-*/
-SPIRE_API SpireCompilationResult* spCompileShader(SpireCompilationContext * ctx, SpireShader * shader);
+	/*!
+	@brief Compiles a shader object.
+	@param ctx A shader compilation context.
+	@param shader The shader object to compile.
+	@return The return value is a handle to a SpireCompilationResult object that contains error messages and compiled source code.
+	@note You are responsible for destorying a SpireCompilationResult object when it is no longer used. Destroying a SpireCompilationContext
+	does not automatically destroy SpireCompilationResult objects.
+	*/
+	SPIRE_API SpireCompilationResult* spCompileShader(SpireCompilationContext * ctx, SpireShader * shader);
 
-/*!
-@brief Compiles a shader object.
-@param ctx A shader compilation context.
-@param source A string that represents the Spire source code that defines a shader.
-@param fileName The filename to use to report error messages regarding to @p source.
-@return The return value is a handle to a SpireCompilationResult object that contains error messages and compiled source code.
-@note You are responsible for destorying a SpireCompilationResult object when it is no longer used. Destroying a SpireCompilationContext
-does not automatically destroy SpireCompilationResult objects.
-@see spDestroyCompilationResult()
-*/
-SPIRE_API SpireCompilationResult* spCompileShader(SpireCompilationContext * ctx, const char * source, const char * fileName);
+	/*!
+	@brief Compiles a shader object.
+	@param ctx A shader compilation context.
+	@param source A string that represents the Spire source code that defines a shader.
+	@param fileName The filename to use to report error messages regarding to @p source.
+	@return The return value is a handle to a SpireCompilationResult object that contains error messages and compiled source code.
+	@note You are responsible for destorying a SpireCompilationResult object when it is no longer used. Destroying a SpireCompilationContext
+	does not automatically destroy SpireCompilationResult objects.
+	@see spDestroyCompilationResult()
+	*/
+	SPIRE_API SpireCompilationResult* spCompileShaderFromSource(SpireCompilationContext * ctx, const char * source, const char * fileName);
 
-/*!
-@brief Checks if a compilation operation has succeeded.
-@param result The SpireCompilationResult object returned by spCompileShader().
-@return 1 if compilation is sucessful, 0 otherwise.
-*/
-SPIRE_API int spIsCompilationSucessful(SpireCompilationResult * result);
+	/*!
+	@brief Checks if a compilation operation has succeeded.
+	@param result The SpireCompilationResult object returned by spCompileShader().
+	@return 1 if compilation is sucessful, 0 otherwise.
+	*/
+	SPIRE_API int spIsCompilationSucessful(SpireCompilationResult * result);
 
-/*!
-@brief Retrieve the number of compiler messages in a SpireCompilationResult object.
-@param result A SpireCompilationResult object.
-@param messageType The type of compiler message to check. Possible values are:
+	/*!
+	@brief Retrieve the number of compiler messages in a SpireCompilationResult object.
+	@param result A SpireCompilationResult object.
+	@param messageType The type of compiler message to check. Possible values are:
 	- SPIRE_ERROR. compilation errors.
 	- SPIRE_WARNING. compiler warnings.
-@return The number of messages of specified type.
-*/
-SPIRE_API int spGetMessageCount(SpireCompilationResult * result, int messageType);
+	@return The number of messages of specified type.
+	*/
+	SPIRE_API int spGetMessageCount(SpireCompilationResult * result, int messageType);
 
-/*!
-@brief Retrieve the content of compiler messages in a SpireCompilationResult object.
-@param result A SpireCompilationResult object.
-@param messageType The type of compiler message to check. Possible values are:
-- SPIRE_ERROR. compilation errors.
-- SPIRE_WARNING. compiler warnings.
-@param index The index of the compiler message to retrieve.
-@param pMsg A pointer to a SpireErrorMessage structure to receive the error message.
-@return 1 if successful. SPIRE_ERROR_INVALID_PARAMETER if any of the parameters are invalid.
-*/
-SPIRE_API int spGetMessageContent(SpireCompilationResult * result, int messageType, int index, SpireErrorMessage * pMsg);
+	/*!
+	@brief Retrieve the content of compiler messages in a SpireCompilationResult object.
+	@param result A SpireCompilationResult object.
+	@param messageType The type of compiler message to check. Possible values are:
+	- SPIRE_ERROR. compilation errors.
+	- SPIRE_WARNING. compiler warnings.
+	@param index The index of the compiler message to retrieve.
+	@param pMsg A pointer to a SpireErrorMessage structure to receive the error message.
+	@return 1 if successful. SPIRE_ERROR_INVALID_PARAMETER if any of the parameters are invalid.
+	*/
+	SPIRE_API int spGetMessageContent(SpireCompilationResult * result, int messageType, int index, SpireErrorMessage * pMsg);
 
-/*!
-@brief Retrieve a list of shader names that has been compiled.
-@param result A SpireCompilationResult object.
-@param buffer A buffer used to receive shader names. Shader names are separated by '\\n'. If this parameter is NULL, the function returns the required buffer size.
-@param bufferSize The size (in bytes) of @p buffer.
-@return If sucessful, the return value is greater or equal to 0 representing the number of charaters required or written to buffer, including the trailing 0.
-        Otherwise, it returns one of the following error codes:
-		- SPIRE_ERROR_INSUFFICIENT_BUFFER. The supplied buffer size was not large enough.
-		- SPIRE_ERROR_INVALID_PARAMETER. Any of the parameter values was invalid.
-*/
-SPIRE_API int spGetCompiledShaderNames(SpireCompilationResult * result, char * buffer, int bufferSize);
+	/*!
+	@brief Retrieve a list of shader names that has been compiled.
+	@param result A SpireCompilationResult object.
+	@param buffer A buffer used to receive shader names. Shader names are separated by '\\n'. If this parameter is NULL, the function returns the required buffer size.
+	@param bufferSize The size (in bytes) of @p buffer.
+	@return If sucessful, the return value is greater or equal to 0 representing the number of charaters required or written to buffer, including the trailing 0.
+	Otherwise, it returns one of the following error codes:
+	- SPIRE_ERROR_INSUFFICIENT_BUFFER. The supplied buffer size was not large enough.
+	- SPIRE_ERROR_INVALID_PARAMETER. Any of the parameter values was invalid.
+	*/
+	SPIRE_API int spGetCompiledShaderNames(SpireCompilationResult * result, char * buffer, int bufferSize);
 
-/*!
-@brief Retrieve a list of stage names in a compiled shader.
-@param result A SpireCompilationResult object.
-@param shaderName The name of a shader.
-@param buffer A buffer used to receive stage names. Stage names are separated by '\\n'. If this parameter is NULL, the function returns the required buffer size.
-@param bufferSize The size (in bytes) of @p buffer.
-@return If sucessful, the return value is greater or equal to 0 representing the number of charaters required or written to buffer, including the trailing 0.
-Otherwise, it returns one of the following error codes:
-- SPIRE_ERROR_INSUFFICIENT_BUFFER. The supplied buffer size was not large enough.
-- SPIRE_ERROR_INVALID_PARAMETER. Any of the parameter values was invalid.
-*/
-SPIRE_API int spGetCompiledShaderStageNames(SpireCompilationResult * result, const char * shaderName, char * buffer, int bufferSize);
+	/*!
+	@brief Retrieve a list of stage names in a compiled shader.
+	@param result A SpireCompilationResult object.
+	@param shaderName The name of a shader.
+	@param buffer A buffer used to receive stage names. Stage names are separated by '\\n'. If this parameter is NULL, the function returns the required buffer size.
+	@param bufferSize The size (in bytes) of @p buffer.
+	@return If sucessful, the return value is greater or equal to 0 representing the number of charaters required or written to buffer, including the trailing 0.
+	Otherwise, it returns one of the following error codes:
+	- SPIRE_ERROR_INSUFFICIENT_BUFFER. The supplied buffer size was not large enough.
+	- SPIRE_ERROR_INVALID_PARAMETER. Any of the parameter values was invalid.
+	*/
+	SPIRE_API int spGetCompiledShaderStageNames(SpireCompilationResult * result, const char * shaderName, char * buffer, int bufferSize);
 
-/*!
-@brief Retrieve the compiled code (binary or textual, depending on the target language) of a stage in a compiled shader.
-@param result A SpireCompilationResult object.
-@param shaderName The name of a shader.
-@param stage The name of a stage.
-@param[out] length A pointer used to receive the length of the compiled code.
-@return If sucessful, the return value is a pointer to the buffer storing the compiled code. Otherwise, the return value is NULL.
-@note The backing memory of the returned code buffer is owned by the SpireCompilationResult object. Destroying the SpireCompilationResult object will render this code
-      buffer unusable.
-*/
-SPIRE_API char * spGetShaderStageSource(SpireCompilationResult * result, const char * shaderName, const char * stage, int * length);
+	/*!
+	@brief Retrieve the compiled code (binary or textual, depending on the target language) of a stage in a compiled shader.
+	@param result A SpireCompilationResult object.
+	@param shaderName The name of a shader. If @p shaderName is NULL, the function returns the source code of the first shader in @p result.
+	@param stage The name of a stage.
+	@param[out] length A pointer used to receive the length of the compiled code, can be set to NULL.
+	@return If sucessful, the return value is a pointer to the buffer storing the compiled code. Otherwise, the return value is NULL.
+	@note The backing memory of the returned code buffer is owned by the SpireCompilationResult object. Destroying the SpireCompilationResult object will render this code
+	buffer unusable.
+	*/
+	SPIRE_API char * spGetShaderStageSource(SpireCompilationResult * result, const char * shaderName, const char * stage, int * length);
 
-/*!
-@brief Destroys the SpireCompilationResult object.
-@param result A SpireCompilationResult object to destroy.
-@note Destroying a SpireCompilationContext object does not automatically destroy SpireCompilationResult objects. You are required to destroy a SpireCompilationResult object
-      once it is no longer in use.
-*/
-SPIRE_API void spDestroyCompilationResult(SpireCompilationResult * result);
+	/*!
+	@brief Destroys the SpireCompilationResult object.
+	@param result A SpireCompilationResult object to destroy.
+	@note Destroying a SpireCompilationContext object does not automatically destroy SpireCompilationResult objects. You are required to destroy a SpireCompilationResult object
+	once it is no longer in use.
+	*/
+	SPIRE_API void spDestroyCompilationResult(SpireCompilationResult * result);
+
+#ifdef __cplusplus  
+}
+#endif  
 
 #endif
 
@@ -19717,6 +19771,15 @@ namespace Spire
 				return false;
 		}
 
+		bool ILType::IsBoolVector()
+		{
+			auto basicType = dynamic_cast<ILBasicType*>(this);
+			if (basicType)
+				return basicType->Type == ILBaseType::Bool2 || basicType->Type == ILBaseType::Bool3 || basicType->Type == ILBaseType::Bool4;
+			else
+				return false;
+		}
+
 		bool ILType::IsIntVector()
 		{
 			auto basicType = dynamic_cast<ILBasicType*>(this);
@@ -20105,24 +20168,24 @@ namespace Spire
 				ptr = (ptr / alignment + 1) * alignment;
 			}
 		}
-		int ILStructType::GetSize()
+		int ILStructType::GetSize(LayoutRule rule)
 		{
 			int rs = 0;
 			for (auto & m : Members)
 			{
-				int size = m.Type->GetSize();
-				int alignment = m.Type->GetAlignment();
+				int size = m.Type->GetSize(rule);
+				int alignment = m.Type->GetAlignment(rule);
 				Align(rs, alignment);
 				rs += size;
 			}
 			return rs;
 		}
-		int ILStructType::GetAlignment()
+		int ILStructType::GetAlignment(LayoutRule rule)
 		{
 			int rs = 1;
 			for (auto & m : Members)
 			{
-				int alignment = m.Type->GetAlignment();
+				int alignment = m.Type->GetAlignment(rule);
 				rs = Math::Max(rs, alignment);
 			}
 			return rs;
@@ -20154,11 +20217,11 @@ namespace Spire
 			else
 				return false;
 		}
-		int ILRecordType::GetSize()
+		int ILRecordType::GetSize(LayoutRule /*rule*/)
 		{
 			return 0;
 		}
-		int ILRecordType::GetAlignment()
+		int ILRecordType::GetAlignment(LayoutRule /*rule*/)
 		{
 			return 0;
 		}
@@ -31551,17 +31614,6 @@ namespace Spire
 			return false;
 		}
 
-		int BasicExpressionType::GetSize() const
-		{
-			int baseSize = GetVectorSize(BaseType);
-			if (BaseType == Compiler::BaseType::Texture2D || BaseType == Compiler::BaseType::TextureCube ||
-				BaseType == Compiler::BaseType::TextureCubeShadow || BaseType == Compiler::BaseType::TextureShadow)
-				baseSize = sizeof(void*) / sizeof(int);
-			else if (BaseType == Compiler::BaseType::Struct)
-				baseSize = Struct->Type->GetSize();
-			return baseSize;
-		}
-
 		bool BasicExpressionType::Equals(const ExpressionType * type) const
 		{
 			auto basicType = dynamic_cast<const BasicExpressionType*>(type);
@@ -32220,10 +32272,6 @@ namespace Spire
 		{
 			return true;
 		}
-		int ArrayExpressionType::GetSize() const
-		{
-			return ArrayLength * BaseType->GetSize();
-		}
 		bool ArrayExpressionType::Equals(const ExpressionType * type) const
 		{
 			auto arrType = dynamic_cast<const ArrayExpressionType*>(type);
@@ -32259,10 +32307,6 @@ namespace Spire
 		bool GenericExpressionType::IsIntegral() const
 		{
 			return false;
-		}
-		int GenericExpressionType::GetSize() const
-		{
-			return 0;
 		}
 		bool GenericExpressionType::IsArray() const
 		{
@@ -33135,8 +33179,6 @@ namespace SpireLib
 	}
 
 
-
-
 	class Shader
 	{
 		friend class CompilationContext;
@@ -33192,6 +33234,7 @@ namespace SpireLib
 		String Register;
 		String Name;
 		int Offset = 0;
+		int Alignment = 0;
 		int GetHashCode()
 		{
 			return Name.GetHashCode();
@@ -33205,7 +33248,8 @@ namespace SpireLib
 	class ModuleMetaData
 	{
 	public:
-		EnumerableDictionary<String, EnumerableHashSet<ComponentMetaData>> ComponentsByWorld;
+		String Name;
+		EnumerableDictionary<String, List<ComponentMetaData>> ComponentsByWorld;
 		EnumerableHashSet<ComponentMetaData> Requirements;
 	};
 	
@@ -33253,6 +33297,7 @@ namespace SpireLib
 				if (!modules.ContainsKey(shader.Key))
 				{
 					ModuleMetaData meta;
+					meta.Name = shader.Key;
 					for (auto & comp : shader.Value->Components)
 					{
 						ComponentMetaData compMeta;
@@ -33273,18 +33318,10 @@ namespace SpireLib
 									auto list = meta.ComponentsByWorld.TryGetValue(world);
 									if (!list)
 									{
-										meta.ComponentsByWorld[world] = EnumerableHashSet<ComponentMetaData>();
+										meta.ComponentsByWorld[world] = List<ComponentMetaData>();
 										list = meta.ComponentsByWorld.TryGetValue(world);
 									}
-									if (!list->Contains(compMeta))
-									{
-										if (list->Count())
-										{
-											compMeta.Offset = list->Last().Offset + list->Last().Type->GetSize();
-											compMeta.Offset = RoundToAlignment(compMeta.Offset, compMeta.Type->GetAlignment());
-										}
-										list->Add(compMeta);
-									}
+									list->Add(compMeta);
 								}
 							}
 						}
@@ -33432,7 +33469,7 @@ void spLoadModuleLibrary(SpireCompilationContext * ctx, const char * fileName)
 	CTX(ctx)->LoadModuleSource(File::ReadAllText(fileName), fileName);
 }
 
-void spLoadModuleLibrary(SpireCompilationContext * ctx, const char * source, const char * fileName)
+void spLoadModuleLibraryFromSource(SpireCompilationContext * ctx, const char * source, const char * fileName)
 {
 	CTX(ctx)->LoadModuleSource(source, fileName);
 }
@@ -33442,7 +33479,12 @@ SpireShader * spCreateShader(SpireCompilationContext * ctx, const char * name)
 	return reinterpret_cast<SpireShader*>(CTX(ctx)->NewShader(name));
 }
 
-void spShaderAddModule(SpireShader * shader, const char * moduleName)
+void spShaderAddModule(SpireShader * shader, SpireModule * module)
+{
+	SHADER(shader)->UseModule(MODULE(module)->Name);
+}
+
+void spShaderAddModuleByName(SpireShader * shader, const char * moduleName)
 {
 	SHADER(shader)->UseModule(moduleName);
 }
@@ -33457,27 +33499,61 @@ SpireModule * spFindModule(SpireCompilationContext * ctx, const char * moduleNam
 	return reinterpret_cast<SpireModule*>(CTX(ctx)->FindModule(moduleName));
 }
 
-int spModuleGetComponentsByWorld(SpireModule * module, const char * worldName, SpireComponentInfo * buffer, int bufferSize)
+int spComponentInfoCollectionGetComponent(SpireComponentInfoCollection * collection, int index, SpireComponentInfo * result)
+{
+	auto list = reinterpret_cast<List<ComponentMetaData>*>(collection);
+	if (!list)
+		return SPIRE_ERROR_INVALID_PARAMETER;
+	if (index < 0 || index >= list->Count())
+		return SPIRE_ERROR_INVALID_PARAMETER;
+	result->Name = (*list)[index].Name.ToMultiByteString();
+	result->Alignment = (*list)[index].Alignment;
+	result->Offset = (*list)[index].Offset;
+	result->Size = (*list)[index].Type->GetSize();
+	result->Register = (*list)[index].Register.ToMultiByteString();
+	result->TypeName = (*list)[index].TypeName.ToMultiByteString();
+	return 0;
+}
+
+int spComponentInfoCollectionGetCount(SpireComponentInfoCollection * collection)
+{
+	auto list = reinterpret_cast<List<ComponentMetaData>*>(collection);
+	if (!list)
+		return SPIRE_ERROR_INVALID_PARAMETER;
+	return list->Count();
+}
+
+SpireComponentInfoCollection * spModuleGetComponentsByWorld(SpireModule * module, const char * worldName, int layout)
 {
 	auto moduleNode = MODULE(module);
 	String worldNameStr = worldName;
+	Spire::Compiler::LayoutRule layoutRule;
+	if (layout == SPIRE_LAYOUT_PACKED)
+		layoutRule = LayoutRule::Packed;
+	else if (layout == SPIRE_LAYOUT_UNIFORM)
+		layoutRule = LayoutRule::Std140;
+	else
+		layoutRule = LayoutRule::Std430;
 	if (auto components = moduleNode->ComponentsByWorld.TryGetValue(worldNameStr))
 	{
-		if (!buffer)
-			return components->Count();
-		if (bufferSize < components->Count())
-			return SPIRE_ERROR_INSUFFICIENT_BUFFER;
-		int ptr = 0;
+		// compute layout
+		int offset = 0;
 		for (auto & comp : *components)
 		{
-			buffer[ptr].Name = comp.Name.ToMultiByteString();
-			buffer[ptr].TypeName = comp.TypeName.ToMultiByteString();
-			buffer[ptr].Alignment = comp.Type->GetAlignment();
-			buffer[ptr].Size = comp.Type->GetSize();
-			buffer[ptr].Offset = comp.Offset;
-			ptr++;
+			int alignment = comp.Type->GetAlignment(layoutRule);
+			if (layout == SPIRE_LAYOUT_PACKED)
+				alignment = 0;
+			else if (layout == SPIRE_LAYOUT_UNIFORM)
+			{
+				if (comp.Type->IsScalar() || comp.Type->IsVector() && comp.Type->GetVectorSize() < 4)
+					alignment = 16;
+			}
+			offset = RoundToAlignment(offset, alignment);
+			comp.Offset = offset;
+			comp.Alignment = alignment;
+			offset += comp.Type->GetSize(layoutRule);
 		}
-		return ptr;
+		return reinterpret_cast<SpireComponentInfoCollection*>(components);
 	}
 	return 0;
 }
@@ -33515,7 +33591,7 @@ SpireCompilationResult * spCompileShader(SpireCompilationContext * ctx, SpireSha
 	return reinterpret_cast<SpireCompilationResult*>(rs);
 }
 
-SpireCompilationResult * spCompileShader(SpireCompilationContext * ctx, const char * source, const char * fileName)
+SpireCompilationResult * spCompileShaderFromSource(SpireCompilationContext * ctx, const char * source, const char * fileName)
 {
 	SpireLib::CompileResult * rs = new SpireLib::CompileResult();
 	CTX(ctx)->Compile(*rs, source, fileName);
@@ -33610,18 +33686,30 @@ int spGetCompiledShaderStageNames(SpireCompilationResult * result, const char * 
 char * spGetShaderStageSource(SpireCompilationResult * result, const char * shaderName, const char * stage, int * length)
 {
 	auto rs = RS(result);
-	if (auto src = rs->Sources.TryGetValue(shaderName))
+	CompiledShaderSource * src = nullptr;
+	if (shaderName == nullptr)
+	{
+		if (rs->Sources.Count())
+			src = &rs->Sources.First().Value;
+	}
+	else
+	{
+		src = rs->Sources.TryGetValue(shaderName);
+	}
+	if (src)
 	{
 		if (auto state = src->Stages.TryGetValue(stage))
 		{
 			if (state->MainCode.Length())
 			{
-				*length = (int)strlen(state->MainCode.ToMultiByteString()) + 1;
+				if (length)
+					*length = (int)strlen(state->MainCode.ToMultiByteString()) + 1;
 				return state->MainCode.ToMultiByteString();
 			}
 			else
 			{
-				*length = state->BinaryCode.Count();
+				if (length)
+					*length = state->BinaryCode.Count();
 				return (char*)state->BinaryCode.Buffer();
 			}
 		}
