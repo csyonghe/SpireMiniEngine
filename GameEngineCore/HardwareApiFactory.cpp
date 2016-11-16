@@ -2,6 +2,7 @@
 #include "HardwareRenderer.h"
 #include "CoreLib/LibIO.h"
 #include "CoreLib/Parser.h"
+#include "CoreLib/WinForm/Debug.h"
 
 namespace GameEngine
 {
@@ -71,6 +72,7 @@ namespace GameEngine
 				SpireErrorMessage msg;
 				spGetMessageContent(compileResult, SPIRE_ERROR, i, &msg);
 				src.Errors.Add(ShaderCompilationError(msg));
+				CoreLib::Diagnostics::Debug::WriteLine(String(msg.FileName) + L"(" + msg.Line + L"): " + String(msg.Message));
 			}
 		}
 

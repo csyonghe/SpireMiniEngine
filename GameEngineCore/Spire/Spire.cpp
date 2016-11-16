@@ -5954,6 +5954,7 @@ namespace Spire
 			TextureCubeShadow = 51,
 			Bool = 128, Bool2 = 129, Bool3 = 130, Bool4 = 131,
 			UInt = 512, UInt2 = 513, UInt3 = 514, UInt4 = 515,
+			SamplerState = 4096,
 		};
 		int SizeofBaseType(ILBaseType type);
 		int RoundToAlignment(int offset, int alignment);
@@ -5980,6 +5981,7 @@ namespace Spire
 				return IsIntVector() || IsUIntVector() || IsFloatVector() || IsBoolVector();
 			}
 			bool IsTexture();
+			bool IsSamplerState();
 			bool IsNonShadowTexture();
 			int GetVectorSize();
 			virtual ILType * Clone() = 0;
@@ -8563,14 +8565,13 @@ namespace Spire
 			Bool = 128, Bool2 = 129, Bool3 = 130, Bool4 = 131,
 			Float3x3 = 40, Float4x4 = 47,
 			Texture2D = 48,
-			TextureShadow = 49,
 			TextureCube = 50,
-			TextureCubeShadow = 51,
+			SamplerState = 4096,
 			Function = 64,
 			Shader = 256,
 			Struct = 1024,
 			Record = 2048,
-			Error = 4096,
+			Error = 8192,
 		};
 
 		inline const wchar_t * BaseTypeToString(BaseType t)
@@ -8604,10 +8605,6 @@ namespace Spire
 				return L"sampler2D";
 			case BaseType::TextureCube:
 				return L"samplerCube";
-			case BaseType::TextureShadow:
-				return L"sampler2DShadow";
-			case BaseType::TextureCubeShadow:
-				return L"samplerCubeShadow";
 			default:
 				return L"<err-type>";
 			}
@@ -8873,8 +8870,8 @@ namespace Spire
 		{
 		public:
 			String TypeName;
-			virtual RefPtr<SyntaxNode> Accept(SyntaxVisitor * visitor);
-			virtual BasicTypeSyntaxNode * Clone(CloneContext & ctx)
+			virtual RefPtr<SyntaxNode> Accept(SyntaxVisitor * visitor) override;
+			virtual BasicTypeSyntaxNode * Clone(CloneContext & ctx) override
 			{
 				return CloneSyntaxNodeFields(new BasicTypeSyntaxNode(*this), ctx);
 			}
@@ -8885,8 +8882,8 @@ namespace Spire
 		public:
 			RefPtr<TypeSyntaxNode> BaseType;
 			int ArrayLength;
-			virtual RefPtr<SyntaxNode> Accept(SyntaxVisitor * visitor);
-			virtual ArrayTypeSyntaxNode * Clone(CloneContext & ctx)
+			virtual RefPtr<SyntaxNode> Accept(SyntaxVisitor * visitor) override;
+			virtual ArrayTypeSyntaxNode * Clone(CloneContext & ctx) override
 			{
 				auto rs = CloneSyntaxNodeFields(new ArrayTypeSyntaxNode(*this), ctx);
 				rs->BaseType = BaseType->Clone(ctx);
@@ -8899,8 +8896,8 @@ namespace Spire
 		public:
 			RefPtr<TypeSyntaxNode> BaseType;
 			String GenericTypeName;
-			virtual RefPtr<SyntaxNode> Accept(SyntaxVisitor * visitor);
-			virtual GenericTypeSyntaxNode * Clone(CloneContext & ctx)
+			virtual RefPtr<SyntaxNode> Accept(SyntaxVisitor * visitor) override;
+			virtual GenericTypeSyntaxNode * Clone(CloneContext & ctx) override
 			{
 				auto rs = CloneSyntaxNodeFields(new GenericTypeSyntaxNode(*this), ctx);
 				rs->BaseType = BaseType->Clone(ctx);
@@ -9591,6 +9588,8 @@ namespace Spire
 			{
 				for (auto & arg : expr->Arguments)
 					arg = arg->Accept(this).As<ExpressionSyntaxNode>();
+				if (expr->ImportOperatorDef)
+					expr->ImportOperatorDef->Accept(this);
 				return expr;
 			}
 			virtual RefPtr<ExpressionSyntaxNode> VisitTypeCastExpression(TypeCastExpressionSyntaxNode * stmt)
@@ -10010,7 +10009,7 @@ namespace Spire
 			EnumerableHashSet<String> ReferencedFunctions;
 		};
 		class ShaderComponentSymbol;
-		class ShaderComponentImplSymbol : public Object
+		class ShaderComponentImplSymbol : public RefObject
 		{
 		public:
 			String AlternateName;
@@ -10030,7 +10029,7 @@ namespace Spire
 			}
 		};
 
-		class ShaderComponentSymbol : public Object
+		class ShaderComponentSymbol : public RefObject
 		{
 		public:
 			bool IsDceEntryPoint = false;
@@ -10351,6 +10350,49 @@ namespace Spire
 		};
 
 		ShaderCompiler * CreateShaderCompiler();
+	}
+}
+
+#endif
+
+/***********************************************************************
+SPIRECORE\CLOSURE.H
+***********************************************************************/
+#ifndef BAKERSL_SHADER_CLOSURE_H
+#define BAKERSL_SHADER_CLOSURE_H
+
+namespace Spire
+{
+	namespace Compiler
+	{
+		RefPtr<ShaderClosure> CreateShaderClosure(ErrorWriter * err, SymbolTable * symTable, ShaderSymbol * shader);
+		void FlattenShaderClosure(ErrorWriter * err, SymbolTable * symTable, ShaderClosure * shader);
+		void InsertImplicitImportOperators(ErrorWriter * err, ShaderIR * shader);
+	}
+}
+
+#endif
+
+/***********************************************************************
+SPIRECORE\STRINGOBJECT.H
+***********************************************************************/
+#ifndef SPIRE_STRING_OBJECT_H
+#define SPIRE_STRING_OBJECT_H
+
+
+namespace Spire
+{
+	namespace Compiler
+	{
+		class StringObject : public CoreLib::Object
+		{
+		public:
+			CoreLib::String Content;
+			StringObject() {}
+			StringObject(const CoreLib::String & str)
+				: Content(str)
+			{}
+		};
 	}
 }
 
@@ -11148,6 +11190,7 @@ namespace Spire
 			virtual String RemapFuncNameForTarget(String name);
 			virtual void PrintMatrixMulInstrExpr(CodeGenContext & ctx, ILOperand* op0, ILOperand* op1);
 			virtual void PrintRasterPositionOutputWrite(CodeGenContext & ctx, ILOperand * operand) = 0;
+			virtual void PrintTextureCall(CodeGenContext & ctx, CallInstruction * instr) = 0;
 
 		public:
 			void Error(int errId, String msg, CodePosition pos);
@@ -11159,7 +11202,7 @@ namespace Spire
 
 			String GetFuncOriginalName(const String & name);
 
-			void PrintOp(CodeGenContext & ctx, ILOperand * op, bool forceExpression = false);
+			virtual void PrintOp(CodeGenContext & ctx, ILOperand * op, bool forceExpression = false);
 			void PrintBinaryInstrExpr(CodeGenContext & ctx, BinaryInstruction * instr);
 			void PrintBinaryInstr(CodeGenContext & ctx, BinaryInstruction * instr);
 			void PrintUnaryInstrExpr(CodeGenContext & ctx, UnaryInstruction * instr);
@@ -11206,49 +11249,6 @@ namespace Spire
 }
 
 #endif // SPIRE_C_LIKE_CODE_GEN_H
-
-/***********************************************************************
-SPIRECORE\CLOSURE.H
-***********************************************************************/
-#ifndef BAKERSL_SHADER_CLOSURE_H
-#define BAKERSL_SHADER_CLOSURE_H
-
-namespace Spire
-{
-	namespace Compiler
-	{
-		RefPtr<ShaderClosure> CreateShaderClosure(ErrorWriter * err, SymbolTable * symTable, ShaderSymbol * shader);
-		void FlattenShaderClosure(ErrorWriter * err, SymbolTable * symTable, ShaderClosure * shader);
-		void InsertImplicitImportOperators(ShaderIR * shader);
-	}
-}
-
-#endif
-
-/***********************************************************************
-SPIRECORE\STRINGOBJECT.H
-***********************************************************************/
-#ifndef SPIRE_STRING_OBJECT_H
-#define SPIRE_STRING_OBJECT_H
-
-
-namespace Spire
-{
-	namespace Compiler
-	{
-		class StringObject : public CoreLib::Object
-		{
-		public:
-			CoreLib::String Content;
-			StringObject() {}
-			StringObject(const CoreLib::String & str)
-				: Content(str)
-			{}
-		};
-	}
-}
-
-#endif
 
 /***********************************************************************
 SPIRECORE\SYNTAXVISITORS.H
@@ -11574,6 +11574,55 @@ namespace Spire
 #endif
 
 /***********************************************************************
+SPIRECORE\GETDEPENDENCYVISITOR.H
+***********************************************************************/
+#ifndef GET_DEPENDENCY_VISITOR_H
+
+
+namespace Spire
+{
+	namespace Compiler
+	{
+		class ComponentDependency
+		{
+		public:
+			String ReferencedComponent;
+			ImportOperatorDefSyntaxNode * ImportOperator = nullptr;
+			ComponentDependency() = default;
+			ComponentDependency(String compName, ImportOperatorDefSyntaxNode * impOp)
+				: ReferencedComponent(compName), ImportOperator(impOp)
+			{}
+			int GetHashCode()
+			{
+				return ReferencedComponent.GetHashCode() ^ (int)(CoreLib::PtrInt)(void*)(ImportOperator);
+			}
+			bool operator == (const ComponentDependency & other)
+			{
+				return ReferencedComponent == other.ReferencedComponent && ImportOperator == other.ImportOperator;
+			}
+		};
+
+		class GetDependencyVisitor : public SyntaxVisitor
+		{
+		public:
+			EnumerableHashSet<ComponentDependency> Result;
+			GetDependencyVisitor()
+				: SyntaxVisitor(nullptr)
+			{}
+
+			RefPtr<ExpressionSyntaxNode> VisitVarExpression(VarExpressionSyntaxNode * var) override;
+
+			RefPtr<ExpressionSyntaxNode> VisitMemberExpression(MemberExpressionSyntaxNode * member) override;
+
+			RefPtr<ExpressionSyntaxNode> VisitImportExpression(ImportExpressionSyntaxNode * syntax) override;
+		};
+
+		EnumerableHashSet<ComponentDependency> GetDependentComponents(SyntaxNode * tree);
+	}
+}
+#endif
+
+/***********************************************************************
 CORELIB\LIBIO.H
 ***********************************************************************/
 #ifndef CORE_LIB_IO_H
@@ -11728,11 +11777,11 @@ namespace Spire
 				typeNames.Add(L"half3x3");
 				typeNames.Add(L"half4x4");
 				typeNames.Add(L"Texture2D");
-				typeNames.Add(L"sampler2D");
-				typeNames.Add(L"sampler2DShadow");
-				typeNames.Add(L"samplerCube");
-				typeNames.Add(L"samplerCubeShadow");
+				typeNames.Add(L"texture");
 				typeNames.Add(L"Texture");
+				typeNames.Add(L"sampler");
+				typeNames.Add(L"SamplerState");
+				typeNames.Add(L"sampler_state");
 				typeNames.Add(L"Uniform");
 				typeNames.Add(L"ArrayBuffer");
 				typeNames.Add(L"PackedBuffer");
@@ -14379,6 +14428,7 @@ namespace Spire
 					rs = L"(" + rs + L")";
 				return rs;
 			};
+			
 			if (auto c = dynamic_cast<ILConstOperand*>(op))
 			{
 				auto type = c->Type.Ptr();
@@ -14635,7 +14685,9 @@ namespace Spire
 					}
 					if (genType)
 					{
-						if (genType->GenericTypeName == L"Buffer" && dynamic_cast<ILRecordType*>(genType->BaseType.Ptr()))
+						if ((genType->GenericTypeName == L"Buffer" ||
+							genType->GenericTypeName == L"ArrayBuffer") 
+							&& dynamic_cast<ILRecordType*>(genType->BaseType.Ptr()))
 							ctx.Body << L"." << currentImportInstr->ComponentName;
 					}
 				}
@@ -14859,6 +14911,11 @@ namespace Spire
 
 		void CLikeCodeGen::PrintCallInstrExpr(CodeGenContext & ctx, CallInstruction * instr)
 		{
+			if (instr->Arguments.Count() > 0 && instr->Arguments.First()->Type->IsTexture())
+			{
+				PrintTextureCall(ctx, instr);
+				return;
+			}
 			String callName;
 			callName = GetFuncOriginalName(instr->Function);
 			callName = RemapFuncNameForTarget(callName);
@@ -14924,7 +14981,7 @@ namespace Spire
 			}
 			if (auto import = instr.As<ImportInstruction>())
 			{
-				if (!useBindlessTexture && import->Type->IsTexture() || import->Type.As<ILArrayType>())
+				if ((!useBindlessTexture && import->Type->IsTexture()) || import->Type.As<ILArrayType>() || import->Type->IsSamplerState())
 					return true;
 			}
 			for (auto &&usr : instr.Users)
@@ -15601,7 +15658,7 @@ namespace Spire
 			{
 				if (shader->Pipeline->IsChildOf(rootShader->Pipeline))
 					rootShader->Pipeline = shader->Pipeline;
-				else
+				else if (!rootShader->Pipeline->IsChildOf(shader->Pipeline))
 				{
 					StringBuilder sb;
 					sb << L"pipeline '" << shader->Pipeline->SyntaxNode->Name.Content << L"' targeted by module '" <<
@@ -15849,6 +15906,7 @@ namespace Spire
 				currentImport = nullptr;
 				for (auto & arg : import->Arguments)
 					arg->Accept(this);
+				import->ImportOperatorDef->Accept(this);
 				return import;
 			}
 
@@ -15937,8 +15995,25 @@ namespace Spire
 				ResolveReference(err, rootShader, subClosure.Value.Ptr());
 		}
 
+		void ReplaceRefMapReference(ShaderClosure * root, ShaderClosure * shader, EnumerableDictionary<String, String> & replacements)
+		{
+			for (auto & map : shader->RefMap)
+			{
+				String newName = map.Value->UniqueName;
+				while (replacements.TryGetValue(newName, newName))
+				{
+				}
+				if (newName != map.Value->UniqueName)
+					map.Value = root->AllComponents[newName]();
+			}
+			for (auto & subclosure : shader->SubClosures)
+				ReplaceRefMapReference(root, subclosure.Value.Ptr(), replacements);
+		}
+
+
 		void ReplaceReference(ShaderClosure * shader, EnumerableDictionary<String, String> & replacements)
 		{
+			ReplaceRefMapReference(shader, shader, replacements);
 			for (auto & comp : shader->AllComponents)
 			{
 				ReplaceReferenceVisitor replaceVisitor(shader, comp.Value, replacements);
@@ -18070,6 +18145,54 @@ namespace Spire
 #endif
 
 /***********************************************************************
+SPIRECORE\GETDEPENDENCYVISITOR.CPP
+***********************************************************************/
+
+namespace Spire
+{
+	namespace Compiler
+	{
+		EnumerableHashSet<ComponentDependency> GetDependentComponents(SyntaxNode * tree)
+		{
+			GetDependencyVisitor visitor;
+			tree->Accept(&visitor);
+			return visitor.Result;
+		}
+
+		RefPtr<ExpressionSyntaxNode> GetDependencyVisitor::VisitImportExpression(ImportExpressionSyntaxNode * syntax)
+		{
+			for (auto & comp : syntax->ImportOperatorDef->Usings)
+				Result.Add(ComponentDependency(comp, nullptr));
+			Result.Add(ComponentDependency(syntax->ComponentUniqueName, syntax->ImportOperatorDef.Ptr()));
+			return SyntaxVisitor::VisitImportExpression(syntax);
+		}
+		RefPtr<ExpressionSyntaxNode> GetDependencyVisitor::VisitMemberExpression(MemberExpressionSyntaxNode * member)
+		{
+			RefPtr<Object> refCompObj;
+			if (member->Tags.TryGetValue(L"ComponentReference", refCompObj))
+			{
+				auto refComp = refCompObj.As<StringObject>().Ptr();
+				Result.Add(ComponentDependency(refComp->Content, nullptr));
+			}
+			else
+				member->BaseExpression->Accept(this);
+			return member;
+		}
+		RefPtr<ExpressionSyntaxNode> GetDependencyVisitor::VisitVarExpression(VarExpressionSyntaxNode * var)
+		{
+			RefPtr<Object> refCompObj;
+			if (var->Tags.TryGetValue(L"ComponentReference", refCompObj))
+			{
+				auto refComp = refCompObj.As<StringObject>().Ptr();
+				Result.Add(ComponentDependency(refComp->Content, nullptr));
+			}
+			return var;
+		}
+	}
+}
+
+
+/***********************************************************************
 SPIRECORE\GLSLCODEGEN.CPP
 ***********************************************************************/
 
@@ -18087,6 +18210,17 @@ namespace Spire
 			OutputStrategy * CreateStandardOutputStrategy(ILWorld * world, String layoutPrefix) override;
 			OutputStrategy * CreatePackedBufferOutputStrategy(ILWorld * world) override;
 			OutputStrategy * CreateArrayOutputStrategy(ILWorld * world, bool pIsPatch, int pArraySize, String arrayIndex) override;
+
+			void PrintOp(CodeGenContext & ctx, ILOperand * op, bool forceExpression = false) override
+			{
+				// GLSL does not have sampler type, print 0 as placeholder
+				if (op->Type->IsSamplerState())
+				{
+					ctx.Body << L"0";
+					return;
+				}
+				CLikeCodeGen::PrintOp(ctx, op, forceExpression);
+			}
 
 			void PrintRasterPositionOutputWrite(CodeGenContext & ctx, ILOperand * operand) override
 			{
@@ -18170,7 +18304,75 @@ namespace Spire
 			{
 				// Currently, all types are internally named based on their GLSL equivalent, so
 				// outputting a type for GLSL is trivial.
-				sb << type->ToString();
+
+				// GLSL does not have sampler type, use int as placeholder
+				if (type->IsSamplerState())
+					sb << L"int";
+				else
+					sb << type->ToString();
+			}
+
+			void PrintTextureCall(CodeGenContext & ctx, CallInstruction * instr)
+			{
+				if (instr->Function == L"Sample")
+				{
+					if (instr->Arguments.Count() == 4)
+						ctx.Body << L"textureOffset";
+					else
+						ctx.Body << L"texture";
+					ctx.Body << L"(";
+					for (int i = 0; i < instr->Arguments.Count(); i++)
+					{
+						if (i == 1) continue; // skip sampler_state parameter
+						PrintOp(ctx, instr->Arguments[i].Ptr());
+						if (i < instr->Arguments.Count() - 1)
+							ctx.Body << L", ";
+					}
+					ctx.Body << L")";
+				}
+				else if (instr->Function == L"SampleGrad")
+				{
+					if (instr->Arguments.Count() == 6)
+						ctx.Body << L"textureGradOffset";
+					else
+						ctx.Body << L"textureGrad";
+					ctx.Body << L"(";
+					for (int i = 0; i < instr->Arguments.Count(); i++)
+					{
+						if (i == 1) continue; // skip sampler_state parameter
+						PrintOp(ctx, instr->Arguments[i].Ptr());
+						if (i < instr->Arguments.Count() - 1)
+							ctx.Body << L", ";
+					}
+					ctx.Body << L")";
+				}
+				else if (instr->Function == L"SampleBias")
+				{
+					if (instr->Arguments.Count() == 5) // loc, bias, offset
+					{
+						ctx.Body << L"textureOffset(";
+						PrintOp(ctx, instr->Arguments[0].Ptr());
+						ctx.Body << L", ";
+						PrintOp(ctx, instr->Arguments[2].Ptr());
+						ctx.Body << L", ";
+						PrintOp(ctx, instr->Arguments[4].Ptr());
+						ctx.Body << L", ";
+						PrintOp(ctx, instr->Arguments[3].Ptr());
+						ctx.Body << L")";
+					}
+					else
+					{
+						ctx.Body << L"texture(";
+						PrintOp(ctx, instr->Arguments[0].Ptr());
+						ctx.Body << L", ";
+						PrintOp(ctx, instr->Arguments[2].Ptr());
+						ctx.Body << L", ";
+						PrintOp(ctx, instr->Arguments[3].Ptr());
+						ctx.Body << L")";
+					}
+				}
+				else
+					throw NotImplementedException(L"CodeGen for texture function '" + instr->Function + L"' is not implemented.");
 			}
 
 			void DeclareUniformBuffer(CodeGenContext & sb, const ILObjectDefinition & input, bool /*isVertexShader*/) override
@@ -18193,6 +18395,8 @@ namespace Spire
 				for (auto & field : recType->Members)
 				{
 					if (!useBindlessTexture && field.Value.Type->IsTexture())
+						continue;
+					if (field.Value.Type->IsSamplerState())
 						continue;
 					String declName = field.Key;
 					PrintDef(sb.GlobalHeader, field.Value.Type.Ptr(), declName);
@@ -18220,6 +18424,8 @@ namespace Spire
 				{
 					for (auto & field : recType->Members)
 					{
+						//if (field.Value.Type->IsSamplerState())
+							//continue;
 						if (field.Value.Type->IsTexture())
 						{
 							if (field.Value.Attributes.ContainsKey(L"Binding"))
@@ -18258,6 +18464,8 @@ namespace Spire
 				{
 					if (!useBindlessTexture && info.DataStructure == ExternComponentCodeGenInfo::DataStructureType::UniformBuffer &&
 						field.Value.Type->IsTexture())
+						continue;
+					if (field.Value.Type->IsSamplerState())
 						continue;
 					if (input.Attributes.ContainsKey(L"VertexInput"))
 						sb.GlobalHeader << L"layout(location = " << index << L") ";
@@ -18311,6 +18519,8 @@ namespace Spire
 				int index = 0;
 				for (auto & field : recType->Members)
 				{
+					if (field.Value.Type->IsSamplerState())
+						continue;
 					if (input.Attributes.ContainsKey(L"VertexInput"))
 						sb.GlobalHeader << L"layout(location = " << index << L") ";
 					if (!isVertexShader && (input.Attributes.ContainsKey(L"Flat")))
@@ -18318,22 +18528,14 @@ namespace Spire
 					String declName = field.Key;
 					PrintDef(sb.GlobalHeader, field.Value.Type.Ptr(), declName);
 					itemsDeclaredInBlock++;
-					if (info.IsArray)
-					{
-						sb.GlobalHeader << L"[";
-						if (info.ArrayLength)
-							sb.GlobalHeader << String(info.ArrayLength);
-						sb.GlobalHeader << L"]";
-					}
 					sb.GlobalHeader << L";\n";
-
 					index++;
 				}
 
 				sb.GlobalHeader << L"};\nlayout(std430";
 				if (info.Binding != -1)
 					sb.GlobalHeader << L", binding = " << info.Binding;
-				sb.GlobalHeader  << ") buffer " << input.Name << L"\n{\nT" << input.Name << L"content[];\n} blk" << input.Name << L";\n";
+				sb.GlobalHeader  << ") buffer " << input.Name << L"\n{\nT" << input.Name << L" content[];\n} blk" << input.Name << L";\n";
 			}
 
 			void DeclarePackedBuffer(CodeGenContext & sb, const ILObjectDefinition & input, bool /*isVertexShader*/) override
@@ -18384,6 +18586,8 @@ namespace Spire
 				int index = 0;
 				for (auto & field : recType->Members)
 				{
+					if (field.Value.Type->IsSamplerState())
+						continue;
 					if (input.Attributes.ContainsKey(L"VertexInput"))
 						sb.GlobalHeader << L"layout(location = " << index << L") ";
 					if (!isVertexShader && (input.Attributes.ContainsKey(L"Flat") || field.Value.Type->IsIntegral()))
@@ -18421,6 +18625,8 @@ namespace Spire
 				int index = 0;
 				for (auto & field : recType->Members)
 				{
+					if (field.Value.Type->IsSamplerState())
+						continue;
 					if (!isVertexShader && (input.Attributes.ContainsKey(L"Flat")))
 						sb.GlobalHeader << L"flat ";
 					sb.GlobalHeader << L"patch in ";
@@ -19001,7 +19207,22 @@ namespace Spire
 				return name;
 			}
 
-
+			void PrintTextureCall(CodeGenContext & ctx, CallInstruction * instr)
+			{
+				// texture functions are defined based on HLSL, so this is trivial
+				// internally, texObj.Sample(sampler_obj, uv, ..) is represented as Sample(texObj, sampler_obj, uv, ...)
+				// so we need to lift first argument to the front
+				PrintOp(ctx, instr->Arguments[0].Ptr(), true);
+				ctx.Body << L"." << instr->Function;
+				ctx.Body << L"(";
+				for (int i = 1; i < instr->Arguments.Count(); i++)
+				{
+					PrintOp(ctx, instr->Arguments[i].Ptr());
+					if (i < instr->Arguments.Count() - 1)
+						ctx.Body << L", ";
+				}
+				ctx.Body << L")";
+			}
 
 			void PrintTypeName(StringBuilder& sb, ILType* type) override
 			{
@@ -19891,6 +20112,15 @@ namespace Spire
 				return false;
 		}
 
+		bool ILType::IsSamplerState()
+		{
+			auto basicType = dynamic_cast<ILBasicType*>(this);
+			if (basicType)
+				return basicType->Type == ILBaseType::SamplerState;
+			else
+				return false;
+		}
+
 		int ILType::GetVectorSize()
 		{
 			if (auto basicType = dynamic_cast<ILBasicType*>(this))
@@ -20307,6 +20537,7 @@ namespace Spire
 		{
 		private:
 			ShaderIR * shaderIR;
+			GetDependencyVisitor depVisitor;
 		public:
 			ComponentDefinitionIR * currentCompDef = nullptr;
 			EnumerableDictionary<String, RefPtr<ComponentDefinitionIR>> passThroughComponents;
@@ -20398,7 +20629,13 @@ namespace Spire
 				}
 				else
 				{
-					throw InvalidProgramException(L"import operator not found, should have been checked in semantics pass.");
+					StringBuilder sb;
+					auto targetComp = shaderIR->Shader->AllComponents[componentUniqueName]();
+					sb << L"cannot find import operator to import component '" << targetComp->Name << "' to world '"
+						<< world << L"' when compiling '" << currentCompDef->OriginalName << L"'.\nsee definition of '" << targetComp->Name << L"' at " <<
+						targetComp->Implementations.First()->SyntaxNode->Position.ToString() << L".";
+					Error(34064, sb.ProduceString(), currentCompDef->SyntaxNode.Ptr());
+					return currentCompDef;
 				}
 			}
 
@@ -20444,12 +20681,18 @@ namespace Spire
 				auto refDef = MakeComponentAvailableAtWorld(import->ComponentUniqueName, import->ImportOperatorDef->SourceWorld.Content);
 				if (refDef)
 					import->ComponentUniqueName = refDef->UniqueName;
+				depVisitor.Result.Clear();
+				import->ImportOperatorDef->Accept(&depVisitor);
+				for (auto & x : depVisitor.Result)
+				{
+					ProcessComponentReference(x.ReferencedComponent);
+				}
 				return import;
 			}
 		};
-		void InsertImplicitImportOperators(ShaderIR * shader)
+		void InsertImplicitImportOperators(ErrorWriter * err, ShaderIR * shader)
 		{
-			InsertImplicitImportOperatorVisitor visitor(shader, nullptr);
+			InsertImplicitImportOperatorVisitor visitor(shader, err);
 			for (auto & comp : shader->Definitions)
 			{
 				for (auto & dep : comp->Dependency)
@@ -23084,14 +23327,12 @@ namespace Spire
 					expType->BaseType = BaseType::Float3x3;
 				else if (typeNode->TypeName == L"mat4" || typeNode->TypeName == L"mat4x4" || typeNode->TypeName == L"float4x4" || typeNode->TypeName == L"half4x4")
 					expType->BaseType = BaseType::Float4x4;
-				else if (typeNode->TypeName == L"sampler2D" || typeNode->TypeName == L"Texture2D")
+				else if (typeNode->TypeName == L"texture" || typeNode->TypeName == L"Texture" || typeNode->TypeName == L"Texture2D")
 					expType->BaseType = BaseType::Texture2D;
-				else if (typeNode->TypeName == L"samplerCube")
+				else if (typeNode->TypeName == L"TextureCUBE" || typeNode->TypeName == L"TextureCube")
 					expType->BaseType = BaseType::TextureCube;
-				else if (typeNode->TypeName == L"sampler2DShadow")
-					expType->BaseType = BaseType::TextureShadow;
-				else if (typeNode->TypeName == L"samplerCubeShadow")
-					expType->BaseType = BaseType::TextureCubeShadow;
+				else if (typeNode->TypeName == L"SamplerState" || typeNode->TypeName == L"sampler" || typeNode->TypeName == L"sampler_state")
+					expType->BaseType = BaseType::SamplerState;
 				else if (typeNode->TypeName == L"void")
 					expType->BaseType = BaseType::Void;
 				else if (typeNode->TypeName == L"bool")
@@ -23343,10 +23584,10 @@ namespace Spire
 											varExpr->Variable = funcType->Component->Name;
 									}
 									else
-										Error(33042, L"ordinary functions not allowed as argument to function-typed module parameter.", arg.Ptr());
+										Error(30052, L"ordinary functions not allowed as argument to function-typed module parameter.", arg.Ptr());
 								}
 								else
-									Error(33041, L"invalid value for argument '" + arg->ArgumentName.Content, arg.Ptr());
+									Error(30051, L"invalid value for argument '" + arg->ArgumentName.Content, arg.Ptr());
 							}
 							else
 							{
@@ -23669,6 +23910,12 @@ namespace Spire
 					if (comp->IsParam)
 						Error(33029, L"\'" + compImpl->SyntaxNode->Name.Content + L"\': requirement clash with previous definition.",
 							compImpl->SyntaxNode.Ptr());
+					else
+					{
+						if (!compSym->Type->DataType->Equals(comp->Type.Ptr()))
+							Error(30035, L"'" + comp->Name.Content + L"': type of overloaded component mismatches previous definition.\nsee previous definition at " +
+								compSym->Implementations.First()->SyntaxNode->Position.ToString(), comp->Name);
+					}
 					if (compImpl->SyntaxNode->Parameters.Count())
 						Error(33032, L"\'" + compImpl->SyntaxNode->Name.Content + L"\': function redefinition.\nsee previous definition at " +
 							compSym->Implementations.Last()->SyntaxNode->Position.ToString(), compImpl->SyntaxNode.Ptr());
@@ -24105,11 +24352,12 @@ namespace Spire
 				else
 				{
 					auto & baseExprType = expr->BaseExpression->Type;
-					bool isError = baseExprType->AsGenericType() &&
-							(baseExprType->AsGenericType()->GenericTypeName != L"ArrayBuffer" ||
-							 baseExprType->AsGenericType()->GenericTypeName != L"PackedBuffer");
-					isError = isError || (baseExprType->AsBasicType() && GetVectorSize(baseExprType->AsBasicType()->BaseType) == 0);
-					if (isError)
+					bool isValid = baseExprType->AsGenericType() &&
+							(baseExprType->AsGenericType()->GenericTypeName == L"ArrayBuffer" ||
+							 baseExprType->AsGenericType()->GenericTypeName == L"PackedBuffer");
+					isValid = isValid || (baseExprType->AsBasicType() && GetVectorSize(baseExprType->AsBasicType()->BaseType) != 0);
+					isValid = isValid || baseExprType->AsArrayType();
+					if (!isValid)
 					{
 						Error(30013, L"'[]' can only index on arrays.", expr);
 						expr->Type = ExpressionType::Error;
@@ -24248,6 +24496,16 @@ namespace Spire
 						return invoke;
 					}
 				}
+				else
+				{
+					invoke->Arguments.Insert(0, memberExpr->BaseExpression);
+					auto funcExpr = new VarExpressionSyntaxNode();
+					funcExpr->Scope = invoke->Scope;
+					funcExpr->Position = invoke->Position;
+					funcExpr->Variable = memberExpr->MemberName;
+					invoke->FunctionExpr = funcExpr;
+					return ResolveFunctionOverload(invoke, funcExpr, invoke->Arguments);
+				}
 				return invoke;
 			}
 
@@ -24313,8 +24571,8 @@ namespace Spire
 									argList << L", ";
 							}
 							Error(33072, L"'" + varExpr->Variable + L"' is an import operator defined in pipeline '" + currentShader->Pipeline->SyntaxNode->Name.Content
-								+ L"', but none of the import operator overloads matches argument list '(" +
-								argList.ProduceString() + L"').",
+								+ L"', but none of the import operator overloads converting to world '" + currentCompNode->Rate->Worlds.First().World.Content + L"' matches argument list (" +
+								argList.ProduceString() + L").",
 								varExpr);
 							invoke->Type = ExpressionType::Error;
 						}
@@ -25073,7 +25331,7 @@ namespace Spire
 							codeGen->ProcessFunction(func.Ptr());
 						for (auto & shader : shaderClosures)
 						{
-							InsertImplicitImportOperators(shader.Value->IR.Ptr());
+							InsertImplicitImportOperators(result.GetErrorWriter(), shader.Value->IR.Ptr());
 						}
 						if (result.ErrorList.Count() > 0)
 							return;
@@ -30804,18 +31062,15 @@ __intrinsic float smoothstep(float e0, float e1, float v);
 __intrinsic vec2 smoothstep(vec2 e0, vec2 e1, vec2 v);
 __intrinsic vec3 smoothstep(vec3 e0, vec3 e1, vec3 v);
 __intrinsic vec4 smoothstep(vec4 e0, vec4 e1, vec4 v);
-__intrinsic vec4 texture(sampler2D tex, vec2 coord);
-__intrinsic vec4 texture(samplerCube tex, vec3 coord);
-__intrinsic vec4 textureGrad(sampler2D tex, vec2 coord, vec2 dPdx, vec2 dPdy);
-__intrinsic vec4 textureGrad(samplerCube tex, vec3 coord, vec3 dPdx, vec3 dPdy);
-__intrinsic vec4 texture(samplerCube tex, vec3 coord, float bias);
-__intrinsic float texture(sampler2DShadow tex, vec3 coord);
-__intrinsic float texture(samplerCubeShadow tex, vec4 coord);
-__intrinsic vec4 textureProj(sampler2D tex, vec3 coord);
-__intrinsic vec4 textureProj(samplerCube tex, vec4 coord);
-__intrinsic float textureProj(sampler2DShadow tex, vec4 coord);
-__intrinsic float textureProj(samplerCubeShadow tex, vec4 coord);
-__intrinsic vec4 texelFetch(sampler2D sampler, ivec2 P, int lod);
+__intrinsic vec4 Sample(Texture2D tex, SamplerState sampler, vec2 uv);
+__intrinsic vec4 Sample(Texture2D tex, SamplerState sampler, vec2 uv, ivec2 offset);
+__intrinsic vec4 Sample(TextureCube tex, SamplerState sampler, vec3 uv);
+__intrinsic vec4 SampleGrad(Texture2D tex, SamplerState sampler, vec2 uv, vec2 ddx, vec2 ddy);
+__intrinsic vec4 SampleGrad(Texture2D tex, SamplerState sampler, vec2 uv, vec2 ddx, vec2 ddy, ivec2 offset);
+__intrinsic vec4 SampleGrad(TextureCube tex, SamplerState sampler, vec3 uv, vec3 ddx, vec3 ddy);
+__intrinsic vec4 SampleBias(Texture2D tex, SamplerState sampler, vec2 uv, float bias);
+__intrinsic vec4 SampleBias(Texture2D tex, SamplerState sampler, vec2 uv, float bias, ivec2 offset);
+__intrinsic vec4 SampleBias(TextureCube tex, SamplerState sampler, vec3 uv, float bias);
 __intrinsic float diff(float v);
 __intrinsic float mod(float x, float y);
 __intrinsic float max(float v);
@@ -31689,7 +31944,8 @@ namespace Spire
 			return (basicType->BaseType == BaseType &&
 				basicType->Func == Func &&
 				basicType->Shader == Shader &&
-				basicType->Struct == Struct);
+				basicType->Struct == Struct &&
+				basicType->RecordTypeName == RecordTypeName);
 		}
 
 		bool BasicExpressionType::IsVectorType() const
@@ -31758,12 +32014,6 @@ namespace Spire
 				break;
 			case Compiler::BaseType::TextureCube:
 				res.Append(L"samplerCube");
-				break;
-			case Compiler::BaseType::TextureShadow:
-				res.Append(L"samplerShadow");
-				break;
-			case Compiler::BaseType::TextureCubeShadow:
-				res.Append(L"samplerCubeShadow");
 				break;
 			case Compiler::BaseType::Function:
 				res.Append(Func->SyntaxNode->InternalName);
@@ -32125,10 +32375,6 @@ namespace Spire
 					rs->TypeName = L"sampler2D";
 				else if (t.BaseType == BaseType::TextureCube)
 					rs->TypeName = L"samplerCube";
-				else if (t.BaseType == BaseType::TextureShadow)
-					rs->TypeName = L"samplerShadow";
-				else if (t.BaseType == BaseType::TextureCubeShadow)
-					rs->TypeName = L"samplerCubeShadow";
 				return rs;
 			}
 			else if (auto arrayType = dynamic_cast<ArrayExpressionType*>(type))
@@ -32260,9 +32506,7 @@ namespace Spire
 			auto basicType = AsBasicType();
 			if (basicType)
 				return basicType->BaseType == BaseType::Texture2D ||
-					basicType->BaseType == BaseType::TextureCube ||
-					basicType->BaseType == BaseType::TextureCubeShadow ||
-					basicType->BaseType == BaseType::TextureShadow;
+					basicType->BaseType == BaseType::TextureCube;
 			return false;
 		}
 		bool ExpressionType::IsStruct() const
@@ -32561,72 +32805,6 @@ namespace Spire
 {
 	namespace Compiler
 	{
-		class ComponentDependency
-		{
-		public:
-			String ReferencedComponent;
-			ImportOperatorDefSyntaxNode * ImportOperator = nullptr;
-			ComponentDependency() = default;
-			ComponentDependency(String compName, ImportOperatorDefSyntaxNode * impOp)
-				: ReferencedComponent(compName), ImportOperator(impOp)
-			{}
-			int GetHashCode()
-			{
-				return ReferencedComponent.GetHashCode() ^ (int)(CoreLib::PtrInt)(void*)(ImportOperator);
-			}
-			bool operator == (const ComponentDependency & other)
-			{
-				return ReferencedComponent == other.ReferencedComponent && ImportOperator == other.ImportOperator;
-			}
-		};
-		class GetDependencyVisitor : public SyntaxVisitor
-		{
-		public:
-			EnumerableHashSet<ComponentDependency> Result;
-			GetDependencyVisitor()
-				: SyntaxVisitor(nullptr)
-			{}
-
-			RefPtr<ExpressionSyntaxNode> VisitVarExpression(VarExpressionSyntaxNode * var) override
-			{
-				RefPtr<Object> refCompObj;
-				if (var->Tags.TryGetValue(L"ComponentReference", refCompObj))
-				{
-					auto refComp = refCompObj.As<StringObject>().Ptr();
-					Result.Add(ComponentDependency(refComp->Content, nullptr));
-				}
-				return var;
-			}
-
-			RefPtr<ExpressionSyntaxNode> VisitMemberExpression(MemberExpressionSyntaxNode * member) override
-			{
-				RefPtr<Object> refCompObj;
-				if (member->Tags.TryGetValue(L"ComponentReference", refCompObj))
-				{
-					auto refComp = refCompObj.As<StringObject>().Ptr();
-					Result.Add(ComponentDependency(refComp->Content, nullptr));
-				}
-				else
-					member->BaseExpression->Accept(this);
-				return member;
-			}
-
-			RefPtr<ExpressionSyntaxNode> VisitImportExpression(ImportExpressionSyntaxNode * syntax) override
-			{
-				for (auto & comp : syntax->ImportOperatorDef->Usings)
-					Result.Add(ComponentDependency(comp, nullptr));
-				Result.Add(ComponentDependency(syntax->ComponentUniqueName, syntax->ImportOperatorDef.Ptr()));
-				return SyntaxVisitor::VisitImportExpression(syntax);
-			}
-		};
-
-		EnumerableHashSet<ComponentDependency> GetDependentComponents(SyntaxNode * tree)
-		{
-			GetDependencyVisitor visitor;
-			tree->Accept(&visitor);
-			return visitor.Result;
-		}
-
 		void ShaderIR::EliminateDeadCode()
 		{
 			// mark entry points

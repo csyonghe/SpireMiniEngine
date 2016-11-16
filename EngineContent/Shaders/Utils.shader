@@ -37,6 +37,7 @@ module SystemUniforms
     public @ViewUniform mat4 invViewTransform;
     public @ViewUniform mat4 invViewProjTransform;
     public @ViewUniform vec3 cameraPos;
+    public @ViewUniform SamplerState textureSampler;
     public vec3 lightDir = vec3(1.0, 1.0, 0.0);
     public vec3 lightColor = vec3(1.5, 1.5, 1.5);
 }
@@ -241,7 +242,8 @@ module PN_Tessellation : TessellationPipeline
 
 module ParallaxOcclusionMapping
 {
-    require sampler2D heightTexture;
+    require SamplerState textureSampler;
+    require Texture2D heightTexture;
     require vec3 viewDirTangentSpace;
     require vec2 uv;
     require float parallaxScale;
@@ -268,7 +270,7 @@ module ParallaxOcclusionMapping
         vec2 currentTextureCoords = T;
 
         // depth from heightmap
-        float heightFromTexture = 1.0-texture(heightTexture, currentTextureCoords).r;
+        float heightFromTexture = 1.0-heightTexture.Sample(textureSampler, currentTextureCoords).r;
 
         // while point is above the surface
         while (heightFromTexture > curLayerHeight) 
@@ -278,7 +280,7 @@ module ParallaxOcclusionMapping
             // shift of texture coordinates
             currentTextureCoords -= dtex;
             // new depth from heightmap
-            heightFromTexture = 1.0-texture(heightTexture, currentTextureCoords).r;
+            heightFromTexture = 1.0-heightTexture.Sample(textureSampler, currentTextureCoords).r;
         }
          ///////////////////////////////////////////////////////////
         // Start of Relief Parallax Mapping
@@ -300,7 +302,7 @@ module ParallaxOcclusionMapping
             deltaHeight /= 2;
 
             // new depth from heightmap
-            heightFromTexture = 1.0-texture(heightTexture, currentTextureCoords).r;
+            heightFromTexture = 1.0-heightTexture.Sample(textureSampler, currentTextureCoords).r;
 
             // shift along or agains vector V
             if(heightFromTexture > curLayerHeight) // below the surface
@@ -344,7 +346,7 @@ module ParallaxOcclusionMapping
             // current parameters
             float currentLayerHeight = initialHeight - layerHeight;
             vec2 currentTextureCoords = initialTexCoord + texStep;
-            float heightFromTexture	= 1.0-texture(heightTexture, currentTextureCoords).r;
+            float heightFromTexture	= 1.0-heightTexture.Sample(textureSampler, currentTextureCoords).r;
             // while point is below depth 0.0 )
             while(currentLayerHeight > 0)
             {
@@ -358,7 +360,7 @@ module ParallaxOcclusionMapping
                 // ofFragmentet to the next layer
                 currentLayerHeight -= layerHeight;
                 currentTextureCoords += texStep;
-                heightFromTexture = 1.0-texture(heightTexture, currentTextureCoords).r;
+                heightFromTexture = 1.0-heightTexture.Sample(textureSampler, currentTextureCoords).r;
             }
 
             // Shadowing factor should be 1 if there were no points under the surface

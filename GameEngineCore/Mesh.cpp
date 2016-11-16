@@ -84,6 +84,7 @@ namespace GameEngine
 				sb << L"public @MeshVertex vec2 vertUV" << i << L";\n";
 			for (int i = numUVs; i < 8; i++)
 				sb << L"public inline vec2 vertUV" << i << L" = vec2(0.0);\n";
+			sb << L"public vec2 vertUV = vertUV0;\n";
 			if (hasTangent)
 			{
 				sb << LR"(

@@ -4,18 +4,20 @@ shader DeferredLighting
 	public @rootVert vec2 vertUV;
 	public using SystemUniforms;
 
-	@perInstanceUniform sampler2D albedoTex;
-	@perInstanceUniform sampler2D pbrTex;
-	@perInstanceUniform sampler2D normalTex;
-	@perInstanceUniform sampler2D depthTex;
+	@perInstanceUniform Texture2D albedoTex;
+	@perInstanceUniform Texture2D pbrTex;
+	@perInstanceUniform Texture2D normalTex;
+	@perInstanceUniform Texture2D depthTex;
+	@perInstanceUniform SamplerState textureSampler;
 
     public vec4 projCoord = vec4(vertPos.xy, 0.0, 1.0);
 
-	public vec3 normal = texture(normalTex, vertUV).xyz;
-	public float roughness = texture(pbrTex, vertUV).x;
-	public float metallic = texture(pbrTex, vertUV).y;
-	public float specular = texture(pbrTex, vertUV).z;
-	public vec3 albedo = texture(albedoTex, vertUV).xyz;
+	public vec3 normal = normalTex.Sample(textureSampler, vertUV).xyz;
+	public vec3 pbr = pbrTex.Sample(textureSampler, vertUV);
+	public float roughness = pbr.x;
+	public float metallic = pbr.y;
+	public float specular = pbr.z;
+	public vec3 albedo = albedoTex.Sample(textureSampler, vertUV).xyz;
 
     vec3 lightParam = vec3(roughness, metallic, specular);
 	float z = texture(depthTex, vertUV).r*2-1;
