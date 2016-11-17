@@ -23,56 +23,56 @@ pipeline StandardPipeline
     
     [Binding: "2"]
     extern @(CoarseVertex*, Fragment*) Uniform<MaterialUniform> MaterialUniformBlock; 
-    import(MaterialUniform->CoarseVertex) uniformImport()
+    import(MaterialUniform->CoarseVertex) uniformImport<T>()
     {
-        return MaterialUniformBlock;
+        return project(MaterialUniformBlock);
     }
-    import(MaterialUniform->Fragment) uniformImport()
+    import(MaterialUniform->Fragment) uniformImport<T>()
     {
-        return MaterialUniformBlock;
+        return project(MaterialUniformBlock);
     }
 
     [Binding: "1"]
     extern @(CoarseVertex*, Fragment*) Uniform<ViewUniform> ViewUniformBlock;
-    import(ViewUniform->CoarseVertex) uniformImport()
+    import(ViewUniform->CoarseVertex) uniformImport<T>()
     {
-        return ViewUniformBlock;
+        return project(ViewUniformBlock);
     }
-    import(ViewUniform->Fragment) uniformImport()
+    import(ViewUniform->Fragment) uniformImport<T>()
     {
-        return ViewUniformBlock;
+        return project(ViewUniformBlock);
     }
     
     [Binding: "0"]
     extern @(CoarseVertex*, Fragment*) Uniform<ModelInstance> ModelInstanceBlock;
-    import(ModelInstance->CoarseVertex) uniformImport()
+    import(ModelInstance->CoarseVertex) uniformImport<T>()
     {
-        return ModelInstanceBlock;
+        return project(ModelInstanceBlock);
     }
-    import(ModelInstance->Fragment) uniformImport()
+    import(ModelInstance->Fragment) uniformImport<T>()
     {
-        return ModelInstanceBlock;
+        return project(ModelInstanceBlock);
     }
     
     [Binding: "3"]
     extern @(CoarseVertex*) StorageBuffer<SkeletonData> SkeletonDataBlock;
-    import(SkeletonData->CoarseVertex) uniformImport()
+    import(SkeletonData->CoarseVertex) uniformImport<T>()
     {
-        return SkeletonDataBlock;
+        return project(SkeletonDataBlock);
     }
     
     [VertexInput]
     extern @CoarseVertex MeshVertex vertAttribIn;
     import(MeshVertex->CoarseVertex) vertexImport()
     {
-        return vertAttribIn;
+        return project(vertAttribIn);
     }
     
     extern @Fragment CoarseVertex CoarseVertexIn;
-    import(CoarseVertex->Fragment) standardImport()
-        require trait IsTriviallyPassable(CoarseVertex)
+    import(CoarseVertex->Fragment) standardImport<T>()
+        require trait IsTriviallyPassable(T)
     {
-        return CoarseVertexIn;
+        return project(CoarseVertexIn);
     }
     
     stage vs : VertexShader
@@ -117,9 +117,9 @@ pipeline TessellationPipeline : StandardPipeline
     
     [Binding: "3"]
     extern @(CoarseVertex*, Fragment*, ControlPoint*, FineVertex*) StorageBuffer<SkeletonData> SkeletonDataBlock;
-    import(SkeletonData->CoarseVertex) uniformImport()
+    import(SkeletonData->CoarseVertex) uniformImport<T>()
     {
-        return SkeletonDataBlock;
+        return project(SkeletonDataBlock);
     }
     
     require @FineVertex vec4 projCoord; 
@@ -128,90 +128,90 @@ pipeline TessellationPipeline : StandardPipeline
     [Binding: "2"]
     extern @(CoarseVertex*, Fragment*, ControlPoint*, FineVertex*, TessPatch*) Uniform<MaterialUniform> instanceUniformBlock;
     
-    import(MaterialUniform->CoarseVertex) uniformImport() { return instanceUniformBlock; }
-    import(MaterialUniform->Fragment) uniformImport() { return instanceUniformBlock; }
-    import(MaterialUniform->ControlPoint) uniformImport() { return instanceUniformBlock; }
-    import(MaterialUniform->FineVertex) uniformImport() { return instanceUniformBlock; }
-    import(MaterialUniform->TessPatch) uniformImport() { return instanceUniformBlock; }
+    import(MaterialUniform->CoarseVertex) uniformImport<T>() { return project(instanceUniformBlock); }
+    import(MaterialUniform->Fragment) uniformImport<T>() { return project(instanceUniformBlock); }
+    import(MaterialUniform->ControlPoint) uniformImport<T>() { return project(instanceUniformBlock); }
+    import(MaterialUniform->FineVertex) uniformImport<T>() { return project(instanceUniformBlock); }
+    import(MaterialUniform->TessPatch) uniformImport<T>() { return project(instanceUniformBlock); }
     
     [Binding: "1"]
     extern @(CoarseVertex*, Fragment*, ControlPoint*, FineVertex*, TessPatch*) Uniform<ViewUniform> ViewUniformBlock;
     
-    import(ViewUniform->CoarseVertex) uniformImport() { return ViewUniformBlock; }
-    import(ViewUniform->Fragment) uniformImport() { return ViewUniformBlock; }
-    import(ViewUniform->ControlPoint) uniformImport() { return ViewUniformBlock; }
-    import(ViewUniform->FineVertex) uniformImport() { return ViewUniformBlock; }
-    import(ViewUniform->TessPatch) uniformImport() { return ViewUniformBlock; }
+    import(ViewUniform->CoarseVertex) uniformImport<T>() { return project(ViewUniformBlock); }
+    import(ViewUniform->Fragment) uniformImport<T>() { return project(ViewUniformBlock); }
+    import(ViewUniform->ControlPoint) uniformImport<T>() { return project(ViewUniformBlock); }
+    import(ViewUniform->FineVertex) uniformImport<T>() { return project(ViewUniformBlock); }
+    import(ViewUniform->TessPatch) uniformImport<T>() { return project(ViewUniformBlock); }
     
     [Binding: "0"]
     extern @(CoarseVertex*, Fragment*, ControlPoint*, FineVertex*, TessPatch*) Uniform<ModelInstance> modelUniformBlock;
     
-    import(ModelInstance->CoarseVertex) uniformImport() { return modelUniformBlock; }
-    import(ModelInstance->ControlPoint) uniformImport() { return modelUniformBlock; }
-    import(ModelInstance->FineVertex) uniformImport() { return modelUniformBlock; }
-    import(ModelInstance->TessPatch) uniformImport() { return modelUniformBlock; }
+    import(ModelInstance->CoarseVertex) uniformImport() { return project(modelUniformBlock); }
+    import(ModelInstance->ControlPoint) uniformImport() { return project(modelUniformBlock); }
+    import(ModelInstance->FineVertex) uniformImport() { return project(modelUniformBlock); }
+    import(ModelInstance->TessPatch) uniformImport() { return project(modelUniformBlock); }
     
-    import(ModelInstance->Fragment) uniformImport() { return modelUniformBlock; }
+    import(ModelInstance->Fragment) uniformImport() { return project(modelUniformBlock); }
     
     [VertexInput]
     extern @CoarseVertex MeshVertex vertAttribs;
-    import(MeshVertex->CoarseVertex) vertexImport() { return vertAttribs; }
+    import(MeshVertex->CoarseVertex) vertexImport() { return project(vertAttribs); }
     
     // implicit import operator CoarseVertex->CornerPoint
     extern @CornerPoint CoarseVertex[] CoarseVertex_ControlPoint;
     [PerCornerIterator]
     extern @CornerPoint int sysLocalIterator;
-    import (CoarseVertex->CornerPoint) standardImport()
-        require trait IsTriviallyPassable(CoarseVertex)
+    import (CoarseVertex->CornerPoint) standardImport<T>()
+        require trait IsTriviallyPassable(T)
     {
-        return CoarseVertex_ControlPoint[sysLocalIterator];
+        return project(CoarseVertex_ControlPoint[sysLocalIterator]);
     } 
     
     // implicit import operator FineVertex->Fragment
     extern @Fragment FineVertex tes_Fragment;
-    import(FineVertex->Fragment) standardImport()
-        require trait IsTriviallyPassable(FineVertex)
+    import(FineVertex->Fragment) standardImport<T>()
+        require trait IsTriviallyPassable(T)
     {
-        return tes_Fragment;
+        return project(tes_Fragment);
     } 
 
     extern @ControlPoint CoarseVertex[] CoarseVertex_ControlPoint;
     extern @TessPatch CoarseVertex[] CoarseVertex_ControlPoint;
     [InvocationId]
     extern @ControlPoint int invocationId;
-    import(CoarseVertex->ControlPoint) indexImport(int id)
-        require trait IsTriviallyPassable(CoarseVertex)
+    import(CoarseVertex->ControlPoint) indexImport<T>(int id)
+        require trait IsTriviallyPassable(T)
     {
-        return CoarseVertex_ControlPoint[id];
+        return project(CoarseVertex_ControlPoint[id]);
     }
-    import(CoarseVertex->TessPatch) indexImport(int id)
-        require trait IsTriviallyPassable(CoarseVertex)
+    import(CoarseVertex->TessPatch) indexImport<T>(int id)
+        require trait IsTriviallyPassable(T)
     {
-        return CoarseVertex_ControlPoint[id];
+        return project(CoarseVertex_ControlPoint[id]);
     }
     extern @FineVertex ControlPoint[] ControlPoint_tes;
-    import(ControlPoint->FineVertex) indexImport(int id)
-        require trait IsTriviallyPassable(CoarseVertex)
+    import(ControlPoint->FineVertex) indexImport<T>(int id)
+        require trait IsTriviallyPassable(T)
     {
-        return ControlPoint_tes[id];
+        return project(ControlPoint_tes[id]);
     }
     extern @FineVertex Patch<TessPatch> perPatch_tes;
-    import (TessPatch->FineVertex) standardImport()
-        require trait IsTriviallyPassable(CoarseVertex)
+    import (TessPatch->FineVertex) standardImport<T>()
+        require trait IsTriviallyPassable(T)
     {
-        return perPatch_tes;
+        return project(perPatch_tes);
     }
     
     extern @FineVertex Patch<CornerPoint[3]> perCorner_tes;
     [TessCoord]
     extern @FineVertex vec3 tessCoord;
-    import(CornerPoint->FineVertex) standardImport()
-        require CornerPoint operator + (CornerPoint, CornerPoint)
-        require CornerPoint operator * (CornerPoint, float)
+    import(CornerPoint->FineVertex) standardImport<T>()
+        require T operator + (T, T)
+        require T operator * (T, float)
     {
-        return perCorner_tes[0] * tessCoord.x +
-               perCorner_tes[1] * tessCoord.y +
-               perCorner_tes[2] * tessCoord.z;
+        return project(perCorner_tes[0]) * tessCoord.x +
+               project(perCorner_tes[1]) * tessCoord.y +
+               project(perCorner_tes[2]) * tessCoord.z;
     }
       
     stage vs : VertexShader

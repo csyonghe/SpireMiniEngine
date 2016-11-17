@@ -494,43 +494,43 @@ namespace GraphicsUI
 				extern @(vs*, fs*) Uniform<uniformIn> uniformInBlock;
 				import(uniformIn->vs) uniformImport()
 				{
-					return uniformInBlock;
+					return project(uniformInBlock);
 				}
 				import(uniformIn->fs) uniformImport()
 				{
-					return uniformInBlock;
+					return project(uniformInBlock);
 				}
 				[Binding: "1"]
 				extern @(vs*, fs*) StorageBuffer<primitiveUniform> primitiveUniformBlock;
 				import(primitiveUniform->vs) uniformImport()
 				{
-					return primitiveUniformBlock;
+					return project(primitiveUniformBlock);
 				}
 				import(primitiveUniform->fs) uniformImport()
 				{
-					return primitiveUniformBlock;
+					return project(primitiveUniformBlock);
 				}
 				[Binding: "2"]
 				extern @(vs*, fs*) StorageBuffer<textBuffer> textBufferBlock;
 				import(textBuffer->vs) uniformImport()
 				{
-					return textBufferBlock;
+					return project(textBufferBlock);
 				}
 				import(textBuffer->fs) uniformImport()
 				{
-					return textBufferBlock;
+					return project(textBufferBlock);
 				}
 
 				extern @vs rootVert vertAttribIn;
 				import(rootVert->vs) vertexImport()
 				{
-					return vertAttribIn;
+					return project(vertAttribIn);
 				}
 
 				extern @fs vs vsIn;
 				import(vs->fs) standardImport()
 				{
-					return vsIn;
+					return project(vsIn);
 				}
     
 				stage vs : VertexShader

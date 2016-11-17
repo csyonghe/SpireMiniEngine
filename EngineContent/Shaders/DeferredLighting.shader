@@ -1,14 +1,14 @@
 shader DeferredLighting
 {
-	public @rootVert vec2 vertPos;
-	public @rootVert vec2 vertUV;
+	public @MeshVertex vec2 vertPos;
+	public @MeshVertex vec2 vertUV;
 	public using SystemUniforms;
 
-	@perInstanceUniform Texture2D albedoTex;
-	@perInstanceUniform Texture2D pbrTex;
-	@perInstanceUniform Texture2D normalTex;
-	@perInstanceUniform Texture2D depthTex;
-	@perInstanceUniform SamplerState textureSampler;
+	@MaterialUniform Texture2D albedoTex;
+	@MaterialUniform Texture2D pbrTex;
+	@MaterialUniform Texture2D normalTex;
+	@MaterialUniform Texture2D depthTex;
+	@MaterialUniform SamplerState textureSampler;
 
     public vec4 projCoord = vec4(vertPos.xy, 0.0, 1.0);
 
@@ -27,6 +27,6 @@ shader DeferredLighting
 	vec3 pos = position.xyz / position.w;
 	using lighting = Lighting();
 
-    public out @fs vec4 outputColor = vec4(lighting.result, 1.0);
+    public out @Fragment vec4 outputColor = vec4(lighting.result, 1.0);
     //public out @fs vec4 outputColor = vec4(pos, 1.0);
 }

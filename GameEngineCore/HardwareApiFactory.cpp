@@ -45,7 +45,7 @@ namespace GameEngine
 			spLoadModuleLibraryFromSource(spireCtx, pipelineDef.ToMultiByteString(), "pipeline_def");
 			auto fileContent = CoreLib::IO::File::ReadAllText(actualFilename) + vertexDef + meshProcessingDef;
 			compileResult = spCompileShaderFromSource(spireCtx, fileContent.ToMultiByteString(), actualFilename.ToMultiByteString());
-			shaderSrc = pipelineDef + vertexDef + fileContent;
+			shaderSrc = pipelineDef + fileContent;
 		}
 		else
 		{
