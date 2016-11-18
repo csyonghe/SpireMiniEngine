@@ -118,7 +118,8 @@ module SkeletalAnimation
     require uint boneWeights;
 
     require mat4 viewProjectionTransform;
-    @SkeletonData BoneTransform[] boneTransforms;
+	[Binding:"3"]
+    @ViewUniform StructuredBuffer<BoneTransform> boneTransforms;
     
     public SkinningResult skinning
     {

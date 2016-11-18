@@ -7,10 +7,6 @@ pipeline StandardPipeline
     input world ModelInstance;
     
     [Pinned]
-    input world SkeletonData;
-    
-    [Pinned]
-    
     input world ViewUniform;
     
     [Pinned]
@@ -53,14 +49,7 @@ pipeline StandardPipeline
     {
         return project(ModelInstanceBlock);
     }
-    
-    [Binding: "3"]
-    extern @(CoarseVertex*) StorageBuffer<SkeletonData> SkeletonDataBlock;
-    import(SkeletonData->CoarseVertex) uniformImport<T>()
-    {
-        return project(SkeletonDataBlock);
-    }
-    
+        
     [VertexInput]
     extern @CoarseVertex MeshVertex vertAttribIn;
     import(MeshVertex->CoarseVertex) vertexImport()
@@ -105,22 +94,12 @@ pipeline TessellationPipeline : StandardPipeline
     [Binding: "2"]
     input world MaterialUniform;
     
-    [Pinned]
-    input world SkeletonData;
-    
     world CoarseVertex;
     world ControlPoint;
     world CornerPoint;
     world TessPatch;
     world FineVertex;
     world Fragment;
-    
-    [Binding: "3"]
-    extern @(CoarseVertex*, Fragment*, ControlPoint*, FineVertex*) StorageBuffer<SkeletonData> SkeletonDataBlock;
-    import(SkeletonData->CoarseVertex) uniformImport<T>()
-    {
-        return project(SkeletonDataBlock);
-    }
     
     require @FineVertex vec4 projCoord; 
     require @ControlPoint vec2 tessLevelInner;

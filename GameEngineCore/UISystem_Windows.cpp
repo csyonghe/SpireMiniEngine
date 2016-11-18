@@ -480,12 +480,6 @@ namespace GraphicsUI
 				[Pinned]
 				input world uniformIn;
 
-				[Pinned]
-				input world primitiveUniform;
-
-				[Pinned]
-				input world textBuffer;
-
 				world vs;
 				world fs;
 
@@ -500,27 +494,7 @@ namespace GraphicsUI
 				{
 					return project(uniformInBlock);
 				}
-				[Binding: "1"]
-				extern @(vs*, fs*) StorageBuffer<primitiveUniform> primitiveUniformBlock;
-				import(primitiveUniform->vs) uniformImport()
-				{
-					return project(primitiveUniformBlock);
-				}
-				import(primitiveUniform->fs) uniformImport()
-				{
-					return project(primitiveUniformBlock);
-				}
-				[Binding: "2"]
-				extern @(vs*, fs*) StorageBuffer<textBuffer> textBufferBlock;
-				import(textBuffer->vs) uniformImport()
-				{
-					return project(textBufferBlock);
-				}
-				import(textBuffer->fs) uniformImport()
-				{
-					return project(textBufferBlock);
-				}
-
+				
 				extern @vs rootVert vertAttribIn;
 				import(rootVert->vs) vertexImport()
 				{
@@ -567,8 +541,10 @@ namespace GraphicsUI
 				@rootVert vec2 vert_pos;
 				@rootVert vec2 vert_uv;
 				@rootVert int vert_primId;
-				@primitiveUniform uvec4[] uniformInput;
-				@textBuffer uint[] textContent;
+				[Binding: "1"]
+				@uniformIn StructuredBuffer<uvec4> uniformInput;
+				[Binding: "2"]
+				@uniformIn StructuredBuffer<uint> textContent;
 				vec4 projCoord = orthoMatrix * vec4(vert_pos, 0.0, 1.0);
 				public out @fs vec4 color
 				{
