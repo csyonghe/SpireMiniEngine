@@ -32,15 +32,15 @@ namespace GameEngine
 
 			// initialize input dispatcher
 			inputDispatcher = new InputDispatcher(CreateHardwareInputInterface(args.Window));
-			auto bindingFile = Path::Combine(gameDir, L"bindings.config");
+			auto bindingFile = Path::Combine(gameDir, "bindings.config");
 			if (File::Exists(bindingFile))
 				inputDispatcher->LoadMapping(bindingFile);
 
 			// register internal actor classes
-			RegisterActorClass(L"StaticMesh", []() {return new StaticMeshActor(); });
-			RegisterActorClass(L"SkeletalMesh", []() {return new SkeletalMeshActor(); });
-			RegisterActorClass(L"Camera", []() {return new CameraActor(); });
-			RegisterActorClass(L"FreeRoamCameraController", []() {return new FreeRoamCameraController(); });
+			RegisterActorClass("StaticMesh", []() {return new StaticMeshActor(); });
+			RegisterActorClass("SkeletalMesh", []() {return new SkeletalMeshActor(); });
+			RegisterActorClass("Camera", []() {return new CameraActor(); });
+			RegisterActorClass("FreeRoamCameraController", []() {return new FreeRoamCameraController(); });
 
 			// initialize renderer
 			renderer = CreateRenderer(args.Window, args.API);
@@ -54,14 +54,14 @@ namespace GameEngine
 			auto cmdForm = new CommandForm(uiEntry.Ptr());
 			uiEntry->ShowWindow(cmdForm);
 
-			auto configFile = Path::Combine(gameDir, L"game.config");
+			auto configFile = Path::Combine(gameDir, "game.config");
 			if (File::Exists(configFile))
 			{
-				CoreLib::Text::Parser parser(File::ReadAllText(configFile));
-				if (parser.LookAhead(L"DefaultLevel"))
+				CoreLib::Text::TokenReader parser(File::ReadAllText(configFile));
+				if (parser.LookAhead("DefaultLevel"))
 				{
 					parser.ReadToken();
-					parser.Read(L"=");
+					parser.Read("=");
 					auto defaultLevelName = parser.ReadStringLiteral();
 					LoadLevel(defaultLevelName);
 				}
@@ -69,7 +69,7 @@ namespace GameEngine
 		}
 		catch (const Exception & e)
 		{
-			MessageBox(NULL, e.Message.Buffer(), L"Error", MB_ICONEXCLAMATION);
+			MessageBox(NULL, e.Message.ToWString(), L"Error", MB_ICONEXCLAMATION);
 			exit(1);
 		}
 	}
@@ -189,9 +189,9 @@ namespace GameEngine
 		}
 	}
 
-	RefPtr<Actor> Engine::ParseActor(GameEngine::Level * pLevel, Text::Parser & parser)
+	RefPtr<Actor> Engine::ParseActor(GameEngine::Level * pLevel, Text::TokenReader & parser)
 	{
-		RefPtr<Actor> actor = CreateActor(parser.NextToken().Str);
+		RefPtr<Actor> actor = CreateActor(parser.NextToken().Content);
 		bool isInvalid = false;
 		if (actor)
 			actor->Parse(pLevel, parser, isInvalid);
@@ -207,17 +207,17 @@ namespace GameEngine
 		switch (type)
 		{
 		case ResourceType::Level:
-			subDirName = L"Levels";
+			subDirName = "Levels";
 			break;
 		case ResourceType::Mesh:
-			subDirName = L"Models";
+			subDirName = "Models";
 			break;
 		case ResourceType::Shader:
-			subDirName = L"Shaders";
+			subDirName = "Shaders";
 			break;
 		case ResourceType::Texture:
 		case ResourceType::Material:
-			subDirName = L"Materials";
+			subDirName = "Materials";
 			break;
 		}
 		auto localFile = Path::Combine(gameDir, subDirName, fileName);

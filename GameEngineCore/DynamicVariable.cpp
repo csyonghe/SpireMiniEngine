@@ -2,63 +2,63 @@
 
 namespace GameEngine
 {
-	DynamicVariable DynamicVariable::Parse(CoreLib::Text::Parser & parser)
+	DynamicVariable DynamicVariable::Parse(CoreLib::Text::TokenReader & parser)
 	{
 		DynamicVariable var;
-		if (parser.LookAhead(L"vec2"))
+		if (parser.LookAhead("vec2"))
 		{
 			parser.ReadToken();
 			var.VarType = DynamicVariableType::Vec2;
-			parser.Read(L"[");
+			parser.Read("[");
 			var.Vec2Value.x = (float)parser.ReadDouble();
 			var.Vec2Value.y = (float)parser.ReadDouble();
-			parser.Read(L"]");
+			parser.Read("]");
 		}
-		else if (parser.LookAhead(L"float"))
+		else if (parser.LookAhead("float"))
 		{
 			parser.ReadToken();
 			var.VarType = DynamicVariableType::Float;
-			parser.Read(L"[");
+			parser.Read("[");
 			var.FloatValue = (float)parser.ReadDouble();
-			parser.Read(L"]");
+			parser.Read("]");
 		}
-		else if (parser.LookAhead(L"vec3"))
+		else if (parser.LookAhead("vec3"))
 		{
 			parser.ReadToken();
 			var.VarType = DynamicVariableType::Vec3;
-			parser.Read(L"[");
+			parser.Read("[");
 			var.Vec3Value.x = (float)parser.ReadDouble();
 			var.Vec3Value.y = (float)parser.ReadDouble();
 			var.Vec3Value.z = (float)parser.ReadDouble();
 
-			parser.Read(L"]");
+			parser.Read("]");
 		}
-		else if (parser.LookAhead(L"vec4"))
+		else if (parser.LookAhead("vec4"))
 		{
 			parser.ReadToken();
 			var.VarType = DynamicVariableType::Vec4;
-			parser.Read(L"[");
+			parser.Read("[");
 			var.Vec4Value.x = (float)parser.ReadDouble();
 			var.Vec4Value.y = (float)parser.ReadDouble();
 			var.Vec4Value.z = (float)parser.ReadDouble();
 			var.Vec4Value.w = (float)parser.ReadDouble();
-			parser.Read(L"]");
+			parser.Read("]");
 		}
-		else if (parser.LookAhead(L"int"))
+		else if (parser.LookAhead("int"))
 		{
 			parser.ReadToken();
 			var.VarType = DynamicVariableType::Int;
-			parser.Read(L"[");
+			parser.Read("[");
 			var.FloatValue = (float)parser.ReadInt();
-			parser.Read(L"]");
+			parser.Read("]");
 		}
-		else if (parser.LookAhead(L"texture"))
+		else if (parser.LookAhead("texture"))
 		{
 			parser.ReadToken();
 			var.VarType = DynamicVariableType::Texture;
-			parser.Read(L"[");
+			parser.Read("[");
 			var.StringValue = parser.ReadStringLiteral();
-			parser.Read(L"]");
+			parser.Read("]");
 		}
 		return var;
 	}

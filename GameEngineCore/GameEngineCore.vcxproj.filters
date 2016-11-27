@@ -36,6 +36,8 @@
     </ClCompile>
     <ClCompile Include="HardwareApiFactory.cpp" />
     <ClCompile Include="UISystem_Windows.cpp" />
+    <ClCompile Include="MotionGraph.cpp" />
+    <ClCompile Include="CatmullSpline.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
@@ -80,6 +82,8 @@
     <ClInclude Include="UISystem_Windows.h" />
     <ClInclude Include="RenderPass.h" />
     <ClInclude Include="SharedRenderResource.h" />
+    <ClInclude Include="MotionGraph.h" />
+    <ClInclude Include="CatmullSpline.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Vulkan API">

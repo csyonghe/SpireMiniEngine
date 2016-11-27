@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+VisualStudioVersion = 14.0.25123.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CoreLib", "CoreLib\CoreLib.vcxproj", "{CC291035-BF4A-4C63-B374-F85DB4A9C712}"
 EndProject
@@ -20,6 +20,12 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UnrealLevelConverter", "Tools\UnrealLevelConverter\UnrealLevelConverter.vcxproj", "{517500DD-C6C3-463A-96A9-3007F13CF5BF}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MotionGraphBuilder", "Tools\MotionGraphBuilder\MotionGraphBuilder.vcxproj", "{57C94DA3-A806-4B27-A3BF-B3C65BABE1CB}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PathMeshGenerator", "Tools\PathMeshGenerator\PathMeshGenerator.vcxproj", "{10854CB2-BE7A-479A-8DCD-08F00649CE73}"
+	ProjectSection(ProjectDependencies) = postProject
+		{F5AD4C29-6081-4283-966D-0F8FC9A48E52} = {F5AD4C29-6081-4283-966D-0F8FC9A48E52}
+		{CC291035-BF4A-4C63-B374-F85DB4A9C712} = {CC291035-BF4A-4C63-B374-F85DB4A9C712}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -93,6 +99,14 @@ Global
 		{57C94DA3-A806-4B27-A3BF-B3C65BABE1CB}.Release|x64.Build.0 = Release|x64
 		{57C94DA3-A806-4B27-A3BF-B3C65BABE1CB}.Release|x86.ActiveCfg = Release|Win32
 		{57C94DA3-A806-4B27-A3BF-B3C65BABE1CB}.Release|x86.Build.0 = Release|Win32
+		{10854CB2-BE7A-479A-8DCD-08F00649CE73}.Debug|x64.ActiveCfg = Debug|x64
+		{10854CB2-BE7A-479A-8DCD-08F00649CE73}.Debug|x64.Build.0 = Debug|x64
+		{10854CB2-BE7A-479A-8DCD-08F00649CE73}.Debug|x86.ActiveCfg = Debug|Win32
+		{10854CB2-BE7A-479A-8DCD-08F00649CE73}.Debug|x86.Build.0 = Debug|Win32
+		{10854CB2-BE7A-479A-8DCD-08F00649CE73}.Release|x64.ActiveCfg = Release|x64
+		{10854CB2-BE7A-479A-8DCD-08F00649CE73}.Release|x64.Build.0 = Release|x64
+		{10854CB2-BE7A-479A-8DCD-08F00649CE73}.Release|x86.ActiveCfg = Release|Win32
+		{10854CB2-BE7A-479A-8DCD-08F00649CE73}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -103,9 +117,10 @@ Global
 		{A008BD49-E294-404B-9A9D-81E0F16A3B5B} = {2B999327-7CF3-4231-8141-B1ADC656C244}
 		{517500DD-C6C3-463A-96A9-3007F13CF5BF} = {2B999327-7CF3-4231-8141-B1ADC656C244}
 		{57C94DA3-A806-4B27-A3BF-B3C65BABE1CB} = {2B999327-7CF3-4231-8141-B1ADC656C244}
+		{10854CB2-BE7A-479A-8DCD-08F00649CE73} = {2B999327-7CF3-4231-8141-B1ADC656C244}
 	EndGlobalSection
 	GlobalSection(TeamFoundationVersionControl) = preSolution
-		SccNumberOfProjects = 9
+		SccNumberOfProjects = 10
 		SccEnterpriseProvider = {4CA58AB2-18FA-4F8D-95D4-32DDF27D184C}
 		SccTeamFoundationServer = https://yongsprojects.visualstudio.com/
 		SccLocalPath0 = .
@@ -138,5 +153,9 @@ Global
 		SccProjectTopLevelParentUniqueName8 = GameEngine.sln
 		SccProjectName8 = Tools/MotionGraphBuilder
 		SccLocalPath8 = Tools\\MotionGraphBuilder
+		SccProjectUniqueName9 = Tools\\PathMeshGenerator\\PathMeshGenerator.vcxproj
+		SccProjectTopLevelParentUniqueName9 = GameEngine.sln
+		SccProjectName9 = Tools/PathMeshGenerator
+		SccLocalPath9 = Tools\\PathMeshGenerator
 	EndGlobalSection
 EndGlobal

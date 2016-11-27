@@ -221,7 +221,7 @@ namespace GameEngine
 		case StorageFormat::BC1:
 		case StorageFormat::BC5:
 		case StorageFormat::RGBA_Compressed:
-		default: throw HardwareRendererException(L"Unsupported storage format.");
+		default: throw HardwareRendererException("Unsupported storage format.");
 		}
 	}
 	// Returns size in bytes of a DataType
@@ -268,7 +268,7 @@ namespace GameEngine
 		case DataType::Float4:
 			return 16;
 		default:
-			throw HardwareRendererException(L"Unsupported data type.");
+			throw HardwareRendererException("Unsupported data type.");
 		}
 	}
 
@@ -312,7 +312,7 @@ namespace GameEngine
 		case DataType::Float4:
 			return 4;
 		default:
-			throw HardwareRendererException(L"Unsupported data type.");
+			throw HardwareRendererException("Unsupported data type.");
 		}
 	}
 
@@ -437,7 +437,7 @@ namespace GameEngine
 				int thisheight;
 				dynamic_cast<Texture2D*>(attachment)->GetSize(thiswidth, thisheight);
 				if (thiswidth != width || thisheight != height)
-					throw HardwareRendererException(L"Attachment images must have the same dimensions.");
+					throw HardwareRendererException("Attachment images must have the same dimensions.");
 			}
 #endif
 			Resize(binding + 1);

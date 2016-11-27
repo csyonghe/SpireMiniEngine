@@ -1,5 +1,5 @@
 #include "BvhFile.h"
-#include "CoreLib/Parser.h"
+#include "CoreLib/Tokenizer.h"
 #include "CoreLib/LibIO.h"
 
 using namespace CoreLib;
@@ -11,91 +11,91 @@ namespace GameEngine
 {
 	namespace Tools
 	{
-		RefPtr<BvhJoint> ParseNode(Parser & p)
+		RefPtr<BvhJoint> ParseNode(TokenReader & p)
 		{
 			RefPtr<BvhJoint> result = new BvhJoint();
-			if (p.LookAhead(L"ROOT") || p.LookAhead(L"JOINT"))
+			if (p.LookAhead("ROOT") || p.LookAhead("JOINT"))
 				p.ReadToken();
-			else if (p.LookAhead(L"End"))
+			else if (p.LookAhead("End"))
 			{
 				p.ReadToken();
-				p.Read(L"Site");
-				p.Read(L"{");
-				p.Read(L"OFFSET");
+				p.Read("Site");
+				p.Read("{");
+				p.Read("OFFSET");
 				for (int i = 0; i < 3; i++)
 					result->Offset[i] = (float)p.ReadDouble();
-				p.Read(L"}");
+				p.Read("}");
 				return result;
 			}
 			else
-				throw TextFormatException(L"Invalid file format: expecting 'ROOT' or 'JOINT'.");
-			result->Name = p.ReadToken().Str;
-			p.Read(L"{");
-			while (!p.LookAhead(L"}") && !p.IsEnd())
+				throw TextFormatException("Invalid file format: expecting 'ROOT' or 'JOINT'.");
+			result->Name = p.ReadToken().Content;
+			p.Read("{");
+			while (!p.LookAhead("}") && !p.IsEnd())
 			{
-				if (p.LookAhead(L"OFFSET"))
+				if (p.LookAhead("OFFSET"))
 				{
 					p.ReadToken();
 					for (int i = 0; i < 3; i++)
 						result->Offset[i] = (float)p.ReadDouble();
 				}
-				else if (p.LookAhead(L"CHANNELS"))
+				else if (p.LookAhead("CHANNELS"))
 				{
 					p.ReadToken();
 					int count = p.ReadInt();
 					for (int i = 0; i < count; i++)
 					{
-						auto channelName = p.ReadToken().Str;
+						auto channelName = p.ReadToken().Content;
 						ChannelType ct;
-						if (channelName == L"Xposition")
+						if (channelName == "Xposition")
 							ct = ChannelType::XPos;
-						else if (channelName == L"Yposition")
+						else if (channelName == "Yposition")
 							ct = ChannelType::YPos;
-						else if (channelName == L"Zposition")
+						else if (channelName == "Zposition")
 							ct = ChannelType::ZPos;
-						else if (channelName == L"Xrotation")
+						else if (channelName == "Xrotation")
 							ct = ChannelType::XRot;
-						else if (channelName == L"Yrotation")
+						else if (channelName == "Yrotation")
 							ct = ChannelType::YRot;
-						else if (channelName == L"Zrotation")
+						else if (channelName == "Zrotation")
 							ct = ChannelType::ZRot;
-						else if (channelName == L"Xscale")
+						else if (channelName == "Xscale")
 							ct = ChannelType::XScale;
-						else if (channelName == L"Yscale")
+						else if (channelName == "Yscale")
 							ct = ChannelType::YScale;
-						else if (channelName == L"Zscale")
+						else if (channelName == "Zscale")
 							ct = ChannelType::ZScale;
 						else
-							throw TextFormatException(String(L"invalid channel type: ") + channelName);
+							throw TextFormatException(String("invalid channel type: ") + channelName);
 						result->Channels.Add(ct);
 					}
 				}
-				else if (p.LookAhead(L"JOINT"))
+				else if (p.LookAhead("JOINT"))
 					result->SubJoints.Add(ParseNode(p));
 				else
-					throw TextFormatException(String(L"invalid Bvh field: ") + p.NextToken().Str);
+					throw TextFormatException(String("invalid Bvh field: ") + p.NextToken().Content);
 			}
-			p.Read(L"}");
+			p.Read("}");
 			return result;
 		}
 		BvhFile BvhFile::FromFile(const CoreLib::String & fileName)
 		{
 			BvhFile result;
-			Parser parser(File::ReadAllText(fileName));
+			TokenReader parser(File::ReadAllText(fileName));
 			
-			if (parser.LookAhead(L"HIERARCHY"))
+			if (parser.LookAhead("HIERARCHY"))
 			{
 				parser.ReadToken();
 				result.Hierarchy = ParseNode(parser);
 			}
 
-			if (parser.LookAhead(L"MOTION"))
+			if (parser.LookAhead("MOTION"))
 			{
 				parser.ReadToken();
-				parser.Read(L"Frames");
-				parser.Read(L":");
+				parser.Read("Frames");
+				parser.Read(":");
 				int frameCount = parser.ReadInt();
-				parser.Read(L"Frame"); parser.Read(L"Time"); parser.Read(L":");
+				parser.Read("Frame"); parser.Read("Time"); parser.Read(":");
 				result.FrameDuration = (float)parser.ReadDouble();
 				while (!parser.IsEnd())
 				{

@@ -57,30 +57,35 @@ namespace GraphicsUI
 		{
 			StringBuilder sb;
 			for (auto ch : Chars)
-				if (ch == L'\t')
-					sb << L"    ";
+				if (ch == '\t')
+					sb << "    ";
 				else
-					sb << (wchar_t)ch;
+				{
+					char buf[5];
+					int len = CoreLib::IO::EncodeUnicodePointToUTF8(buf, ch);
+					for (int i = 0; i < len; i++)
+						sb << buf[i];
+				}
 			return sb.ProduceString();
 		}
-		String GetDisplayLine(int i, int tabSpaces, int charCount = -1)
+		List<unsigned int> GetDisplayLine(int i, int tabSpaces, int charCount = -1)
 		{
-			StringBuilder sb;
+			List<unsigned int> sb;
 			if (charCount == 0)
-				return String();
+				return List<unsigned int>();
 			if (lineStarts.Count() == 0)
 			{
 				if (charCount == -1)
 					charCount = Chars.Count();
 				for (auto ch : Chars)
 				{
-					if (ch == L'\t')
+					if (ch == '\t')
 					{
 						for (int z = 0; z < tabSpaces; z++)
-							sb << L" ";
+							sb.Add(' ');
 					}
 					else
-						sb << (wchar_t)ch;
+						sb.Add(ch);
 					charCount--;
 					if (charCount == 0)
 						break;
@@ -94,19 +99,19 @@ namespace GraphicsUI
 					charCount = end - start;
 				for (int j = start; j < end; j++)
 				{
-					if (Chars[j] == L'\t')
+					if (Chars[j] == '\t')
 					{
 						for (int z = 0; z < tabSpaces; z++)
-							sb << L" ";
+							sb.Add(' ');
 					}
 					else
-						sb << (wchar_t)Chars[j];
+						sb.Add(Chars[j]);
 					charCount--;
 					if (charCount == 0)
 						break;
 				}
 			}
-			return sb.ProduceString();
+			return sb;
 		}
 
 		void ClearWordWrap()
@@ -174,7 +179,7 @@ namespace GraphicsUI
 				for (auto & ch : Lines[i].Chars)
 					sb << (wchar_t)ch;
 				if (i < Lines.Count() - 1)
-					sb << L'\n';
+					sb << '\n';
 			}
 			return sb.ProduceString();
 		}
@@ -236,16 +241,16 @@ namespace GraphicsUI
 			}
 			return CaretPos(logicalLine, logicalCol);
 		}
-		String GetDisplayLine(int i, bool wordWrap, int tabSpaces, int & logicalLine, int & logicalCol)
+		List<unsigned int> GetDisplayLine(int i, bool wordWrap, int tabSpaces, int & logicalLine, int & logicalCol)
 		{
 			if (!wordWrap)
 			{
 				logicalLine = i;
 				logicalCol = 0;
 				if (i < Lines.Count())
-					return Lines[i].ToString();
+					return Lines[i].Chars;
 				else
-					return String();
+					return List<unsigned int>();
 			}
 			else
 			{
@@ -264,7 +269,7 @@ namespace GraphicsUI
 				else
 				{
 					logicalCol = 0;
-					return String();
+					return List<unsigned int>();
 				}
 			}
 		}
@@ -272,10 +277,7 @@ namespace GraphicsUI
 		{
 			if (i < 0 || i >= Lines.Count())
 				return String();
-			StringBuilder sb;
-			for (auto & ch : Lines[i].Chars)
-				sb << (wchar_t)ch;
-			return sb.ProduceString();
+			return Lines[i].ToString();
 		}
 		
 		void SetText(const String & text)
@@ -284,14 +286,20 @@ namespace GraphicsUI
 			Lines.Add(TextLine());
 			int line = 0;
 			bool ignoreN = false;
-			for (auto & ch : text)
+			int ptr = 0;
+			
+			while (ptr < text.Length())
 			{
-				if (ignoreN && ch == L'\n')
+				int ch = CoreLib::IO::GetUnicodePointFromUTF8([&](int)
+				{
+					return text[ptr++];
+				});
+				if (ignoreN && ch == '\n')
 				{
 					ignoreN = false;
 					continue;
 				}
-				if (ch == L'\r')
+				if (ch == '\r')
 				{
 					ignoreN = true;
 					line++;
@@ -299,7 +307,7 @@ namespace GraphicsUI
 				}
 				else
 				{
-					if (ch == L'\n')
+					if (ch == '\n')
 					{
 						line++;
 						Lines.Add(TextLine());
@@ -518,7 +526,6 @@ namespace GraphicsUI
 			auto & line = textBuffer.Lines[logicalLine];
 			int start = line.GetSubLineStartCharIndex(counter);
 			int col = line.Chars.Count();
-			auto str = line.GetDisplayLine(counter, TabSpaces);
 			int cx = 0;
 			for (int i = start; i < line.Chars.Count(); i++)
 			{
@@ -560,10 +567,10 @@ namespace GraphicsUI
 			int rs = 0;
 			if (!textWidthCache.TryGetValue(ch, rs))
 			{
-				if (ch == L'\t')
-					rs = font->MeasureString(L" ").w * TabSpaces;
+				if (ch == '\t')
+					rs = font->MeasureString(" ").w * TabSpaces;
 				else
-					rs = font->MeasureString(String((wchar_t)ch)).w;
+					rs = font->MeasureString(String::FromUnicodePoint(ch)).w;
 				textWidthCache[ch] = rs;
 			}
 			return rs;
@@ -580,7 +587,7 @@ namespace GraphicsUI
 				int start = 0;
 				int pos = hScroll->GetPosition();
 				int totalWidth = 0;
-				while (start < lineTxt.Length() && pos > 0)
+				while (start < lineTxt.Count() && pos > 0)
 				{
 					int chWidth = GetCharWidth(lineTxt[start]);
 					totalWidth += chWidth;
@@ -595,14 +602,14 @@ namespace GraphicsUI
 				}
 				int txtWidth = 0;
 				int end = start;
-				while (end < lineTxt.Length() && txtWidth < Width)
+				while (end < lineTxt.Count() && txtWidth < Width)
 				{
 					int chWidth = GetCharWidth(lineTxt[end]);
 					totalWidth += chWidth;
 					txtWidth += chWidth;
 					end++;
 				}
-				for (int j = end; j < Math::Min(end + 100, lineTxt.Length()); j++)
+				for (int j = end; j < Math::Min(end + 100, lineTxt.Count()); j++)
 					totalWidth += GetCharWidth(lineTxt[j]);
 				if (totalWidth > maxLineWidth)
 				{
@@ -611,7 +618,15 @@ namespace GraphicsUI
 				screen[i].LogicalLine = logicalLine;
 				screen[i].LogicalCol = logicalCol;
 				screen[i].label->SetFont(font);
-				screen[i].label->SetText(lineTxt.SubString(start, end - start));
+				// get substring (start, end);
+				StringBuilder displayText((end-start) * 3);
+				for (int ptr = start; ptr < end; ptr++)
+				{
+					char buf[5];
+					int len = CoreLib::IO::EncodeUnicodePointToUTF8(buf, lineTxt[ptr]);
+					displayText.Append(buf, len);
+				}
+				screen[i].label->SetText(displayText.ProduceString());
 				screen[i].label->Left = LeftIndent + offset;
 			}
 			int newHmax = Math::Max(0, maxLineWidth - content->GetWidth() + LeftIndent);
@@ -683,18 +698,18 @@ namespace GraphicsUI
 			BorderStyle = BS_FLAT_;
 
 			contextMenu = new Menu(this);
-			auto mnUndo = new MenuItem(contextMenu, L"&Undo", L"Ctrl+Z");
+			auto mnUndo = new MenuItem(contextMenu, "&Undo", "Ctrl+Z");
 			mnUndo->OnClick.Bind([this](auto) {Undo(); });
-			auto mnRedo = new MenuItem(contextMenu, L"&Redo", L"Ctrl+Y");
+			auto mnRedo = new MenuItem(contextMenu, "&Redo", "Ctrl+Y");
 			mnRedo->OnClick.Bind([this](auto) {Redo(); });
 			new MenuItem(contextMenu);
-			auto mnCut = new MenuItem(contextMenu, L"C&ut", L"Ctrl+X");
+			auto mnCut = new MenuItem(contextMenu, "C&ut", "Ctrl+X");
 			mnCut->OnClick.Bind([this](auto) {Cut(); });
-			auto mnCopy = new MenuItem(contextMenu, L"&Copy", L"Ctrl+C");
+			auto mnCopy = new MenuItem(contextMenu, "&Copy", "Ctrl+C");
 			mnCopy->OnClick.Bind([this](auto) {Copy(); });
-			auto mnPaste = new MenuItem(contextMenu, L"&Paste", L"Ctrl+V");
+			auto mnPaste = new MenuItem(contextMenu, "&Paste", "Ctrl+V");
 			mnPaste->OnClick.Bind([this](auto) {Paste(); });
-			auto mnSelAll = new MenuItem(contextMenu, L"&Select All", L"Ctrl+A");
+			auto mnSelAll = new MenuItem(contextMenu, "&Select All", "Ctrl+A");
 			mnSelAll->OnClick.Bind([this](auto) {SelectAll(); });
 		}
 		virtual void DoDpiChanged() override
@@ -702,7 +717,7 @@ namespace GraphicsUI
 			textWidthCache.Clear();
 			if (font)
 			{
-				int fontLineHeight = this->font->MeasureString(L"X").h;
+				int fontLineHeight = this->font->MeasureString("X").h;
 				lineHeight = (int)(fontLineHeight * 1.1f);
 				CreateLineLabels(Height / lineHeight + 1);
 			}
@@ -892,7 +907,7 @@ namespace GraphicsUI
 			String oldText = GetTextFromRange(start, end);
 			for (int i = lineBegin; i <= lineEnd; i++)
 			{
-				textBuffer.Lines[i].Chars.Insert(0, L'\t');
+				textBuffer.Lines[i].Chars.Insert(0, '\t');
 				if (wordWrap)
 					textBuffer.Lines[i].WordWrap(content->GetWidth() - LeftIndent, *this);
 			}
@@ -927,13 +942,13 @@ namespace GraphicsUI
 			{
 				if (textBuffer.Lines[i].Chars.Count())
 				{
-					if (textBuffer.Lines[i].Chars.First() == L'\t')
+					if (textBuffer.Lines[i].Chars.First() == '\t')
 						textBuffer.Lines[i].Chars.RemoveAt(0);
 					else
 					{
 						for (int j = 0; j < TabSpaces; j++)
 						{
-							if (textBuffer.Lines[i].Chars.First() == L' ')
+							if (textBuffer.Lines[i].Chars.First() == ' ')
 								textBuffer.Lines[i].Chars.RemoveAt(0);
 							else
 								break;
@@ -982,7 +997,7 @@ namespace GraphicsUI
 						for (int i = 0; i < textBuffer.Lines[caretPos.Line - 1].Chars.Count(); i++)
 						{
 							auto ch = textBuffer.Lines[caretPos.Line - 1].Chars[i];
-							if (ch == L'\t' || ch == L' ')
+							if (ch == '\t' || ch == ' ')
 								spacesStr << (wchar_t)ch;
 							else
 								break;
@@ -998,7 +1013,7 @@ namespace GraphicsUI
 						if (selEnd.Line != selStart.Line)
 							IncreaseLineIndent(selStart, selEnd);
 						else
-							InsertText(L'\t');
+							InsertText('\t');
 					}
 					else
 					{
@@ -1517,10 +1532,15 @@ namespace GraphicsUI
 					start.Col = 0;
 					if (start.Line >= textBuffer.Lines.Count())
 						break;
-					sb << L"\n";
+					sb << "\n";
 				}
 				if (start.Line < textBuffer.Lines.Count())
-					sb << (wchar_t)textBuffer.Lines[start.Line].Chars[start.Col];
+				{
+					char buf[5];
+					int len = CoreLib::IO::EncodeUnicodePointToUTF8(buf, textBuffer.Lines[start.Line].Chars[start.Col]);
+					for (int i = 0; i<len; i++)
+						sb << buf[i];
+				}
 				else
 					break;
 				start.Col++;

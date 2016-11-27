@@ -1416,14 +1416,13 @@ namespace GraphicsUI
 		ShadowOffset = 0;
 		ShadowSize = 25.0f;
 		DownPosX = DownPosY = 0;
-		Text = L"Form";
+		Text = "Form";
 		parent->Forms.Add(this);
 		this->content = nullptr;
 		btnClose = new Control(this);
 		lblTitle = new Label(this);
 		lblClose = new Label(this);
-		wchar_t CloseSymbol[2] = {114,0}; 
-		lblClose->SetText(CloseSymbol);
+		lblClose->SetText("\x72");
 		lblClose->SetFont(GetEntry()->System->LoadDefaultFont(GraphicsUI::DefaultFontType::Symbol));
 		btnClose->Visible = false;
 		lblTitle->Visible = false;
@@ -1780,7 +1779,7 @@ namespace GraphicsUI
 		CheckmarkLabel->AutoSize = true;
 		CheckmarkLabel->Visible = false;
 		CheckmarkLabel->SetFont(pSystem->LoadDefaultFont(DefaultFontType::Symbol));
-		CheckmarkLabel->SetText(L"a");
+		CheckmarkLabel->SetText("a");
 		
 		ImeMessageHandler.Init(this);
 		ImeMessageHandler.ImeWindow->Visible = false;
@@ -2232,7 +2231,7 @@ namespace GraphicsUI
 
 	void UIEntry::DoDpiChanged()
 	{
-		int nLineHeight = font->MeasureString(L"M").h;
+		int nLineHeight = font->MeasureString("M").h;
 		if (lineHeight != 0)
 			dpiScale = nLineHeight / (float)lineHeight;
 		Global::DeviceLineHeight = lineHeight = nLineHeight;
@@ -2775,10 +2774,10 @@ namespace GraphicsUI
 		TextBorderX =2; TextBorderY = 4;
 		LabelOffset = TextBorderX;
 		menu = new Menu(this, Menu::msPopup);
-		auto mnCut = new MenuItem(menu, L"Cut", L"Ctrl+X");
-		auto mnCopy = new MenuItem(menu, L"Copy", L"Ctrl+C");
-		auto mnPaste = new MenuItem(menu, L"Paste", L"Ctrl+V");
-		auto mnSelAll = new MenuItem(menu, L"Select All", L"Ctrl+A");
+		auto mnCut = new MenuItem(menu, "Cut", "Ctrl+X");
+		auto mnCopy = new MenuItem(menu, "Copy", "Ctrl+C");
+		auto mnPaste = new MenuItem(menu, "Paste", "Ctrl+V");
+		auto mnSelAll = new MenuItem(menu, "Select All", "Ctrl+A");
 		mnCut->OnClick.Bind([this](auto) 
 		{
 			CopyToClipBoard();
@@ -2854,22 +2853,24 @@ namespace GraphicsUI
 		String curText;
 		posX -= LabelOffset;
 		curText = "";
-		for (int i =0;i<FText.Length();i++)
+		int i = 0;
+		while (i < FText.Length())
 		{
-			curText = curText + FText[i];
+			int lastI = i;
+			do
+			{
+				curText = curText + FText[i];
+				i++;
+			} while (i < FText.Length() && IsUtf8ContinuationByte(FText[i]));
 			int tw = font->MeasureString(curText).w;
 			if (tw>posX)
 			{
-				int cw = font->MeasureString(FText[i]).w;
-				cw /=2;
-				if (tw-cw>posX)
-				{
-					return i;
-				}
+				int cw = font->MeasureString(FText.SubString(lastI, i - lastI)).w;
+				cw /= 2;
+				if (tw - cw > posX)
+					return lastI;
 				else
-				{
-					return i+1;
-				}
+					return i;
 			}
 		}
 		return FText.Length();
@@ -2884,7 +2885,7 @@ namespace GraphicsUI
 
 	bool CustomTextBox::DoInput(const String & AInput)
 	{
-		if (AInput == L"\t")
+		if (AInput == "\t")
 			return false;
 		if (Locked)
 			return true;
@@ -2952,7 +2953,10 @@ namespace GraphicsUI
 				{
 					if (CursorPos==0)
 						return false;
-					CursorPos --;
+					do
+					{
+						CursorPos--;
+					} while (CursorPos > 0 && IsUtf8ContinuationByte(FText[CursorPos]));
 					if (CursorPos<SelStart)
 					{
 						SelStart = CursorPos;
@@ -2971,7 +2975,10 @@ namespace GraphicsUI
 				{
 					if (CursorPos==FText.Length())
 						return false;
-					CursorPos ++;
+					do
+					{
+						CursorPos++;
+					} while (CursorPos < FText.Length() && IsUtf8ContinuationByte(FText[CursorPos]));
 					if (CursorPos<selEnd)
 					{
 						SelStart = CursorPos;
@@ -3016,7 +3023,12 @@ namespace GraphicsUI
 				if (Key == 0x25) // VK_LEFT
 				{
 					if (SelLength == 0)
-						CursorPos--;
+					{
+						do
+						{
+							CursorPos--;
+						} while (CursorPos > 0 && IsUtf8ContinuationByte(FText[CursorPos]));
+					}
 					else
 					{
 						CursorPos = SelStart;
@@ -3028,8 +3040,13 @@ namespace GraphicsUI
 				}			
 				else if (Key == 0x27) // VK_RIGHT
 				{
-					if (SelLength ==0)
-						CursorPos++;
+					if (SelLength == 0)
+					{
+						do
+						{
+							CursorPos++;
+						} while (CursorPos < FText.Length() && IsUtf8ContinuationByte(FText[CursorPos]));
+					}
 					else
 						CursorPos = SelStart+SelLength;
 					SelLength = 0;
@@ -3039,7 +3056,7 @@ namespace GraphicsUI
 				}
 				else if (Key == 0x2E && !Locked) // VK_DELETE
 				{
-					if (SelLength!=0)
+					if (SelLength)
 					{
 						FText = DeleteString(FText, SelStart, SelLength);
 						TextChanged();
@@ -3047,9 +3064,12 @@ namespace GraphicsUI
 						CursorPos = SelStart;
 						cursorPosChanged = true;
 					}
-					else if (CursorPos<(int)FText.Length())
+					else if (CursorPos < FText.Length())
 					{
-						FText = DeleteString(FText, CursorPos, 1);
+						int count = 1;
+						while (CursorPos + count < FText.Length() && IsUtf8ContinuationByte(FText[CursorPos + count]))
+							count++;
+						FText = DeleteString(FText, CursorPos, count);
 						TextChanged();
 					}
 					return true;
@@ -3061,10 +3081,15 @@ namespace GraphicsUI
 						DeleteSelectionText();
 						cursorPosChanged = true;
 					}
-					else if (CursorPos>0)
+					else if (CursorPos > 0)
 					{
-						FText = DeleteString(FText, CursorPos-1, 1);
-						CursorPos--;
+						int count = 0;
+						do
+						{
+							CursorPos--;
+							count++;
+						} while (CursorPos > 0 && IsUtf8ContinuationByte(FText[CursorPos]));
+						FText = DeleteString(FText, CursorPos, count);
 						TextChanged();
 					}
 					return true;
@@ -3081,7 +3106,7 @@ namespace GraphicsUI
 		{
 			if (Key >= 32)
 			{
-				DoInput((wchar_t)Key);
+				DoInput(String::FromWChar((wchar_t)Key));
 				return true;
 			}
 		}
@@ -3186,11 +3211,11 @@ namespace GraphicsUI
 	{
 		Changed = true;
 		if (font)
-			Height = (int)(font->MeasureString(L"M").h * 1.2f);
+			Height = (int)(font->MeasureString("M").h * 1.2f);
 		Container::DoDpiChanged();
 	}
 
-	bool IsSeparatorChar(wchar_t ch)
+	bool IsSeparatorChar(char ch)
 	{
 		bool isLetter = ((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == L'_');
 		return !isLetter;
@@ -3354,7 +3379,7 @@ namespace GraphicsUI
 
 	bool IMEHandler::DoImeStart()
 	{
-		ImeWindow->ChangeCompositionString(String(L""));
+		ImeWindow->ChangeCompositionString(String(""));
 		ImeWindow->Visible = true;
 		return true;
 	}
@@ -3458,14 +3483,14 @@ namespace GraphicsUI
 		if (NewOri == SO_HORIZONTAL)
 		{
 			Height = Global::SCROLLBAR_BUTTON_SIZE;
-			btnInc->SetText(L"4"); 
-			btnDec->SetText(L"3");
+			btnInc->SetText("4"); 
+			btnDec->SetText("3");
 		}
 		else
 		{
 			Width = Global::SCROLLBAR_BUTTON_SIZE;
-			btnInc->SetText(L"6"); 
-			btnDec->SetText(L"5");
+			btnInc->SetText("6"); 
+			btnDec->SetText("5");
 		}
 		SizeChanged();
 	}
@@ -3935,7 +3960,7 @@ namespace GraphicsUI
 	{
 		ItemHeight = 18;
 		if (font)
-			ItemHeight = (int)(font->MeasureString(L"M").h * 1.1f);
+			ItemHeight = (int)(font->MeasureString("M").h * 1.1f);
 		Container::DoDpiChanged();
 	}
 
@@ -4178,7 +4203,7 @@ namespace GraphicsUI
 		btnDrop->AcceptsFocus = false;
 		btnDrop->TabStop = false;
 		btnDrop->SetFont(GetEntry()->System->LoadDefaultFont(DefaultFontType::Symbol));
-		btnDrop->SetText(L"6");
+		btnDrop->SetText("6");
 		btnDrop->BorderColor.A = 0;
 		TextBox = new GraphicsUI::TextBox(this);
 		BorderStyle = BS_FLAT_;
@@ -4285,7 +4310,7 @@ namespace GraphicsUI
 				TextBox->SetText(((Label *)Items[id])->GetText());
 		}
 		else
-			TextBox->SetText(L"");
+			TextBox->SetText("");
 		SelectedIndex = id;
 	}
 
@@ -5282,12 +5307,12 @@ namespace GraphicsUI
 	}
 
 	MenuItem::MenuItem(Menu * parent, const String & text)
-		: MenuItem(parent, text, L"")
+		: MenuItem(parent, text, "")
 	{
 	}
 
 	MenuItem::MenuItem(MenuItem * parent, const String & text)
-		: MenuItem(parent, text, L"")
+		: MenuItem(parent, text, "")
 	{
 	}
 
@@ -5924,7 +5949,7 @@ namespace GraphicsUI
 
 	void ToolStrip::AddSeperator()
 	{
-		ToolButton * btn = new ToolButton(this, L"", ToolButton::bsSeperator, 0);
+		ToolButton * btn = new ToolButton(this, "", ToolButton::bsSeperator, 0);
 		buttons.Add(btn);
 		btn->Parent = this;
 		PositButtons();
@@ -6616,8 +6641,8 @@ namespace GraphicsUI
 		auto symFont = GetEntry()->System->LoadDefaultFont(DefaultFontType::Symbol);
 		btnUp->SetFont(symFont);
 		btnDown->SetFont(symFont);
-		btnUp->SetText(L"5");
-		btnDown->SetText(L"6");
+		btnUp->SetText("5");
+		btnDown->SetText("6");
 	}
 
 	UpDown::~UpDown()
@@ -6651,7 +6676,7 @@ namespace GraphicsUI
 			val -= inc;
 		val = Math::Max(Min, val);
 		val = Math::Min(Max, val);
-		text->SetText(String(val, (L"%." + String(Digits) + L"f").Buffer()));
+		text->SetText(String(val, ("%." + String(Digits) + "f").Buffer()));
 		return true;
 	}
 
@@ -6833,7 +6858,7 @@ namespace GraphicsUI
 	CommandForm::CommandForm(UIEntry * parent)
 		:Form(parent)
 	{
-		this->SetText(L"Command Prompt");
+		this->SetText("Command Prompt");
 		txtCmd = new TextBox(this);
 		txtCmd->SetHeight((int)(GetEntry()->GetLineHeight() * 1.2f));
 		txtCmd->DockStyle = dsBottom;
@@ -6851,13 +6876,13 @@ namespace GraphicsUI
 				{
 					commandHistories.Add(cmdText);
 					cmdPtr = commandHistories.Count();
-					txtCmd->SetText(L"");
-					Write(L"> " + cmdText + L"\n");
+					txtCmd->SetText("");
+					Write("> " + cmdText + "\n");
 					OnCommand(cmdText);
 
 					auto pos = textBox->GetCaretPos();
 					if (pos.Col > 0)
-						textBox->InsertText(L"\n");
+						textBox->InsertText("\n");
 				}
 			}
 			else if (e.Key == Keys::Up)
@@ -6878,7 +6903,7 @@ namespace GraphicsUI
 				if (cmdPtr < commandHistories.Count())
 					txtCmd->SetText(commandHistories[cmdPtr]);
 				else
-					txtCmd->SetText(L"");
+					txtCmd->SetText("");
 			}
 		});
 		this->Posit(10, 10, 500, 400);

@@ -22,6 +22,8 @@ namespace GLL
 	class GUIWindow
 	{};
 
+	bool DebugErrorEnabled = true;
+
 	typedef GUIWindow* GUIHandle;
 
 	class StencilMode
@@ -77,7 +79,7 @@ namespace GLL
 		case BufferUsage::IndexBuffer: return GL_ELEMENT_ARRAY_BUFFER;
 		case BufferUsage::StorageBuffer: return GL_SHADER_STORAGE_BUFFER;
 		case BufferUsage::UniformBuffer: return GL_UNIFORM_BUFFER;
-		default: throw HardwareRendererException(L"Unsupported buffer usage.");
+		default: throw HardwareRendererException("Unsupported buffer usage.");
 		}
 	}
 
@@ -173,7 +175,7 @@ namespace GLL
 			internalFormat = GL_DEPTH_COMPONENT32;
 			break;
 		default:
-			throw HardwareRendererException(L"Unsupported storage format.");
+			throw HardwareRendererException("Unsupported storage format.");
 		}
 		return internalFormat;
 	}
@@ -186,7 +188,7 @@ namespace GLL
 		case 2: return GL_RG;
 		case 3: return GL_RGB;
 		case 4: return GL_RGBA;
-		default: throw HardwareRendererException(L"Unsupported data type.");
+		default: throw HardwareRendererException("Unsupported data type.");
 		}
 	}
 
@@ -234,7 +236,7 @@ namespace GLL
 		case DataType::UInt4_10_10_10_2:
 			return GL_UNSIGNED_INT_2_10_10_10_REV;
 		default:
-			throw HardwareRendererException(L"Unsupported data type.");
+			throw HardwareRendererException("Unsupported data type.");
 		}
 	}
 
@@ -467,7 +469,7 @@ namespace GLL
 			case GL_NOTEQUAL: return CompareFunc::NotEqual;
 			case GL_ALWAYS: return CompareFunc::Always;
 			case GL_NEVER: return CompareFunc::Never;
-			default: throw HardwareRendererException(L"Not implemented");
+			default: throw HardwareRendererException("Not implemented");
 			}
 		}
 	};
@@ -772,7 +774,7 @@ namespace GLL
 			if (rs != GL_FRAMEBUFFER_COMPLETE)
 			{
 				printf("Framebuffer check result: %d", rs);
-				throw HardwareRendererException(L"Inconsistent frame buffer object setup.");
+				throw HardwareRendererException("Inconsistent frame buffer object setup.");
 			}
 		}
 	};
@@ -810,7 +812,7 @@ namespace GLL
 			for (auto attachment : attachments)
 			{
 				if (attachment == TextureUsage::DepthAttachment)
-					throw HardwareRendererException(L"Only 1 depth/stencil attachment allowed.");
+					throw HardwareRendererException("Only 1 depth/stencil attachment allowed.");
 			}
 
 			Resize(binding + 1);
@@ -835,7 +837,7 @@ namespace GLL
 				case TextureUsage::Unused:
 					break;
 				default:
-					throw HardwareRendererException(L"Unsupported attachment usage");
+					throw HardwareRendererException("Unsupported attachment usage");
 				}
 				location++;
 			}
@@ -1041,12 +1043,12 @@ namespace GLL
 	public:
 		void StorageBlockBinding(String blockName, int binding)
 		{
-			int index = glGetProgramResourceIndex(Handle, GL_SHADER_STORAGE_BLOCK, blockName.ToMultiByteString());
+			int index = glGetProgramResourceIndex(Handle, GL_SHADER_STORAGE_BLOCK, blockName.Buffer());
 			glShaderStorageBlockBinding(Handle, index, binding);
 		}
 		void UniformBlockBinding(String blockName, int binding)
 		{
-			int index = glGetProgramResourceIndex(Handle, GL_UNIFORM_BLOCK, blockName.ToMultiByteString());
+			int index = glGetProgramResourceIndex(Handle, GL_UNIFORM_BLOCK, blockName.Buffer());
 			glUniformBlockBinding(Handle, index, binding);
 		}
 		void UniformBlockBinding(int index, int binding)
@@ -1055,81 +1057,81 @@ namespace GLL
 		}
 		int GetAttribBinding(String name)
 		{
-			return glGetAttribLocation(Handle, name.ToMultiByteString());
+			return glGetAttribLocation(Handle, name.Buffer());
 		}
 		int GetOutputLocation(String name)
 		{
-			return glGetFragDataLocation(Handle, name.ToMultiByteString());
+			return glGetFragDataLocation(Handle, name.Buffer());
 		}
 		void SetUniform(String name, unsigned int value)
 		{
-			int loc = glGetUniformLocation(Handle, name.ToMultiByteString());
+			int loc = glGetUniformLocation(Handle, name.Buffer());
 			if (loc != -1)
 				glProgramUniform1ui(Handle, loc, value);
 		}
 		void SetUniform(String name, int value)
 		{
-			int loc = glGetUniformLocation(Handle, name.ToMultiByteString());
+			int loc = glGetUniformLocation(Handle, name.Buffer());
 			if (loc != -1)
 				glProgramUniform1i(Handle, loc, value);
 		}
 		void SetUniform(String name, float value)
 		{
-			int loc = glGetUniformLocation(Handle, name.ToMultiByteString());
+			int loc = glGetUniformLocation(Handle, name.Buffer());
 			if (loc != -1)
 				glProgramUniform1f(Handle, loc, value);
 		}
 		void SetUniform(String name, Vec2 value)
 		{
-			int loc = glGetUniformLocation(Handle, name.ToMultiByteString());
+			int loc = glGetUniformLocation(Handle, name.Buffer());
 			if (loc != -1)
 				glProgramUniform2fv(Handle, loc, 1, (float*)&value);
 		}
 		void SetUniform(String name, Vec3 value)
 		{
-			int loc = glGetUniformLocation(Handle, name.ToMultiByteString());
+			int loc = glGetUniformLocation(Handle, name.Buffer());
 			if (loc != -1)
 				glProgramUniform3fv(Handle, loc, 1, (float*)&value);
 		}
 		void SetUniform(String name, Vec4 value)
 		{
-			int loc = glGetUniformLocation(Handle, name.ToMultiByteString());
+			int loc = glGetUniformLocation(Handle, name.Buffer());
 			if (loc != -1)
 				glProgramUniform4fv(Handle, loc, 1, (float*)&value);
 		}
 		void SetUniform(String name, Vec2i value)
 		{
-			int loc = glGetUniformLocation(Handle, name.ToMultiByteString());
+			int loc = glGetUniformLocation(Handle, name.Buffer());
 			if (loc != -1)
 				glProgramUniform2iv(Handle, loc, 1, (int*)&value);
 		}
 		void SetUniform(String name, Vec3i value)
 		{
-			int loc = glGetUniformLocation(Handle, name.ToMultiByteString());
+			int loc = glGetUniformLocation(Handle, name.Buffer());
 			if (loc != -1)
 				glProgramUniform3iv(Handle, loc, 1, (int*)&value);
 		}
 		void SetUniform(String name, Vec4i value)
 		{
-			int loc = glGetUniformLocation(Handle, name.ToMultiByteString());
+			int loc = glGetUniformLocation(Handle, name.Buffer());
 			if (loc != -1)
 				glProgramUniform4iv(Handle, loc, 1, (int*)&value);
 		}
 		void SetUniform(String name, Matrix3 value)
 		{
-			int loc = glGetUniformLocation(Handle, name.ToMultiByteString());
+			int loc = glGetUniformLocation(Handle, name.Buffer());
 			if (loc != -1)
 				glProgramUniformMatrix3fv(Handle, loc, 1, false, (float*)&value);
 		}
 		void SetUniform(String name, Matrix4 value)
 		{
-			int loc = glGetUniformLocation(Handle, name.ToMultiByteString());
+			int loc = glGetUniformLocation(Handle, name.Buffer());
 			if (loc != -1)
 				glProgramUniformMatrix4fv(Handle, loc, 1, false, (float*)&value);
 		}
 		void SetUniform(String name, uint64_t value)
 		{
-			int loc = glGetUniformLocation(Handle, name.ToMultiByteString());
+			int loc = glGetUniformLocation(Handle, name.Buffer());
 			if (loc != -1)
 				glProgramUniformui64NV(Handle, loc, value);
 		}
@@ -1191,7 +1193,7 @@ namespace GLL
 		}
 		int GetUniformLoc(String name)
 		{
-			return glGetUniformLocation(Handle, name.ToMultiByteString());
+			return glGetUniformLocation(Handle, name.Buffer());
 		}
 		int GetUniformLoc(const char * name)
 		{
@@ -1199,7 +1201,7 @@ namespace GLL
 		}
 		int GetUniformBlockIndex(String name)
 		{
-			return glGetUniformBlockIndex(Handle, name.ToMultiByteString());
+			return glGetUniformBlockIndex(Handle, name.Buffer());
 		}
 		void Use()
 		{
@@ -1222,7 +1224,7 @@ namespace GLL
 				dbgWriter << logOutput;
 			if (compileStatus != GL_TRUE)
 			{
-				throw HardwareRendererException(L"program linking\n" + logOutput);
+				throw HardwareRendererException("program linking\n" + logOutput);
 			}
 
 			glValidateProgram(Handle);
@@ -1235,24 +1237,26 @@ namespace GLL
 			glGetProgramiv(Handle, GL_VALIDATE_STATUS, &compileStatus);
 			if (compileStatus != GL_TRUE)
 			{
-				throw HardwareRendererException(L"program validation\n" + logOutput);
+				throw HardwareRendererException("program validation\n" + logOutput);
 			}
 		}
 	};
 
 	void __stdcall GL_DebugCallback(GLenum /*source*/, GLenum type, GLuint /*id*/, GLenum /*severity*/, GLsizei /*length*/, const GLchar* message, const void* /*userParam*/)
 	{
+		if (!DebugErrorEnabled)
+			return;
 		switch (type)
 		{
 		case GL_DEBUG_TYPE_ERROR:
 		case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
-			CoreLib::Diagnostics::Debug::Write(L"[GL Error] ");
+			CoreLib::Diagnostics::Debug::Write("[GL Error] ");
 			break;
 		case GL_DEBUG_TYPE_PERFORMANCE:
-			CoreLib::Diagnostics::Debug::Write(L"[GL Performance] ");
+			CoreLib::Diagnostics::Debug::Write("[GL Performance] ");
 			break;
 		case GL_DEBUG_TYPE_PORTABILITY:
-			CoreLib::Diagnostics::Debug::Write(L"[GL Portability] ");
+			CoreLib::Diagnostics::Debug::Write("[GL Portability] ");
 			break;
 		default:
 			return;
@@ -1261,7 +1265,7 @@ namespace GLL
 		if (type == GL_DEBUG_TYPE_ERROR || type == GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR)
 		{
 			printf("%s\n", message);
-			CoreLib::Diagnostics::Debug::WriteLine(L"--------");
+			CoreLib::Diagnostics::Debug::WriteLine("--------");
 		}
 	}
 
@@ -1361,7 +1365,7 @@ namespace GLL
 					tessEvalPresent = true;
 					break;
 				default:
-					throw HardwareRendererException(L"Unknown shader stage");
+					throw HardwareRendererException("Unknown shader stage");
 				}
 #endif
 				if (dynamic_cast<Shader*>(shader)->stage == ShaderType::HullShader)
@@ -1403,7 +1407,7 @@ namespace GLL
 					settings.patchSize = PatchSize;
 					break;
 				default:
-					throw InvalidOperationException(L"invalid primitive type for tessellation.");
+					throw InvalidOperationException("invalid primitive type for tessellation.");
 				}
 				settings.primitiveType = PrimitiveType::Patches;
 			}
@@ -1650,18 +1654,18 @@ namespace GLL
 
 			int nPixelFormat = ChoosePixelFormat(hdc, &pfd); // Check if our PFD is valid and get a pixel format back
 			if (nPixelFormat == 0) // If it fails
-				throw HardwareRendererException(L"Requried pixel format is not supported.");
+				throw HardwareRendererException("Requried pixel format is not supported.");
 
 			auto bResult = SetPixelFormat(hdc, nPixelFormat, &pfd); // Try and set the pixel format based on our PFD
 			if (!bResult) // If it fails
-				throw HardwareRendererException(L"Requried pixel format is not supported.");
+				throw HardwareRendererException("Requried pixel format is not supported.");
 
 			HGLRC tempOpenGLContext = wglCreateContext(hdc); // Create an OpenGL 2.1 context for our device context
 			wglMakeCurrent(hdc, tempOpenGLContext); // Make the OpenGL 2.1 context current and active
 			GLenum error = glewInit(); // Enable GLEW
 
 			if (error != GLEW_OK) // If GLEW fails
-				throw HardwareRendererException(L"Failed to load OpenGL.");
+				throw HardwareRendererException("Failed to load OpenGL.");
 
 			int contextFlags = WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
 #ifdef _DEBUG
@@ -1693,11 +1697,11 @@ namespace GLL
 			glGetIntegerv(GL_MAJOR_VERSION, &glVersion[0]); // Get back the OpenGL MAJOR version we are using
 			glGetIntegerv(GL_MINOR_VERSION, &glVersion[1]); // Get back the OpenGL MAJOR version we are using
 
-			CoreLib::Diagnostics::Debug::WriteLine(L"Using OpenGL: " + String(glVersion[0]) + L"." + String(glVersion[1])); // Output which version of OpenGL we are using
+			CoreLib::Diagnostics::Debug::WriteLine("Using OpenGL: " + String(glVersion[0]) + "." + String(glVersion[1])); // Output which version of OpenGL we are using
 			if (glVersion[0] < TargetOpenGLVersion_Major || (glVersion[0] == TargetOpenGLVersion_Major && glVersion[1] < TargetOpenGLVersion_Minor))
 			{
 				// supported OpenGL version is too low
-				throw HardwareRendererException(L"OpenGL" + String(TargetOpenGLVersion_Major) + L"." + String(TargetOpenGLVersion_Minor) + L" is not supported.");
+				throw HardwareRendererException("OpenGL" + String(TargetOpenGLVersion_Major) + "." + String(TargetOpenGLVersion_Minor) + " is not supported.");
 			}
 			if (glDebugMessageCallback)
 				glDebugMessageCallback(GL_DebugCallback, this);
@@ -1723,7 +1727,7 @@ namespace GLL
 
 		virtual String GetSpireBackendName() override
 		{
-			return L"glsl";
+			return "glsl";
 		}
 
 		virtual void ClearTexture(GameEngine::Texture2D* texture) override
@@ -1771,7 +1775,7 @@ namespace GLL
 						srcFrameBuffer.SetDepthStencilRenderTarget(*renderAttachment);
 						break;
 					case TextureUsage::Sampled:
-						throw HardwareRendererException(L"Can't use sampled image as a RenderAttachment");
+						throw HardwareRendererException("Can't use sampled image as a RenderAttachment");
 					}
 					location++;
 				}
@@ -1838,7 +1842,7 @@ namespace GLL
 					{
 						auto & pipelineSettings = command.pipeline.instance->settings;
 						pipelineSettings.program.Use();
-						if (currentVertexBuffer == nullptr) throw HardwareRendererException(L"For OpenGL, must BindVertexBuffer before BindPipeline.");
+						if (currentVertexBuffer == nullptr) throw HardwareRendererException("For OpenGL, must BindVertexBuffer before BindPipeline.");
 						currentVAO.SetVertex(*currentVertexBuffer, pipelineSettings.format.Attributes.GetArrayView(), command.pipeline.vertSize, 0, 0);
 						primType = command.pipeline.primitiveType;
 						if (command.pipeline.primitiveRestart)
@@ -2101,7 +2105,7 @@ namespace GLL
 				glBlendFunc(GL_ONE, GL_ONE);
 				break;
 			default:
-				throw HardwareRendererException(L"Unsupported blend mode.");
+				throw HardwareRendererException("Unsupported blend mode.");
 			}
 		}
 		void SetZTestMode(CompareFunc ztestMode)
@@ -2208,7 +2212,9 @@ namespace GLL
 		}
 		void SwapBuffers()
 		{
+			DebugErrorEnabled = false;
 			::SwapBuffers(hdc);
+			DebugErrorEnabled = true;
 		}
 
 		void Flush()
@@ -2290,7 +2296,7 @@ namespace GLL
 				handle = glCreateShader(GL_COMPUTE_SHADER);
 				break;
 			default:
-				throw HardwareRendererException(L"OpenGL hardware renderer does not support specified shader type.");
+				throw HardwareRendererException("OpenGL hardware renderer does not support specified shader type.");
 			}
 			GLchar * src = (GLchar*)data;
 			GLint length = size;
@@ -2305,7 +2311,7 @@ namespace GLL
 			if (compileStatus != GL_TRUE)
 			{
 				CoreLib::Diagnostics::Debug::WriteLine(String(buffer.Buffer()));
-				throw HardwareRendererException(L"Shader compilation failed\n" + String(buffer.Buffer()));
+				throw HardwareRendererException("Shader compilation failed\n" + String(buffer.Buffer()));
 			}
 			auto rs = new Shader();
 			rs->Handle = handle;
@@ -2322,7 +2328,7 @@ namespace GLL
 			List<char*> varyingPtrs;
 			varyingPtrs.Reserve(varyings.Count());
 			for (auto & v : varyings)
-				varyingPtrs.Add(v.ToMultiByteString());
+				varyingPtrs.Add(v.Buffer());
 			glTransformFeedbackVaryings(handle, varyingPtrs.Count(), varyingPtrs.Buffer(), format == FeedbackStorageMode::Interleaved ? GL_INTERLEAVED_ATTRIBS : GL_SEPARATE_ATTRIBS);
 			auto rs = Program();
 			rs.Handle = handle;
@@ -2365,7 +2371,7 @@ namespace GLL
 			rs.Handle = handle;
 			for (auto & binding : vertexAttributeBindings)
 			{
-				glBindAttribLocation(handle, binding.Value, binding.Key.ToMultiByteString());
+				glBindAttribLocation(handle, binding.Value, binding.Key.Buffer());
 			}
 			rs.Link();
 			return rs;

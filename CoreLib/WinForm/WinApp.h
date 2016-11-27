@@ -3,9 +3,9 @@
 
 #include <Windows.h>
 #include "../Basic.h"
+#include "../CommandLineParser.h"
 #include "WinAccel.h"
 #include "WinMessage.h"
-#include "../Regex/MetaLexer.h"
 #include "Debug.h"
 
 namespace CoreLib

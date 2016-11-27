@@ -77,6 +77,7 @@ namespace GraphicsUI
 	{
 	public:
 		virtual Rect MeasureString(const CoreLib::String & text) = 0;
+		virtual Rect MeasureString(const CoreLib::List<unsigned int> & text) = 0;
 		virtual IBakedText * BakeString(const CoreLib::String & tex) = 0;
 	};
 

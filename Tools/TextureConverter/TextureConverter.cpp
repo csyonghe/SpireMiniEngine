@@ -31,7 +31,7 @@ void ConvertTexture(const String & fileName, TextureStorageFormat format)
 			TextureCompressor::CompressRGBA_BC1(texFile, MakeArrayView((unsigned char*)pixelsInversed.Buffer(), pixelsInversed.Count() * 4), bmp.GetWidth(), bmp.GetHeight());
 		else
 			TextureCompressor::CompressRG_BC5(texFile, MakeArrayView((unsigned char*)pixelsInversed.Buffer(), pixelsInversed.Count() * 4), bmp.GetWidth(), bmp.GetHeight());
-		texFile.SaveToFile(Path::ReplaceExt(fileName, L"texture"));
+		texFile.SaveToFile(Path::ReplaceExt(fileName, "texture"));
 	}
 	else
 	{
@@ -40,7 +40,7 @@ void ConvertTexture(const String & fileName, TextureStorageFormat format)
 		CoreLib::Imaging::TextureData<CoreLib::Imaging::Color4F> tex;
 		CoreLib::Imaging::CreateTextureDataFromBitmap(tex, bmp);
 		CoreLib::Imaging::CreateTextureFile(texFile, format, tex);
-		texFile.SaveToFile(Path::ReplaceExt(fileName, L"texture"));
+		texFile.SaveToFile(Path::ReplaceExt(fileName, "texture"));
 	}
 }
 
@@ -49,22 +49,22 @@ int wmain(int argc, const wchar_t ** argv)
 	if (argc > 1)
 	{
 		TextureStorageFormat format = TextureStorageFormat::BC1;
-		String fileName = argv[1];
+		String fileName = String::FromWString(argv[1]);
 		for (int i = 0; i < argc; i++)
 		{
-			if (String(argv[i]) == L"-bc1")
+			if (String::FromWString(argv[i]) == "-bc1")
 				format = TextureStorageFormat::BC1;
-			if (String(argv[i]) == L"-bc5")
+			if (String::FromWString(argv[i]) == "-bc5")
 				format = TextureStorageFormat::BC5;
-			if (String(argv[i]) == L"-r8")
+			if (String::FromWString(argv[i]) == "-r8")
 				format = TextureStorageFormat::R8;
-			if (String(argv[i]) == L"-rg8")
+			if (String::FromWString(argv[i]) == "-rg8")
 				format = TextureStorageFormat::RG8;
-			if (String(argv[i]) == L"-rgb8")
+			if (String::FromWString(argv[i]) == "-rgb8")
 				format = TextureStorageFormat::RGB8;
-			if (String(argv[i]) == L"-rgba8")
+			if (String::FromWString(argv[i]) == "-rgba8")
 				format = TextureStorageFormat::RGBA8;
-			if (String(argv[i]) == L"-rgba32f")
+			if (String::FromWString(argv[i]) == "-rgba32f")
 				format = TextureStorageFormat::RGBA_F32;
 		}
 		ConvertTexture(fileName, format);

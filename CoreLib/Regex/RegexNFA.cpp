@@ -552,25 +552,25 @@ namespace Text
 		StringBuilder sb(4096);
 		for (int i=0; i<nodes.Count(); i++)
 		{
-			sb.Append(L"State: ");
+			sb.Append("State: ");
 			if (nodes[i]->IsFinal)
-				sb.Append(L"[");
+				sb.Append("[");
 			if (nodes[i] == start)
-				sb.Append(L"*");
+				sb.Append("*");
 			sb.Append(String(nodes[i]->ID));
 			if (nodes[i]->IsFinal)
-				sb.Append(L"]");
-			sb.Append(L'\n');
+				sb.Append("]");
+			sb.Append('\n');
 			for (int j=0; j<nodes[i]->Translations.Count(); j++)
 			{
-				sb.Append(L"\t");
+				sb.Append("\t");
 				if (nodes[i]->Translations[j]->CharSet)
 					sb.Append(nodes[i]->Translations[j]->CharSet->Reinterpret());
 				else
-					sb.Append(L"<epsilon>");
-				sb.Append(L":");
+					sb.Append("<epsilon>");
+				sb.Append(":");
 				sb.Append(String(nodes[i]->Translations[j]->NodeDest->ID));
-				sb.Append(L"\n");
+				sb.Append("\n");
 			}
 		}
 		return sb.ProduceString();

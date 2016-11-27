@@ -77,17 +77,17 @@ namespace GameEngine
 		if (shaderDef.Length() == 0)
 		{
 			StringBuilder sb;
-			sb << L"#file \"VertexDefinition\"\n";
-			sb << L"module VertexAttributes\n{\n";
-			sb << L"public @MeshVertex vec3 vertPos;\n";
+			sb << "#file \"VertexDefinition\"\n";
+			sb << "module VertexAttributes\n{\n";
+			sb << "public @MeshVertex vec3 vertPos;\n";
 			for (int i = 0; i < numUVs; i++)
-				sb << L"public @MeshVertex vec2 vertUV" << i << L";\n";
+				sb << "public @MeshVertex vec2 vertUV" << i << ";\n";
 			for (int i = numUVs; i < 8; i++)
-				sb << L"public inline vec2 vertUV" << i << L" = vec2(0.0);\n";
-			sb << L"public vec2 vertUV = vertUV0;\n";
+				sb << "public inline vec2 vertUV" << i << " = vec2(0.0);\n";
+			sb << "public vec2 vertUV = vertUV0;\n";
 			if (hasTangent)
 			{
-				sb << LR"(
+				sb << R"(
 				@MeshVertex uint tangentFrame;
 				vec4 tangentFrameQuaternion
 				{
@@ -112,16 +112,16 @@ namespace GameEngine
 			}
 			else
 			{
-				sb << LR"(
+				sb << R"(
 				public @CoarseVertex vec3 vertNormal = vec3(0.0, 1.0, 0.0);
 				public @CoarseVertex vec3 vertTangent = vec3(1.0, 0.0, 0.0);
 				public vec3 vertBinormal = vec3(0.0, 0.0, 1.0);
 				)";
 			}
 			for (int i = 0; i < numColors; i++)
-				sb << L"public @MeshVertex vec4 vertColor" << i << L";\n";
+				sb << "public @MeshVertex vec4 vertColor" << i << ";\n";
 			for (int i = numColors; i < 8; i++)
-				sb << L"public inline vec4 vertColor" << i << L" = vec4(0.0);\n";
+				sb << "public inline vec4 vertColor" << i << " = vec4(0.0);\n";
 			if (hasSkinning)
 			{
 				sb << "public @MeshVertex uint boneIds;\n";
@@ -132,7 +132,7 @@ namespace GameEngine
 				sb << "public inline uint boneIds = 255;\n";
 				sb << "public inline uint boneWeights = 0;\n";
 			}
-			sb << L"}\n";
+			sb << "}\n";
 			shaderDef = sb.ProduceString();
 		}
 		return shaderDef;
@@ -148,7 +148,6 @@ namespace GameEngine
 		convertor.f.numColors = numColors;
 		return convertor.typeId;
 	}
-
 
 	struct SkeletonMeshVertex
 	{

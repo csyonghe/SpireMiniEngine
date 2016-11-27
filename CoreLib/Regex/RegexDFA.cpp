@@ -212,41 +212,41 @@ namespace Text
 		for (int i=0; i<nodes.Count(); i++)
 		{
 			if (nodes[i]->IsFinal)
-				sb.Append(L'#');
+				sb.Append('#');
 			else if (nodes[i] == startNode)
-				sb.Append(L'*');
+				sb.Append('*');
 			sb.Append(String(nodes[i]->ID));
 			sb.Append(L'(');
 			for (int j=0; j<nodes[i]->Nodes.Count(); j++)
 			{
 				sb.Append(String(nodes[i]->Nodes[j]->ID));
-				sb.Append(L" ");
+				sb.Append(" ");
 			}
-			sb.Append(L")\n");
+			sb.Append(")\n");
 			for (int j=0; j<nodes[i]->Translations.Count(); j++)
 			{
 				if (nodes[i]->Translations[j])
 				{
-					sb.Append(L"\tOn ");
+					sb.Append("\tOn ");
 					sb.Append(String(j));
-					sb.Append(L": ");
+					sb.Append(": ");
 					sb.Append(String(nodes[i]->Translations[j]->ID));
-					sb.Append(L'\n');
+					sb.Append('\n');
 				}
 			}
 		}
 
-		sb.Append(L"\n\n==================\n");
-		sb.Append(L"Char Set Table:\n");
+		sb.Append("\n\n==================\n");
+		sb.Append("Char Set Table:\n");
 		for (int i=0; i<CharElements.Count(); i++)
 		{
-			sb.Append(L"Class ");
+			sb.Append("Class ");
 			sb.Append(String(i));
-			sb.Append(L": ");
+			sb.Append(": ");
 			RegexCharSet s;
 			s.Ranges.Add(CharElements[i]);
 			sb.Append(s.Reinterpret());
-			sb.Append(L"\n");
+			sb.Append("\n");
 		}
 		return sb.ProduceString();
 	}

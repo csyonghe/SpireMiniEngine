@@ -5,23 +5,23 @@ namespace GameEngine
 {
 	using namespace VectorMath;
 
-	bool FreeRoamCameraController::ParseField(Level * level, CoreLib::Text::Parser & parser, bool & isInvalid)
+	bool FreeRoamCameraController::ParseField(Level * level, CoreLib::Text::TokenReader & parser, bool & isInvalid)
 	{
 		if (Actor::ParseField(level, parser, isInvalid))
 			return true;
-		if (parser.LookAhead(L"TargetCamera"))
+		if (parser.LookAhead("TargetCamera"))
 		{
 			parser.ReadToken();
 			targetCameraName = parser.ReadStringLiteral();
 			return true;
 		}
-		else if (parser.LookAhead(L"Speed"))
+		else if (parser.LookAhead("Speed"))
 		{
 			parser.ReadToken();
 			cameraSpeed = (float)parser.ReadDouble();
 			return true;
 		}
-		else if (parser.LookAhead(L"TurnPrecision"))
+		else if (parser.LookAhead("TurnPrecision"))
 		{
 			parser.ReadToken();
 			turnPrecision = (float)parser.ReadDouble();
@@ -36,19 +36,19 @@ namespace GameEngine
 		if (actor && actor->GetEngineType() == EngineActorType::Camera)
 			targetCamera = (CameraActor*)actor;
 
-		Engine::Instance()->GetInputDispatcher()->BindActionHandler(L"MoveForward", ActionInputHandlerFunc(this, &FreeRoamCameraController::MoveForward));
-		Engine::Instance()->GetInputDispatcher()->BindActionHandler(L"MoveRight", ActionInputHandlerFunc(this, &FreeRoamCameraController::MoveRight));
-		Engine::Instance()->GetInputDispatcher()->BindActionHandler(L"MoveUp", ActionInputHandlerFunc(this, &FreeRoamCameraController::MoveUp));
-		Engine::Instance()->GetInputDispatcher()->BindActionHandler(L"TurnRight", ActionInputHandlerFunc(this, &FreeRoamCameraController::TurnRight));
-		Engine::Instance()->GetInputDispatcher()->BindActionHandler(L"TurnUp", ActionInputHandlerFunc(this, &FreeRoamCameraController::TurnUp));
+		Engine::Instance()->GetInputDispatcher()->BindActionHandler("MoveForward", ActionInputHandlerFunc(this, &FreeRoamCameraController::MoveForward));
+		Engine::Instance()->GetInputDispatcher()->BindActionHandler("MoveRight", ActionInputHandlerFunc(this, &FreeRoamCameraController::MoveRight));
+		Engine::Instance()->GetInputDispatcher()->BindActionHandler("MoveUp", ActionInputHandlerFunc(this, &FreeRoamCameraController::MoveUp));
+		Engine::Instance()->GetInputDispatcher()->BindActionHandler("TurnRight", ActionInputHandlerFunc(this, &FreeRoamCameraController::TurnRight));
+		Engine::Instance()->GetInputDispatcher()->BindActionHandler("TurnUp", ActionInputHandlerFunc(this, &FreeRoamCameraController::TurnUp));
 	}
 	void FreeRoamCameraController::OnUnload()
 	{
-		Engine::Instance()->GetInputDispatcher()->UnbindActionHandler(L"MoveForward", ActionInputHandlerFunc(this, &FreeRoamCameraController::MoveForward));
-		Engine::Instance()->GetInputDispatcher()->UnbindActionHandler(L"MoveRight", ActionInputHandlerFunc(this, &FreeRoamCameraController::MoveRight));
-		Engine::Instance()->GetInputDispatcher()->UnbindActionHandler(L"MoveUp", ActionInputHandlerFunc(this, &FreeRoamCameraController::MoveUp));
-		Engine::Instance()->GetInputDispatcher()->UnbindActionHandler(L"TurnRight", ActionInputHandlerFunc(this, &FreeRoamCameraController::TurnRight));
-		Engine::Instance()->GetInputDispatcher()->UnbindActionHandler(L"TurnUp", ActionInputHandlerFunc(this, &FreeRoamCameraController::TurnUp));
+		Engine::Instance()->GetInputDispatcher()->UnbindActionHandler("MoveForward", ActionInputHandlerFunc(this, &FreeRoamCameraController::MoveForward));
+		Engine::Instance()->GetInputDispatcher()->UnbindActionHandler("MoveRight", ActionInputHandlerFunc(this, &FreeRoamCameraController::MoveRight));
+		Engine::Instance()->GetInputDispatcher()->UnbindActionHandler("MoveUp", ActionInputHandlerFunc(this, &FreeRoamCameraController::MoveUp));
+		Engine::Instance()->GetInputDispatcher()->UnbindActionHandler("TurnRight", ActionInputHandlerFunc(this, &FreeRoamCameraController::TurnRight));
+		Engine::Instance()->GetInputDispatcher()->UnbindActionHandler("TurnUp", ActionInputHandlerFunc(this, &FreeRoamCameraController::TurnUp));
 	}
 	EngineActorType FreeRoamCameraController::GetEngineType()
 	{

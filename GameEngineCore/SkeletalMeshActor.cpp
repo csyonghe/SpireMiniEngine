@@ -3,11 +3,11 @@
 
 namespace GameEngine
 {
-	bool SkeletalMeshActor::ParseField(Level * level, CoreLib::Text::Parser & parser, bool &isInvalid)
+	bool SkeletalMeshActor::ParseField(Level * level, CoreLib::Text::TokenReader & parser, bool &isInvalid)
 	{
 		if (Actor::ParseField(level, parser, isInvalid))
 			return true;
-		if (parser.LookAhead(L"mesh"))
+		if (parser.LookAhead("mesh"))
 		{
 			parser.ReadToken();
 			MeshName = parser.ReadStringLiteral();
@@ -16,9 +16,9 @@ namespace GameEngine
 				isInvalid = false;
 			return true;
 		}
-		if (parser.LookAhead(L"material"))
+		if (parser.LookAhead("material"))
 		{
-			if (parser.NextToken(1).Str == L"{")
+			if (parser.NextToken(1).Content == "{")
 			{
 				MaterialInstance = level->CreateNewMaterial();
 				MaterialInstance->Parse(parser);
@@ -33,7 +33,7 @@ namespace GameEngine
 			}
 			return true;
 		}
-		if (parser.LookAhead(L"Skeleton"))
+		if (parser.LookAhead("Skeleton"))
 		{
 			parser.ReadToken();
 			SkeletonName = parser.ReadStringLiteral();
@@ -42,7 +42,7 @@ namespace GameEngine
 				isInvalid = true;
 			return true;
 		}
-		if (parser.LookAhead(L"SimpleAnimation"))
+		if (parser.LookAhead("SimpleAnimation"))
 		{
 			parser.ReadToken();
 			SimpleAnimationName = parser.ReadStringLiteral();
@@ -51,7 +51,7 @@ namespace GameEngine
 				isInvalid = true;
 			return true;
 		}
-        if (parser.LookAhead(L"MotionGraph"))
+        if (parser.LookAhead("MotionGraph"))
         {
             parser.ReadToken();
             MotionGraphName = parser.ReadStringLiteral();
@@ -62,18 +62,26 @@ namespace GameEngine
         }
 		return false;
 	}
+
 	void GameEngine::SkeletalMeshActor::Tick()
 	{
 		auto time = Engine::Instance()->GetCurrentTime();
-		if (Animation)
+        //static float time = 0.0f;
+        //time += 0.001f;
+        if (Animation)
 			Animation->GetPose(nextPose, time);
 	}
+
 	void SkeletalMeshActor::OnLoad()
 	{
         if (this->SimpleAnimation)
             Animation = new SimpleAnimationSynthesizer(Skeleton, this->SimpleAnimation);
         else if (this->MotionGraph)
-            Animation = new MotionGraphAnimationSynthesizer(Skeleton, this->MotionGraph);
+        {
+            Animation = new SearchGraphAnimationSynthesizer(Skeleton, this->MotionGraph);
+            //Animation = new MotionGraphAnimationSynthesizer(Skeleton, this->MotionGraph);
+        }
+           
 		Tick();
 	}
 }

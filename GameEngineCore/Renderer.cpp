@@ -14,7 +14,7 @@
 #include <fstream>
 
 #define DEFERRED 0
-const wchar_t* lightingString = DEFERRED ? L"DeferredLighting" : L"ForwardLighting";
+const char* lightingString = DEFERRED ? "DeferredLighting" : "ForwardLighting";
 
 using namespace CoreLib;
 using namespace VectorMath;
@@ -216,7 +216,7 @@ namespace GameEngine
 				format = StorageFormat::BC5;
 				break;
 			default:
-				throw NotImplementedException(L"unsupported texture format.");
+				throw NotImplementedException("unsupported texture format.");
 			}
 			auto rs = hardwareRenderer->CreateTexture2D(TextureUsage::Sampled);
 			for (int i = 0; i < data.GetMipLevels(); i++)
@@ -233,12 +233,12 @@ namespace GameEngine
 			if (textures.TryGetValue(filename, value))
 				return value.Ptr();
 
-			auto actualFilename = Engine::Instance()->FindFile(Path::ReplaceExt(filename, L"texture"), ResourceType::Texture);
+			auto actualFilename = Engine::Instance()->FindFile(Path::ReplaceExt(filename, "texture"), ResourceType::Texture);
 			if (!actualFilename.Length())
 				actualFilename = Engine::Instance()->FindFile(filename, ResourceType::Texture);
 			if (actualFilename.Length())
 			{
-				if (actualFilename.ToLower().EndsWith(L".texture"))
+				if (actualFilename.ToLower().EndsWith(".texture"))
 				{
 					CoreLib::Graphics::TextureFile file(actualFilename);
 					return LoadTexture2D(filename, file);
@@ -256,7 +256,7 @@ namespace GameEngine
 					}
 					CoreLib::Graphics::TextureFile texFile;
 					TextureCompressor::CompressRGBA_BC1(texFile, MakeArrayView((unsigned char*)pixelsInversed.Buffer(), pixelsInversed.Count() * 4), bmp.GetWidth(), bmp.GetHeight());
-					texFile.SaveToFile(Path::ReplaceExt(actualFilename, L"texture"));
+					texFile.SaveToFile(Path::ReplaceExt(actualFilename, "texture"));
 					return LoadTexture2D(filename, texFile);
 				}
 			}
@@ -269,14 +269,14 @@ namespace GameEngine
 					0,0,0,255,       255,0,255,255
 				};
 				errTex.SetData(CoreLib::Graphics::TextureStorageFormat::RGBA8, 2, 2, 0, ArrayView<unsigned char>(errorTexContent, 16));
-				return LoadTexture2D(L"ERROR_TEXTURE", errTex);
+				return LoadTexture2D("ERROR_TEXTURE", errTex);
 			}
 		}
 		
 		Shader* LoadShader(const String & src, void* data, int size, ShaderType shaderType)
 		{
 			{
-				String debugFileName = src + L".spv";
+				String debugFileName = src + ".spv";
 				BinaryWriter debugWriter(new FileStream(debugFileName, FileMode::Create));
 				debugWriter.Write((unsigned char*)data, size);
 			}
@@ -291,7 +291,7 @@ namespace GameEngine
 		MaterialInstance LoadMaterial(Material * material, MeshVertexFormat meshVertexFormat, const String& symbol)
 		{
 			MaterialInstance materialInstance;
-			auto identifier = material->ShaderFile + L"!" + symbol;
+			auto identifier = material->ShaderFile + "!" + symbol;
 			
 			if (materialCache.TryGetValue(identifier, materialInstance))
 			{
@@ -322,24 +322,24 @@ namespace GameEngine
 			// Compile shaders
 			ShaderCompilationResult rs;
 			if (!hardwareFactory->CompileShader(rs, material->ShaderFile, meshVertexFormat.GetShaderDefinition(), symbol))
-				throw HardwareRendererException(L"Shader compilation failure");
+				throw HardwareRendererException("Shader compilation failure");
 
 			for (auto& compiledShader : rs.Shaders)
 			{
 				Shader* shader;
-				if (compiledShader.Key == L"vs")
+				if (compiledShader.Key == "vs")
 				{
 					shader = LoadShader(Path::ReplaceExt(material->ShaderFile, compiledShader.Key.Buffer()), compiledShader.Value.Buffer(), compiledShader.Value.Count(), ShaderType::VertexShader);
 				}
-				else if (compiledShader.Key == L"fs")
+				else if (compiledShader.Key == "fs")
 				{
 					shader = LoadShader(Path::ReplaceExt(material->ShaderFile, compiledShader.Key.Buffer()), compiledShader.Value.Buffer(), compiledShader.Value.Count(), ShaderType::FragmentShader);
 				}
-				else if (compiledShader.Key == L"tcs")
+				else if (compiledShader.Key == "tcs")
 				{
 					shader = LoadShader(Path::ReplaceExt(material->ShaderFile, compiledShader.Key.Buffer()), compiledShader.Value.Buffer(), compiledShader.Value.Count(), ShaderType::HullShader);
 				}
-				else if (compiledShader.Key == L"tes")
+				else if (compiledShader.Key == "tes")
 				{
 					shader = LoadShader(Path::ReplaceExt(material->ShaderFile, compiledShader.Key.Buffer()), compiledShader.Value.Buffer(), compiledShader.Value.Count(), ShaderType::DomainShader);
 				}
@@ -688,7 +688,7 @@ namespace GameEngine
 				for (auto& obj : pLevel->StaticActors)
 				{
 					auto ctx = (StaticRenderContextImpl*)obj->RenderContext.Ptr();
-					MaterialInstance material = LoadMaterial(obj->MaterialInstance, obj->Mesh->GetVertexFormat(), String(L"StaticMesh") + lightingString);
+					MaterialInstance material = LoadMaterial(obj->MaterialInstance, obj->Mesh->GetVertexFormat(), String("StaticMesh") + lightingString);
 
 					PipelineBinding pipelineBinding;
 					pipelineBinding.BindUniformBuffer(0, staticTransformUniformBuffer.Ptr(), ctx->TransformUniformStart, ctx->TransformUniformEnd - ctx->TransformUniformStart);
@@ -753,7 +753,7 @@ namespace GameEngine
 					{
 						auto skeletalActor = (SkeletalMeshActor*)actor.Ptr();
 						auto ctx = (SkeletalMeshRenderContextImpl*)skeletalActor->RenderContext.Ptr();
-						MaterialInstance material = LoadMaterial(skeletalActor->MaterialInstance, skeletalActor->Mesh->GetVertexFormat(), String(L"SkeletalMesh") + lightingString);
+						MaterialInstance material = LoadMaterial(skeletalActor->MaterialInstance, skeletalActor->Mesh->GetVertexFormat(), String("SkeletalMesh") + lightingString);
 
 						PipelineBinding pipelineBinding;
 						pipelineBinding.BindUniformBuffer(1, sysUniformBuffer.Ptr());

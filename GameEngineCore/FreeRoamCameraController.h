@@ -14,14 +14,14 @@ namespace GameEngine
 		CoreLib::String targetCameraName;
 		CameraActor * targetCamera = nullptr;
 	public:
-		virtual bool ParseField(Level * level, CoreLib::Text::Parser & parser, bool & isInvalid) override;
+		virtual bool ParseField(Level * level, CoreLib::Text::TokenReader & parser, bool & isInvalid) override;
 	public:
 		virtual void OnLoad() override;
 		virtual void OnUnload() override;
 		virtual EngineActorType GetEngineType() override;
 		virtual CoreLib::String GetTypeName() override
 		{
-			return L"FreeRoamCameraController";
+			return "FreeRoamCameraController";
 		}
 	public:
 		bool MoveForward(const CoreLib::String & axisName, float scale);

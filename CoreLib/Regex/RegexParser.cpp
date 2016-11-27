@@ -1,4 +1,5 @@
 #include "RegexTree.h"
+#include "../Tokenizer.h"
 
 namespace CoreLib
 {
@@ -28,7 +29,7 @@ namespace Text
 		if (ptr >= src.Length())
 			return 0;
 		RefPtr<RegexNode> left = ParseConnectionNode();
-		while (ptr < src.Length() && src[ptr] == L'|')
+		while (ptr < src.Length() && src[ptr] == '|')
 		{
 			ptr ++;
 			RefPtr<RegexNode> right = ParseConnectionNode();
@@ -47,7 +48,7 @@ namespace Text
 			return 0;
 		}
 		RefPtr<RegexNode> left = ParseRepeatNode();
-		while (ptr < src.Length() && src[ptr] != L'|' && src[ptr] != L')')
+		while (ptr < src.Length() && src[ptr] != '|' && src[ptr] != ')')
 		{
 			RefPtr<RegexNode> right = ParseRepeatNode();
 			if (right)
@@ -65,20 +66,20 @@ namespace Text
 
 	RegexNode * RegexParser::ParseRepeatNode()
 	{
-		if (ptr >= src.Length() || src[ptr] == L')' || src[ptr] == L'|')
+		if (ptr >= src.Length() || src[ptr] == ')' || src[ptr] == '|')
 			return 0;
 		
 		RefPtr<RegexNode> content;
-		if (src[ptr] == L'(')
+		if (src[ptr] == '(')
 		{
 			RefPtr<RegexNode> reg;
 			ptr ++;
 			reg = ParseSelectionNode();
-			if (src[ptr] != L')')
+			if (src[ptr] != ')')
 			{
 				SyntaxError err;
 				err.Position = ptr;
-				err.Text = L"\')\' expected.";
+				err.Text = "\')\' expected.";
 				Errors.Add(err);
 				throw 0;
 			}
@@ -88,142 +89,142 @@ namespace Text
 		else
 		{
 			RefPtr<RegexCharSetNode> reg;
-			if (src[ptr] == L'[')
+			if (src[ptr] == '[')
 			{
 				reg = new RegexCharSetNode();
 				ptr ++;
 				reg->CharSet = ParseCharSet();
 				
-				if (src[ptr] != L']')
+				if (src[ptr] != ']')
 				{
 					SyntaxError err;
 					err.Position = ptr;
-					err.Text = L"\']\' expected.";
+					err.Text = "\']\' expected.";
 					Errors.Add(err);
 					throw 0;
 				}
 				ptr ++;
 			}
-			else if (src[ptr] == L'\\')
+			else if (src[ptr] == '\\')
 			{
 				ptr ++;
 				reg = new RegexCharSetNode();
 				reg->CharSet = new RegexCharSet();
 				switch (src[ptr])
 				{
-				case L'.':
+				case '.':
 					{
 						reg->CharSet->Neg = true;
 						break;
 					}
-				case L'w':
-				case L'W':
+				case 'w':
+				case 'W':
 					{
 						RegexCharSet::RegexCharRange range;
 						reg->CharSet->Neg = false;
-						range.Begin = L'a';
-						range.End = L'z';
+						range.Begin = 'a';
+						range.End = 'z';
 						reg->CharSet->Ranges.Add(range);
-						range.Begin = L'A';
-						range.End = L'Z';
+						range.Begin = 'A';
+						range.End = 'Z';
 						reg->CharSet->Ranges.Add(range);
-						range.Begin = L'_';
-						range.End = L'_';
+						range.Begin = '_';
+						range.End = '_';
 						reg->CharSet->Ranges.Add(range);
-						range.Begin = L'0';
-						range.End = L'9';
+						range.Begin = '0';
+						range.End = '9';
 						reg->CharSet->Ranges.Add(range);
-						if (src[ptr] == L'W')
+						if (src[ptr] == 'W')
 							reg->CharSet->Neg = true;
 						break;
 					}
-				case L's':
+				case 's':
 				case 'S':
 					{
 						RegexCharSet::RegexCharRange range;
 						reg->CharSet->Neg = false;
-						range.Begin = L' ';
-						range.End = L' ';
+						range.Begin = ' ';
+						range.End = ' ';
 						reg->CharSet->Ranges.Add(range);
-						range.Begin = L'\t';
-						range.End = L'\t';
+						range.Begin = '\t';
+						range.End = '\t';
 						reg->CharSet->Ranges.Add(range);
-						range.Begin = L'\r';
-						range.End = L'\r';
+						range.Begin = '\r';
+						range.End = '\r';
 						reg->CharSet->Ranges.Add(range);
-						range.Begin = L'\n';
-						range.End = L'\n';
+						range.Begin = '\n';
+						range.End = '\n';
 						reg->CharSet->Ranges.Add(range);
-						if (src[ptr] == L'S')
+						if (src[ptr] == 'S')
 							reg->CharSet->Neg = true;
 						break;
 					}
-				case L'd':
-				case L'D':
+				case 'd':
+				case 'D':
 					{
 						RegexCharSet::RegexCharRange range;
 						reg->CharSet->Neg = false;
-						range.Begin = L'0';
-						range.End = L'9';
+						range.Begin = '0';
+						range.End = '9';
 						reg->CharSet->Ranges.Add(range);
-						if (src[ptr] == L'D')
+						if (src[ptr] == 'D')
 							reg->CharSet->Neg = true;
 						break;
 					}
-				case L'n':
+				case 'n':
 					{
 						RegexCharSet::RegexCharRange range;
 						reg->CharSet->Neg = false;
-						range.Begin = L'\n';
-						range.End = L'\n';
+						range.Begin = '\n';
+						range.End = '\n';
 						reg->CharSet->Ranges.Add(range);
 						break;
 					}
-				case L't':
+				case 't':
 					{
 						RegexCharSet::RegexCharRange range;
 						reg->CharSet->Neg = false;
-						range.Begin = L'\t';
-						range.End = L'\t';
+						range.Begin = '\t';
+						range.End = '\t';
 						reg->CharSet->Ranges.Add(range);
 						break;
 					}
-				case L'r':
+				case 'r':
 					{
 						RegexCharSet::RegexCharRange range;
 						reg->CharSet->Neg = false;
-						range.Begin = L'\r';
-						range.End = L'\r';
+						range.Begin = '\r';
+						range.End = '\r';
 						reg->CharSet->Ranges.Add(range);
 						break;
 					}
-				case L'v':
+				case 'v':
 					{
 						RegexCharSet::RegexCharRange range;
 						reg->CharSet->Neg = false;
-						range.Begin = L'\v';
-						range.End = L'\v';
+						range.Begin = '\v';
+						range.End = '\v';
 						reg->CharSet->Ranges.Add(range);
 						break;
 					}
-				case L'f':
+				case 'f':
 					{
 						RegexCharSet::RegexCharRange range;
 						reg->CharSet->Neg = false;
-						range.Begin = L'\f';
-						range.End = L'\f';
+						range.Begin = '\f';
+						range.End = '\f';
 						reg->CharSet->Ranges.Add(range);
 						break;
 					}
-				case L'*':
-				case L'|':
-				case L'(':
-				case L')':
-				case L'?':
-				case L'+':
-				case L'[':
-				case L']':
-				case L'\\':
+				case '*':
+				case '|':
+				case '(':
+				case ')':
+				case '?':
+				case '+':
+				case '[':
+				case ']':
+				case '\\':
 					{
 						RegexCharSet::RegexCharRange range;
 						reg->CharSet->Neg = false;
@@ -236,7 +237,7 @@ namespace Text
 					{
 						SyntaxError err;
 						err.Position = ptr;
-						err.Text = String(L"Illegal escape sequence \'\\") + src[ptr] + L"\'";
+						err.Text = String("Illegal escape sequence \'\\") + src[ptr] + "\'";
 						Errors.Add(err);
 						throw 0;
 					}
@@ -257,7 +258,7 @@ namespace Text
 			{
 				SyntaxError err;
 				err.Position = ptr;
-				err.Text = String(L"Unexpected \'") + src[ptr] + L'\'';
+				err.Text = String("Unexpected \'") + src[ptr] + '\'';
 				Errors.Add(err);
 				throw 0;
 			}
@@ -265,7 +266,7 @@ namespace Text
 		}
 		if (ptr < src.Length())
 		{
-			if (src[ptr] == L'*')
+			if (src[ptr] == '*')
 			{
 				RefPtr<RegexRepeatNode> node = new RegexRepeatNode();
 				node->Child = content;
@@ -273,7 +274,7 @@ namespace Text
 				ptr ++;
 				return node.Release();
 			}
-			else if (src[ptr] == L'?')
+			else if (src[ptr] == '?')
 			{
 				RefPtr<RegexRepeatNode> node = new RegexRepeatNode();
 				node->Child = content;
@@ -281,7 +282,7 @@ namespace Text
 				ptr ++;
 				return node.Release();
 			}
-			else if (src[ptr] == L'+')
+			else if (src[ptr] == '+')
 			{
 				RefPtr<RegexRepeatNode> node = new RegexRepeatNode();
 				node->Child = content;
@@ -289,27 +290,27 @@ namespace Text
 				ptr ++;
 				return node.Release();
 			}
-			else if (src[ptr] == L'{')
+			else if (src[ptr] == '{')
 			{
 				ptr++;
 				RefPtr<RegexRepeatNode> node = new RegexRepeatNode();
 				node->Child = content;
 				node->RepeatType = RegexRepeatNode::rtSpecified;
 				node->MinRepeat = ParseInteger();
-				if (src[ptr] == L',')
+				if (src[ptr] == ',')
 				{
 					ptr ++;
 					node->MaxRepeat = ParseInteger();
 				}
 				else
 					node->MaxRepeat = node->MinRepeat;
-				if (src[ptr] == L'}')
+				if (src[ptr] == '}')
 					ptr++;
 				else
 				{
 					SyntaxError err;
 					err.Position = ptr;
-					err.Text = L"\'}\' expected.";
+					err.Text = "\'}\' expected.";
 					Errors.Add(err);
 					throw 0;
 				}
@@ -317,7 +318,7 @@ namespace Text
 				{
 					SyntaxError err;
 					err.Position = ptr;
-					err.Text = L"Minimun repeat cannot be less than 0.";
+					err.Text = "Minimun repeat cannot be less than 0.";
 					Errors.Add(err);
 					throw 0;
 				}
@@ -325,7 +326,7 @@ namespace Text
 				{
 					SyntaxError err;
 					err.Position = ptr;
-					err.Text = L"Max repeat cannot be less than min repeat.";
+					err.Text = "Max repeat cannot be less than min repeat.";
 					Errors.Add(err);
 					throw 0;
 				}
@@ -335,15 +336,10 @@ namespace Text
 		return content.Release();
 	}
 
-	bool IsDigit(wchar_t ch)
-	{
-		return ch>=L'0'&& ch <=L'9';
-	}
-
 	int RegexParser::ParseInteger()
 	{
 		StringBuilder number;
-		while (IsDigit(src[ptr]))
+		while (CoreLib::Text::IsDigit(src[ptr]))
 		{
 			number.Append(src[ptr]);
 			ptr ++;
@@ -356,49 +352,49 @@ namespace Text
 
 	bool RegexParser::IsOperator()
 	{
-		return (src[ptr] == L'|' || src[ptr] == L'*' || src[ptr] == L'(' || src[ptr] == L')'
-				|| src[ptr] == L'?' || src[ptr] == L'+');
+		return (src[ptr] == '|' || src[ptr] == '*' || src[ptr] == '(' || src[ptr] == ')'
+				|| src[ptr] == '?' || src[ptr] == '+');
 	}
 
 	wchar_t RegexParser::ReadNextCharInCharSet()
 	{
-		if (ptr < src.Length() && src[ptr] != L']')
+		if (ptr < src.Length() && src[ptr] != ']')
 		{
-			if (src[ptr] == L'\\')
+			if (src[ptr] == '\\')
 			{
 				ptr ++;
 				if (ptr >= src.Length())
 				{
 					SyntaxError err;
 					err.Position = ptr;
-					err.Text = String(L"Unexpected end of char-set when looking for escape sequence.");
+					err.Text = String("Unexpected end of char-set when looking for escape sequence.");
 					Errors.Add(err);
 					throw 0;
 				}
 				wchar_t rs = 0;
-				if (src[ptr] == L'\\')
-					rs = L'\\';
-				else if (src[ptr] == L'^')
-					rs = L'^';
-				else if (src[ptr] == L'-')
-					rs = L'-';
-				else if (src[ptr] == L']')
-					rs = L']';
-				else if (src[ptr] == L'n')
-					rs = L'\n';
-				else if (src[ptr] == L't')
-					rs = L'\t';
-				else if (src[ptr] == L'r')
-					rs = L'\r';
-				else if (src[ptr] == L'v')
-					rs = L'\v';
-				else if (src[ptr] == L'f')
-					rs = L'\f';
+				if (src[ptr] == '\\')
+					rs = '\\';
+				else if (src[ptr] == '^')
+					rs = '^';
+				else if (src[ptr] == '-')
+					rs = '-';
+				else if (src[ptr] == ']')
+					rs = ']';
+				else if (src[ptr] == 'n')
+					rs = '\n';
+				else if (src[ptr] == 't')
+					rs = '\t';
+				else if (src[ptr] == 'r')
+					rs = '\r';
+				else if (src[ptr] == 'v')
+					rs = '\v';
+				else if (src[ptr] == 'f')
+					rs = '\f';
 				else
 				{
 					SyntaxError err;
 					err.Position = ptr;
-					err.Text = String(L"Illegal escape sequence inside charset definition \'\\") + src[ptr] + L"\'";
+					err.Text = String("Illegal escape sequence inside charset definition \'\\") + src[ptr] + "\'";
 					Errors.Add(err);
 					throw 0;
 				}
@@ -412,7 +408,7 @@ namespace Text
 		{
 			SyntaxError err;
 			err.Position = ptr;
-			err.Text = String(L"Unexpected end of char-set.");
+			err.Text = String("Unexpected end of char-set.");
 			Errors.Add(err);
 			throw 0;
 		}
@@ -421,7 +417,7 @@ namespace Text
 	RegexCharSet * RegexParser::ParseCharSet()
 	{
 		RefPtr<RegexCharSet> rs = new RegexCharSet();
-		if (src[ptr] == L'^')
+		if (src[ptr] == '^')
 		{
 			rs->Neg = true;
 			ptr ++;
@@ -429,7 +425,7 @@ namespace Text
 		else
 			rs->Neg = false;
 		RegexCharSet::RegexCharRange range;
-		while (ptr < src.Length() && src[ptr] != L']')
+		while (ptr < src.Length() && src[ptr] != ']')
 		{
 			range.Begin = ReadNextCharInCharSet();
 			//ptr ++;
@@ -438,7 +434,7 @@ namespace Text
 			{
 				break;
 			}
-			if (src[ptr] == L'-')
+			if (src[ptr] == '-')
 			{
 				ptr ++;
 				range.End = ReadNextCharInCharSet();	
@@ -450,11 +446,11 @@ namespace Text
 			rs->Ranges.Add(range);
 		
 		}
-		if (ptr >=src.Length() || src[ptr] != L']')
+		if (ptr >=src.Length() || src[ptr] != ']')
 		{
 			SyntaxError err;
 			err.Position = ptr;
-			err.Text = String(L"Unexpected end of char-set.");
+			err.Text = String("Unexpected end of char-set.");
 			Errors.Add(err);
 			throw 0;
 		}

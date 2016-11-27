@@ -72,12 +72,12 @@ namespace CoreLib
 			if (storageFormat == TextureStorageFormat::BC1 || storageFormat == TextureStorageFormat::BC5)
 			{
 				if (data.Count() != (int)(ceil(w / 4.0f) * ceil(h / 4.0f) * 16 * pixelSize))
-					throw InvalidOperationException(L"Data size does not match texture format.");
+					throw InvalidOperationException("Data size does not match texture format.");
 			}
 			else
 			{
 				if (data.Count() != (int)(w * h * pixelSize))
-					throw InvalidOperationException(L"Data size does not match texture format.");
+					throw InvalidOperationException("Data size does not match texture format.");
 			}
 			if (level >= buffer.Count())
 				buffer.SetSize(level + 1);

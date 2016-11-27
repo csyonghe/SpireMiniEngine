@@ -11,13 +11,14 @@ namespace GameEngine
 		Pose nextPose;
 		float startTime = 0.0f;
 	protected:
-		virtual bool ParseField(Level * level, CoreLib::Text::Parser & parser, bool &isInvalid) override;
+		virtual bool ParseField(Level * level, CoreLib::Text::TokenReader & parser, bool &isInvalid) override;
 	public:
 		CoreLib::RefPtr<AnimationSynthesizer> Animation;
 		Mesh * Mesh = nullptr;
 		Skeleton * Skeleton = nullptr;
 		SkeletalAnimation * SimpleAnimation = nullptr;
         MotionGraph * MotionGraph = nullptr;
+        
 		CoreLib::String MeshName, SkeletonName, SimpleAnimationName, MotionGraphName;
 		Material * MaterialInstance = nullptr;
 		CoreLib::RefPtr<SkeletalMeshRenderContext> RenderContext;
@@ -32,7 +33,7 @@ namespace GameEngine
 		}
 		virtual CoreLib::String GetTypeName() override
 		{
-			return L"SkeletalMesh";
+			return "SkeletalMesh";
 		}
 		virtual void OnLoad() override;
 	};

@@ -3,7 +3,6 @@
 
 #include "CoreLib/Basic.h"
 #include "DynamicVariable.h"
-#include "CoreLib/Parser.h"
 
 namespace GameEngine
 {
@@ -15,7 +14,7 @@ namespace GameEngine
 		CoreLib::String ShaderFile;
 		bool ParameterDirty = true;
 		CoreLib::EnumerableDictionary<CoreLib::String, DynamicVariable> Variables;
-		void Parse(CoreLib::Text::Parser & parser);
+		void Parse(CoreLib::Text::TokenReader & parser);
 		void LoadFromFile(const CoreLib::String & fullFileName);
 	};
 }

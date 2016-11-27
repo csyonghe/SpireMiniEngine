@@ -56,18 +56,18 @@ namespace GameEngine
 	{
 		collisionRadius = value;
 	}
-	bool CameraActor::ParseField(Level * level, CoreLib::Text::Parser & parser, bool & isInvalid)
+	bool CameraActor::ParseField(Level * level, CoreLib::Text::TokenReader & parser, bool & isInvalid)
 	{
 		if (Actor::ParseField(level, parser, isInvalid))
 			return true;
-		if (parser.LookAhead(L"position"))
+		if (parser.LookAhead("position"))
 		{
 			parser.ReadToken();
 			position = ParseVec3(parser);
 			TransformFromCamera(LocalTransform, yaw, pitch, roll, position);
 			return true;
 		}
-		if (parser.LookAhead(L"orientation"))
+		if (parser.LookAhead("orientation"))
 		{
 			parser.ReadToken();
 			auto orientation = ParseVec3(parser);
@@ -77,25 +77,25 @@ namespace GameEngine
 			TransformFromCamera(LocalTransform, yaw, pitch, roll, position);
 			return true;
 		}
-		if (parser.LookAhead(L"znear"))
+		if (parser.LookAhead("znear"))
 		{
 			parser.ReadToken();
 			ZNear = (float)parser.ReadDouble();
 			return true;
 		}
-		if (parser.LookAhead(L"zfar"))
+		if (parser.LookAhead("zfar"))
 		{
 			parser.ReadToken();
 			ZFar = (float)parser.ReadDouble();
 			return true;
 		}
-		if (parser.LookAhead(L"fov"))
+		if (parser.LookAhead("fov"))
 		{
 			parser.ReadToken();
 			FOV = (float)parser.ReadDouble();
 			return true;
 		}
-		if (parser.LookAhead(L"radius"))
+		if (parser.LookAhead("radius"))
 		{
 			parser.ReadToken();
 			collisionRadius = (float)parser.ReadDouble();

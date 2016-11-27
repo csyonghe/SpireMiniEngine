@@ -21,7 +21,7 @@ namespace GraphicsUI
 			NONCLIENTMETRICS NonClientMetrics;
 			NonClientMetrics.cbSize = sizeof(NONCLIENTMETRICS) - sizeof(NonClientMetrics.iPaddedBorderWidth);
 			SystemParametersInfo(SPI_GETNONCLIENTMETRICS, sizeof(NONCLIENTMETRICS), &NonClientMetrics, 0);
-			FontName = NonClientMetrics.lfMessageFont.lfFaceName;
+			FontName = CoreLib::String::FromWString(NonClientMetrics.lfMessageFont.lfFaceName);
 			Size = 9;
 			Bold = false;
 			Underline = false;
@@ -83,6 +83,8 @@ namespace GraphicsUI
 		void SetFont(const Font & Font, int dpi);
 		TextRasterizationResult RasterizeText(UIWindowsSystemInterface * system, const CoreLib::String & text);
 		TextSize GetTextSize(const CoreLib::String & text);
+		TextSize GetTextSize(const CoreLib::List<unsigned int> & text);
+
 	};
 
 
@@ -124,6 +126,7 @@ namespace GraphicsUI
 			rasterizer->SetFont(fontDesc, dpi);
 		}
 		virtual Rect MeasureString(const CoreLib::String & text) override;
+		virtual Rect MeasureString(const CoreLib::List<unsigned int> & text) override;
 		virtual IBakedText * BakeString(const CoreLib::String & text) override;
 
 	};

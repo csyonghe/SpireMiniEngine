@@ -3,32 +3,32 @@
 
 namespace GameEngine
 {
-	void Material::Parse(CoreLib::Text::Parser & parser)
+	void Material::Parse(CoreLib::Text::TokenReader & parser)
 	{
-		parser.Read(L"material");
-		parser.Read(L"{");
-		while (!parser.IsEnd() && !parser.LookAhead(L"}"))
+		parser.Read("material");
+		parser.Read("{");
+		while (!parser.IsEnd() && !parser.LookAhead("}"))
 		{
-			if (parser.LookAhead(L"shader"))
+			if (parser.LookAhead("shader"))
 			{
 				parser.ReadToken();
 				ShaderFile = parser.ReadStringLiteral();
 			}
-			else if (parser.LookAhead(L"var"))
+			else if (parser.LookAhead("var"))
 			{
 				parser.ReadToken();
 				auto name = parser.ReadWord();
-				parser.Read(L"=");
+				parser.Read("=");
 				auto val = DynamicVariable::Parse(parser);
 				Variables[name] = val;
 			}
 		}
-		parser.Read(L"}");
+		parser.Read("}");
 	}
 
 	void Material::LoadFromFile(const CoreLib::String & fullFileName)
 	{
-		CoreLib::Text::Parser parser(CoreLib::IO::File::ReadAllText(fullFileName));
+		CoreLib::Text::TokenReader parser(CoreLib::IO::File::ReadAllText(fullFileName));
 		Parse(parser);
 	}
 }

@@ -5,7 +5,7 @@
 #include "CoreLib/PerformanceCounter.h"
 #include "Level.h"
 #include "Renderer.h"
-#include "CoreLib/Parser.h"
+#include "CoreLib/Tokenizer.h"
 #include "InputDispatcher.h"
 #include "CoreLib/LibUI/LibUI.h"
 #include "UISystem_Windows.h"
@@ -72,7 +72,7 @@ namespace GameEngine
 		Actor * CreateActor(const CoreLib::String & name);
 		void RegisterActorClass(const CoreLib::String &name, const CoreLib::Func<Actor*> & actorCreator);
 		void LoadLevel(const CoreLib::String & fileName);
-		CoreLib::RefPtr<Actor> ParseActor(GameEngine::Level * level, CoreLib::Text::Parser & parser);
+		CoreLib::RefPtr<Actor> ParseActor(GameEngine::Level * level, CoreLib::Text::TokenReader & parser);
 	public:
 		CoreLib::String FindFile(const CoreLib::String & fileName, ResourceType type);
 	public:

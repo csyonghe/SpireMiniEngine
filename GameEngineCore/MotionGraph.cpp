@@ -17,8 +17,9 @@ namespace GameEngine
         {
             writer.Write(state.Sequence);
             writer.Write(state.Pose.Transforms);
-            writer.Write(state.Positions);
-            writer.Write(state.Velocities);
+            writer.Write(state.Contact);
+            writer.Write(state.Velocity);
+            writer.Write(state.YawAngularVelocity);
             writer.Write(state.ChildrenIds.Count());
             for (auto id : state.ChildrenIds)
             {
@@ -42,8 +43,9 @@ namespace GameEngine
             MGState state;
             reader.Read(state.Sequence);
             reader.Read(state.Pose.Transforms);
-            reader.Read(state.Positions);
-            reader.Read(state.Velocities);
+            reader.Read(state.Contact);
+            reader.Read(state.Velocity);
+            reader.Read(state.YawAngularVelocity);
 
             int numChildren = 0;
             reader.Read(numChildren);

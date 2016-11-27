@@ -2,7 +2,7 @@
 #define GAME_ENGINE_ACTOR_H
 
 #include "CoreLib/Basic.h"
-#include "CoreLib/Parser.h"
+#include "CoreLib/Tokenizer.h"
 #include "Mesh.h"
 #include "AnimationSynthesizer.h"
 #include "Material.h"
@@ -18,14 +18,14 @@ namespace GameEngine
 	class Actor : public CoreLib::Object
 	{
 	protected:
-		VectorMath::Vec3 ParseVec3(CoreLib::Text::Parser & parser);
-		VectorMath::Vec4 ParseVec4(CoreLib::Text::Parser & parser);
-		VectorMath::Matrix4 ParseMatrix4(CoreLib::Text::Parser & parser);
+		VectorMath::Vec3 ParseVec3(CoreLib::Text::TokenReader & parser);
+		VectorMath::Vec4 ParseVec4(CoreLib::Text::TokenReader & parser);
+		VectorMath::Matrix4 ParseMatrix4(CoreLib::Text::TokenReader & parser);
 		void Serialize(CoreLib::StringBuilder & sb, const VectorMath::Vec3 & v);
 		void Serialize(CoreLib::StringBuilder & sb, const VectorMath::Vec4 & v);
 		void Serialize(CoreLib::StringBuilder & sb, const VectorMath::Matrix4 & v);
 
-		virtual bool ParseField(Level * level, CoreLib::Text::Parser & parser, bool &isInvalid);
+		virtual bool ParseField(Level * level, CoreLib::Text::TokenReader & parser, bool &isInvalid);
 		virtual void SerializeFields(CoreLib::StringBuilder & sb);
 	public:
 		CoreLib::String Name;
@@ -36,9 +36,9 @@ namespace GameEngine
 		virtual EngineActorType GetEngineType() = 0;
 		virtual void OnLoad() {};
 		virtual void OnUnload() {};
-		virtual void Parse(Level * level, CoreLib::Text::Parser & parser, bool & isInvalid);
+		virtual void Parse(Level * level, CoreLib::Text::TokenReader & parser, bool & isInvalid);
 		virtual void SerializeToText(CoreLib::StringBuilder & sb);
-		virtual CoreLib::String GetTypeName() { return L"Actor"; }
+		virtual CoreLib::String GetTypeName() { return "Actor"; }
 		Actor()
 		{
 			VectorMath::Matrix4::CreateIdentityMatrix(LocalTransform);

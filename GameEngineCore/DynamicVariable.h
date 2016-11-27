@@ -3,7 +3,7 @@
 
 #include "CoreLib/Basic.h"
 #include "CoreLib/VectorMath.h"
-#include "CoreLib/Parser.h"
+#include "CoreLib/Tokenizer.h"
 
 namespace GameEngine
 {
@@ -26,7 +26,7 @@ namespace GameEngine
 			VectorMath::Vec4 Vec4Value;
 		};
 		CoreLib::String StringValue;
-		static DynamicVariable Parse(CoreLib::Text::Parser & parser);
+		static DynamicVariable Parse(CoreLib::Text::TokenReader & parser);
 	};
 }
 #endif

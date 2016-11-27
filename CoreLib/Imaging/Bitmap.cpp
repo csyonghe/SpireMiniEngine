@@ -59,22 +59,42 @@ namespace CoreLib
 
 		BitmapF::BitmapF(String fileName)
 		{
+			pixels = nullptr;
 			int channel = 4;
-			if (fileName.EndsWith(L"pfm") || fileName.EndsWith(L"PFM"))
+			if (fileName.EndsWith("pfm") || fileName.EndsWith("PFM"))
 				pixels = LoadPFM(fileName, width, height);
 			else
-				pixels = (VectorMath::Vec4 *)stbi_loadf(fileName.ToMultiByteString(), &width, &height, &channel, 4);
+			{
+#ifdef _WIN32
+				FILE * f;
+				_wfopen_s(&f, fileName.ToWString(), L"rb");
+				if (f)
+					pixels = (VectorMath::Vec4 *)stbi_loadf_from_file(f, &width, &height, &channel, 4);
+				fclose(f);
+#else
+				pixels = (VectorMath::Vec4 *)stbi_loadf(fileName.Buffer(), &width, &height, &channel, 4);
+#endif
+			}
 			if (!pixels)
-				throw IO::IOException(L"Cannot load image \"" + fileName + L"\"");
+				throw IO::IOException("Cannot load image \"" + fileName + "\"");
 		}
 
 		Bitmap::Bitmap(String fileName)
 		{
-			int channel;
+			pixels = nullptr;
+			int channel = 0;
+#ifdef _WIN32
+			FILE * f;
+			_wfopen_s(&f, fileName.ToWString(), L"rb");
+			if (f)
+				pixels = stbi_load_from_file(f, &width, &height, &channel, 4);
+			fclose(f);
+#else
 			pixels = stbi_load(fileName.ToMultiByteString(), &width, &height, &channel, 4);
+#endif
 			isTransparent = (channel == 4);
 			if (!pixels)
-				throw IO::IOException(L"Cannot load image \"" + fileName + L"\"");
+				throw IO::IOException("Cannot load image \"" + fileName + "\"");
 		}
 
 		void ImageRef::SaveAsBmpFile(Basic::String fileName, bool reverseY)
@@ -125,7 +145,7 @@ namespace CoreLib
 			bmpinfoheader[10] = (unsigned char)(       Height>>16);
 			bmpinfoheader[11] = (unsigned char)(       Height>>24);
 
-			fopen_s(&f, fileName.ToMultiByteString(), "wb");
+			_wfopen_s(&f, fileName.ToWString(), L"wb");
 			if (f)
 			{
 				fwrite(bmpfileheader,1,14,f);
@@ -139,7 +159,7 @@ namespace CoreLib
 			}
 			else
 			{
-				throw IO::IOException(L"Failed to open file for writing the bitmap.");
+				throw IO::IOException("Failed to open file for writing the bitmap.");
 			}
 		}
 
@@ -174,10 +194,10 @@ namespace CoreLib
 					img[(x + y*Width) * 4 + 0] = (unsigned char)(r);
 				}
 			}
-			int error = lodepng::encode(fileName.ToMultiByteString(), img.Buffer(), Width, Height, LCT_RGBA);
+			int error = lodepng::encode(fileName.Buffer(), img.Buffer(), Width, Height, LCT_RGBA);
 			if (error)
 			{
-				throw IO::IOException(L"Failed to open file for writing the bitmap.");
+				throw IO::IOException("Failed to open file for writing the bitmap.");
 			}
 		}
 
@@ -207,10 +227,10 @@ namespace CoreLib
 			IO::FileStream stream(fileName, IO::FileMode::Create);
 			stream.Write("PF\n", 3);
 			Basic::String s(Width);
-			stream.Write(s.ToMultiByteString(), s.Length());
+			stream.Write(s.Buffer(), s.Length());
 			stream.Write(" ", 1);
 			s = Basic::String(Height);
-			stream.Write(s.ToMultiByteString(), s.Length());
+			stream.Write(s.Buffer(), s.Length());
 			stream.Write("\n-1.000000\n", 11);
 			for (int h = Height-1; h>=0; h--)
 			{
@@ -250,21 +270,21 @@ namespace CoreLib
 				h = r->GetHeight();
 			}
 			else
-				throw ArgumentException(L"r channel cannot be null");
+				throw ArgumentException("r channel cannot be null");
 			if (g)
 			{
 				if (g->GetWidth() != w || g->GetHeight() != h)
-					throw ArgumentException(L"g - dimension mismatch.");
+					throw ArgumentException("g - dimension mismatch.");
 			}
 			if (b)
 			{
 				if (b->GetWidth() != w || b->GetHeight() != h)
-					throw ArgumentException(L"b - dimension mismatch.");
+					throw ArgumentException("b - dimension mismatch.");
 			}
 			if (a)
 			{
 				if (a->GetWidth() != w || a->GetHeight() != h)
-					throw ArgumentException(L"b - dimension mismatch.");
+					throw ArgumentException("b - dimension mismatch.");
 			}
 			BitmapF rs = BitmapF(w, h);
 			auto pix = rs.GetPixels();

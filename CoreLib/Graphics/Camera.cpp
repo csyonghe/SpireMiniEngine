@@ -109,19 +109,19 @@ namespace CoreLib
 			Vec3 left;
 			force.SetZero();
 			left.x=cos(camera.alpha);	left.y=0;	left.z=-sin(camera.alpha);
-			if (GetAsyncKeyState(L'W') != 0)
+			if (GetAsyncKeyState('W') != 0)
 			{
 				force += camera.dir;
 			}
-			else if (GetAsyncKeyState(L'S') != 0 && GetAsyncKeyState(VK_CONTROL) == 0)
+			else if (GetAsyncKeyState('S') != 0 && GetAsyncKeyState(VK_CONTROL) == 0)
 			{
 				force -= camera.dir;
 			}
-			if (GetAsyncKeyState(L'A') != 0)
+			if (GetAsyncKeyState('A') != 0)
 			{
 				force += left;
 			}
-			else if (GetAsyncKeyState(L'D') != 0)
+			else if (GetAsyncKeyState('D') != 0)
 			{
 				force -= left;
 			}

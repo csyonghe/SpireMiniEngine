@@ -248,14 +248,14 @@ namespace GraphicsUI
 				wchar_t EditString[201];
 				unsigned int StrSize = ImmGetCompositionStringW(hIMC, GCS_COMPSTR, EditString, sizeof(EditString) - sizeof(char));
 				EditString[StrSize / sizeof(wchar_t)] = 0;
-				entry->ImeMessageHandler.DoImeCompositeString(String(EditString));
+				entry->ImeMessageHandler.DoImeCompositeString(String::FromWString(EditString));
 			}
 			if (lParam&GCS_RESULTSTR)
 			{
 				wchar_t ResultStr[201];
 				unsigned int StrSize = ImmGetCompositionStringW(hIMC, GCS_RESULTSTR, ResultStr, sizeof(ResultStr) - sizeof(TCHAR));
 				ResultStr[StrSize / sizeof(wchar_t)] = 0;
-				entry->ImeMessageHandler.StringInputed(String(ResultStr));
+				entry->ImeMessageHandler.StringInputed(String::FromWString(ResultStr));
 			}
 			ImmReleaseContext(hWnd, hIMC);
 			rs = 0;
@@ -318,7 +318,7 @@ namespace GraphicsUI
 			font.lfCharSet = DEFAULT_CHARSET;
 			font.lfClipPrecision = CLIP_DEFAULT_PRECIS;
 			font.lfEscapement = 0;
-			wcscpy_s(font.lfFaceName, 32, newFont.FontName.Buffer());
+			wcscpy_s(font.lfFaceName, 32, newFont.FontName.ToWString());
 			font.lfHeight = -MulDiv(newFont.Size, dpi, 72);
 			font.lfItalic = newFont.Italic;
 			font.lfOrientation = 0;
@@ -335,7 +335,9 @@ namespace GraphicsUI
 		}
 		void DrawText(const CoreLib::String & text, int X, int Y)
 		{
-			(::TextOut(Handle, X, Y, text.Buffer(), text.Length()));
+			int len = 0;
+			text.ToWString(&len);
+			(::TextOut(Handle, X, Y, text.ToWString(), len));
 		}
 		/*int DrawText(const CoreLib::String & text, int X, int Y, int W)
 		{
@@ -351,7 +353,26 @@ namespace GraphicsUI
 			SIZE sText;
 			TextSize result;
 			sText.cx = 0; sText.cy = 0;
-			GetTextExtentPoint32(Handle, Text.Buffer(), Text.Length(), &sText);
+			int len;
+			Text.ToWString(&len);
+			GetTextExtentPoint32W(Handle, Text.ToWString(), len, &sText);
+			result.x = sText.cx;  result.y = sText.cy;
+			return result;
+		}
+		TextSize GetTextSize(const CoreLib::List<unsigned int> & Text)
+		{
+			SIZE sText;
+			TextSize result;
+			sText.cx = 0; sText.cy = 0;
+			CoreLib::List<unsigned short> wstr;
+			wstr.Reserve(Text.Count());
+			for (int i = 0; i < Text.Count(); i++)
+			{
+				unsigned short buffer[2];
+				int len = CoreLib::IO::EncodeUnicodePointToUTF16(buffer, Text[i]);
+				wstr.AddRange(buffer, len);
+			}
+			GetTextExtentPoint32W(Handle, (wchar_t*)wstr.Buffer(), wstr.Count(), &sText);
 			result.x = sText.cx;  result.y = sText.cy;
 			return result;
 		}
@@ -414,7 +435,7 @@ namespace GraphicsUI
 			ScanLine = NULL;
 			Handle = CreateCompatibleDC(NULL);
 			canvas = new Canvas(Handle);
-			canvas->ChangeFont(Font(L"Segoe UI", 10), 96);
+			canvas->ChangeFont(Font("Segoe UI", 10), 96);
 
 		}
 		~DIBImage()
@@ -615,7 +636,7 @@ namespace GraphicsUI
 			CoreLib::List<unsigned char> result;
 
 			FILE * f;
-			fopen_s(&f, fileName.ToMultiByteString(), "rb");
+			_wfopen_s(&f, fileName.ToWString(), L"rb");
 			while (!feof(f))
 			{
 				unsigned char c;
@@ -763,9 +784,9 @@ namespace GraphicsUI
 
 			SpireCompilationContext * spireCtx = spCreateCompilationContext(nullptr);
 			auto backend = rendererApi->GetSpireBackendName();
-			if (backend == L"glsl")
+			if (backend == "glsl")
 				spSetCodeGenTarget(spireCtx, SPIRE_GLSL);
-			else if (backend == L"hlsl")
+			else if (backend == "hlsl")
 				spSetCodeGenTarget(spireCtx, SPIRE_HLSL);
 			else
 				spSetCodeGenTarget(spireCtx, SPIRE_SPIRV);
@@ -1079,7 +1100,7 @@ namespace GraphicsUI
 				WCHAR *pwszText = (WCHAR*)GlobalLock(hBlock);
 				if (pwszText)
 				{
-					CopyMemory(pwszText, text.Buffer(), text.Length() * sizeof(WCHAR));
+					CopyMemory(pwszText, text.ToWString(), text.Length() * sizeof(WCHAR));
 					pwszText[text.Length()] = L'\0';  // Terminate it
 					GlobalUnlock(hBlock);
 				}
@@ -1105,7 +1126,7 @@ namespace GraphicsUI
 				if (pwszText)
 				{
 					// Copy all characters up to null.
-					txt = pwszText;
+					txt = String::FromWString(pwszText);
 					GlobalUnlock(handle);
 				}
 			}
@@ -1244,9 +1265,9 @@ namespace GraphicsUI
 	{
 		rendererApi = ctx;
 		int dpi = GetCurrentDpi();
-		defaultFont = new WindowsFont(this, dpi, Font(L"Segoe UI", 13));
-		titleFont = new WindowsFont(this, dpi, Font(L"Segoe UI", 13, true, false, false));
-		symbolFont = new WindowsFont(this, dpi, Font(L"Webdings", 13));
+		defaultFont = new WindowsFont(this, dpi, Font("Segoe UI", 13));
+		titleFont = new WindowsFont(this, dpi, Font("Segoe UI", 13, true, false, false));
+		symbolFont = new WindowsFont(this, dpi, Font("Webdings", 13));
 		textBufferObj = ctx->CreateMappedBuffer(BufferUsage::StorageBuffer);
 		textBufferObj->SetData(nullptr, TextBufferSize);
 		textBuffer = (unsigned char*)textBufferObj->Map();
@@ -1284,6 +1305,16 @@ namespace GraphicsUI
 	}
 
 	Rect WindowsFont::MeasureString(const CoreLib::String & text)
+	{
+		Rect rs;
+		auto size = rasterizer->GetTextSize(text);
+		rs.x = rs.y = 0;
+		rs.w = size.x;
+		rs.h = size.y;
+		return rs;
+	}
+
+	Rect WindowsFont::MeasureString(const List<unsigned int> & text)
 	{
 		Rect rs;
 		auto size = rasterizer->GetTextSize(text);
@@ -1362,7 +1393,12 @@ namespace GraphicsUI
 		return result;
 	}
 
-	inline TextSize TextRasterizer::GetTextSize(const CoreLib::String & text)
+	TextSize TextRasterizer::GetTextSize(const CoreLib::String & text)
+	{
+		return Bit->canvas->GetTextSize(text);
+	}
+
+	TextSize TextRasterizer::GetTextSize(const CoreLib::List<unsigned int> & text)
 	{
 		return Bit->canvas->GetTextSize(text);
 	}

@@ -50,19 +50,19 @@ namespace Text
 
 	String RegexSelectionNode::Reinterpret()
 	{
-		return LeftChild->Reinterpret() + L"|" + RightChild->Reinterpret();
+		return LeftChild->Reinterpret() + "|" + RightChild->Reinterpret();
 	}
 
 	String RegexRepeatNode::Reinterpret()
 	{
 		wchar_t t;
 		if (RepeatType == RegexRepeatNode::rtArbitary)
-			t = L'*';
+			t = '*';
 		else if (RepeatType == rtOptional)
-			t = L'?';
+			t = '?';
 		else
-			t = L'+';
-		return String(L"(") + Child->Reinterpret() + L")" + t;
+			t = '+';
+		return String("(") + Child->Reinterpret() + ")" + t;
 	}
 
 	String RegexCharSet::Reinterpret()
@@ -71,14 +71,14 @@ namespace Text
 			!Neg)
 		{
 			return (Ranges[0].Begin>=28 && Ranges[0].Begin <127)? String((wchar_t)Ranges[0].Begin):
-				String(L"<") + String((int)Ranges[0].Begin) + String(L">");
+				String("<") + String((int)Ranges[0].Begin) + String(">");
 		}
 		else
 		{
 			StringBuilder rs;
-			rs.Append(L"[");
+			rs.Append("[");
 			if (Neg)
-				rs.Append(L'^');
+				rs.Append('^');
 			for (int i=0; i<Ranges.Count(); i++)
 			{
 				if (Ranges[i].Begin == Ranges[i].End)
@@ -86,13 +86,13 @@ namespace Text
 				else
 				{
 					rs.Append(Ranges[i].Begin>=28 && Ranges[i].Begin<128?Ranges[i].Begin:
-						String(L"<") + String((int)Ranges[i].Begin) + L">");
-					rs.Append(L'-');
+						String("<") + String((int)Ranges[i].Begin) + ">");
+					rs.Append('-');
 					rs.Append(Ranges[i].End>=28 && Ranges[i].End<128?Ranges[i].End:
-						String(L"<") + String((int)Ranges[i].End)+ L">");
+						String("<") + String((int)Ranges[i].End)+ ">");
 				}
 			}
-			rs.Append(L']');
+			rs.Append(']');
 			return rs.ProduceString();
 		}
 	}

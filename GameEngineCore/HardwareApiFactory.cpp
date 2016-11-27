@@ -1,7 +1,7 @@
 #include "HardwareApiFactory.h"
 #include "HardwareRenderer.h"
 #include "CoreLib/LibIO.h"
-#include "CoreLib/Parser.h"
+#include "CoreLib/Tokenizer.h"
 #include "CoreLib/WinForm/Debug.h"
 
 namespace GameEngine
@@ -19,11 +19,11 @@ namespace GameEngine
 		const CoreLib::String & symbol)
 	{
 		auto actualFilename = Engine::Instance()->FindFile(filename, ResourceType::Shader);
-		auto cachePostfix = (targetLang == SPIRE_GLSL) ? L"_glsl" : (targetLang == SPIRE_HLSL) ? L"_hlsl" : L"_spv";
+		auto cachePostfix = (targetLang == SPIRE_GLSL) ? "_glsl" : (targetLang == SPIRE_HLSL) ? "_hlsl" : "_spv";
 		// Check disk for shaders
 		auto cachedShaderFilename =
 			CoreLib::IO::Path::Combine(CoreLib::IO::Path::GetDirectoryName(actualFilename),
-				CoreLib::IO::Path::GetFileNameWithoutEXT(actualFilename) + L"_" + symbol + cachePostfix + L".cse");
+				CoreLib::IO::Path::GetFileNameWithoutEXT(actualFilename) + "_" + symbol + cachePostfix + ".cse");
 
 		/*if (CoreLib::IO::File::Exists(cachedShaderFilename))
 		{
@@ -34,23 +34,23 @@ namespace GameEngine
 		// Compile shader using Spire
 
 		auto spireCtx = spCreateCompilationContext(nullptr);
-		spAddSearchPath(spireCtx, searchDir.ToMultiByteString());
+		spAddSearchPath(spireCtx, searchDir.Buffer());
 		spSetCodeGenTarget(spireCtx, targetLang);
-		spSetShaderToCompile(spireCtx, symbol.ToMultiByteString());
+		spSetShaderToCompile(spireCtx, symbol.Buffer());
 
 		String shaderSrc;
 		SpireCompilationResult * compileResult;
 		if (actualFilename.Length())
 		{
-			spLoadModuleLibraryFromSource(spireCtx, pipelineDef.ToMultiByteString(), "pipeline_def");
+			spLoadModuleLibraryFromSource(spireCtx, pipelineDef.Buffer(), "pipeline_def");
 			auto fileContent = CoreLib::IO::File::ReadAllText(actualFilename) + vertexDef + meshProcessingDef;
-			compileResult = spCompileShaderFromSource(spireCtx, fileContent.ToMultiByteString(), actualFilename.ToMultiByteString());
+			compileResult = spCompileShaderFromSource(spireCtx, fileContent.Buffer(), actualFilename.Buffer());
 			shaderSrc = pipelineDef + fileContent;
 		}
 		else
 		{
 			shaderSrc = defaultShader + vertexDef + meshProcessingDef;
-			compileResult = spCompileShaderFromSource(spireCtx, shaderSrc.ToMultiByteString(), "default_shader");
+			compileResult = spCompileShaderFromSource(spireCtx, shaderSrc.Buffer(), "default_shader");
 		}
 
 		int warningCount = spGetMessageCount(compileResult, SPIRE_WARNING);
@@ -64,7 +64,7 @@ namespace GameEngine
 				src.Warnings.Add(ShaderCompilationError(msg));
 			}
 		}
-		CoreLib::IO::File::WriteAllText(L"debugSpireShader.spire", shaderSrc);
+		CoreLib::IO::File::WriteAllText("debugSpireShader.spire", shaderSrc);
 		if (errorCount > 0)
 		{
 			for (int i = 0; i < errorCount; i++)
@@ -72,7 +72,7 @@ namespace GameEngine
 				SpireErrorMessage msg;
 				spGetMessageContent(compileResult, SPIRE_ERROR, i, &msg);
 				src.Errors.Add(ShaderCompilationError(msg));
-				CoreLib::Diagnostics::Debug::WriteLine(String(msg.FileName) + L"(" + msg.Line + L"): " + String(msg.Message));
+				CoreLib::Diagnostics::Debug::WriteLine(String(msg.FileName) + "(" + msg.Line + "): " + String(msg.Message));
 			}
 		}
 
@@ -82,16 +82,16 @@ namespace GameEngine
 			spDestroyCompilationContext(spireCtx);
 			return false;
 		}
-		int bufferSize = spGetCompiledShaderStageNames(compileResult, symbol.ToMultiByteString(), nullptr, 0);
+		int bufferSize = spGetCompiledShaderStageNames(compileResult, symbol.Buffer(), nullptr, 0);
 		List<char> buffer;
 		buffer.SetSize(bufferSize);
-		spGetCompiledShaderStageNames(compileResult, symbol.ToMultiByteString(), buffer.Buffer(), bufferSize);
+		spGetCompiledShaderStageNames(compileResult, symbol.Buffer(), buffer.Buffer(), bufferSize);
 
 		for (auto stage : CoreLib::Text::Split(buffer.Buffer(), L'\n'))
 		{
 			List<unsigned char> codeBytes;
 			int len = 0;
-			auto code = spGetShaderStageSource(compileResult, symbol.ToMultiByteString(), stage.ToMultiByteString(), &len);
+			auto code = spGetShaderStageSource(compileResult, symbol.Buffer(), stage.Buffer(), &len);
 			codeBytes.SetSize(len);
 			memcpy(codeBytes.Buffer(), code, codeBytes.Count());
 			src.Shaders.AddIfNotExists(stage, codeBytes);
@@ -155,9 +155,9 @@ namespace GameEngine
 		for (int c = 0; c < src.Length(); c++)
 		{
 			auto ch = src[c];
-			if (ch == L'\n')
+			if (ch == '\n')
 			{
-				sb << L"\n";
+				sb << "\n";
 
 				beginTrim = true;
 			}
@@ -171,15 +171,15 @@ namespace GameEngine
 						ch = src[c];
 					}
 					for (int i = 0; i < indent - 1; i++)
-						sb << L'\t';
+						sb << '\t';
 					if (ch != '}' && indent > 0)
-						sb << L'\t';
+						sb << '\t';
 					beginTrim = false;
 				}
 
-				if (ch == L'{')
+				if (ch == '{')
 					indent++;
-				else if (ch == L'}')
+				else if (ch == '}')
 					indent--;
 				if (indent < 0)
 					indent = 0;
@@ -192,11 +192,11 @@ namespace GameEngine
 	void ShaderCompilationResult::LoadFromFile(String fileName)
 	{
 		auto src = CoreLib::IO::File::ReadAllText(fileName);
-		CoreLib::Text::Parser parser(src);
+		CoreLib::Text::TokenReader parser(src);
 		auto getShaderSource = [&]()
 		{
 			auto token = parser.ReadToken();
-			int endPos = token.Position + 1;
+			int endPos = token.Position.Pos + 1;
 			int brace = 0;
 			while (endPos < src.Length() && !(src[endPos] == L'}' && brace == 0))
 			{
@@ -206,35 +206,35 @@ namespace GameEngine
 					brace--;
 				endPos++;
 			}
-			while (!parser.IsEnd() && parser.NextToken().Position != endPos)
+			while (!parser.IsEnd() && parser.NextToken().Position.Pos != endPos)
 				parser.ReadToken();
 			parser.ReadToken();
-			return src.SubString(token.Position + 1, endPos - token.Position - 1);
+			return src.SubString(token.Position.Pos + 1, endPos - token.Position.Pos - 1);
 		};
 		while (!parser.IsEnd())
 		{
 			auto stageName = parser.ReadWord();
-			if (parser.LookAhead(L"binary"))
+			if (parser.LookAhead("binary"))
 			{
 				parser.ReadToken();
-				parser.Read(L"{");
-				while (!parser.LookAhead(L"}") && !parser.IsEnd())
+				parser.Read("{");
+				while (!parser.LookAhead("}") && !parser.IsEnd())
 				{
 					auto val = parser.ReadUInt();
 					List<unsigned char> code;
 					code.AddRange((unsigned char*)&val, sizeof(unsigned int));
 					this->Shaders[stageName] = code;
 				}
-				parser.Read(L"}");
+				parser.Read("}");
 			}
-			if (parser.LookAhead(L"text"))
+			if (parser.LookAhead("text"))
 			{
 				parser.ReadToken();
 				List<unsigned char> code;
 				auto codeStr = getShaderSource();
-				int len = (int)strlen(codeStr.ToMultiByteString());
+				int len = (int)strlen(codeStr.Buffer());
 				code.SetSize(len);
-				memcpy(code.Buffer(), codeStr.ToMultiByteString(), len);
+				memcpy(code.Buffer(), codeStr.Buffer(), len);
 				code.Add(0);
 				Shaders[stageName] = code;
 			}
@@ -248,18 +248,18 @@ namespace GameEngine
 			sb << code.Key;
 			if (codeIsText)
 			{
-				sb << L"\ntext\n{\n";
-				sb << (char *)code.Value.Buffer() << L"\n}\n";
+				sb << "\ntext\n{\n";
+				sb << (char *)code.Value.Buffer() << "\n}\n";
 			}
 			else
 			{
-				sb << L"\nbinary\n{\n";
+				sb << "\nbinary\n{\n";
 				for (auto i = 0; i < code.Value.Count(); i++)
 				{
-					sb << (int)code.Value[i] << L" ";
-					if (i % 12 == 0) sb << L"\n";
+					sb << (int)code.Value[i] << " ";
+					if (i % 12 == 0) sb << "\n";
 				}
-				sb << L"\n}\n";
+				sb << "\n}\n";
 			}
 		}
 		CoreLib::IO::File::WriteAllText(fileName, IndentString(sb.ProduceString()));
@@ -267,25 +267,25 @@ namespace GameEngine
 	void HardwareApiFactory::LoadShaderLibrary()
 	{
 		// Load OpenGL shader pipeline
-		auto pipelineDefFile = Engine::Instance()->FindFile(L"GlPipeline.shader", ResourceType::Shader);
+		auto pipelineDefFile = Engine::Instance()->FindFile("GlPipeline.shader", ResourceType::Shader);
 		if (!pipelineDefFile.Length())
-			throw InvalidOperationException(L"'Pipeline.shader' not found. Engine directory is not setup correctly.");
+			throw InvalidOperationException("'Pipeline.shader' not found. Engine directory is not setup correctly.");
 		engineShaderDir = CoreLib::IO::Path::GetDirectoryName(pipelineDefFile);
-		pipelineShaderDef = L"\n#file " + CoreLib::Text::Parser::EscapeStringLiteral(pipelineDefFile) + L"\n" + CoreLib::IO::File::ReadAllText(pipelineDefFile);
-		auto utilDefFile = Engine::Instance()->FindFile(L"Utils.shader", ResourceType::Shader);
+		pipelineShaderDef = "\n#file " + CoreLib::Text::EscapeStringLiteral(pipelineDefFile) + "\n" + CoreLib::IO::File::ReadAllText(pipelineDefFile);
+		auto utilDefFile = Engine::Instance()->FindFile("Utils.shader", ResourceType::Shader);
 		if (!utilDefFile.Length())
-			throw InvalidOperationException(L"'Utils.shader' not found. Engine directory is not setup correctly.");
+			throw InvalidOperationException("'Utils.shader' not found. Engine directory is not setup correctly.");
 		auto utilsDef = CoreLib::IO::File::ReadAllText(utilDefFile);
-		pipelineShaderDef = pipelineShaderDef + L"\n#file " + CoreLib::Text::Parser::EscapeStringLiteral(utilDefFile) + L"\n" + utilsDef;
+		pipelineShaderDef = pipelineShaderDef + "\n#file " + CoreLib::Text::EscapeStringLiteral(utilDefFile) + "\n" + utilsDef;
 
-		auto defaultShaderFile = Engine::Instance()->FindFile(L"DefaultPattern.shader", ResourceType::Shader);
+		auto defaultShaderFile = Engine::Instance()->FindFile("DefaultPattern.shader", ResourceType::Shader);
 		if (!defaultShaderFile.Length())
-			throw InvalidOperationException(L"'DefaultPattern.shader' not found. Engine directory is not setup correctly.");
-		defaultShader = pipelineShaderDef + L"\n#file " + CoreLib::Text::Parser::EscapeStringLiteral(defaultShaderFile) + L"\n" + CoreLib::IO::File::ReadAllText(defaultShaderFile);
+			throw InvalidOperationException("'DefaultPattern.shader' not found. Engine directory is not setup correctly.");
+		defaultShader = pipelineShaderDef + "\n#file " + CoreLib::Text::EscapeStringLiteral(defaultShaderFile) + "\n" + CoreLib::IO::File::ReadAllText(defaultShaderFile);
 
-		auto meshProcessingFile = Engine::Instance()->FindFile(L"MeshProcessing.shader", ResourceType::Shader);
+		auto meshProcessingFile = Engine::Instance()->FindFile("MeshProcessing.shader", ResourceType::Shader);
 		if (!meshProcessingFile.Length())
-			throw InvalidOperationException(L"'MeshProcessing.shader' not found. Engine directory is not setup correctly.");
-		meshProcessingDef = L"\n#file " + CoreLib::Text::Parser::EscapeStringLiteral(meshProcessingFile) + L"\n" + CoreLib::IO::File::ReadAllText(meshProcessingFile);
+			throw InvalidOperationException("'MeshProcessing.shader' not found. Engine directory is not setup correctly.");
+		meshProcessingDef = "\n#file " + CoreLib::Text::EscapeStringLiteral(meshProcessingFile) + "\n" + CoreLib::IO::File::ReadAllText(meshProcessingFile);
 	}
 }

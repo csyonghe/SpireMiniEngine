@@ -1,7 +1,8 @@
-#include "CoreLib/Basic.h"
+﻿#include "CoreLib/Basic.h"
 #include "CoreLib/PerformanceCounter.h"
 #include "CoreLib/WinForm/WinForm.h"
 #include "CoreLib/WinForm/WinApp.h"
+#include "CoreLib/CommandLineParser.h"
 #include "Engine.h"
 
 namespace GameEngine
@@ -28,7 +29,9 @@ namespace GameEngine
 		MainForm()
 		{
 			wantChars = true;
-			SetText(L"Game Engine");
+			SetText("Game Engine");
+            SetClientWidth(1920);
+            SetClientHeight(1200);
 			OnResized.Bind(this, &MainForm::FormResized);
 			OnFocus.Bind([](auto, auto) {Engine::Instance()->EnableInput(true); });
 			OnLostFocus.Bind([](auto, auto) {Engine::Instance()->EnableInput(false); });
@@ -56,7 +59,7 @@ using namespace CoreLib::WinForm;
 
 String RemoveQuote(String dir)
 {
-	if (dir.StartsWith(L"\""))
+	if (dir.StartsWith("\""))
 		return dir.SubString(1, dir.Length() - 2);
 	return dir;
 }
@@ -85,14 +88,14 @@ int wWinMain(
 
 		CoreLib::String wat = Application::GetCommandLine();
 		CommandLineParser parser(Application::GetCommandLine());
-		if(parser.OptionExists(L"-vk"))
+		if(parser.OptionExists("-vk"))
 			args.API = RenderAPI::Vulkan;
-		if (parser.OptionExists(L"-dir"))
-			args.GameDirectory = RemoveQuote(parser.GetOptionValue(L"-dir"));
-		if (parser.OptionExists(L"-enginedir"))
-			args.EngineDirectory = RemoveQuote(parser.GetOptionValue(L"-enginedir"));
-		if (parser.OptionExists(L"-gpu"))
-			args.GpuId = StringToInt(parser.GetOptionValue(L"-gpu"));
+		if (parser.OptionExists("-dir"))
+			args.GameDirectory = RemoveQuote(parser.GetOptionValue("-dir"));
+		if (parser.OptionExists("-enginedir"))
+			args.EngineDirectory = RemoveQuote(parser.GetOptionValue("-enginedir"));
+		if (parser.OptionExists("-gpu"))
+			args.GpuId = StringToInt(parser.GetOptionValue("-gpu"));
 
 		Engine::Init(args);
 		

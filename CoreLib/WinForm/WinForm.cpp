@@ -179,12 +179,12 @@ namespace CoreLib
 
 		int BaseForm::MessageBox(const String & msg, const String & title, unsigned int style)
 		{
-			return ::MessageBoxW(handle, msg.Buffer(), title.Buffer(), style);
+			return ::MessageBoxW(handle, msg.ToWString(), title.ToWString(), style);
 		}
 
 		void BaseForm::SetText(String text)
 		{
-			SetWindowTextW(handle, text.Buffer());
+			SetWindowTextW(handle, text.ToWString());
 		}
 
 		String BaseForm::GetText()
@@ -193,7 +193,7 @@ namespace CoreLib
 			wchar_t buf[buflen];
 			memset(buf,0,sizeof(wchar_t) * buflen);
 			GetWindowTextW(handle, buf, buflen);
-			String rs = buf;
+			String rs = String::FromWString(buf);
 			return rs;
 		}
 

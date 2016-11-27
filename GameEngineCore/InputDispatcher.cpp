@@ -1,5 +1,5 @@
 #include "InputDispatcher.h"
-#include "CoreLib/Parser.h"
+#include "CoreLib/Tokenizer.h"
 #include "CoreLib/LibIO.h"
 
 namespace GameEngine
@@ -15,53 +15,53 @@ namespace GameEngine
 
 	void InputDispatcher::LoadMapping(const CoreLib::String & fileName)
 	{
-		Parser parser(File::ReadAllText(fileName));
+		TokenReader parser(File::ReadAllText(fileName));
 		while (!parser.IsEnd())
 		{
 			bool isAxis = true;
 			InputMappingValue mapVal;
-			if (parser.LookAhead(L"action"))
+			if (parser.LookAhead("action"))
 			{
-				parser.Read(L"action");
+				parser.Read("action");
 				isAxis = false;
 			}
 			else
-				parser.Read(L"axis");
+				parser.Read("axis");
 			mapVal.ActionName = parser.ReadWord();
-			parser.Read(L":");
+			parser.Read(":");
 			auto ch = parser.ReadStringLiteral().ToUpper();
 			if (isAxis)
 			{
-				if (parser.LookAhead(L","))
+				if (parser.LookAhead(","))
 				{
-					parser.Read(L",");
+					parser.Read(",");
 					mapVal.Value = (float)parser.ReadDouble();
 				}
 			}
 			wchar_t key = ch[0];
-			if (ch == L"SPACE")
+			if (ch == "SPACE")
 				key = SpecialKeys::Space;
-			else if (ch == L"MBLEFT")
+			else if (ch == "MBLEFT")
 				key = SpecialKeys::MouseLeftButton;
-			else if (ch == L"MBRIGHT")
+			else if (ch == "MBRIGHT")
 				key = SpecialKeys::MouseRightButton;
-			else if (ch == L"MBMIDDLE")
+			else if (ch == "MBMIDDLE")
 				key = SpecialKeys::MouseMiddleButton;
-			else if (ch == L"CTRL")
+			else if (ch == "CTRL")
 				key = SpecialKeys::Control;
-			else if (ch == L"UP")
+			else if (ch == "UP")
 				key = SpecialKeys::UpArrow;
-			else if (ch == L"DOWN")
+			else if (ch == "DOWN")
 				key = SpecialKeys::DownArrow;
-			else if (ch == L"LEFT")
+			else if (ch == "LEFT")
 				key = SpecialKeys::LeftArrow;
-			else if (ch == L"RIGHT")
+			else if (ch == "RIGHT")
 				key = SpecialKeys::RightArrow;
-			else if (ch == L"ESCAPE")
+			else if (ch == "ESCAPE")
 				key = SpecialKeys::Escape;
-			else if (ch == L"ENTER")
+			else if (ch == "ENTER")
 				key = SpecialKeys::Enter;
-			else if (ch == L"SHIFT")
+			else if (ch == "SHIFT")
 				key = SpecialKeys::Shift;
 			if (isAxis)
 				keyboardAxisMappings[key] = mapVal;

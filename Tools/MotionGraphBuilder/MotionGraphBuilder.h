@@ -13,6 +13,7 @@ namespace GameEngine
 {
     namespace Tools
     {
+        MotionGraph CreateTestMotionGraph(const CoreLib::String & filename);
         MotionGraph BuildMotionGraph(const CoreLib::String & filename);
     }
 }

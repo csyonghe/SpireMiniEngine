@@ -1,7 +1,7 @@
 #include "Engine.h"
 #include "Level.h"
 #include "CoreLib/LibIO.h"
-#include "CoreLib/Parser.h"
+#include "CoreLib/Tokenizer.h"
 
 namespace GameEngine
 {
@@ -10,7 +10,7 @@ namespace GameEngine
 
 	Level::Level(const CoreLib::String & fileName)
 	{
-		Text::Parser parser(File::ReadAllText(fileName));
+		Text::TokenReader parser(File::ReadAllText(fileName));
 		while (!parser.IsEnd())
 		{
 			auto actor = Engine::Instance()->ParseActor(this, parser);
@@ -44,7 +44,7 @@ namespace GameEngine
 			}
 			else
 			{
-				printf("error: cannot load mesh \'%S\'\n", fileName.Buffer());
+				printf("error: cannot load mesh \'%S\'\n", fileName.ToWString());
 				return nullptr;
 			}
 		}
@@ -64,7 +64,7 @@ namespace GameEngine
 			}
 			else
 			{
-				printf("error: cannot load skeleton \'%S\'\n", fileName.Buffer());
+				printf("error: cannot load skeleton \'%S\'\n", fileName.ToWString());
 				return nullptr;
 			}
 		}
@@ -84,7 +84,7 @@ namespace GameEngine
 			}
 			else
 			{
-				printf("error: cannot load material \'%S\'\n", fileName.Buffer());
+				printf("error: cannot load material \'%S\'\n", fileName.ToWString());
 				return nullptr;
 			}
 		}
@@ -93,7 +93,7 @@ namespace GameEngine
 	Material * Level::CreateNewMaterial()
 	{
 		Material* mat = new Material();
-		Materials[String(L"$materialInstance") + String(Materials.Count())] = mat;
+		Materials[String("$materialInstance") + String(Materials.Count())] = mat;
 		return mat;
 	}
 	SkeletalAnimation * Level::LoadSkeletalAnimation(const CoreLib::String & fileName)
@@ -110,7 +110,7 @@ namespace GameEngine
 			}
 			else
 			{
-				printf("error: cannot load animation \'%S\'\n", fileName.Buffer());
+				printf("error: cannot load animation \'%S\'\n", fileName.ToWString());
 				return nullptr;
 			}
 		}
@@ -130,7 +130,7 @@ namespace GameEngine
             }
             else
             {
-                printf("error: cannot load motion graph \'%S\'\n", fileName.Buffer());
+                printf("error: cannot load motion graph \'%S\'\n", fileName.ToWString());
                 return nullptr;
             }
         }

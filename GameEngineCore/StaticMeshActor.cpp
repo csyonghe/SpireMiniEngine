@@ -4,11 +4,11 @@
 
 namespace GameEngine
 {
-	bool StaticMeshActor::ParseField(Level * level, CoreLib::Text::Parser & parser, bool & isInvalid)
+	bool StaticMeshActor::ParseField(Level * level, CoreLib::Text::TokenReader & parser, bool & isInvalid)
 	{
 		if (Actor::ParseField(level, parser, isInvalid))
 			return true;
-		if (parser.LookAhead(L"mesh"))
+		if (parser.LookAhead("mesh"))
 		{
 			parser.ReadToken();
 			MeshName = parser.ReadStringLiteral();
@@ -19,9 +19,9 @@ namespace GameEngine
 			}
 			return true;
 		}
-		if (parser.LookAhead(L"material"))
+		if (parser.LookAhead("material"))
 		{
-			if (parser.NextToken(1).Str == L"{")
+			if (parser.NextToken(1).Content == "{")
 			{
 				MaterialInstance = level->CreateNewMaterial();
 				MaterialInstance->Parse(parser);

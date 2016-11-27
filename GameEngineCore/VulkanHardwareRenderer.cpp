@@ -120,29 +120,29 @@ namespace VK
 		{
 			(void)objectType, object, location, messageCode, pUserData;
 			if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT)
-				CoreLib::Diagnostics::Debug::Write(L"ERROR");
+				CoreLib::Diagnostics::Debug::Write("ERROR");
 			if (flags & VK_DEBUG_REPORT_WARNING_BIT_EXT)
-				CoreLib::Diagnostics::Debug::Write(L"WARNING");
+				CoreLib::Diagnostics::Debug::Write("WARNING");
 			if (flags & VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT)
-				CoreLib::Diagnostics::Debug::Write(L"PERFORMANCE");
+				CoreLib::Diagnostics::Debug::Write("PERFORMANCE");
 			if (flags & VK_DEBUG_REPORT_INFORMATION_BIT_EXT)
-				CoreLib::Diagnostics::Debug::Write(L"INFO");
+				CoreLib::Diagnostics::Debug::Write("INFO");
 			if (flags & VK_DEBUG_REPORT_DEBUG_BIT_EXT)
-				CoreLib::Diagnostics::Debug::Write(L"DEBUG");
+				CoreLib::Diagnostics::Debug::Write("DEBUG");
 
-			CoreLib::Diagnostics::Debug::Write(L" [");
+			CoreLib::Diagnostics::Debug::Write(" [");
 			CoreLib::Diagnostics::Debug::Write(pLayerPrefix);
-			CoreLib::Diagnostics::Debug::Write(L"] ");
+			CoreLib::Diagnostics::Debug::Write("] ");
 
-			CoreLib::Diagnostics::Debug::Write(L"(");
+			CoreLib::Diagnostics::Debug::Write("(");
 			CoreLib::Diagnostics::Debug::Write(to_string((vk::DebugReportObjectTypeEXT)objectType).c_str());
 			//CoreLib::Diagnostics::Debug::Write(L" ");
 			//CoreLib::Diagnostics::Debug::Write((long long)object);
 			//CoreLib::Diagnostics::Debug::Write(L" at location ");
 			//CoreLib::Diagnostics::Debug::Write((long long)location);
-			CoreLib::Diagnostics::Debug::Write(L") ");
+			CoreLib::Diagnostics::Debug::Write(") ");
 			CoreLib::Diagnostics::Debug::Write((long long)messageCode);
-			CoreLib::Diagnostics::Debug::Write(L" ");
+			CoreLib::Diagnostics::Debug::Write(" ");
 			CoreLib::Diagnostics::Debug::WriteLine(pMessage);
 			return VK_FALSE;
 		}
@@ -572,6 +572,7 @@ namespace VK
 					Device().resetFences((*State().primaryFences)[k]);
 					return std::make_pair((*State().primaryBuffers)[k], (*State().primaryFences)[k]);
 				}
+			return std::make_pair(vk::CommandBuffer(), vk::Fence());
 		}
 
 		static const vk::DescriptorPool& DescriptorPool()
@@ -753,7 +754,7 @@ namespace VK
 		case StorageFormat::RGB10_A2: return vk::Format::eA2R10G10B10UnormPack32;//
 		case StorageFormat::Depth32: return vk::Format::eD32Sfloat;
 		case StorageFormat::Depth24Stencil8: return vk::Format::eD24UnormS8Uint;
-		default: throw HardwareRendererException(L"Not implemented.");
+		default: throw HardwareRendererException("Not implemented.");
 		}
 	};
 
@@ -765,7 +766,7 @@ namespace VK
 		case BufferUsage::IndexBuffer: return vk::BufferUsageFlagBits::eIndexBuffer;
 		case BufferUsage::StorageBuffer: return vk::BufferUsageFlagBits::eStorageBuffer;
 		case BufferUsage::UniformBuffer: return vk::BufferUsageFlagBits::eUniformBuffer;
-		default: throw HardwareRendererException(L"Not implemented.");
+		default: throw HardwareRendererException("Not implemented.");
 		}
 	}
 
@@ -794,19 +795,19 @@ namespace VK
 		case DataType::UShort:
 			return attribute.Normalized ? vk::Format::eR16Unorm : vk::Format::eR16Uint;
 		case DataType::Half:
-			return attribute.Normalized ? throw HardwareRendererException(L"Unsupported data type.") : vk::Format::eR16Sfloat;//
+			return attribute.Normalized ? throw HardwareRendererException("Unsupported data type.") : vk::Format::eR16Sfloat;//
 		case DataType::Short2:
 			return attribute.Normalized ? vk::Format::eR16G16Snorm : vk::Format::eR16G16Sint;
 		case DataType::UShort2:
 			return attribute.Normalized ? vk::Format::eR16G16Unorm : vk::Format::eR16G16Uint;
 		case DataType::Half2:
-			return attribute.Normalized ? throw HardwareRendererException(L"Unsupported data type.") : vk::Format::eR16G16Sfloat;//
+			return attribute.Normalized ? throw HardwareRendererException("Unsupported data type.") : vk::Format::eR16G16Sfloat;//
 		case DataType::Short3:
 			return attribute.Normalized ? vk::Format::eR16G16B16Snorm : vk::Format::eR16G16B16Sint;
 		case DataType::UShort3:
 			return attribute.Normalized ? vk::Format::eR16G16B16Unorm : vk::Format::eR16G16B16Uint;
 		case DataType::Half3:
-			return attribute.Normalized ? throw HardwareRendererException(L"Unsupported data type.") : vk::Format::eR16G16B16Sfloat;//
+			return attribute.Normalized ? throw HardwareRendererException("Unsupported data type.") : vk::Format::eR16G16B16Sfloat;//
 		case DataType::Short4:
 			return attribute.Normalized ? vk::Format::eR16G16B16A16Snorm : vk::Format::eR16G16B16A16Sint;
 		case DataType::UShort4:
@@ -814,27 +815,27 @@ namespace VK
 		case DataType::Half4:
 			return attribute.Normalized ? vk::Format::eR16G16B16A16Snorm : vk::Format::eR16G16B16A16Sfloat;//
 		case DataType::Int:
-			return attribute.Normalized ? throw HardwareRendererException(L"Unsupported data type.") : vk::Format::eR32Sint;
+			return attribute.Normalized ? throw HardwareRendererException("Unsupported data type.") : vk::Format::eR32Sint;
 		case DataType::UInt:
-			return attribute.Normalized ? throw HardwareRendererException(L"Unsupported data type.") : vk::Format::eR32Uint;
+			return attribute.Normalized ? throw HardwareRendererException("Unsupported data type.") : vk::Format::eR32Uint;
 		case DataType::Float:
-			return attribute.Normalized ? throw HardwareRendererException(L"Unsupported data type.") : vk::Format::eR32Sfloat;
+			return attribute.Normalized ? throw HardwareRendererException("Unsupported data type.") : vk::Format::eR32Sfloat;
 		case DataType::Int2:
-			return attribute.Normalized ? throw HardwareRendererException(L"Unsupported data type.") : vk::Format::eR32G32Sint;
+			return attribute.Normalized ? throw HardwareRendererException("Unsupported data type.") : vk::Format::eR32G32Sint;
 		case DataType::Float2:
-			return attribute.Normalized ? throw HardwareRendererException(L"Unsupported data type.") : vk::Format::eR32G32Sfloat;
+			return attribute.Normalized ? throw HardwareRendererException("Unsupported data type.") : vk::Format::eR32G32Sfloat;
 		case DataType::Int3:
-			return attribute.Normalized ? throw HardwareRendererException(L"Unsupported data type.") : vk::Format::eR32G32B32Sint;
+			return attribute.Normalized ? throw HardwareRendererException("Unsupported data type.") : vk::Format::eR32G32B32Sint;
 		case DataType::Float3:
-			return attribute.Normalized ? throw HardwareRendererException(L"Unsupported data type.") : vk::Format::eR32G32B32Sfloat;
+			return attribute.Normalized ? throw HardwareRendererException("Unsupported data type.") : vk::Format::eR32G32B32Sfloat;
 		case DataType::Int4:
-			return attribute.Normalized ? throw HardwareRendererException(L"Unsupported data type.") : vk::Format::eR32G32B32A32Sint;
+			return attribute.Normalized ? throw HardwareRendererException("Unsupported data type.") : vk::Format::eR32G32B32A32Sint;
 		case DataType::UInt4_10_10_10_2:
-			throw HardwareRendererException(L"Unsupported data type.");
+			throw HardwareRendererException("Unsupported data type.");
 		case DataType::Float4:
-			return attribute.Normalized ? throw HardwareRendererException(L"Unsupported data type.") : vk::Format::eR32G32B32Sfloat;
+			return attribute.Normalized ? throw HardwareRendererException("Unsupported data type.") : vk::Format::eR32G32B32Sfloat;
 		default:
-			throw HardwareRendererException(L"Unimplemented data type.");
+			throw HardwareRendererException("Unimplemented data type.");
 		}
 	}
 
@@ -845,8 +846,8 @@ namespace VK
 		case BindingType::Texture: return vk::DescriptorType::eCombinedImageSampler;
 		case BindingType::UniformBuffer: return vk::DescriptorType::eUniformBuffer; //TODO: dynamic?
 		case BindingType::StorageBuffer: return vk::DescriptorType::eStorageBuffer; //TODO: ^
-		case BindingType::Unused: throw HardwareRendererException(L"Attempting to use unused binding");
-		default: throw HardwareRendererException(L"Not implemented");
+		case BindingType::Unused: throw HardwareRendererException("Attempting to use unused binding");
+		default: throw HardwareRendererException("Not implemented");
 		}
 	}
 
@@ -862,7 +863,7 @@ namespace VK
 		case TextureUsage::SampledDepthAttachment:
 			return vk::ImageLayout::eDepthStencilAttachmentOptimal;
 		case TextureUsage::Sampled: return vk::ImageLayout::eShaderReadOnlyOptimal;
-		default: throw HardwareRendererException(L"Not implemented");
+		default: throw HardwareRendererException("Not implemented");
 		}
 	}
 
@@ -936,7 +937,7 @@ namespace VK
 	vk::SampleCountFlagBits SampleCount(int samples)
 	{
 		if (samples <= 0 || (samples & (samples - 1)) != 0)
-			throw HardwareRendererException(L"samples must be a power of 2");
+			throw HardwareRendererException("samples must be a power of 2");
 
 		return (vk::SampleCountFlagBits)samples;
 	}
@@ -967,7 +968,7 @@ namespace VK
 		case ShaderType::VertexShader: return vk::ShaderStageFlagBits::eVertex;
 		case ShaderType::FragmentShader: return vk::ShaderStageFlagBits::eFragment;
 		case ShaderType::ComputeShader: return vk::ShaderStageFlagBits::eCompute;
-		default: throw HardwareRendererException(L"Not implemented.");
+		default: throw HardwareRendererException("Not implemented.");
 		}
 	}
 
@@ -1027,7 +1028,7 @@ namespace VK
 				return;
 
 			if (preserveData && this->samples != samples)
-				throw HardwareRendererException(L"Sample count must be identical to preserve data");
+				throw HardwareRendererException("Sample count must be identical to preserve data");
 
 			vk::Image oldImage = image;
 			vk::ImageView oldView = view;
@@ -1109,7 +1110,7 @@ namespace VK
 			if (preserveData)
 			{
 				if (!oldImage || !oldView || !oldMemory)
-					throw HardwareRendererException(L"There is no data to preserve");
+					throw HardwareRendererException("There is no data to preserve");
 
 				(void)oldWidth, oldHeight, oldMipLevels;
 				//TODO: blit the image from the old to new image here
@@ -1129,7 +1130,7 @@ namespace VK
 		void SetData(StorageFormat pformat, int level, int pwidth, int pheight, int numSamples, DataType inputType, void* data, bool mipmapped = true)
 		{
 			if (numSamples > 1)
-				throw HardwareRendererException(L"samples must be equal to 1");
+				throw HardwareRendererException("samples must be equal to 1");
 
 			format = pformat;
 			if (level == 0)
@@ -1206,7 +1207,7 @@ namespace VK
 			else
 			{
 				if (this->mipLevels < level)
-					throw HardwareRendererException(L"Attempted to set mipmap data for invalid level");
+					throw HardwareRendererException("Attempted to set mipmap data for invalid level");
 
 				vk::ImageAspectFlags aspectFlags;
 				if (format == StorageFormat::Depth32)
@@ -1776,7 +1777,7 @@ namespace VK
 			}
 			if (bufferSize > bufSize)
 			{
-				throw CoreLib::InvalidOperationException(L"buffer size is too small");
+				throw CoreLib::InvalidOperationException("buffer size is too small");
 			}
 			vk::BufferCreateInfo stagingBufferCreateInfo = vk::BufferCreateInfo()
 				.setFlags(vk::BufferCreateFlags())
@@ -2032,7 +2033,7 @@ namespace VK
 					filter == TextureFilter::Anisotropic8x ||
 					filter == TextureFilter::Anisotropic16x)
 				{
-					CoreLib::Diagnostics::Debug::WriteLine(L"Anisotropic filtering is not supported. Changing to trilinear.");
+					CoreLib::Diagnostics::Debug::WriteLine("Anisotropic filtering is not supported. Changing to trilinear.");
 					filter = TextureFilter::Trilinear;
 				}
 			}
@@ -2058,7 +2059,7 @@ namespace VK
 
 				if (oldFilter != filter)
 				{
-					CoreLib::Diagnostics::Debug::Write(L"Max supported anisotropy is ");
+					CoreLib::Diagnostics::Debug::Write("Max supported anisotropy is ");
 					CoreLib::Diagnostics::Debug::WriteLine(maxAnisotropy);
 				}
 			}
@@ -2508,7 +2509,7 @@ namespace VK
 		void SetDepthAttachment(int binding, LoadOp loadOp = LoadOp::Load, StoreOp storeOp = StoreOp::Store)
 		{
 			if (depthReference.layout != vk::ImageLayout::eUndefined)
-				throw HardwareRendererException(L"Only 1 depth/stencil attachment allowed.");
+				throw HardwareRendererException("Only 1 depth/stencil attachment allowed.");
 
 			Resize(binding + 1);
 
@@ -2544,7 +2545,7 @@ namespace VK
 				case TextureUsage::Unused:
 					break;
 				default:
-					throw HardwareRendererException(L"Unsupported attachment usage");
+					throw HardwareRendererException("Unsupported attachment usage");
 				}
 				location++;
 			}
@@ -2601,12 +2602,12 @@ namespace VK
 			for (auto colorReference : colorReferences)
 			{
 				if (!(dynamic_cast<Texture2D*>(renderAttachments.attachments[colorReference.attachment])->usage & TextureUsage::ColorAttachment))
-					throw HardwareRendererException(L"Incompatible RenderTargetLayout and RenderAttachments");
+					throw HardwareRendererException("Incompatible RenderTargetLayout and RenderAttachments");
 			}
 			if (depthReference.layout != vk::ImageLayout::eUndefined)
 			{
 				if (!(dynamic_cast<Texture2D*>(renderAttachments.attachments[depthReference.attachment])->usage & TextureUsage::DepthAttachment))
-					throw HardwareRendererException(L"Incompatible RenderTargetLayout and RenderAttachments");
+					throw HardwareRendererException("Incompatible RenderTargetLayout and RenderAttachments");
 			}
 #endif
 			FrameBuffer* result = new FrameBuffer();
@@ -2697,7 +2698,7 @@ namespace VK
 				case BindingType::Unused:
 					break;
 				default:
-					throw HardwareRendererException(L"Invalid binding type");
+					throw HardwareRendererException("Invalid binding type");
 				}
 			}
 
@@ -2811,7 +2812,7 @@ namespace VK
 					computePresent = true;
 					break;
 				default:
-					throw HardwareRendererException(L"Unknown shader stage");
+					throw HardwareRendererException("Unknown shader stage");
 				}
 #endif
 
@@ -3149,7 +3150,7 @@ namespace VK
 				case BindingType::Unused:
 					break;
 				default:
-					throw HardwareRendererException(L"Invalid binding type");
+					throw HardwareRendererException("Invalid binding type");
 				}
 			}
 
@@ -3560,7 +3561,7 @@ namespace VK
 
 		virtual CoreLib::String GetSpireBackendName() override
 		{
-			return L"spirv";
+			return "spirv";
 		}
 
 		void CreateCommandBuffers()
