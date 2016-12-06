@@ -35,6 +35,14 @@ namespace GameEngine
 			Rotation = VectorMath::Quaternion::FromMatrix(m.GetMatrix3());
 			Translation = VectorMath::Vec3::Create(m.values[12], m.values[13], m.values[14]);
 		}
+        void SetYawAngle(float yaw)
+        {
+            VectorMath::Matrix4 roty;
+            VectorMath::Matrix4::RotationY(roty, yaw);
+            VectorMath::Matrix4 original = Rotation.ToMatrix4();
+            VectorMath::Matrix4::Multiply(original, roty, original);
+            Rotation = VectorMath::Quaternion::FromMatrix(original.GetMatrix3());
+        }
 		VectorMath::Matrix4 ToMatrix() const
 		{
 			auto rs = Rotation.ToMatrix4();
@@ -92,7 +100,7 @@ namespace GameEngine
 	{
 	public:
 		CoreLib::List<BoneTransformation> Transforms;
-		void GetMatrices(const Skeleton * skeleton, CoreLib::List<VectorMath::Matrix4> & matrices)
+		void GetMatrices(const Skeleton * skeleton, CoreLib::List<VectorMath::Matrix4> & matrices) const
 		{
 			matrices.Clear();
 			matrices.SetSize(Transforms.Count());

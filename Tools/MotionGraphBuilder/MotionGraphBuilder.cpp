@@ -6,20 +6,116 @@
 #include "GameEngineCore/Skeleton.h"
 #include "GameEngineCore/MotionGraph.h"
 #include "MotionGraphBuilder.h"
+#include "WinForm/WinApp.h"
+#include "WinForm/WinForm.h"
 
 namespace GameEngine
 {
     using namespace CoreLib::IO;
     using namespace CoreLib::Text;
     using namespace VectorMath;
+    using namespace CoreLib::WinForm;
 
     namespace Tools
     {
+        int GetEncoderClsid(const WCHAR* format, CLSID* pClsid)
+        {
+            UINT  num = 0;          // number of image encoders
+            UINT  size = 0;         // size of the image encoder array in bytes
+
+            ImageCodecInfo* pImageCodecInfo = NULL;
+
+            GetImageEncodersSize(&num, &size);
+            if (size == 0)
+                return -1;  // Failure
+
+            pImageCodecInfo = (ImageCodecInfo*)(malloc(size));
+            if (pImageCodecInfo == NULL)
+                return -1;  // Failure
+
+            GetImageEncoders(num, size, pImageCodecInfo);
+
+            for (UINT j = 0; j < num; ++j)
+            {
+                if (wcscmp(pImageCodecInfo[j].MimeType, format) == 0)
+                {
+                    *pClsid = pImageCodecInfo[j].Clsid;
+                    free(pImageCodecInfo);
+                    return j;  // Success
+                }
+            }
+
+            free(pImageCodecInfo);
+            return -1;  // Failure
+        }
+
+        void VisualizeMotionGraph(MotionGraph*graph, String fileName)
+        {
+            GdiplusStartupInput gdiplusStartupInput;
+            ULONG_PTR gdiplusToken;
+            GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+            Gdiplus::Bitmap bitBuffer(22000, 10000, PixelFormat32bppARGB);
+            Gdiplus::Graphics graphics(&bitBuffer);
+            auto g = &graphics;
+            g->Clear(Color(255, 255, 255));
+            int lineHeight = 100;
+            int lineWidth = 25;
+            Dictionary<MGState*, Point> statePos;
+
+            for (auto & state : graph->States)
+            {
+                int y = (state.Sequence + 1) * lineHeight;
+                int x = (state.IdInsequence + 1) * lineWidth; // n th in sequence
+                Pen p(Gdiplus::Color(0, 0, 255));
+                g->DrawEllipse(&p, x - 4, y - 8, 8, 16);
+                statePos[&state] = Point(x, y);
+            }
+            Pen vbarPen(Color(180, 180, 180), 1.0f);
+
+            Pen arrowPen(Color(130, 130, 40), 1.0f);
+            arrowPen.SetEndCap(Gdiplus::LineCap::LineCapArrowAnchor);
+            for (auto & state : graph->States)
+            {
+                auto thisPos = statePos[&state]();
+                if (state.IdInsequence % 10 == 0)
+                    g->DrawLine(&vbarPen, thisPos.X, 0, thisPos.X, 800);
+
+                for (auto childId : state.ChildrenIds)
+                {
+                    auto childState = &graph->States[childId];
+                    
+                    // just visualize walk_turn_left conenctivity
+                    if (childState->Sequence != 19 && state.Sequence != 19)
+                        continue;
+
+
+                    auto childPos = statePos[childState]();
+                    if (thisPos.Y == childPos.Y && state.IdInsequence != graph->States[childId].IdInsequence - 1)
+                    {
+                        continue;
+                        Point points[3];
+                        points[0] = thisPos;
+                        points[1].X = (thisPos.X + childPos.X) / 2;
+                        points[1].Y = points[0].Y + lineHeight / 2;
+                        points[2] = childPos;
+                        g->DrawCurve(&arrowPen, points, 3);
+                    }
+                    else
+                        g->DrawLine(&arrowPen, thisPos, childPos);
+                }
+            }
+            CLSID pngClsid;
+            GetEncoderClsid(L"image/png", &pngClsid);
+            bitBuffer.Save(fileName.ToWString(), &pngClsid);
+           
+        }
+
         using Vec3List = List<Vec3>;
         using PoseMatrices = List<Matrix4>;
 
-        static void toQuaternion(Quaternion& q, float x, float y, float z)
+        void toQuaternion(Quaternion& q, float x, float y, float z)
         {
+            // for YZX order
             Matrix4 rotx, roty, rotz;
             Matrix4::RotationX(rotx, x);
             Matrix4::RotationY(roty, y);
@@ -27,22 +123,38 @@ namespace GameEngine
             Matrix4::Multiply(rotz, rotz, roty);
             Matrix4::Multiply(rotx, rotx, rotz);
             q = Quaternion::FromMatrix(rotx.GetMatrix3());
-        }
 
-        static void toEulerianAngle(const Quaternion& q, float& x, float& y, float& z)
-        {
-            y = -atan2(2 * q.y * q.w - 2 * q.x * q.z, 1 - 2 * q.y * q.y - 2 * q.z * q.z);
-            x = -atan2(2 * q.x * q.w - 2 * q.y * q.z, 1 - 2 * q.x * q.x - 2 * q.z * q.z);
-            z = -asin(2 * q.x * q.y + 2 * q.z * q.w);
-
+            // for YXZ order
             //Matrix4 rotx, roty, rotz;
             //Matrix4::RotationX(rotx, x);
             //Matrix4::RotationY(roty, y);
             //Matrix4::RotationZ(rotz, z);
-            //Matrix4::Multiply(rotz, rotz, roty);
-            //Matrix4::Multiply(rotx, rotx, rotz);
-            //auto q1 = Quaternion::FromMatrix(rotx.GetMatrix3());
-            //float t = q1.x;
+            //Matrix4::Multiply(rotx, rotx, roty);
+            //Matrix4::Multiply(rotz, rotz, rotx);
+            //q = Quaternion::FromMatrix(rotz.GetMatrix3());
+        }
+
+        void toEulerianAngle(const Quaternion& q, float& x, float& y, float& z)
+        {
+            // for YZX order
+            auto matrix3 = q.ToMatrix3().m;
+            x = atan2f(matrix3[1][2], matrix3[1][1]);
+            y = atan2f(matrix3[2][0], matrix3[0][0]);
+            z = asinf(-matrix3[1][0]);
+            if (cosf(z) == 0)
+                printf("Note: Needs special handling when cosz = 0. \n.");
+
+            // for YXZ order
+            //auto matrix3 = q.ToMatrix3().m;
+            //x = asinf(matrix3[1][2]);
+            //y = atan2f(-matrix3[0][2], matrix3[2][2]);
+            //z = atan2f(-matrix3[1][0], matrix3[1][1]);
+            //if (cosf(x) == 0)
+            //    printf("Note: Needs special handling when cosz = 0. \n.");
+
+            //Quaternion a;
+            //toQuaternion(a, x, y, z);
+            //int b = 1;
         }
 
         List<Pose> GetPoseSequence(const Skeleton & skeleton, const SkeletalAnimation & anim)
@@ -103,12 +215,13 @@ namespace GameEngine
                 yawAngles[i] = y;
             }
 
+            yawVelocities.Add(0.f);
             for (int i = 1; i < poses.Count(); i++)
             {
                 yawVelocities.Add(yawAngles[i] - yawAngles[i - 1]);
             }
-            yawVelocities.Add(yawVelocities.Last());
-
+            yawVelocities[0] = yawVelocities[1];
+            
             return yawVelocities;
         }
 
@@ -118,32 +231,29 @@ namespace GameEngine
             {
                 float x = 0, y = 0, z = 0;
                 toEulerianAngle(pose.Transforms[0].Rotation, x, y, z);
-                y = 0.0f;
-                toQuaternion(pose.Transforms[0].Rotation, x, y, z);
+                Matrix4 roty;
+                Matrix4::RotationY(roty, -y);
+                Matrix4 original = pose.Transforms[0].Rotation.ToMatrix4();
+                Matrix4::Multiply(original, roty, original);
+                pose.Transforms[0].Rotation = Quaternion::FromMatrix(original.GetMatrix3());
             }
         }
         
-        Quaternion ExtractYawRotation(Quaternion q)
-        {
-            float x = 0, y = 0, z = 0;
-            toEulerianAngle(q, x, y, z);
-            x = 0.0f;
-            z = 0.0f;
-            y = -y;
-            Quaternion rs;
-            toQuaternion(rs, x, y, z);
-            return rs;
-        }
-
-        List<Vec3> GetRootVelocity(const List<Pose> & poses)
+        List<Vec3> GetRootVelocity(const List<float>& /*yawAngles*/, const List<Pose> & poses)
         {
             List<Vec3> rootVelocities;
+            rootVelocities.Add(Vec3::Create(0.f));
             for (int i = 1; i < poses.Count(); i++)
             {
-                rootVelocities.Add(poses[i].Transforms[0].Rotation.ToMatrix3().TransformTransposed(poses[i].Transforms[0].Translation -
-                    poses[i-1].Transforms[0].Translation));
+                //Vec3 velocity = poses[i].Transforms[0].Translation - poses[i - 1].Transforms[0].Translation;
+                //Matrix4 roty;
+                //Matrix4::RotationY(roty, -yawAngles[i-1]);
+                //rootVelocities.Add(roty.TransformNormal(velocity));
+                Vec3 velocity = poses[i].Transforms[0].Translation - poses[i - 1].Transforms[0].Translation;
+                rootVelocities.Add(poses[i-1].Transforms[0].Rotation.ToMatrix3().TransformTransposed(velocity));
             }
-            rootVelocities.Add(rootVelocities.Last());
+            rootVelocities[0] = rootVelocities[1];
+            
             return rootVelocities;
         }
 
@@ -199,21 +309,35 @@ namespace GameEngine
             }
         }
 
-        void GetContactLabel(List<ContactLabel> & contactLabelsAll, 
-            const List<Vec3List> & boneLocations, 
-            const List<Vec3List> & boneVelocities,
-            float LeftFloorHeight,
-            float RightFloorHeight,
-            float footHeightThreshold,
-            float footVelocityThreshold)
+        struct ContactDescriptor
+        {
+            int lFootId;
+            int rFootId;
+            float lFloorHeight;
+            float rFloorHeight;
+            float heightThreshold;
+            float velocityThreshold;
+        };
+
+        void GetContactLabel(List<ContactLabel> & contactLabelsAll, const List<Vec3List> & boneLocations, const List<Vec3List> & boneVelocities,
+            const ContactDescriptor & desc)
+
         {            
-            // 3-LeftFoot, 7-RightFoot
             int numPoses = boneLocations.Count();
             
             for (int i = 0; i < numPoses; i++)
             {
-                bool left = boneLocations[i][3].y < LeftFloorHeight + footHeightThreshold &&  abs(boneVelocities[i][3].y) < footVelocityThreshold;
-                bool right = boneLocations[i][7].y < RightFloorHeight + footHeightThreshold &&  abs(boneVelocities[i][7].y) < footVelocityThreshold;
+                if (boneLocations[0].Count() < 8)
+                {
+                    contactLabelsAll.Add(ContactLabel::BothFeetOnFloor);
+                    continue;
+                }
+
+                bool left = boneLocations[i][desc.lFootId].y < desc.lFloorHeight + desc.heightThreshold &&
+                            abs(boneVelocities[i][3].y) < desc.velocityThreshold;
+                bool right = boneLocations[i][desc.rFootId].y < desc.rFloorHeight + desc.heightThreshold &&  
+                             abs(boneVelocities[i][7].y) < desc.velocityThreshold;
+
                 if (left && right)
                     contactLabelsAll.Add(ContactLabel::BothFeetOnFloor);
                 else if (left)
@@ -221,15 +345,21 @@ namespace GameEngine
                 else if (right)
                     contactLabelsAll.Add(ContactLabel::RightFootOnFloor);
                 else
-                    contactLabelsAll.Add(ContactLabel::InAir);
-            }
-        }
+                {
+                    // hack: ensure at least one of feet is on the floor
+                    //contactLabelsAll.Add(ContactLabel::InAir);
 
-        float CalculateVec3Distance(VectorMath::Vec3 v1, VectorMath::Vec3 v2)
-        {
-            auto diff = v2 - v1;
-            float dist = Vec3::Dot(diff, diff);
-            return sqrt(dist);
+                    if (boneLocations[i][desc.lFootId].y - desc.lFloorHeight < boneLocations[i][desc.rFootId].y - desc.rFloorHeight)
+                    {
+                        contactLabelsAll.Add(ContactLabel::LeftFootOnFloor);
+                    }
+                    else
+                    {
+                        contactLabelsAll.Add(ContactLabel::RightFootOnFloor);
+                    }
+                }
+                    
+            }
         }
 
         float CalculateStateDistance(const Vec3List & lastLocations, const Vec3List & currLocations,
@@ -245,8 +375,8 @@ namespace GameEngine
             {
                 distance = distance +
                     boneWeights[i] * 
-                    (locationWeight * CalculateVec3Distance(lastLocations[i], currLocations[i]) +
-                    velocityWeight * CalculateVec3Distance(lastVelocities[i], currVelocities[i]));
+                    (locationWeight * (lastLocations[i]-currLocations[i]).Length() +
+                    velocityWeight * (lastVelocities[i]-currVelocities[i]).Length());
             }
             return distance;
         }
@@ -261,32 +391,44 @@ namespace GameEngine
             int edgesAdded = 0;
 
             int numStates = graph.States.Count();
-            for (int i = 0; i < numStates; i++)
+            for (int i = 0; i < numStates-1; i++)
             {
                 auto & state = graph.States[i];
-                if (i != numStates - 1 && graph.States[i + 1].Contact == state.Contact)
+                if (graph.States[i + 1].Contact == state.Contact)
                     continue;
 
-                
                 int lastSameSequenceConnection = i;
-                for (int j = 0; j < numStates; j++)
+                for (int j = 1; j < numStates; j++)
                 {
-                    if (i == j || 
-                        (graph.States[i].Sequence == graph.States[j].Sequence && (abs(j - lastSameSequenceConnection) < minGap || abs(j - i) < minGap)))
-                        continue;
-                    if (i != numStates - 1 && graph.States[i + 1].Contact != graph.States[j].Contact)
-                        continue;
-                    if (j != 0 && state.Contact != graph.States[j - 1].Contact)
-                        continue;
-                    if (state.Contact == graph.States[j].Contact)
+                    if (i == j ||
+                        graph.States[i].ChildrenIds.Contains(j))
                         continue;
 
-                    if (CalculateStateDistance(locations[i], locations[j], 
-                        velocities[i], velocities[j],
-                        boneWeights) <= distanceThreshold)
+                    // condition: no short jump intersequence
+                    if (graph.States[i].Sequence == graph.States[j].Sequence 
+                        && (abs(j - lastSameSequenceConnection) < minGap || abs(j - i) < minGap))
+                        continue;
+
+                    // condition: contact(i+1) = contact(j)
+                    if (graph.States[i + 1].Contact != graph.States[j].Contact)
+                        continue;
+
+                    // condition: contact(i) = contact(j-1)
+                    if (state.Contact != graph.States[j - 1].Contact)
+                        continue;
+
+                    // i and i+1 are in the same sequence, j and j-1 are in the same sequence
+                    if (graph.States[j - 1].Sequence != graph.States[j].Sequence ||
+                        graph.States[i].Sequence != graph.States[i+1].Sequence)
+                        continue;
+
+                    // measure the similarity of i+1 and j
+                    if (CalculateStateDistance(locations[i+1], locations[j], velocities[i+1], velocities[j], boneWeights)
+                        <= distanceThreshold)
                     {
                         state.ChildrenIds.Add(j);
-                        graph.States[j].ChildrenIds.Add(i);  
+                        graph.States[j - 1].ChildrenIds.Add(i + 1);
+                        //graph.States[j].ChildrenIds.Add(i);  
                         edgesAdded++;
                         if(graph.States[i].Sequence == graph.States[j].Sequence)
                             lastSameSequenceConnection = j;
@@ -376,7 +518,7 @@ namespace GameEngine
             }).ToList();
 
             auto poses = GetPoseSequence(skeleton, anims[0]);
-            for (int i = 0; i < 12; i++)
+            for (int i = 0; i < 9; i++)
             {
                 MGState state;
                 state.Pose = poses[0];
@@ -385,43 +527,57 @@ namespace GameEngine
                 state.Pose.Transforms[0].Rotation.z = 0.f;
                 graph.States.Add(state);
             }
+
             graph.States[0].Velocity = Vec3::Create(10.0f, 0.0f, 0.0f);
             graph.States[1].Velocity = Vec3::Create(10.0f, 0.0f, 0.0f);
             graph.States[2].Velocity = Vec3::Create(10.0f, 0.0f, 0.0f);
             graph.States[3].Velocity = Vec3::Create(10.0f, 0.0f, 0.0f);
             graph.States[4].Velocity = Vec3::Create(10.0f, 0.0f, 0.0f);
-            graph.States[5].Velocity = Vec3::Create(20.0f, 0.0f, 0.0f);
-            graph.States[6].Velocity = Vec3::Create(10.0f, 0.0f, 0.0f);
-            graph.States[7].Velocity = Vec3::Create(22.4f, 0.0f, 0.0f);
-            graph.States[8].Velocity = Vec3::Create(22.4f, 0.0f, 0.0f);
-            graph.States[9].Velocity = Vec3::Create(10.0f, 0.0f, 0.0f);
-            graph.States[10].Velocity = Vec3::Create(20.0f, 0.0f, 0.0f);
-            graph.States[11].Velocity = Vec3::Create(10.0f, 0.0f, 0.0f);
-
             graph.States[0].ChildrenIds.Add(1);
-            graph.States[0].ChildrenIds.Add(5);
             graph.States[1].ChildrenIds.Add(2);
-            graph.States[1].ChildrenIds.Add(7);
             graph.States[2].ChildrenIds.Add(3);
             graph.States[3].ChildrenIds.Add(4);
+            graph.States[4].ChildrenIds.Add(0);
+            
+            graph.States[5].Velocity = Vec3::Create(10.0f, 0.0f, 0.0f);
+            graph.States[6].Velocity = Vec3::Create(20.0f, 0.0f, 0.0f);
+            graph.States[7].Velocity = Vec3::Create(10.0f, 0.0f, 0.0f);
+            graph.States[8].Velocity = Vec3::Create(20.0f, 0.0f, 0.0f);
             graph.States[5].ChildrenIds.Add(6);
-            graph.States[6].ChildrenIds.Add(10);
-            graph.States[10].ChildrenIds.Add(11);
-            graph.States[11].ChildrenIds.Add(3);
+            graph.States[6].ChildrenIds.Add(7);
             graph.States[7].ChildrenIds.Add(8);
-            graph.States[8].ChildrenIds.Add(9);
+            graph.States[8].ChildrenIds.Add(3);
+            graph.States[1].ChildrenIds.Add(7);
+            graph.States[0].ChildrenIds.Add(5);
+            
 
             graph.States[5].YawAngularVelocity = -Math::Pi / 2;
             graph.States[6].YawAngularVelocity = Math::Pi / 2;
-            graph.States[10].YawAngularVelocity = Math::Pi / 2;
-            graph.States[11].YawAngularVelocity = -Math::Pi / 2;
-            graph.States[7].YawAngularVelocity = Math::Pi / 4;
-            graph.States[8].YawAngularVelocity = -Math::Pi / 4;
+            graph.States[7].YawAngularVelocity = Math::Pi / 2;
+            graph.States[8].YawAngularVelocity = -Math::Pi / 2;
 
             return graph;
         }
 
-        MotionGraph BuildMotionGraph(const CoreLib::String & filename)
+        void TestContactLabel(const MotionGraph & graph,
+            const List<Vec3List> & boneLocationsAll,
+            const List<Vec3List> & boneVelocitiesAll,
+            const List<ContactLabel> & contactLabelsAll)
+        {
+            StreamWriter writer("C:\\Users\\yanzhe\\Desktop\\VisualizeContact\\contactLabels.txt");
+
+            for (int i = 0; i < graph.States.Count(); i++)
+            {
+                writer.Write(String(boneLocationsAll[i][3].y) + String(" ") +
+                    String(boneVelocitiesAll[i][3].y) + String(" ") +
+                    String(boneLocationsAll[i][7].y) + String(" ") +
+                    String(boneVelocitiesAll[i][7].y) + String(" ") +
+                    String((int)contactLabelsAll[i]) + String("\n"));
+            }
+            printf("Output contact label data to C:\\Users\\yangy\\Desktop\\VisualizeContact\\contactLabels.txt \n");
+        }
+
+        MotionGraph BuildMotionGraph(const CoreLib::String & filename, int leftFootId, int rightFootId)
         {
             MotionGraph graph;
             auto lines = Split(File::ReadAllText(filename), L'\n');
@@ -453,9 +609,10 @@ namespace GameEngine
             for (auto & anim : anims)
             {
                 auto poses = GetPoseSequence(skeleton, anim);
-                List<Vec3> rootVelocity = GetRootVelocity(poses);
                 List<float> yawAngles;
                 List<float> yawRootVelocities = GetYawAngularVelocity(yawAngles, poses);
+                List<ContactLabel> contactLabels;
+                List<Vec3> rootVelocity = GetRootVelocity(yawAngles, poses);
                 SetRootYawZero(poses);
                 SetRootLocationZero(poses);
 
@@ -464,16 +621,23 @@ namespace GameEngine
                 GetBoneLocationsAndVelocities(skeleton, poses, boneLocations, boneVelocities);
                 boneLocationsAll.AddRange(boneLocations);
                 boneVelocitiesAll.AddRange(boneVelocities);
-                GetContactLabel(contactLabelsAll, boneLocations, boneVelocities, 3.2f, 3.5f, 0.1f, 0.1f);
+               
+                ContactDescriptor desc{leftFootId, rightFootId, 3.3f, 3.55f, 0.1f, 0.1f };
+                GetContactLabel(contactLabels, boneLocations, boneVelocities, desc);
+                contactLabelsAll.AddRange(contactLabels);
 
                 for (int i = 0; i < poses.Count(); i++)
                 {
                     MGState state;
                     state.Pose = poses[i];
-                    state.Contact = contactLabelsAll[i];
+                    state.Contact = contactLabels[i];
                     state.Sequence = sequenceId;
+                    state.IdInsequence = i;
                     state.Velocity = rootVelocity[i];
                     state.YawAngularVelocity = yawRootVelocities[i];
+                    state.LeftFootToRootDistance = boneLocations[i][0].y - boneLocations[i][3].y;
+                    state.RightFootToRootDistance = boneLocations[i][0].y - boneLocations[i][7].y;
+                    
                     if (i != poses.Count() - 1)
                         state.ChildrenIds.Add(graph.States.Count() + 1);
                     graph.States.Add(_Move(state));
@@ -481,6 +645,8 @@ namespace GameEngine
                 sequenceId++;
             }
             printf("%d states loaded. \n", graph.States.Count());
+
+            //TestContactLabel(graph, boneLocationsAll, boneVelocitiesAll, contactLabelsAll);
 
             float weights[21] = { 1.0f,         // pelvis
                 1.0f, 1.0f, 1.5f, 1.5f,         // lfemur, ltibia, lfoot, ltoes
@@ -491,12 +657,76 @@ namespace GameEngine
                 1.0f, 1.0f                      // lowerNeck, Neck
             };
 
-            int edges = AddConnections(graph, boneLocationsAll, boneVelocitiesAll, weights, 120, 27.0f);
+            int edges = AddConnections(graph, boneLocationsAll, boneVelocitiesAll, weights, 120, 30.0f);
             printf("%d edges added. \n", edges);
 
             int numRemovedStates = CullDeadEnd(graph);
             printf("%d states removed. \n", numRemovedStates);
             return graph;
+        }
+
+        struct QueueElement
+        {
+            List<int> Path;
+            Vec3 Pos;
+            float Yaw;
+        };
+
+        void PreComputeOptimalMatrix(MotionGraph & graph)
+        {
+            int numStates = graph.States.Count();
+            for (int i = 0; i < numStates; i++)
+            {
+                if (graph.States[i].ChildrenIds.Count() == 1)   // consider transition states only
+                    continue;
+                printf("%d ", i);
+                HashSet<int> visited;
+                List<QueueElement> queue;
+                QueueElement start;
+                start.Path.Add(i);
+                start.Pos = Vec3::Create(0.f);
+                start.Yaw = 0.f;
+                queue.Add(start);
+
+                while (queue.Count())
+                {
+                    List<QueueElement> temp;
+
+                    for (auto e : queue)
+                    {
+                        int j = e.Path.Last();
+                        visited.Add(j);
+
+                        if (i != j)
+                        {
+                            IndexPair p;
+                            StateTransitionInfo info;
+                            p.Id1 = i;
+                            p.Id2 = j;
+                            info.DeltaYaw = e.Yaw - start.Yaw;
+                            info.DeltaPos = e.Pos - start.Pos;
+                            graph.TransitionDictionary[p] = info;
+                        }
+
+                        for (auto child : graph.States[j].ChildrenIds)
+                        {
+                            if (visited.Contains(child))
+                                continue;
+
+                            Quaternion rotation = graph.States[j - 1].Pose.Transforms[0].Rotation;
+                            Quaternion::SetYawAngle(rotation, e.Yaw);
+                            QueueElement eChild = e;
+                            eChild.Yaw += graph.States[j].YawAngularVelocity;
+                            eChild.Pos += rotation.Transform(graph.States[j].Velocity);
+                            eChild.Path.Add(child);
+                            temp.Add(eChild);
+                        }
+                    }
+                    queue = _Move(temp);
+                    printf(".");
+                }
+                printf("\n");
+            }
         }
     }
 }
@@ -512,33 +742,17 @@ int wmain(int argc, wchar_t** argv)
     }
     if (String::FromWString(argv[1]) == "-dataset")
     {
-        MotionGraph graph = Tools::BuildMotionGraph(String::FromWString(argv[2]));
+        MotionGraph graph = Tools::BuildMotionGraph(String::FromWString(argv[2]), 3, 7);
+        //MotionGraph graph = Tools::CreateTestMotionGraph(String::FromWString(argv[2]));
+        Tools::PreComputeOptimalMatrix(graph);
         graph.SaveToFile(Path::ReplaceExt(String::FromWString(argv[2]), "mog"));
+        GameEngine::Tools::VisualizeMotionGraph(&graph, Path::ReplaceExt(String::FromWString(argv[2]), "png"));
+
+        
     }
     else
         printf("Invalid arguments.\n");
 	return 0;
 }
 
-//void TestContactLabel(const MotionGraph & graph,
-//    const List<Vec3List> & boneLocationsAll,
-//    const List<Vec3List> & boneVelocitiesAll,
-//    const List<ContactLabel> & contactLabelsAll)
-//{
-//    StreamWriter writer("C:\\Users\\yangy\\Desktop\\VisualizeContact\\contactLabels.txt");
-//    //writer.Write(String(L"LeftFootLocation, LeftFootVelocity, RightFootLocation, RightFootVelocity, Label \n"));
-//    int lastSequenceNum = -1;
-//    for (int i = 0; i < graph.States.Count(); i++)
-//    {
-//        if (graph.States[i].Sequence != lastSequenceNum)
-//        {
-//            lastSequenceNum = graph.States[i].Sequence;
-//            //writer.Write(String(lastSequenceNum) + String(L"\n"));
-//        }
-//        writer.Write(String(boneLocationsAll[i][3].y) + String(L" ") +
-//            String(boneVelocitiesAll[i][3].y) + String(L" ") +
-//            String(boneLocationsAll[i][7].y) + String(L" ") +
-//            String(boneVelocitiesAll[i][7].y) + String(L" ") +
-//            String((int)contactLabelsAll[i]) + String(L"\n"));
-//    }
-//}
+

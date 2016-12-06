@@ -1,26 +1,25 @@
-shader DeferredLighting
+shader DeferredLighting : StandardPipeline
 {
 	public @MeshVertex vec2 vertPos;
 	public @MeshVertex vec2 vertUV;
 	public using SystemUniforms;
 
-	@MaterialUniform Texture2D albedoTex;
-	@MaterialUniform Texture2D pbrTex;
-	@MaterialUniform Texture2D normalTex;
-	@MaterialUniform Texture2D depthTex;
-	@MaterialUniform SamplerState textureSampler;
+	@ViewUniform Texture2D albedoTex;
+	@ViewUniform Texture2D pbrTex;
+	@ViewUniform Texture2D normalTex;
+	@ViewUniform Texture2D depthTex;
 
     public vec4 projCoord = vec4(vertPos.xy, 0.0, 1.0);
 
-	public vec3 normal = normalTex.Sample(textureSampler, vertUV).xyz;
-	public vec3 pbr = pbrTex.Sample(textureSampler, vertUV);
+	public vec3 normal = normalTex.Sample(textureSampler, vertUV).xyz * 2.0 - 1.0;
+	public vec3 pbr = pbrTex.Sample(textureSampler, vertUV).xyz;
 	public float roughness = pbr.x;
 	public float metallic = pbr.y;
 	public float specular = pbr.z;
 	public vec3 albedo = albedoTex.Sample(textureSampler, vertUV).xyz;
-
+	public float selfShadow(vec3 x) { return 1.0; }
     vec3 lightParam = vec3(roughness, metallic, specular);
-	float z = texture(depthTex, vertUV).r*2-1;
+	float z = depthTex.Sample(textureSampler, vertUV).r*2-1;
     float x = vertUV.x*2-1;
     float y = vertUV.y*2-1;
 	vec4 position = invViewProjTransform * vec4(x, y, -z, 1.0f);

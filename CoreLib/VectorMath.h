@@ -1918,6 +1918,15 @@ namespace VectorMath
 			else
 				return Lerp(q1, q3, t);
 		}
+
+        static inline void SetYawAngle(Quaternion & q, float yaw)
+        {
+            Matrix4 roty;
+            Matrix4::RotationY(roty, yaw);
+            Matrix4 original = q.ToMatrix4();
+            Matrix4::Multiply(original, roty, original);
+            q = Quaternion::FromMatrix(original.GetMatrix3());
+        }
 	};
 }
 

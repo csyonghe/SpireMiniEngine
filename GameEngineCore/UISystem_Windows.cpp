@@ -783,6 +783,7 @@ namespace GraphicsUI
 			rendererApi = hw;
 
 			SpireCompilationContext * spireCtx = spCreateCompilationContext(nullptr);
+			SpireDiagnosticSink * diagSink = spCreateDiagnosticSink(spireCtx);
 			auto backend = rendererApi->GetSpireBackendName();
 			if (backend == "glsl")
 				spSetCodeGenTarget(spireCtx, SPIRE_GLSL);
@@ -791,8 +792,8 @@ namespace GraphicsUI
 			else
 				spSetCodeGenTarget(spireCtx, SPIRE_SPIRV);
 			String spireShaderSrc(uberSpireShader);
-			auto result = spCompileShaderFromSource(spireCtx, uberSpireShader, "ui_uber_shader");
-			if (spIsCompilationSucessful(result))
+			auto result = spCompileShaderFromSource(spireCtx, uberSpireShader, "ui_uber_shader", diagSink);
+			if (!spDiagnosticSinkHasAnyErrors(diagSink))
 			{
 				int len = 0;
 				auto vsSrc = (char*)spGetShaderStageSource(result, "UberUIShader", "vs", &len);
@@ -800,6 +801,7 @@ namespace GraphicsUI
 				auto fsSrc = (char*)spGetShaderStageSource(result, "UberUIShader", "fs", &len);
 				uberFs = rendererApi->CreateShader(ShaderType::FragmentShader, fsSrc, len);
 			}
+			spDestroyDiagnosticSink(diagSink);
 			spDestroyCompilationResult(result);
 			spDestroyCompilationContext(spireCtx);
 

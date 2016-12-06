@@ -51,37 +51,28 @@ namespace GameEngine
 				isInvalid = true;
 			return true;
 		}
-        if (parser.LookAhead("MotionGraph"))
-        {
-            parser.ReadToken();
-            MotionGraphName = parser.ReadStringLiteral();
-            MotionGraph = level->LoadMotionGraph(MotionGraphName);
-            if (!MotionGraph)
-                isInvalid = true;
-            return true;
-        }
 		return false;
 	}
 
 	void GameEngine::SkeletalMeshActor::Tick()
 	{
-		auto time = Engine::Instance()->GetCurrentTime();
-        //static float time = 0.0f;
-        //time += 0.001f;
+		auto time = Engine::Instance()->GetTime();
         if (Animation)
 			Animation->GetPose(nextPose, time);
+	}
+
+	void SkeletalMeshActor::GetDrawables(RendererService * renderService)
+	{
+		if (!drawable)
+			drawable = renderService->CreateSkeletalDrawable(Mesh, Skeleton, MaterialInstance);
+		drawable->UpdateTransformUniform(localTransform, nextPose);
+		renderService->Add(drawable.Ptr());
 	}
 
 	void SkeletalMeshActor::OnLoad()
 	{
         if (this->SimpleAnimation)
             Animation = new SimpleAnimationSynthesizer(Skeleton, this->SimpleAnimation);
-        else if (this->MotionGraph)
-        {
-            Animation = new SearchGraphAnimationSynthesizer(Skeleton, this->MotionGraph);
-            //Animation = new MotionGraphAnimationSynthesizer(Skeleton, this->MotionGraph);
-        }
-           
 		Tick();
 	}
 }

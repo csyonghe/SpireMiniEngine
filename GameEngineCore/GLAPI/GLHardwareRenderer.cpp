@@ -153,7 +153,7 @@ namespace GLL
 			break;
 		case StorageFormat::RGBA_I8:
 		case StorageFormat::RGBA_8:
-			internalFormat = GL_RGBA;
+			internalFormat = GL_RGBA8;
 			break;
 		case StorageFormat::RGBA_Compressed:
 #ifdef _DEBUG
@@ -589,13 +589,19 @@ namespace GLL
 				if (samples > 1)
 				{
 					glBindTexture(GL_TEXTURE_2D, Handle);
-					glTexImage2DMultisample(GL_TEXTURE_2D, samples, this->internalFormat, width, height, GL_TRUE);
+					if (!data)
+						glTexStorage2DMultisample(GL_TEXTURE_2D, samples, this->internalFormat, width, height, GL_TRUE);
+					else
+						glTexImage2DMultisample(GL_TEXTURE_2D, samples, this->internalFormat, width, height, GL_TRUE);
 					glBindTexture(GL_TEXTURE_2D, 0);
 				}
 				else
 				{
 					glBindTexture(GL_TEXTURE_2D, Handle);
-					glTexImage2D(GL_TEXTURE_2D, level, this->internalFormat, width, height, 0, this->format, this->type, data);
+					if (!data)
+						glTexStorage2D(GL_TEXTURE_2D, Math::Log2Ceil(Math::Max(width, height)), this->internalFormat, width, height);
+					else
+						glTexImage2D(GL_TEXTURE_2D, level, this->internalFormat, width, height, 0, this->format, this->type, data);
 					glBindTexture(GL_TEXTURE_2D, 0);
 
 				}

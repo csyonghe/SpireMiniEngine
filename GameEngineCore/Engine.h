@@ -9,6 +9,8 @@
 #include "InputDispatcher.h"
 #include "CoreLib/LibUI/LibUI.h"
 #include "UISystem_Windows.h"
+#include "CoreLib/WinForm/Debug.h"
+#include "GraphicsSettings.h"
 
 namespace GameEngine
 {
@@ -19,7 +21,7 @@ namespace GameEngine
 		WindowHandle Window;
 		int Width = 400, Height = 400;
 		int GpuId;
-		CoreLib::String GameDirectory, EngineDirectory;
+		CoreLib::String GameDirectory, EngineDirectory, StartupLevelName;
 	};
 	enum class EngineThread
 	{
@@ -27,12 +29,22 @@ namespace GameEngine
 	};
 	enum class ResourceType
 	{
-		Mesh, Shader, Level, Texture, Material
+		Mesh, Shader, Level, Texture, Material, Settings
 	};
+	enum class TimingMode
+	{
+		Natural, Fixed
+	};
+	
 	class Engine
 	{
 	private:
 		static Engine * instance;
+		TimingMode timingMode = TimingMode::Natural;
+		float fixedFrameDuration = 1.0f / 30.0f;
+		unsigned int frameCounter = 0;
+		GraphicsSettings graphicsSettings;
+
 	private:
 		bool enableInput = true;
 		CoreLib::Diagnostics::TimePoint startTime, lastGameLogicTime, lastRenderingTime;
@@ -45,16 +57,34 @@ namespace GameEngine
 		
 		CoreLib::RefPtr<RenderTargetLayout> uiFrameBufferLayout;
 		CoreLib::RefPtr<GraphicsUI::UIEntry> uiEntry;
+		GraphicsUI::CommandForm * uiCommandForm = nullptr;
 		CoreLib::RefPtr<GraphicsUI::UIWindowsSystemInterface> uiSystemInterface;
 
 		Engine() {};
 		void InternalInit(const EngineInitArguments & args);
 		~Engine();
 	public:
-		float GetTimeDelta(EngineThread thread);
-		float GetCurrentTime()
+		GraphicsSettings & GetGraphicsSettings()
 		{
-			return CoreLib::Diagnostics::PerformanceCounter::EndSeconds(startTime);
+			return graphicsSettings;
+		}
+		void SaveGraphicsSettings();
+		void SetTimingMode(TimingMode mode)
+		{
+			timingMode = mode;
+		}
+		// set fixed frame duration when TimingMode is Fixed
+		void SetFrameDuration(float duration)
+		{
+			fixedFrameDuration = duration;
+		}
+		float GetTimeDelta(EngineThread thread);
+		float GetTime()
+		{
+			if (timingMode == TimingMode::Natural)
+				return CoreLib::Diagnostics::PerformanceCounter::EndSeconds(startTime);
+			else
+				return frameCounter * fixedFrameDuration;
 		}
 		Level * GetLevel()
 		{
@@ -68,6 +98,11 @@ namespace GameEngine
 		{
 			return inputDispatcher.Ptr();
 		}
+		GraphicsUI::UIEntry * GetUiEntry()
+		{
+			return uiEntry.Ptr();
+		}
+		Texture2D * GetRenderResult(bool withUI);
 	public:
 		Actor * CreateActor(const CoreLib::String & name);
 		void RegisterActorClass(const CoreLib::String &name, const CoreLib::Func<Actor*> & actorCreator);
@@ -79,21 +114,45 @@ namespace GameEngine
 		void Tick();
 		void Resize(int w, int h);
 		void EnableInput(bool value);
+		void OnCommand(CoreLib::String command);
 		int HandleWindowsMessage(HWND hwnd, UINT message, WPARAM &wparam, LPARAM &lparam);
 	public:
 		int GpuId = 0;
 		static Engine * Instance()
 		{
+			if (!instance)
+				instance = new Engine();
 			return instance;
 		}
 		static void Init(const EngineInitArguments & args);
 		static void Destroy();
+		template<typename ...Args>
+		static void Print(const char * message, Args... args)
+		{
+			static char printBuffer[32768];
+			snprintf(printBuffer, 32768, message, args...);
+			if (instance)
+			{
+				instance->uiCommandForm->Write(printBuffer);
+			}
+			else
+			{
+				printf(message, args...);
+			}
+			CoreLib::Diagnostics::Debug::Write(printBuffer);
+		}
+		static void SaveImage(Texture2D * texture, String fileName);
 	};
 
 	template<typename ...Args>
-	void Print(const wchar_t * message, Args... args)
+	void Print(const char * message, Args... args)
 	{
-		wprintf(message, args...);
+		Engine::Print(message, args...);
 	}
+
+
 }
+
+#define EM(x) GraphicsUI::emToPixel(x)
+
 #endif

@@ -2,62 +2,83 @@
 
 #include "CoreLib/Basic.h"
 #include "CoreLib/VectorMath.h"
+#include "CoreLib/LibIO.h"
+#include "CoreLib/Tokenizer.h"
 
 namespace GameEngine
 {
     using namespace CoreLib::IO;
 
-    Vec2 CatmullSpline::InterpolatePosition(const Vec2 & P0, const Vec2 & P1, const Vec2 & P2, const Vec2 & P3, float u)
+    Vec3 CatmullSpline::GetInterpolatedPosition(float t)
     {
-        return Vec2::Create(0.f);
+        // TODO: use straight lines currently
+        if (KeyPoints.Count() < 2)
+            printf("Error: no enough key points");
+        t = Math::Clamp(t, 0.f, 1.f);
+         
+        int index = 0;
+        for (index = 0; index < KeyPoints.Count()-1; index++)
+        {
+            if (KeyPoints[index + 1].T > t)
+                break;
+        }
+        float alpha = (t - KeyPoints[index].T) / (KeyPoints[index+1].T - KeyPoints[index].T);
+        Vec3 result = KeyPoints[index].Pos * (1 - alpha) + KeyPoints[index + 1].Pos * alpha;
+        return result;
     }
 
-    void CatmullSpline::SetKeyPoints(const List<Vec2>& points)
+    void CatmullSpline::SetKeyPoints(const List<Vec3>& points)
     {
-        KeyPoints = points;
-    }
+        if (points.Count() < 2)
+            printf("Error: no enough key points");
 
-    void CatmullSpline::GetCurvePoints()
-    {
-        return;
+        float distance = 0.f;
+        for (int i = 0; i < points.Count(); i++)
+        {
+            KeyPoint p;
+            p.Pos = points[i];
+            if (i > 0)
+            {
+                distance += (points[i] - points[i - 1]).Length();
+            }
+            KeyPoints.Add(_Move(p));
+        }
+
+        KeyPoints[0].T = 0.f;
+        for (int i = 1; i < points.Count(); i++)
+        {
+            KeyPoints[i].T = KeyPoints[i - 1].T + (points[i] - points[i - 1]).Length() / distance;
+        }
     }
 
     void CatmullSpline::SaveToStream(CoreLib::IO::Stream * stream)
     {
-        BinaryWriter writer(stream);
-
-        writer.Write(KeyPoints.Count());
-        writer.Write(CurvePoints.Count());
+        StreamWriter writer(stream);
         for (auto & point : KeyPoints)
         {
-            writer.Write(point);
-        }
-        for (auto & point : CurvePoints)
-        {
-            writer.Write(point);
+            writer << point.Pos.x << "," << point.Pos.y << "," << point.Pos.z << ",\n";
         }
         writer.ReleaseStream();
     }
 
     void CatmullSpline::LoadFromStream(CoreLib::IO::Stream * stream)
     {
-        BinaryReader reader(stream);
+        StreamReader reader(stream);
 
-        int numKeyPoints = 0;
-        int numCurvePoints = 0;
-        reader.Read(numKeyPoints);
-        reader.Read(numCurvePoints);
-        KeyPoints.SetSize(numKeyPoints);
-        CurvePoints.SetSize(numCurvePoints);
-
-        for (int i = 0; i < numKeyPoints; i++)
+        CoreLib::Text::TokenReader parser(reader.ReadToEnd());
+        List<Vec3> points;
+        while (!parser.IsEnd())
         {
-            reader.Read(KeyPoints[i]);
+            Vec3 pos;
+            pos.x = parser.ReadFloat();
+            if (parser.LookAhead(",")) parser.Read(",");
+            pos.y = parser.ReadFloat();
+            if (parser.LookAhead(",")) parser.Read(",");
+            pos.z = parser.ReadFloat();
+            if (parser.LookAhead(",")) parser.Read(",");
+            points.Add(pos);
         }
-        for (int i = 0; i < numCurvePoints; i++)
-        {
-            reader.Read(CurvePoints[i]);
-        }
+        SetKeyPoints(points);
         reader.ReleaseStream();
     }
 

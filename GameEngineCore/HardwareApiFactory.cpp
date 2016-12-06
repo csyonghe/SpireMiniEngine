@@ -3,6 +3,7 @@
 #include "CoreLib/LibIO.h"
 #include "CoreLib/Tokenizer.h"
 #include "CoreLib/WinForm/Debug.h"
+#include "Engine.h"
 
 namespace GameEngine
 {
@@ -15,7 +16,7 @@ namespace GameEngine
 		const CoreLib::String & pipelineDef,
 		const CoreLib::String & defaultShader,
 		const CoreLib::String & vertexDef, 
-		const CoreLib::String & meshProcessingDef,
+		const CoreLib::String & entryPoint,
 		const CoreLib::String & symbol)
 	{
 		auto actualFilename = Engine::Instance()->FindFile(filename, ResourceType::Shader);
@@ -34,6 +35,7 @@ namespace GameEngine
 		// Compile shader using Spire
 
 		auto spireCtx = spCreateCompilationContext(nullptr);
+		auto diagSink = spCreateDiagnosticSink(spireCtx);
 		spAddSearchPath(spireCtx, searchDir.Buffer());
 		spSetCodeGenTarget(spireCtx, targetLang);
 		spSetShaderToCompile(spireCtx, symbol.Buffer());
@@ -42,56 +44,52 @@ namespace GameEngine
 		SpireCompilationResult * compileResult;
 		if (actualFilename.Length())
 		{
-			spLoadModuleLibraryFromSource(spireCtx, pipelineDef.Buffer(), "pipeline_def");
-			auto fileContent = CoreLib::IO::File::ReadAllText(actualFilename) + vertexDef + meshProcessingDef;
-			compileResult = spCompileShaderFromSource(spireCtx, fileContent.Buffer(), actualFilename.Buffer());
+			spLoadModuleLibraryFromSource(spireCtx, pipelineDef.Buffer(), "pipeline_def", diagSink);
+			auto fileContent = CoreLib::IO::File::ReadAllText(actualFilename) + vertexDef + entryPoint;
+			compileResult = spCompileShaderFromSource(spireCtx, fileContent.Buffer(), actualFilename.Buffer(), diagSink);
 			shaderSrc = pipelineDef + fileContent;
 		}
 		else
 		{
-			shaderSrc = defaultShader + vertexDef + meshProcessingDef;
-			compileResult = spCompileShaderFromSource(spireCtx, shaderSrc.Buffer(), "default_shader");
+			shaderSrc = defaultShader + vertexDef + entryPoint;
+			compileResult = spCompileShaderFromSource(spireCtx, shaderSrc.Buffer(), "default_shader", diagSink);
 		}
 
-		int warningCount = spGetMessageCount(compileResult, SPIRE_WARNING);
-		int errorCount = spGetMessageCount(compileResult, SPIRE_ERROR);
-		if (warningCount > 0)
+		int count = spGetDiagnosticCount(diagSink);
+		for (int i = 0; i < count; i++)
 		{
-			for (int i = 0; i < warningCount; i++)
-			{
-				SpireErrorMessage msg;
-				spGetMessageContent(compileResult, SPIRE_WARNING, i, &msg);
-				src.Warnings.Add(ShaderCompilationError(msg));
-			}
-		}
-		CoreLib::IO::File::WriteAllText("debugSpireShader.spire", shaderSrc);
-		if (errorCount > 0)
-		{
-			for (int i = 0; i < errorCount; i++)
-			{
-				SpireErrorMessage msg;
-				spGetMessageContent(compileResult, SPIRE_ERROR, i, &msg);
-				src.Errors.Add(ShaderCompilationError(msg));
-				CoreLib::Diagnostics::Debug::WriteLine(String(msg.FileName) + "(" + msg.Line + "): " + String(msg.Message));
-			}
+			SpireDiagnostic diag;
+			spGetDiagnosticByIndex(diagSink, i, &diag);
+			src.Diagnostics.Add(ShaderCompilationError(diag));
+			CoreLib::Diagnostics::Debug::WriteLine(String(diag.FileName) + "(" + diag.Line + "): " + String(diag.Message));
 		}
 
-		if (errorCount > 0)
+		if (spDiagnosticSinkHasAnyErrors(diagSink))
 		{
+			spDestroyDiagnosticSink(diagSink);
 			spDestroyCompilationResult(compileResult);
 			spDestroyCompilationContext(spireCtx);
 			return false;
 		}
-		int bufferSize = spGetCompiledShaderStageNames(compileResult, symbol.Buffer(), nullptr, 0);
+
+		spDestroyDiagnosticSink(diagSink);
+		
+		int bufferSize = spGetCompiledShaderNames(compileResult, nullptr, 0);
+		List<char> shaderNameBuffer;
+		shaderNameBuffer.SetSize(bufferSize);
+		spGetCompiledShaderNames(compileResult, shaderNameBuffer.Buffer(), shaderNameBuffer.Count());
+		shaderNameBuffer.Add(0);
+		auto shaderName = shaderNameBuffer.Buffer();
+		bufferSize = spGetCompiledShaderStageNames(compileResult, shaderName, nullptr, 0);
 		List<char> buffer;
 		buffer.SetSize(bufferSize);
-		spGetCompiledShaderStageNames(compileResult, symbol.Buffer(), buffer.Buffer(), bufferSize);
+		spGetCompiledShaderStageNames(compileResult, shaderNameBuffer.Buffer(), buffer.Buffer(), bufferSize);
 
 		for (auto stage : CoreLib::Text::Split(buffer.Buffer(), L'\n'))
 		{
 			List<unsigned char> codeBytes;
 			int len = 0;
-			auto code = spGetShaderStageSource(compileResult, symbol.Buffer(), stage.Buffer(), &len);
+			auto code = spGetShaderStageSource(compileResult, shaderNameBuffer.Buffer(), stage.Buffer(), &len);
 			codeBytes.SetSize(len);
 			memcpy(codeBytes.Buffer(), code, codeBytes.Count());
 			src.Shaders.AddIfNotExists(stage, codeBytes);
@@ -113,9 +111,9 @@ namespace GameEngine
 			return CreateGLHardwareRenderer();
 		}
 
-		virtual bool CompileShader(ShaderCompilationResult & src, const CoreLib::String & filename, const CoreLib::String & vertexDef, const CoreLib::String & symbol) override
+		virtual bool CompileShader(ShaderCompilationResult & src, const CoreLib::String & filename, const CoreLib::String & vertexDef, const CoreLib::String & entryPoint, const CoreLib::String & symbol) override
 		{
-			return GameEngine::CompileShader(src, SPIRE_GLSL, engineShaderDir, filename, pipelineShaderDef, defaultShader, vertexDef, meshProcessingDef, symbol);
+			return GameEngine::CompileShader(src, SPIRE_GLSL, engineShaderDir, filename, pipelineShaderDef, defaultShader, vertexDef, entryPoint, symbol);
 		}
 	};
 
@@ -132,9 +130,9 @@ namespace GameEngine
 			return CreateVulkanHardwareRenderer(gpuId);
 		}
 
-		virtual bool CompileShader(ShaderCompilationResult & src, const CoreLib::String & filename, const CoreLib::String & vertexDef, const CoreLib::String & symbol) override
+		virtual bool CompileShader(ShaderCompilationResult & src, const CoreLib::String & filename, const CoreLib::String & vertexDef, const CoreLib::String & entryPoint, const CoreLib::String & symbol) override
 		{
-			return GameEngine::CompileShader(src, SPIRE_SPIRV, engineShaderDir, filename, pipelineShaderDef, defaultShader, vertexDef, meshProcessingDef, symbol);
+			return GameEngine::CompileShader(src, SPIRE_SPIRV, engineShaderDir, filename, pipelineShaderDef, defaultShader, vertexDef, entryPoint, symbol);
 		}
 	};
 
@@ -271,21 +269,21 @@ namespace GameEngine
 		if (!pipelineDefFile.Length())
 			throw InvalidOperationException("'Pipeline.shader' not found. Engine directory is not setup correctly.");
 		engineShaderDir = CoreLib::IO::Path::GetDirectoryName(pipelineDefFile);
-		pipelineShaderDef = "\n#file " + CoreLib::Text::EscapeStringLiteral(pipelineDefFile) + "\n" + CoreLib::IO::File::ReadAllText(pipelineDefFile);
+		pipelineShaderDef = "\n" + CoreLib::IO::File::ReadAllText(pipelineDefFile);
 		auto utilDefFile = Engine::Instance()->FindFile("Utils.shader", ResourceType::Shader);
 		if (!utilDefFile.Length())
 			throw InvalidOperationException("'Utils.shader' not found. Engine directory is not setup correctly.");
 		auto utilsDef = CoreLib::IO::File::ReadAllText(utilDefFile);
-		pipelineShaderDef = pipelineShaderDef + "\n#file " + CoreLib::Text::EscapeStringLiteral(utilDefFile) + "\n" + utilsDef;
+		pipelineShaderDef = pipelineShaderDef + "\n" + utilsDef;
 
 		auto defaultShaderFile = Engine::Instance()->FindFile("DefaultPattern.shader", ResourceType::Shader);
 		if (!defaultShaderFile.Length())
 			throw InvalidOperationException("'DefaultPattern.shader' not found. Engine directory is not setup correctly.");
-		defaultShader = pipelineShaderDef + "\n#file " + CoreLib::Text::EscapeStringLiteral(defaultShaderFile) + "\n" + CoreLib::IO::File::ReadAllText(defaultShaderFile);
+		defaultShader = pipelineShaderDef + "\n" + CoreLib::IO::File::ReadAllText(defaultShaderFile);
 
 		auto meshProcessingFile = Engine::Instance()->FindFile("MeshProcessing.shader", ResourceType::Shader);
 		if (!meshProcessingFile.Length())
 			throw InvalidOperationException("'MeshProcessing.shader' not found. Engine directory is not setup correctly.");
-		meshProcessingDef = "\n#file " + CoreLib::Text::EscapeStringLiteral(meshProcessingFile) + "\n" + CoreLib::IO::File::ReadAllText(meshProcessingFile);
+		meshProcessingDef = "\n" + CoreLib::IO::File::ReadAllText(meshProcessingFile);
 	}
 }

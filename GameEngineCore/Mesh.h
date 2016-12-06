@@ -171,6 +171,8 @@ namespace GameEngine
 		void LoadFromStream(CoreLib::IO::Stream * stream);
 		void LoadFromFile(const CoreLib::String & fileName);
 		void FromSkeleton(Skeleton * skeleton, float width);
+	public:
+		static Mesh CreateBox(VectorMath::Vec3 vmin, VectorMath::Vec3 vmax);
 	};
 
 }

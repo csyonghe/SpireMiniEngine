@@ -14,7 +14,8 @@ namespace GameEngine
     namespace Tools
     {
         MotionGraph CreateTestMotionGraph(const CoreLib::String & filename);
-        MotionGraph BuildMotionGraph(const CoreLib::String & filename);
+        MotionGraph BuildMotionGraph(const CoreLib::String & filename, int leftFootId, int rightFootId);
+        void PreComputeOptimalMatrix(MotionGraph & graph);
     }
 }
 

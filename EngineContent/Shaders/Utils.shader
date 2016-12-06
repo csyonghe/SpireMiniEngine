@@ -37,6 +37,7 @@ module SystemUniforms
     public @ViewUniform mat4 invViewTransform;
     public @ViewUniform mat4 invViewProjTransform;
     public @ViewUniform vec3 cameraPos;
+    public @ViewUniform float time;
     public @ViewUniform SamplerState textureSampler;
     public vec3 lightDir = vec3(1.0, 1.0, 0.0);
     public vec3 lightColor = vec3(1.5, 1.5, 1.5);

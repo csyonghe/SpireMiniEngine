@@ -16,19 +16,34 @@ namespace GameEngine
 			auto actor = Engine::Instance()->ParseActor(this, parser);
 			if (!actor)
 			{
-				Print(L"error: ignoring object.\n");
+				Print("error: ignoring object.\n");
 			}
 			else
 			{
-				if (actor->GetEngineType() == EngineActorType::StaticMesh)
-					StaticActors.Add(actor.As<StaticMeshActor>());
-				else
-					GeneralActors.Add(actor);
-				actorRegistry[actor->Name] = actor.Ptr();
-				if (actor->GetEngineType() == EngineActorType::Camera)
-					CurrentCamera = actor.As<CameraActor>();
+				try
+				{
+					RegisterActor(actor.Ptr());
+					if (actor->GetEngineType() == EngineActorType::Camera)
+						CurrentCamera = actor.As<CameraActor>();
+				}
+				catch (Exception)
+				{
+					Print("error: an actor named '%S' already exists, ignoring second actor.\n", actor->Name.ToWString());
+				}
 			}
 		}
+	}
+	void Level::RegisterActor(Actor * actor)
+	{
+		Actors.Add(actor->Name, actor);
+		actor->OnLoad();
+		actor->RegisterUI(Engine::Instance()->GetUiEntry());
+	}
+	void Level::UnregisterActor(Actor*actor)
+	{
+		actor->OnUnload();
+		Actors[actor->Name] = nullptr;
+		Actors.Remove(actor->Name);
 	}
 	Mesh * Level::LoadMesh(const CoreLib::String & fileName)
 	{
@@ -44,7 +59,7 @@ namespace GameEngine
 			}
 			else
 			{
-				printf("error: cannot load mesh \'%S\'\n", fileName.ToWString());
+				Print("error: cannot load mesh \'%S\'\n", fileName.ToWString());
 				return nullptr;
 			}
 		}
@@ -64,7 +79,7 @@ namespace GameEngine
 			}
 			else
 			{
-				printf("error: cannot load skeleton \'%S\'\n", fileName.ToWString());
+				Print("error: cannot load skeleton \'%S\'\n", fileName.ToWString());
 				return nullptr;
 			}
 		}
@@ -84,7 +99,7 @@ namespace GameEngine
 			}
 			else
 			{
-				printf("error: cannot load material \'%S\'\n", fileName.ToWString());
+				Print("error: cannot load material \'%S\'\n", fileName.ToWString());
 				return nullptr;
 			}
 		}
@@ -110,7 +125,7 @@ namespace GameEngine
 			}
 			else
 			{
-				printf("error: cannot load animation \'%S\'\n", fileName.ToWString());
+				Print("error: cannot load animation \'%S\'\n", fileName.ToWString());
 				return nullptr;
 			}
 		}
@@ -130,7 +145,7 @@ namespace GameEngine
             }
             else
             {
-                printf("error: cannot load motion graph \'%S\'\n", fileName.ToWString());
+				Print("error: cannot load motion graph \'%S\'\n", fileName.ToWString());
                 return nullptr;
             }
         }
@@ -138,8 +153,8 @@ namespace GameEngine
     }
 	Actor * Level::FindActor(const CoreLib::String & name)
 	{
-		Actor * result = nullptr;
-		actorRegistry.TryGetValue(name, result);
-		return result;
+		RefPtr<Actor> result;
+		Actors.TryGetValue(name, result);
+		return result.Ptr();
 	}
 }

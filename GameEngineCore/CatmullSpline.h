@@ -8,15 +8,21 @@
 namespace GameEngine
 {
     using namespace VectorMath;
+
+    class KeyPoint
+    {
+    public:
+        Vec3 Pos;
+        float T;
+    };
+
     class CatmullSpline
     {
     public:
-        List<Vec2> KeyPoints;
-        List<Vec2> CurvePoints;
+        List<KeyPoint> KeyPoints;
+        Vec3 GetInterpolatedPosition(float t);
+        void SetKeyPoints(const List<Vec3> & points);
 
-        Vec2 InterpolatePosition(const Vec2 & P0, const Vec2 & P1, const Vec2 & P2, const Vec2 & P3, float u);
-        void SetKeyPoints(const List<Vec2> & points);
-        void GetCurvePoints();
         void SaveToStream(CoreLib::IO::Stream * stream);
         void LoadFromStream(CoreLib::IO::Stream * stream);
         void SaveToFile(const CoreLib::String & filename);

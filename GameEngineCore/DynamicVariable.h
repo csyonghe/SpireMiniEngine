@@ -27,6 +27,32 @@ namespace GameEngine
 		};
 		CoreLib::String StringValue;
 		static DynamicVariable Parse(CoreLib::Text::TokenReader & parser);
+		DynamicVariable() = default;
+		DynamicVariable(float val)
+		{
+			VarType = DynamicVariableType::Float;
+			FloatValue = val;
+		}
+		DynamicVariable(int val)
+		{
+			VarType = DynamicVariableType::Int;
+			IntValue = val;
+		}
+		DynamicVariable(VectorMath::Vec2 val)
+		{
+			VarType = DynamicVariableType::Vec2;
+			Vec2Value = val;
+		}
+		DynamicVariable(VectorMath::Vec3 val)
+		{
+			VarType = DynamicVariableType::Vec3;
+			Vec3Value = val;
+		}
+		DynamicVariable(VectorMath::Vec4 val)
+		{
+			VarType = DynamicVariableType::Vec4;
+			Vec4Value = val;
+		}
 	};
 }
 #endif

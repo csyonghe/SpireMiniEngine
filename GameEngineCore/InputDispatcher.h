@@ -5,8 +5,17 @@
 
 namespace GameEngine
 {
+	enum class MouseButton
+	{
+		None, Left, Middle, Right
+	};
+	struct MouseInput
+	{
+		MouseButton Button;
+		int X, Y, Delta;
+	};
 	typedef CoreLib::Func<bool, const CoreLib::String &, float> ActionInputHandlerFunc;
-	typedef CoreLib::Func<bool, const CoreLib::String &, float> ActorMouseInputHandlerFunc;
+	typedef CoreLib::Func<bool, const CoreLib::String &, MouseInput> ActorMouseInputHandlerFunc;
 
 	struct InputMappingValue
 	{

@@ -3,6 +3,20 @@
 
 namespace GameEngine
 {
+	void Material::SetVariable(CoreLib::String name, DynamicVariable value)
+	{
+		ParameterDirty = true;
+		if (auto oldValue = Variables.TryGetValue(name))
+		{
+			if (oldValue->VarType == value.VarType)
+				*oldValue = value;
+			else
+				throw CoreLib::InvalidOperationException("type mismatch.");
+		}
+		else
+			throw CoreLib::InvalidOperationException("variable not found");
+	}
+
 	void Material::Parse(CoreLib::Text::TokenReader & parser)
 	{
 		parser.Read("material");

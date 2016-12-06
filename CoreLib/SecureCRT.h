@@ -80,7 +80,7 @@ inline int sprintf_s(char * buffer, size_t sizeOfBuffer, const char * format, ..
 {
 	va_list argptr;
 	va_start(argptr, format);
-	int rs = sprintf(buffer, sizeOfBuffer, format, argptr);
+	int rs = snprintf(buffer, sizeOfBuffer, format, argptr);
 	va_end(argptr);
 	return rs;
 }
@@ -89,7 +89,7 @@ inline int swprintf_s(wchar_t * buffer, size_t sizeOfBuffer, const wchar_t * for
 {
 	va_list argptr;
 	va_start(argptr, format);
-	int rs = swprintf(buffer, sizeOfBuffer, format, argptr);
+	int rs = snwprintf(buffer, sizeOfBuffer, format, argptr);
 	va_end(argptr);
 	return rs;
 }

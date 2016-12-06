@@ -6,13 +6,14 @@
 namespace GameEngine
 {
 	class CameraActor;
-	class FreeRoamCameraController : public Actor
+	class FreeRoamCameraControllerActor : public Actor
 	{
 	private:
 		float cameraSpeed = 700.0f;
 		float turnPrecision = CoreLib::Math::Pi / 4.0f;
 		CoreLib::String targetCameraName;
 		CameraActor * targetCamera = nullptr;
+		void FindTargetCamera();
 	public:
 		virtual bool ParseField(Level * level, CoreLib::Text::TokenReader & parser, bool & isInvalid) override;
 	public:

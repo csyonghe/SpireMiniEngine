@@ -77,7 +77,6 @@ namespace GameEngine
 		if (shaderDef.Length() == 0)
 		{
 			StringBuilder sb;
-			sb << "#file \"VertexDefinition\"\n";
 			sb << "module VertexAttributes\n{\n";
 			sb << "public @MeshVertex vec3 vertPos;\n";
 			for (int i = 0; i < numUVs; i++)
@@ -254,6 +253,69 @@ namespace GameEngine
 		}
 		vertCount = vertices.Count();
 		
+	}
+	Mesh Mesh::CreateBox(VectorMath::Vec3 vmin, VectorMath::Vec3 vmax)
+	{
+		Mesh rs;
+		rs.SetVertexFormat(MeshVertexFormat(0, 1, true, false));
+		rs.AllocVertexBuffer(24);
+		
+		Quaternion tangentFrame;
+		// top
+		tangentFrame = Quaternion::FromCoordinates(Vec3::Create(1.0f, 0.0f, 0.0f), Vec3::Create(0.0f, 1.0f, 0.0f), Vec3::Create(0.0f, 0.0f, 1.0f));
+		rs.SetVertexPosition(0, Vec3::Create(vmax.x, vmax.y, vmin.z)); rs.SetVertexUV(0, 0, Vec2::Create(0.0f, 0.0f)); rs.SetVertexTangentFrame(0, tangentFrame);
+		rs.SetVertexPosition(1, Vec3::Create(vmin.x, vmax.y, vmin.z)); rs.SetVertexUV(1, 0, Vec2::Create(1.0f, 0.0f)); rs.SetVertexTangentFrame(1, tangentFrame);
+		rs.SetVertexPosition(2, Vec3::Create(vmin.x, vmax.y, vmax.z)); rs.SetVertexUV(2, 0, Vec2::Create(1.0f, 1.0f)); rs.SetVertexTangentFrame(2, tangentFrame);
+		rs.SetVertexPosition(3, Vec3::Create(vmax.x, vmax.y, vmax.z)); rs.SetVertexUV(3, 0, Vec2::Create(0.0f, 1.0f)); rs.SetVertexTangentFrame(3, tangentFrame);
+		rs.Indices.Add(0);	rs.Indices.Add(1);	rs.Indices.Add(2);
+		rs.Indices.Add(0);	rs.Indices.Add(2);	rs.Indices.Add(3);
+
+		// bottom
+		tangentFrame = Quaternion::FromCoordinates(Vec3::Create(-1.0f, 0.0f, 0.0f), Vec3::Create(0.0f, -1.0f, 0.0f), Vec3::Create(0.0f, 0.0f, 1.0f));
+		rs.SetVertexPosition(4, Vec3::Create(vmin.x, vmin.y, vmax.z)); rs.SetVertexUV(4, 0, Vec2::Create(0.0f, 0.0f)); rs.SetVertexTangentFrame(4, tangentFrame);
+		rs.SetVertexPosition(5, Vec3::Create(vmin.x, vmin.y, vmin.z)); rs.SetVertexUV(5, 0, Vec2::Create(0.0f, 1.0f)); rs.SetVertexTangentFrame(5, tangentFrame);
+		rs.SetVertexPosition(6, Vec3::Create(vmax.x, vmin.y, vmin.z)); rs.SetVertexUV(6, 0, Vec2::Create(1.0f, 1.0f)); rs.SetVertexTangentFrame(6, tangentFrame);
+		rs.SetVertexPosition(7, Vec3::Create(vmax.x, vmin.y, vmax.z)); rs.SetVertexUV(7, 0, Vec2::Create(1.0f, 0.0f)); rs.SetVertexTangentFrame(7, tangentFrame);
+		rs.Indices.Add(4);	rs.Indices.Add(5);	rs.Indices.Add(6);
+		rs.Indices.Add(4);	rs.Indices.Add(6);	rs.Indices.Add(7);
+
+		// front
+		tangentFrame = Quaternion::FromCoordinates(Vec3::Create(1.0f, 0.0f, 0.0f), Vec3::Create(0.0f, 0.0f, 1.0f), Vec3::Create(0.0f, -1.0f, 0.0f));
+		rs.SetVertexPosition(8,  Vec3::Create(vmin.x, vmin.y, vmax.z)); rs.SetVertexUV(8,  0, Vec2::Create(0.0f, 0.0f)); rs.SetVertexTangentFrame(8,  tangentFrame);
+		rs.SetVertexPosition(9,  Vec3::Create(vmax.x, vmin.y, vmax.z)); rs.SetVertexUV(9,  0, Vec2::Create(1.0f, 0.0f)); rs.SetVertexTangentFrame(9,  tangentFrame);
+		rs.SetVertexPosition(10, Vec3::Create(vmax.x, vmax.y, vmax.z)); rs.SetVertexUV(10, 0, Vec2::Create(1.0f, 1.0f)); rs.SetVertexTangentFrame(10, tangentFrame);
+		rs.SetVertexPosition(11, Vec3::Create(vmin.x, vmax.y, vmax.z)); rs.SetVertexUV(11, 0, Vec2::Create(0.0f, 1.0f)); rs.SetVertexTangentFrame(11, tangentFrame);
+		rs.Indices.Add(8);	rs.Indices.Add(9);	rs.Indices.Add(10);
+		rs.Indices.Add(8);	rs.Indices.Add(10);	rs.Indices.Add(11);
+
+		// back
+		tangentFrame = Quaternion::FromCoordinates(Vec3::Create(-1.0f, 0.0f, 0.0f), Vec3::Create(0.0f, 0.0f, -1.0f), Vec3::Create(0.0f, -1.0f, 0.0f));
+		rs.SetVertexPosition(12, Vec3::Create(vmin.x, vmin.y, vmin.z)); rs.SetVertexUV(12, 0, Vec2::Create(0.0f, 0.0f)); rs.SetVertexTangentFrame(12, tangentFrame);
+		rs.SetVertexPosition(13, Vec3::Create(vmin.x, vmax.y, vmin.z)); rs.SetVertexUV(13, 0, Vec2::Create(0.0f, 1.0f)); rs.SetVertexTangentFrame(13, tangentFrame);
+		rs.SetVertexPosition(14, Vec3::Create(vmax.x, vmax.y, vmin.z)); rs.SetVertexUV(14, 0, Vec2::Create(1.0f, 1.0f)); rs.SetVertexTangentFrame(14, tangentFrame);
+		rs.SetVertexPosition(15, Vec3::Create(vmax.x, vmin.y, vmin.z)); rs.SetVertexUV(15, 0, Vec2::Create(1.0f, 0.0f)); rs.SetVertexTangentFrame(15, tangentFrame);
+		rs.Indices.Add(12);	rs.Indices.Add(13);	rs.Indices.Add(14);
+		rs.Indices.Add(12);	rs.Indices.Add(14);	rs.Indices.Add(15);
+
+		// left
+		tangentFrame = Quaternion::FromCoordinates(Vec3::Create(0.0f, 1.0f, 0.0f), Vec3::Create(-1.0f, 0.0f, 0.0f), Vec3::Create(0.0f, 0.0f, 1.0f));
+		rs.SetVertexPosition(16, Vec3::Create(vmin.x, vmin.y, vmin.z)); rs.SetVertexUV(16, 0, Vec2::Create(0.0f, 0.0f)); rs.SetVertexTangentFrame(16, tangentFrame);
+		rs.SetVertexPosition(17, Vec3::Create(vmin.x, vmin.y, vmax.z)); rs.SetVertexUV(17, 0, Vec2::Create(0.0f, 1.0f)); rs.SetVertexTangentFrame(17, tangentFrame);
+		rs.SetVertexPosition(18, Vec3::Create(vmin.x, vmax.y, vmax.z)); rs.SetVertexUV(18, 0, Vec2::Create(1.0f, 1.0f)); rs.SetVertexTangentFrame(18, tangentFrame);
+		rs.SetVertexPosition(19, Vec3::Create(vmin.x, vmax.y, vmin.z)); rs.SetVertexUV(19, 0, Vec2::Create(1.0f, 0.0f)); rs.SetVertexTangentFrame(19, tangentFrame);
+		rs.Indices.Add(16);	rs.Indices.Add(17);	rs.Indices.Add(18);
+		rs.Indices.Add(16);	rs.Indices.Add(18);	rs.Indices.Add(19);
+
+		// right
+		tangentFrame = Quaternion::FromCoordinates(Vec3::Create(0.0f, 1.0f, 0.0f), Vec3::Create(1.0f, 0.0f, 0.0f), Vec3::Create(0.0f, 0.0f, -1.0f));
+		rs.SetVertexPosition(20, Vec3::Create(vmax.x, vmin.y, vmax.z)); rs.SetVertexUV(20, 0, Vec2::Create(0.0f, 0.0f)); rs.SetVertexTangentFrame(20, tangentFrame);
+		rs.SetVertexPosition(21, Vec3::Create(vmax.x, vmin.y, vmin.z)); rs.SetVertexUV(21, 0, Vec2::Create(0.0f, 1.0f)); rs.SetVertexTangentFrame(21, tangentFrame);
+		rs.SetVertexPosition(22, Vec3::Create(vmax.x, vmax.y, vmin.z)); rs.SetVertexUV(22, 0, Vec2::Create(1.0f, 1.0f)); rs.SetVertexTangentFrame(22, tangentFrame);
+		rs.SetVertexPosition(23, Vec3::Create(vmax.x, vmax.y, vmax.z)); rs.SetVertexUV(23, 0, Vec2::Create(1.0f, 0.0f)); rs.SetVertexTangentFrame(23, tangentFrame);
+		rs.Indices.Add(20);	rs.Indices.Add(21);	rs.Indices.Add(22);
+		rs.Indices.Add(20);	rs.Indices.Add(22);	rs.Indices.Add(23);
+
+		return rs;
 	}
 }
 

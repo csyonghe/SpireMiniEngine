@@ -2,6 +2,7 @@
 #define GAME_ENGINE_SKELETAL_ANIMATED_ACTOR_H
 
 #include "Actor.h"
+#include "RenderContext.h"
 
 namespace GameEngine
 {
@@ -9,6 +10,7 @@ namespace GameEngine
 	{
 	private:
 		Pose nextPose;
+		RefPtr<Drawable> drawable;
 		float startTime = 0.0f;
 	protected:
 		virtual bool ParseField(Level * level, CoreLib::Text::TokenReader & parser, bool &isInvalid) override;
@@ -17,19 +19,18 @@ namespace GameEngine
 		Mesh * Mesh = nullptr;
 		Skeleton * Skeleton = nullptr;
 		SkeletalAnimation * SimpleAnimation = nullptr;
-        MotionGraph * MotionGraph = nullptr;
         
-		CoreLib::String MeshName, SkeletonName, SimpleAnimationName, MotionGraphName;
+		CoreLib::String MeshName, SkeletonName, SimpleAnimationName;
 		Material * MaterialInstance = nullptr;
-		CoreLib::RefPtr<SkeletalMeshRenderContext> RenderContext;
 		virtual void Tick() override;
 		Pose & GetCurrentPose()
 		{
 			return nextPose;
 		}
+		virtual void GetDrawables(RendererService * renderService) override;
 		virtual EngineActorType GetEngineType() override
 		{
-			return EngineActorType::SkeletalMesh;
+			return EngineActorType::Drawable;
 		}
 		virtual CoreLib::String GetTypeName() override
 		{

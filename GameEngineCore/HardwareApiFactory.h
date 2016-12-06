@@ -2,7 +2,6 @@
 #define HARDWARE_API_FACTORY_H
 
 #include "CoreLib/Basic.h"
-#include "Engine.h"
 #include "Spire/Spire.h"
 
 namespace GameEngine
@@ -17,7 +16,7 @@ namespace GameEngine
 		CoreLib::String FileName;
 		int Line, Col;
 		ShaderCompilationError() {}
-		ShaderCompilationError(const SpireErrorMessage & msg)
+		ShaderCompilationError(const SpireDiagnostic & msg)
 		{
 			Message = msg.Message;
 			ErrorId = msg.ErrorId;
@@ -31,7 +30,7 @@ namespace GameEngine
 	{
 	public:
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::List<unsigned char>> Shaders;
-		CoreLib::List<ShaderCompilationError> Errors, Warnings;
+		CoreLib::List<ShaderCompilationError> Diagnostics;
 		void LoadFromFile(CoreLib::String fileName);
 		void SaveToFile(CoreLib::String fileName, bool codeIsText);
 	};
@@ -46,7 +45,8 @@ namespace GameEngine
 	public:
 		void LoadShaderLibrary();
 		virtual HardwareRenderer * CreateRenderer(int gpuId) = 0;
-		virtual bool CompileShader(ShaderCompilationResult & src, const CoreLib::String & filename, const CoreLib::String & vertexDef, const CoreLib::String & symbol) = 0;
+		virtual bool CompileShader(ShaderCompilationResult & src, const CoreLib::String & filename, const CoreLib::String & vertexDef, 
+			const CoreLib::String & entryPoint, const CoreLib::String & symbol) = 0;
 	};
 
 	HardwareApiFactory * CreateOpenGLFactory();

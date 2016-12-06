@@ -78,7 +78,7 @@ namespace GameEngine
 		else if (parser.LookAhead("transform"))
 		{
 			parser.ReadToken();
-			LocalTransform = ParseMatrix4(parser);
+			localTransform = ParseMatrix4(parser);
 			return true;
 		}
 		else if (parser.LookAhead("component"))
@@ -93,7 +93,7 @@ namespace GameEngine
 	{
 		sb << "name \"" << Name << "\"\n";
 		sb << "transform ";
-		Serialize(sb, LocalTransform);
+		Serialize(sb, localTransform);
 		sb << "\n";
 		for (auto & comp : SubComponents)
 		{

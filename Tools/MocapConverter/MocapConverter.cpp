@@ -35,31 +35,31 @@ public:
 	bool FlipYZ = true;
 };
 
-Quaternion FlipYZ(Quaternion q)
-{
-	return Quaternion::FromAxisAngle(Vec3::Create(1.0f, 0.0f, 0.0f), -Math::Pi*0.5f) * q * Quaternion::FromAxisAngle(Vec3::Create(1.0f, 0.0f, 0.0f), Math::Pi*0.5f);
-}
-
+//Quaternion FlipYZ(Quaternion q)
+//{
+//	return Quaternion::FromAxisAngle(Vec3::Create(1.0f, 0.0f, 0.0f), -Math::Pi*0.5f) * q * Quaternion::FromAxisAngle(Vec3::Create(1.0f, 0.0f, 0.0f), Math::Pi*0.5f);
+//}
+//
 Vec3 FlipYZ(const Vec3 & v)
 {
 	return Vec3::Create(v.x, v.z, -v.y);
 }
-
-Matrix4 FlipYZ(const Matrix4 & v)
-{
-	Matrix4 rs = v;
-	for (int i = 0; i < 4; i++)
-	{
-		rs.m[1][i] = v.m[2][i];
-		rs.m[2][i] = -v.m[1][i];
-	}
-	for (int i = 0; i < 4; i++)
-	{
-		Swap(rs.m[i][1], rs.m[i][2]);
-		rs.m[i][2] = -rs.m[i][2];
-	}
-	return rs;
-}
+//
+//Matrix4 FlipYZ(const Matrix4 & v)
+//{
+//	Matrix4 rs = v;
+//	for (int i = 0; i < 4; i++)
+//	{
+//		rs.m[1][i] = v.m[2][i];
+//		rs.m[2][i] = -v.m[1][i];
+//	}
+//	for (int i = 0; i < 4; i++)
+//	{
+//		Swap(rs.m[i][1], rs.m[i][2]);
+//		rs.m[i][2] = -rs.m[i][2];
+//	}
+//	return rs;
+//}
 
 template<typename TFunc>
 void TraverseBvhJoints(BvhJoint * joint, const TFunc & f)
@@ -119,7 +119,6 @@ void RotateKeyFrame(BoneTransformation & kf, Vec3 rotation)
 	kf.Rotation *= 1.0f / kf.Rotation.Length();
 	kf.Translation = Vec3::Create(transform.values[12], transform.values[13], transform.values[14]);
 }
-
 
 void FlipKeyFrame(BoneTransformation & kf)
 {
