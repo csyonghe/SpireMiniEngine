@@ -68,9 +68,6 @@
     <ClCompile Include="RenderPass.cpp">
       <Filter>Renderer</Filter>
     </ClCompile>
-    <ClCompile Include="RenderPassRegistry.cpp">
-      <Filter>Renderer</Filter>
-    </ClCompile>
     <ClCompile Include="RenderContext.cpp">
       <Filter>Renderer</Filter>
     </ClCompile>
@@ -93,6 +90,16 @@
     <ClCompile Include="SpireSource.cpp">
       <Filter>Spire</Filter>
     </ClCompile>
+    <ClCompile Include="RenderPassRegistry.h">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="StandardRenderProcedure.cpp">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="ShadowRenderPass.cpp">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectionalLightActor.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
@@ -178,6 +185,12 @@
     </ClInclude>
     <ClInclude Include="Spire\SpireAllSource.h">
       <Filter>Spire</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectionalLightActor.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="LightActor.h">
+      <Filter>Actors</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

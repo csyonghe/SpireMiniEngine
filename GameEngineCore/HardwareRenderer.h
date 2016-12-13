@@ -114,6 +114,7 @@ namespace GameEngine
 
 	enum class StorageFormat
 	{
+		Invalid = -1,
 		Int8, Int16, Int32_Raw,
 		Float16, Float32,
 		RG_I8, RG_I16, RG_I32_Raw,
@@ -348,7 +349,7 @@ namespace GameEngine
 	/*
 	 * Object Classes
 	 */
-	class Buffer : public CoreLib::Object
+	class Buffer : public CoreLib::RefObject
 	{
 	protected:
 		Buffer() {};
@@ -365,7 +366,9 @@ namespace GameEngine
 		virtual void Unmap() = 0;
 	};
 
-	class Texture2D : public CoreLib::Object
+	class Texture : public CoreLib::RefObject {};
+
+	class Texture2D : public Texture
 	{
 	protected:
 		Texture2D() {};
@@ -378,7 +381,17 @@ namespace GameEngine
 		virtual void BuildMipmaps() = 0;
 	};
 
-	class TextureSampler : public CoreLib::Object
+	class Texture2DArray : public Texture
+	{
+	protected:
+		Texture2DArray() {};
+	public:
+		virtual void GetSize(int &width, int &height, int &layers) = 0;
+		virtual void SetData(int mipLevel, int xOffset, int yOffset, int layerOffset, int width, int height, int layerCount, DataType inputType, void * data) = 0;
+		virtual void BuildMipmaps() = 0;
+	};
+
+	class TextureSampler : public CoreLib::RefObject
 	{
 	protected:
 		TextureSampler() {};
@@ -391,13 +404,13 @@ namespace GameEngine
 		virtual void SetDepthCompare(CompareFunc op) = 0;
 	};
 
-	class Shader : public CoreLib::Object
+	class Shader : public CoreLib::RefObject
 	{
 	protected:
 		Shader() {};
 	};
 
-	class FrameBuffer : public CoreLib::Object
+	class FrameBuffer : public CoreLib::RefObject
 	{
 	protected:
 		FrameBuffer() {};
@@ -408,7 +421,27 @@ namespace GameEngine
 	public:
 		int width = -1;
 		int height = -1;
-		CoreLib::List<Texture2D*> attachments;
+		struct Attachment
+		{
+			struct
+			{
+				GameEngine::Texture2D* tex2D = nullptr;
+				GameEngine::Texture2DArray* tex2DArray = nullptr;
+			} handle;
+			int layer = -1;
+			Attachment(GameEngine::Texture2D * tex)
+			{
+				handle.tex2D = tex;
+				layer = -1;
+			}
+			Attachment(GameEngine::Texture2DArray* texArr, int l)
+			{
+				handle.tex2DArray = texArr;
+				layer = l;
+			}
+			Attachment() = default;
+		};
+		CoreLib::List<Attachment> attachments;
 	private:
 		void Resize(int size)
 		{
@@ -421,8 +454,33 @@ namespace GameEngine
 		RenderAttachments() {}
 		RenderAttachments(CoreLib::ArrayView<Texture2D*> pAttachments)
 		{
-			attachments.AddRange(pAttachments.Buffer(), pAttachments.Count());
-			attachments[0]->GetSize(width, height);
+			for (auto tex : pAttachments)
+			{
+				attachments.Add(Attachment(tex));
+			}
+			attachments[0].handle.tex2D->GetSize(width, height);
+		}
+		void SetAttachment(int binding, GameEngine::Texture2DArray * attachment, int layer)
+		{
+			if (width == -1 && height == -1)
+			{
+				int layers = 0;
+				attachment->GetSize(width, height, layers);
+			}
+#if _DEBUG
+			else
+			{
+				int thiswidth;
+				int thisheight;
+				int thislayers;
+				attachment->GetSize(thiswidth, thisheight, thislayers);
+				if (thiswidth != width || thisheight != height)
+					throw HardwareRendererException("Attachment images must have the same dimensions.");
+			}
+#endif
+			Resize(binding + 1);
+
+			attachments[binding] = Attachment(attachment, layer);
 		}
 		void SetAttachment(int binding, GameEngine::Texture2D* attachment)
 		{
@@ -435,7 +493,7 @@ namespace GameEngine
 			{
 				int thiswidth;
 				int thisheight;
-				dynamic_cast<Texture2D*>(attachment)->GetSize(thiswidth, thisheight);
+				attachment->GetSize(thiswidth, thisheight);
 				if (thiswidth != width || thisheight != height)
 					throw HardwareRendererException("Attachment images must have the same dimensions.");
 			}
@@ -446,7 +504,7 @@ namespace GameEngine
 		}
 	};
 
-	class RenderTargetLayout : public CoreLib::Object
+	class RenderTargetLayout : public CoreLib::RefObject
 	{
 	protected:
 		RenderTargetLayout() {}
@@ -456,7 +514,7 @@ namespace GameEngine
 
 	struct TextureBinding
 	{
-		Texture2D* texture;
+		Texture* texture;
 		TextureSampler* sampler;
 	};
 	struct BufferBinding
@@ -531,7 +589,7 @@ namespace GameEngine
 
 			bindings.Add(description);
 		}
-		void BindTexture(int binding, Texture2D* texture, TextureSampler* sampler)
+		void BindTexture(int binding, Texture* texture, TextureSampler* sampler)
 		{
 			BindingDescription description;
 			description.type = BindingType::Texture;
@@ -543,13 +601,13 @@ namespace GameEngine
 		}
 	};
 
-	class PipelineInstance : public CoreLib::Object
+	class PipelineInstance : public CoreLib::RefObject
 	{
 	protected:
 		PipelineInstance() {}
 	};
 
-	class Pipeline : public CoreLib::Object
+	class Pipeline : public CoreLib::RefObject
 	{
 	protected:
 		Pipeline() {}
@@ -557,12 +615,13 @@ namespace GameEngine
 		virtual PipelineInstance* CreateInstance(const PipelineBinding& pipelineBinding) = 0;
 	};
 
-	class PipelineBuilder : public CoreLib::Object
+	class FixedFunctionPipelineStates
 	{
-	protected:
-		PipelineBuilder() {}
 	public:
 		bool PrimitiveRestartEnabled = false;
+		bool EnablePolygonOffset = false;
+		float PolygonOffsetFactor = 0.4f;
+		float PolygonOffsetUnits = 1.0f;
 		PrimitiveType PrimitiveTopology = GameEngine::PrimitiveType::Triangles;
 		int PatchSize = 3;
 		CompareFunc DepthCompareFunc = CompareFunc::Disabled, StencilCompareFunc = CompareFunc::Disabled;
@@ -572,19 +631,27 @@ namespace GameEngine
 		unsigned int StencilReference = 0;
 		CullMode CullMode = GameEngine::CullMode::CullBackFace;
 
+	};
+
+	class PipelineBuilder : public CoreLib::RefObject
+	{
+	protected:
+		PipelineBuilder() {}
+	public:
+		FixedFunctionPipelineStates FixedFunctionStates;
 		virtual void SetShaders(CoreLib::ArrayView<Shader*> shaders) = 0;
 		virtual void SetVertexLayout(VertexFormat vertexFormat) = 0;
 		virtual void SetBindingLayout(int bindingId, BindingType bindType) = 0;
 		virtual Pipeline* ToPipeline(RenderTargetLayout* renderTargetLayout) = 0;
 	};
 
-	class CommandBuffer : public CoreLib::Object
+	class CommandBuffer : public CoreLib::RefObject
 	{
 	protected:
 		CommandBuffer() {};
 	public:
 		// Specifying the FrameBuffer can result in better performance, but will need to be re-recorded when FrameBuffer changes
-		virtual void BeginRecording(RenderTargetLayout* renderTargetLayout, FrameBuffer* frameBuffer) = 0;
+		virtual void BeginRecording(FrameBuffer* frameBuffer) = 0;
 		// Not specifying a specific FrameBuffer may result in worse performance, but can be used with any compatible FrameBuffer
 		virtual void BeginRecording(RenderTargetLayout* renderTargetLayout) = 0;
 		virtual void EndRecording() = 0;
@@ -597,10 +664,11 @@ namespace GameEngine
 		virtual void DrawIndexed(int firstIndex, int indexCount) = 0;
 		virtual void DrawIndexedInstanced(int numInstances, int firstIndex, int indexCount) = 0;
 		virtual void Blit(Texture2D* dstImage, Texture2D* srcImage) = 0;
-		virtual void ClearAttachments(RenderAttachments renderAttachments) = 0;
+		virtual void ClearAttachments(CoreLib::ArrayView<TextureUsage> renderAttachments, int w, int h) = 0;
+		virtual void ClearAttachments(FrameBuffer * frameBuffer) = 0;
 	};
 
-	class HardwareRenderer : public CoreLib::Object
+	class HardwareRenderer : public CoreLib::RefObject
 	{
 	protected:
 		HardwareRenderer() {};
@@ -609,13 +677,14 @@ namespace GameEngine
 		virtual void * GetWindowHandle() = 0;
 		virtual void Resize(int width, int height) = 0;
 		virtual void ClearTexture(GameEngine::Texture2D* texture) = 0;
-		virtual void ExecuteCommandBuffers(RenderTargetLayout* renderTargetLayout, FrameBuffer* frameBuffer, CoreLib::ArrayView<CommandBuffer*> commands) = 0;
+		virtual void ExecuteCommandBuffers(FrameBuffer* frameBuffer, CoreLib::ArrayView<CommandBuffer*> commands) = 0;
 		virtual void Present(Texture2D* srcImage) = 0;
 		virtual void Blit(Texture2D* dstImage, Texture2D* srcImage) = 0;
 		virtual void Wait() = 0;
 		virtual Buffer* CreateBuffer(BufferUsage usage) = 0;
 		virtual Buffer* CreateMappedBuffer(BufferUsage usage) = 0;
 		virtual Texture2D* CreateTexture2D(TextureUsage usage) = 0;
+		virtual Texture2DArray* CreateTexture2DArray(TextureUsage usage, int width, int height, int layers, int mipLevelCount, StorageFormat format) = 0;
 		virtual TextureSampler * CreateTextureSampler() = 0;
 		virtual Shader* CreateShader(ShaderType stage, const char* data, int size) = 0;
 		virtual RenderTargetLayout* CreateRenderTargetLayout(CoreLib::ArrayView<TextureUsage> bindings) = 0;

@@ -817,10 +817,10 @@ namespace GraphicsUI
 			pipeBuilder->SetBindingLayout(0, BindingType::UniformBuffer);
 			pipeBuilder->SetBindingLayout(1, BindingType::StorageBuffer);
 			pipeBuilder->SetBindingLayout(2, BindingType::StorageBuffer);
-			pipeBuilder->PrimitiveRestartEnabled = true;
-			pipeBuilder->PrimitiveTopology = PrimitiveType::TriangleFans;
-			pipeBuilder->BlendMode = BlendMode::AlphaBlend;
-			pipeBuilder->DepthCompareFunc = CompareFunc::Disabled;
+			pipeBuilder->FixedFunctionStates.PrimitiveRestartEnabled = true;
+			pipeBuilder->FixedFunctionStates.PrimitiveTopology = PrimitiveType::TriangleFans;
+			pipeBuilder->FixedFunctionStates.BlendMode = BlendMode::AlphaBlend;
+			pipeBuilder->FixedFunctionStates.DepthCompareFunc = CompareFunc::Disabled;
 
 			uniformBuffer = rendererApi->CreateBuffer(BufferUsage::UniformBuffer);
 			primitiveBuffer = rendererApi->CreateBuffer(BufferUsage::StorageBuffer);
@@ -839,7 +839,7 @@ namespace GraphicsUI
 			linearSampler->SetFilter(TextureFilter::Linear);
 
 			uiOverlayTexture = rendererApi->CreateTexture2D(TextureUsage::ColorAttachment);
-			uiOverlayTexture->Resize(400, 400, 1);
+			uiOverlayTexture->Resize(4, 4, 1);
 			frameBuffer = renderTargetLayout->CreateFrameBuffer(MakeArrayView(uiOverlayTexture.Ptr()));
 
 			PipelineBinding binding;
@@ -862,7 +862,8 @@ namespace GraphicsUI
 			screenHeight = h;
 			rendererApi->Wait();
 			Matrix4::CreateOrthoMatrix(orthoMatrix, 0.0f, (float)screenWidth, 0.0f, (float)screenHeight, 1.0f, -1.0f);
-			uniformBuffer->SetData(&orthoMatrix, sizeof(orthoMatrix));
+			uniformBuffer->SetData(&orthoMatrix, sizeof(orthoMatrix)); 
+			uiOverlayTexture = rendererApi->CreateTexture2D(TextureUsage::ColorAttachment);
 			uiOverlayTexture->SetData(GameEngine::StorageFormat::RGBA_8, w, h, 1, DataType::Byte4, nullptr, false);
 			frameBuffer = renderTargetLayout->CreateFrameBuffer(MakeArrayView(uiOverlayTexture.Ptr()));
 		}
@@ -883,7 +884,7 @@ namespace GraphicsUI
 			binding.BindStorageBuffer(1, primitiveBuffer.Ptr());
 			binding.BindStorageBuffer(2, system->GetTextBufferObject());
 			pipelineInstance = pipeline->CreateInstance(binding);*/
-			cmdBuffer->BeginRecording(renderTargetLayout.Ptr(), frameBuffer.Ptr());
+			cmdBuffer->BeginRecording(frameBuffer.Ptr());
 			cmdBuffer->Blit(uiOverlayTexture.Ptr(), baseTexture);
 			cmdBuffer->BindVertexBuffer(vertexBuffer.Ptr());
 			cmdBuffer->BindIndexBuffer(indexBuffer.Ptr());
@@ -891,7 +892,7 @@ namespace GraphicsUI
 			cmdBuffer->SetViewport(0, 0, screenWidth, screenHeight);
 			cmdBuffer->DrawIndexed(0, indexStream.Count());
 			cmdBuffer->EndRecording();
-			rendererApi->ExecuteCommandBuffers(renderTargetLayout.Ptr(), frameBuffer.Ptr(), MakeArrayView(cmdBuffer.Ptr()));
+			rendererApi->ExecuteCommandBuffers(frameBuffer.Ptr(), MakeArrayView(cmdBuffer.Ptr()));
 			rendererApi->Wait();
 		}
 		void DrawLine(const Color & color, float x0, float y0, float x1, float y1)

@@ -17,7 +17,6 @@ namespace GameEngine
         RefPtr<CatmullSpline> path;
         Material diskIndicatorMaterial;
         float startTime = 0.0f;
-        
 
     protected:
         virtual bool ParseField(Level * level, CoreLib::Text::TokenReader & parser, bool &isInvalid) override;
@@ -34,7 +33,7 @@ namespace GameEngine
         {
             return nextPose;
         }
-        virtual void GetDrawables(RendererService * renderService) override;
+        virtual void GetDrawables(const GetDrawablesParameter & params) override;
         virtual EngineActorType GetEngineType() override
         {
             return EngineActorType::Drawable;

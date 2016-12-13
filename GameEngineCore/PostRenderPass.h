@@ -9,18 +9,18 @@ namespace GameEngine
 	{
 	protected:
 		bool clearFrameBuffer = false;
+		CoreLib::RefPtr<FrameBuffer> frameBuffer;
+		CoreLib::RefPtr<CommandBuffer> commandBuffer;
 		CoreLib::RefPtr<Pipeline> pipeline;
 		CoreLib::RefPtr<PipelineInstance> pipelineInstance;
-		CoreLib::RefPtr<CommandBuffer> commandBuffer;
-		CoreLib::RefPtr<RenderTargetLayout> renderTargetLayout;
 		virtual void SetupPipelineBindingLayout(PipelineBuilder * pipelineBuilder, CoreLib::List<TextureUsage> & renderTargets) = 0;
 		virtual void UpdatePipelineBinding(PipelineBinding & binding, RenderAttachments & attachments) = 0;
 		virtual CoreLib::String GetShaderFileName() = 0;
 		virtual void Create() override;
-		void RecordCommandBuffer();
+		virtual void AcquireRenderTargets() = 0;
 	public:
-		virtual void UpdateFrameBuffer() override;
 		void Execute();
+		virtual void RecordCommandBuffer(int screenWidth, int screenHeight);
 	};
 }
 

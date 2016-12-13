@@ -39,8 +39,19 @@ module SystemUniforms
     public @ViewUniform vec3 cameraPos;
     public @ViewUniform float time;
     public @ViewUniform SamplerState textureSampler;
-    public vec3 lightDir = vec3(1.0, 1.0, 0.0);
-    public vec3 lightColor = vec3(1.5, 1.5, 1.5);
+    
+}
+
+module LightingParams
+{
+    public @LightData vec3 lightDir;
+    public @LightData vec3 lightColor;
+    public @LightData int shadowMapId;
+    public @LightData int numCascades;
+    public @LightData mat4[8] lightMatrix;
+    public @LightData vec4[2] zPlanes;
+    public @LightData Texture2DArrayShadow shadowMapArray;
+    public @LightData SamplerState shadowMapSampler;
 }
 
 module TangentSpaceTransform
@@ -389,8 +400,15 @@ module Lighting
     require vec3 lightColor;
     require vec3 cameraPos;
     require float selfShadow(vec3 lightDir);
-    float shadow = selfShadow(lightDir);
-    float brightness = clamp(dot(lightDir, normal), 0.0, 1.0) * shadow;
+    require int shadowMapId;
+    require int numCascades; // TODO: commenting out this line results compiler crash
+    require Texture2DArrayShadow shadowMapArray;
+    require SamplerState shadowMapSampler;
+    require mat4 viewTransform;
+    require vec4[2] zPlanes;
+    require mat4[8] lightMatrix;
+    
+    
     vec3 view = normalize(cameraPos - pos);
     inline float roughness_in = lightParam.x;
     inline float metallic_in = lightParam.y;
@@ -436,7 +454,31 @@ module Lighting
         float D = alphaSqr/(pi * denom * denom);
         return D;
     }
+
+    float shadow
+    {
+        float result = selfShadow(lightDir);
+        if (numCascades)
+        {
+            vec3 viewPos = (viewTransform * vec4(pos, 1.0)).xyz;
+            for (int i = 0; i < numCascades; i++)
+            {
+                if (-viewPos.z < zPlanes[i>>2][i&3])
+                {
+                    vec4 lightSpacePosT = lightMatrix[i] * vec4(pos, 1.0);
+                    vec3 lightSpacePos = lightSpacePosT.xyz / lightSpacePosT.w;
+                    float val = shadowMapArray.SampleCmp(shadowMapSampler, 
+                        vec3(lightSpacePos.xy, i+shadowMapId), lightSpacePos.z);
+                    result *= val;
+                    break;
+                }
+            }
+        }
+        return result;
+    }
     
+    float brightness = clamp(dot(lightDir, normal), 0.0, 1.0) * shadow;
+
     float highlight : phongStandard
     {
         float alpha = roughness_in*roughness_in;
@@ -453,6 +495,6 @@ module Lighting
         return specular;
     }
     public vec3 result = lightColor * 
-                        (albedo * (brightness + 0.7)*(1.0-metallic_in) + 
+                        (albedo * (brightness + 0.4)*(1.0-metallic_in) + 
                         mix(albedo, vec3(1.0), 1.0 - metallic_in) * (highlight * shadow));
 }

@@ -60,12 +60,12 @@ namespace GameEngine
             nextPose = Graph->States[frameId].Pose;
     }
 
-    void AnimationVisualizationActor::GetDrawables(RendererService * renderService)
+    void AnimationVisualizationActor::GetDrawables(const GetDrawablesParameter & params)
     {
         if (!drawable)
-            drawable = renderService->CreateSkeletalDrawable(Mesh, Skeleton, MaterialInstance);
+            drawable = params.rendererService->CreateSkeletalDrawable(Mesh, Skeleton, MaterialInstance);
         drawable->UpdateTransformUniform(localTransform, nextPose);
-        renderService->Add(drawable.Ptr());
+        params.sink->AddDrawable(drawable.Ptr());
     }
 
     void AnimationVisualizationActor::OnLoad()

@@ -33,6 +33,11 @@ namespace GameEngine
 			}
 		}
 	}
+	Level::~Level()
+	{
+		for (auto & actor : From(Actors).ToList())
+			UnregisterActor(actor.Value.Ptr());
+	}
 	void Level::RegisterActor(Actor * actor)
 	{
 		Actors.Add(actor->Name, actor);

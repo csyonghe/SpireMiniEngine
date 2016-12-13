@@ -21,7 +21,14 @@ namespace GameEngine
 	using namespace GraphicsUI;
 
 	void RegisterEngineActorClasses(Engine *);
-	void RegisterRenderPasses(Renderer *);
+
+    String RemoveQuote(String str)
+    {
+        if (str.Length() >= 2 && str.StartsWith("\""))
+            return str.SubString(1, str.Length() - 2);
+        return str;
+
+    }
 
 	void Engine::InternalInit(const EngineInitArguments & args)
 	{
@@ -48,7 +55,6 @@ namespace GameEngine
 
 			// initialize renderer
 			renderer = CreateRenderer(args.Window, args.API);
-			RegisterRenderPasses(renderer.Ptr());
 			renderer->Resize(args.Width, args.Height);
 
 			uiSystemInterface = new UIWindowsSystemInterface(renderer->GetHardwareRenderer());
@@ -57,10 +63,12 @@ namespace GameEngine
 			uiSystemInterface->SetEntry(uiEntry.Ptr());
 			uiCommandForm = new CommandForm(uiEntry.Ptr());
 			uiCommandForm->OnCommand.Bind(this, &Engine::OnCommand);
-			uiEntry->ShowWindow(uiCommandForm);
-
+            if (!args.NoConsole)
+                uiEntry->ShowWindow(uiCommandForm);
+            else
+                uiEntry->CloseWindow(uiCommandForm);
 			auto configFile = Path::Combine(gameDir, "game.config");
-			String levelToLoad = args.StartupLevelName;
+			String levelToLoad = RemoveQuote(args.StartupLevelName);
 			if (File::Exists(configFile))
 			{
 				CoreLib::Text::TokenReader parser(File::ReadAllText(configFile));
@@ -68,7 +76,7 @@ namespace GameEngine
 				{
 					parser.ReadToken();
 					parser.Read("=");
-					auto defaultLevelName = parser.ReadStringLiteral();
+                    auto defaultLevelName = parser.ReadStringLiteral();
 					if (args.StartupLevelName.Length() == 0)
 						levelToLoad = defaultLevelName;
 				}
@@ -157,7 +165,7 @@ namespace GameEngine
 
 	void Engine::Resize(int w, int h)
 	{
-		if (w > 2 && h > 2)
+		if (renderer && w > 2 && h > 2)
 		{
 			renderer->Resize(w, h);
 			uiSystemInterface->SetResolution(w, h);
@@ -179,15 +187,28 @@ namespace GameEngine
 			if (level)
 			{
 				auto actor = CreateActor(typeName);
-				actor->Name = String("TestUser") + String(level->Actors.Count());
-				level->RegisterActor(actor);
+				if (actor)
+				{
+					actor->Name = String("TestUser") + String(level->Actors.Count());
+					level->RegisterActor(actor);
+				}
+				else
+				{
+					Print("Unknown actor class \'%s\'.\n", typeName.Buffer());
+				}
 			}
+		}
+		else
+		{
+			inputDispatcher->DispatchAction(parser.ReadWord());
 		}
 	}
 
 	int Engine::HandleWindowsMessage(HWND hwnd, UINT message, WPARAM & wparam, LPARAM & lparam)
 	{
-		return uiSystemInterface->HandleSystemMessage(hwnd, message, wparam, lparam);
+		if (uiSystemInterface)
+			return uiSystemInterface->HandleSystemMessage(hwnd, message, wparam, lparam);
+		return -1;
 	}
 
 	Texture2D * Engine::GetRenderResult(bool withUI)

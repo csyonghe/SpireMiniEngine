@@ -54,12 +54,15 @@ namespace GameEngine
             GdiplusStartupInput gdiplusStartupInput;
             ULONG_PTR gdiplusToken;
             GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
-            Gdiplus::Bitmap bitBuffer(22000, 10000, PixelFormat32bppARGB);
+
+            int numSequence = graph->States.Last().Sequence;
+            int lineHeight = 100;
+            int lineWidth = 25;
+            Gdiplus::Bitmap bitBuffer(22000, (numSequence + 2) * lineHeight, PixelFormat32bppARGB);
             Gdiplus::Graphics graphics(&bitBuffer);
             auto g = &graphics;
             g->Clear(Color(255, 255, 255));
-            int lineHeight = 100;
-            int lineWidth = 25;
+            
             Dictionary<MGState*, Point> statePos;
 
             for (auto & state : graph->States)
@@ -74,6 +77,8 @@ namespace GameEngine
 
             Pen arrowPen(Color(130, 130, 40), 1.0f);
             arrowPen.SetEndCap(Gdiplus::LineCap::LineCapArrowAnchor);
+            Pen backArrowPen(Color(230, 30, 70), 1.0f);
+            backArrowPen.SetEndCap(Gdiplus::LineCap::LineCapArrowAnchor);
             for (auto & state : graph->States)
             {
                 auto thisPos = statePos[&state]();
@@ -85,9 +90,8 @@ namespace GameEngine
                     auto childState = &graph->States[childId];
                     
                     // just visualize walk_turn_left conenctivity
-                    if (childState->Sequence != 19 && state.Sequence != 19)
+                    if (!((childState->Sequence == 0 && state.Sequence == 1)))
                         continue;
-
 
                     auto childPos = statePos[childState]();
                     if (thisPos.Y == childPos.Y && state.IdInsequence != graph->States[childId].IdInsequence - 1)
@@ -96,12 +100,12 @@ namespace GameEngine
                         Point points[3];
                         points[0] = thisPos;
                         points[1].X = (thisPos.X + childPos.X) / 2;
-                        points[1].Y = points[0].Y + lineHeight / 2;
+                        points[1].Y = points[0].Y + (thisPos.X < childPos.X?-1:1)*lineHeight / 2;
                         points[2] = childPos;
-                        g->DrawCurve(&arrowPen, points, 3);
+                        g->DrawCurve(thisPos.X < childPos.X ? &backArrowPen: &arrowPen, points, 3);
                     }
                     else
-                        g->DrawLine(&arrowPen, thisPos, childPos);
+                        g->DrawLine(thisPos.X < childPos.X ? &backArrowPen : &arrowPen, thisPos, childPos);
                 }
             }
             CLSID pngClsid;
@@ -408,7 +412,7 @@ namespace GameEngine
                     if (graph.States[i].Sequence == graph.States[j].Sequence 
                         && (abs(j - lastSameSequenceConnection) < minGap || abs(j - i) < minGap))
                         continue;
-
+                    
                     // condition: contact(i+1) = contact(j)
                     if (graph.States[i + 1].Contact != graph.States[j].Contact)
                         continue;
@@ -423,14 +427,13 @@ namespace GameEngine
                         continue;
 
                     // measure the similarity of i+1 and j
-                    if (CalculateStateDistance(locations[i+1], locations[j], velocities[i+1], velocities[j], boneWeights)
+                    if (CalculateStateDistance(locations[i + 1], locations[j], velocities[i + 1], velocities[j], boneWeights)
                         <= distanceThreshold)
                     {
                         state.ChildrenIds.Add(j);
                         graph.States[j - 1].ChildrenIds.Add(i + 1);
-                        //graph.States[j].ChildrenIds.Add(i);  
                         edgesAdded++;
-                        if(graph.States[i].Sequence == graph.States[j].Sequence)
+                        if (graph.States[i].Sequence == graph.States[j].Sequence)
                             lastSameSequenceConnection = j;
                     }
                 }
@@ -657,7 +660,7 @@ namespace GameEngine
                 1.0f, 1.0f                      // lowerNeck, Neck
             };
 
-            int edges = AddConnections(graph, boneLocationsAll, boneVelocitiesAll, weights, 120, 30.0f);
+            int edges = AddConnections(graph, boneLocationsAll, boneVelocitiesAll, weights, 30, 18.0f);
             printf("%d edges added. \n", edges);
 
             int numRemovedStates = CullDeadEnd(graph);
@@ -672,14 +675,41 @@ namespace GameEngine
             float Yaw;
         };
 
+        int CountTransitionStates(const MotionGraph& graph, const List<int> & parentCount)
+        {
+            int numStates = graph.States.Count();
+            int count = 0;
+            for (int i = 0; i < numStates; i++)
+            {
+                if (parentCount[i] > 1 || graph.States[i].ChildrenIds.Count() > 1)
+                    count++;
+            }
+            return count;
+        }
+
         void PreComputeOptimalMatrix(MotionGraph & graph)
         {
             int numStates = graph.States.Count();
+
+            List<int> parentCount;
+            for (int i = 0; i < numStates; i++)
+                parentCount.Add(0);
+            
             for (int i = 0; i < numStates; i++)
             {
-                if (graph.States[i].ChildrenIds.Count() == 1)   // consider transition states only
+                for (auto child : graph.States[i].ChildrenIds)
+                {
+                    parentCount[child] += 1;
+                }
+            }
+
+            printf("%d transition states. \n", CountTransitionStates(graph, parentCount));
+
+            for (int i = 0; i < numStates; i++)
+            {
+                if (graph.States[i].ChildrenIds.Count() == 1 && parentCount[i] == 1)   // consider transition states only
                     continue;
-                printf("%d ", i);
+                printf("state %d ", i);
                 HashSet<int> visited;
                 List<QueueElement> queue;
                 QueueElement start;
@@ -687,6 +717,8 @@ namespace GameEngine
                 start.Pos = Vec3::Create(0.f);
                 start.Yaw = 0.f;
                 queue.Add(start);
+                visited.Add(i);
+                int count = 0;
 
                 while (queue.Count())
                 {
@@ -695,9 +727,9 @@ namespace GameEngine
                     for (auto e : queue)
                     {
                         int j = e.Path.Last();
-                        visited.Add(j);
+                       
 
-                        if (i != j)
+                        if (i != j && (graph.States[j].ChildrenIds.Count() > 1 || parentCount[j] > 1))
                         {
                             IndexPair p;
                             StateTransitionInfo info;
@@ -705,7 +737,9 @@ namespace GameEngine
                             p.Id2 = j;
                             info.DeltaYaw = e.Yaw - start.Yaw;
                             info.DeltaPos = e.Pos - start.Pos;
+                            info.ShortestPath = e.Path;
                             graph.TransitionDictionary[p] = info;
+                            count ++;
                         }
 
                         for (auto child : graph.States[j].ChildrenIds)
@@ -713,19 +747,35 @@ namespace GameEngine
                             if (visited.Contains(child))
                                 continue;
 
-                            Quaternion rotation = graph.States[j - 1].Pose.Transforms[0].Rotation;
-                            Quaternion::SetYawAngle(rotation, e.Yaw);
-                            QueueElement eChild = e;
-                            eChild.Yaw += graph.States[j].YawAngularVelocity;
-                            eChild.Pos += rotation.Transform(graph.States[j].Velocity);
-                            eChild.Path.Add(child);
-                            temp.Add(eChild);
+                            Vec3 velocity;
+                            if (graph.States[j].IdInsequence == 0)
+                            {
+                                Quaternion rotation = graph.States[j].Pose.Transforms[0].Rotation;
+                                Quaternion::SetYawAngle(rotation, e.Yaw);
+                                velocity = rotation.Transform(graph.States[j+1].Velocity);
+                            }
+                            else
+                            {
+                                Quaternion rotation = graph.States[j - 1].Pose.Transforms[0].Rotation;
+                                Quaternion::SetYawAngle(rotation, e.Yaw);
+                                velocity = rotation.Transform(graph.States[j].Velocity);
+                            }
+                            
+                            if (visited.Add(child))
+                            {
+                                QueueElement eChild = e;
+                                eChild.Yaw += graph.States[j].YawAngularVelocity;
+                                eChild.Pos += velocity;
+                                eChild.Path.Add(child);
+                                temp.Add(eChild);
+                            }
                         }
                     }
+                    
                     queue = _Move(temp);
-                    printf(".");
+                    //printf(".");
                 }
-                printf("\n");
+                printf(": %d reachable transition states.\n", count);
             }
         }
     }
@@ -747,8 +797,6 @@ int wmain(int argc, wchar_t** argv)
         Tools::PreComputeOptimalMatrix(graph);
         graph.SaveToFile(Path::ReplaceExt(String::FromWString(argv[2]), "mog"));
         GameEngine::Tools::VisualizeMotionGraph(&graph, Path::ReplaceExt(String::FromWString(argv[2]), "png"));
-
-        
     }
     else
         printf("Invalid arguments.\n");

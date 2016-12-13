@@ -1005,7 +1005,7 @@ namespace VK
 		}
 	};
 
-	class Texture2D : public Texture, public GameEngine::Texture2D
+	class Texture2D : public VK::Texture, public GameEngine::Texture2D
 	{
 		//TODO: Need some way of determining layouts and performing transitions properly. 
 	public:
@@ -1015,7 +1015,7 @@ namespace VK
 		int mipLevels = 1;
 		vk::ImageLayout currentLayout;
 
-		Texture2D(TextureUsage usage) : Texture(usage) {};
+		Texture2D(TextureUsage usage) : VK::Texture(usage) {};
 
 		void GetSize(int& pwidth, int& pheight)
 		{
@@ -2442,7 +2442,8 @@ namespace VK
 		int width;
 		int height;
 		vk::Framebuffer framebuffer;
-
+		CoreLib::RefPtr<RenderTargetLayout> renderTargetLayout;
+		RenderAttachments renderAttachments;
 		FrameBuffer() {};
 		~FrameBuffer()
 		{
@@ -2601,20 +2602,42 @@ namespace VK
 			// Ensure the RenderAttachments are compatible with this RenderTargetLayout
 			for (auto colorReference : colorReferences)
 			{
-				if (!(dynamic_cast<Texture2D*>(renderAttachments.attachments[colorReference.attachment])->usage & TextureUsage::ColorAttachment))
+				TextureUsage usage = TextureUsage::ColorAttachment;
+				if (renderAttachments.attachments[colorReference.attachment].handle.tex2D)
+					usage = dynamic_cast<Texture2D*>(renderAttachments.attachments[colorReference.attachment].handle.tex2D)->usage;
+				else if (renderAttachments.attachments[colorReference.attachment].handle.tex2DArray)
+				{
+					throw CoreLib::NotImplementedException();
+					//usage = dynamic_cast<Texture2DArray*>(renderAttachments.attachments[colorReference.attachment].handle.tex2DArray)->usage;
+				}
+
+				if (!(usage & TextureUsage::ColorAttachment))
 					throw HardwareRendererException("Incompatible RenderTargetLayout and RenderAttachments");
 			}
 			if (depthReference.layout != vk::ImageLayout::eUndefined)
 			{
-				if (!(dynamic_cast<Texture2D*>(renderAttachments.attachments[depthReference.attachment])->usage & TextureUsage::DepthAttachment))
+				TextureUsage usage = TextureUsage::ColorAttachment;
+				if (renderAttachments.attachments[depthReference.attachment].handle.tex2D)
+					usage = dynamic_cast<Texture2D*>(renderAttachments.attachments[depthReference.attachment].handle.tex2D)->usage;
+				else if (renderAttachments.attachments[depthReference.attachment].handle.tex2DArray)
+				{
+					throw CoreLib::NotImplementedException();
+					//usage = dynamic_cast<Texture2DArray*>(renderAttachments.attachments[depthReference.attachment].handle.tex2DArray)->usage;
+				}
+				if (!(usage & TextureUsage::DepthAttachment))
 					throw HardwareRendererException("Incompatible RenderTargetLayout and RenderAttachments");
 			}
 #endif
 			FrameBuffer* result = new FrameBuffer();
-
+			result->renderTargetLayout = this;
+			result->renderAttachments = renderAttachments;
 			CoreLib::List<vk::ImageView> framebufferAttachmentViews;
 			for (auto attachment : renderAttachments.attachments)
-				framebufferAttachmentViews.Add(dynamic_cast<Texture2D*>(attachment)->view);
+			{
+				if (attachment.handle.tex2DArray)
+					throw CoreLib::NotImplementedException();
+				framebufferAttachmentViews.Add(dynamic_cast<Texture2D*>(attachment.handle.tex2D)->view);
+			}
 
 			vk::FramebufferCreateInfo framebufferCreateInfo = vk::FramebufferCreateInfo()
 				.setFlags(vk::FramebufferCreateFlags())
@@ -2931,8 +2954,8 @@ namespace VK
 		// Create Input Assembly Description
 		vk::PipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo = vk::PipelineInputAssemblyStateCreateInfo()
 			.setFlags(vk::PipelineInputAssemblyStateCreateFlags())
-			.setTopology(TranslatePrimitiveTopology(pipelineBuilder->PrimitiveTopology))
-			.setPrimitiveRestartEnable(pipelineBuilder->PrimitiveRestartEnabled);
+			.setTopology(TranslatePrimitiveTopology(pipelineBuilder->FixedFunctionStates.PrimitiveTopology))
+			.setPrimitiveRestartEnable(pipelineBuilder->FixedFunctionStates.PrimitiveRestartEnabled);
 
 		// Create Viewport Description
 		//empty
@@ -2971,29 +2994,29 @@ namespace VK
 		// Create Depth Stencil Description
 		vk::PipelineDepthStencilStateCreateInfo depthStencilCreateInfo = vk::PipelineDepthStencilStateCreateInfo()
 			.setFlags(vk::PipelineDepthStencilStateCreateFlags())
-			.setDepthTestEnable(pipelineBuilder->DepthCompareFunc != CompareFunc::Disabled)
-			.setDepthWriteEnable(pipelineBuilder->DepthCompareFunc != CompareFunc::Disabled)
-			.setDepthCompareOp(TranslateCompareFunc(pipelineBuilder->DepthCompareFunc))
+			.setDepthTestEnable(pipelineBuilder->FixedFunctionStates.DepthCompareFunc != CompareFunc::Disabled)
+			.setDepthWriteEnable(pipelineBuilder->FixedFunctionStates.DepthCompareFunc != CompareFunc::Disabled)
+			.setDepthCompareOp(TranslateCompareFunc(pipelineBuilder->FixedFunctionStates.DepthCompareFunc))
 			.setDepthBoundsTestEnable(VK_FALSE)
 			.setMinDepthBounds(0.0f)
 			.setMaxDepthBounds(0.0f)
-			.setStencilTestEnable(pipelineBuilder->StencilCompareFunc != CompareFunc::Disabled)
+			.setStencilTestEnable(pipelineBuilder->FixedFunctionStates.StencilCompareFunc != CompareFunc::Disabled)
 			.setFront(vk::StencilOpState()
-				.setCompareOp(TranslateCompareFunc(pipelineBuilder->StencilCompareFunc))
-				.setPassOp(TranslateStencilOp(pipelineBuilder->StencilDepthPassOp))
-				.setFailOp(TranslateStencilOp(pipelineBuilder->StencilFailOp))
-				.setDepthFailOp(TranslateStencilOp(pipelineBuilder->StencilDepthFailOp))
-				.setCompareMask(pipelineBuilder->StencilMask)
-				.setWriteMask(pipelineBuilder->StencilMask)
-				.setReference(pipelineBuilder->StencilReference))
+				.setCompareOp(TranslateCompareFunc(pipelineBuilder->FixedFunctionStates.StencilCompareFunc))
+				.setPassOp(TranslateStencilOp(pipelineBuilder->FixedFunctionStates.StencilDepthPassOp))
+				.setFailOp(TranslateStencilOp(pipelineBuilder->FixedFunctionStates.StencilFailOp))
+				.setDepthFailOp(TranslateStencilOp(pipelineBuilder->FixedFunctionStates.StencilDepthFailOp))
+				.setCompareMask(pipelineBuilder->FixedFunctionStates.StencilMask)
+				.setWriteMask(pipelineBuilder->FixedFunctionStates.StencilMask)
+				.setReference(pipelineBuilder->FixedFunctionStates.StencilReference))
 			.setBack(vk::StencilOpState()
-				.setCompareOp(TranslateCompareFunc(pipelineBuilder->StencilCompareFunc))
-				.setPassOp(TranslateStencilOp(pipelineBuilder->StencilDepthPassOp))
-				.setFailOp(TranslateStencilOp(pipelineBuilder->StencilFailOp))
-				.setDepthFailOp(TranslateStencilOp(pipelineBuilder->StencilDepthFailOp))
-				.setCompareMask(pipelineBuilder->StencilMask)
-				.setWriteMask(pipelineBuilder->StencilMask)
-				.setReference(pipelineBuilder->StencilReference));
+				.setCompareOp(TranslateCompareFunc(pipelineBuilder->FixedFunctionStates.StencilCompareFunc))
+				.setPassOp(TranslateStencilOp(pipelineBuilder->FixedFunctionStates.StencilDepthPassOp))
+				.setFailOp(TranslateStencilOp(pipelineBuilder->FixedFunctionStates.StencilFailOp))
+				.setDepthFailOp(TranslateStencilOp(pipelineBuilder->FixedFunctionStates.StencilDepthFailOp))
+				.setCompareMask(pipelineBuilder->FixedFunctionStates.StencilMask)
+				.setWriteMask(pipelineBuilder->FixedFunctionStates.StencilMask)
+				.setReference(pipelineBuilder->FixedFunctionStates.StencilReference));
 
 		// Create Blending Description
 		CoreLib::List<vk::PipelineColorBlendAttachmentState> colorBlendAttachments;
@@ -3001,12 +3024,12 @@ namespace VK
 		{
 			colorBlendAttachments.Add(
 				vk::PipelineColorBlendAttachmentState()
-				.setBlendEnable(pipelineBuilder->BlendMode != BlendMode::Replace)
-				.setSrcColorBlendFactor(pipelineBuilder->BlendMode == BlendMode::AlphaBlend ? vk::BlendFactor::eSrcAlpha : vk::BlendFactor::eOne)
-				.setDstColorBlendFactor(pipelineBuilder->BlendMode == BlendMode::AlphaBlend ? vk::BlendFactor::eOneMinusSrcAlpha : vk::BlendFactor::eOne)
+				.setBlendEnable(pipelineBuilder->FixedFunctionStates.BlendMode != BlendMode::Replace)
+				.setSrcColorBlendFactor(pipelineBuilder->FixedFunctionStates.BlendMode == BlendMode::AlphaBlend ? vk::BlendFactor::eSrcAlpha : vk::BlendFactor::eOne)
+				.setDstColorBlendFactor(pipelineBuilder->FixedFunctionStates.BlendMode == BlendMode::AlphaBlend ? vk::BlendFactor::eOneMinusSrcAlpha : vk::BlendFactor::eOne)
 				.setColorBlendOp(vk::BlendOp::eAdd)
-				.setSrcAlphaBlendFactor(pipelineBuilder->BlendMode == BlendMode::AlphaBlend ? vk::BlendFactor::eSrcAlpha : vk::BlendFactor::eOne)
-				.setDstAlphaBlendFactor(pipelineBuilder->BlendMode == BlendMode::AlphaBlend ? vk::BlendFactor::eSrcAlpha : vk::BlendFactor::eZero)
+				.setSrcAlphaBlendFactor(pipelineBuilder->FixedFunctionStates.BlendMode == BlendMode::AlphaBlend ? vk::BlendFactor::eSrcAlpha : vk::BlendFactor::eOne)
+				.setDstAlphaBlendFactor(pipelineBuilder->FixedFunctionStates.BlendMode == BlendMode::AlphaBlend ? vk::BlendFactor::eSrcAlpha : vk::BlendFactor::eZero)
 				.setAlphaBlendOp(vk::BlendOp::eAdd)
 				.setColorWriteMask(vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA)
 			);
@@ -3132,7 +3155,7 @@ namespace VK
 					textureDescriptorInfo.Add(
 						vk::DescriptorImageInfo()
 						.setImageLayout(vk::ImageLayout::eGeneral)
-						.setImageView(dynamic_cast<VK::Texture2D*>(binding.tex.texture)->view)
+						.setImageView(dynamic_cast<VK::Texture*>(binding.tex.texture)->view)
 						.setSampler(dynamic_cast<VK::TextureSampler*>(binding.tex.sampler)->sampler)
 					);
 
@@ -3238,9 +3261,9 @@ namespace VK
 			buffer.begin(commandBufferBeginInfo);
 		}
 
-		virtual void BeginRecording(GameEngine::RenderTargetLayout* renderTargetLayout, GameEngine::FrameBuffer* frameBuffer) override
+		virtual void BeginRecording(GameEngine::FrameBuffer* frameBuffer) override
 		{
-			BeginRecording(renderTargetLayout, dynamic_cast<VK::FrameBuffer*>(frameBuffer)->framebuffer);
+			BeginRecording(((VK::FrameBuffer*)frameBuffer)->renderTargetLayout.Ptr(), ((VK::FrameBuffer*)frameBuffer)->framebuffer);
 		}
 
 		virtual void BeginRecording(GameEngine::RenderTargetLayout* renderTargetLayout) override
@@ -3410,18 +3433,28 @@ namespace VK
 				postBlitBarrier
 			);
 		}
+		virtual void ClearAttachments(GameEngine::FrameBuffer * frameBuffer) override
+		{
+			CoreLib::Array<TextureUsage, 16> usages;
+			auto & renderAttachments = ((VK::FrameBuffer*)frameBuffer)->renderAttachments;
+			for (auto & attach : renderAttachments.attachments)
+				if (attach.handle.tex2D)
+					usages.Add(dynamic_cast<VK::Texture2D*>(attach.handle.tex2D)->usage);
+				else if (attach.handle.tex2DArray)
+					throw CoreLib::NotImplementedException();
 
-		virtual void ClearAttachments(RenderAttachments renderAttachments) override
+			ClearAttachments(usages.GetArrayView(), renderAttachments.width, renderAttachments.height);
+		}
+		virtual void ClearAttachments(CoreLib::ArrayView<TextureUsage> renderAttachments, int w, int h) override
 		{
 			CoreLib::List<vk::ClearAttachment> attachments;
 			CoreLib::List<vk::ClearRect> rects;
-
-			for (int k = 0; k < renderAttachments.attachments.Count(); k++)
+			
+			for (int k = 0; k < renderAttachments.Count(); k++)
 			{
-				Texture2D* image = dynamic_cast<VK::Texture2D*>(renderAttachments.attachments[k]);
-
 				vk::ImageAspectFlags aspectMask;
-				switch (image->usage)
+				bool isDepth = false;
+				switch (renderAttachments[k])
 				{
 				case GameEngine::TextureUsage::ColorAttachment:
 				case GameEngine::TextureUsage::SampledColorAttachment:
@@ -3430,43 +3463,36 @@ namespace VK
 				case GameEngine::TextureUsage::DepthAttachment:
 				case GameEngine::TextureUsage::SampledDepthAttachment:
 					aspectMask = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
+					isDepth = true;
 					break;
 				}
 
-				switch (image->currentLayout)
-				{
-				case vk::ImageLayout::eColorAttachmentOptimal:
+				if (isDepth)
+					attachments.Add(
+						vk::ClearAttachment()
+						.setAspectMask(aspectMask)
+						.setColorAttachment(k)
+						.setClearValue(vk::ClearDepthStencilValue(1.0f, 0)));
+				else
 					attachments.Add(
 						vk::ClearAttachment()
 						.setAspectMask(aspectMask)
 						.setColorAttachment(k)
 						.setClearValue(vk::ClearColorValue())
 					);
-					break;
-				case vk::ImageLayout::eDepthStencilAttachmentOptimal:
-					attachments.Add(
-						vk::ClearAttachment()
-						.setAspectMask(aspectMask)
-						.setColorAttachment(k)
-						.setClearValue(vk::ClearDepthStencilValue(1.0f, 0))
-					);
-					break;
-				default:
-					break;
-				}
 
 				rects.Add(
 					vk::ClearRect()
 					.setBaseArrayLayer(0)
 					.setLayerCount(1)
-					.setRect(vk::Rect2D(vk::Offset2D(0, 0), vk::Extent2D(renderAttachments.width, renderAttachments.height)))
+					.setRect(vk::Rect2D(vk::Offset2D(0, 0), vk::Extent2D(w, h)))
 				);
 			}
-			
 			buffer.clearAttachments(
 				vk::ArrayProxy<const vk::ClearAttachment>(attachments.Count(), attachments.Buffer()),
 				vk::ArrayProxy<const vk::ClearRect>(rects.Count(), rects.Buffer())
 			);
+			
 		}
 	};
 
@@ -3777,7 +3803,7 @@ namespace VK
 			RendererState::RenderQueue().submit(submitInfo, primaryFence);
 		}
 
-		virtual void ExecuteCommandBuffers(GameEngine::RenderTargetLayout* renderTargetLayout, GameEngine::FrameBuffer* frameBuffer, CoreLib::ArrayView<GameEngine::CommandBuffer*> commands) override
+		virtual void ExecuteCommandBuffers(GameEngine::FrameBuffer* frameBuffer, CoreLib::ArrayView<GameEngine::CommandBuffer*> commands) override
 		{
 			// Create command buffer begin info
 			vk::CommandBufferBeginInfo primaryBeginInfo = vk::CommandBufferBeginInfo()
@@ -3790,7 +3816,7 @@ namespace VK
 			clearValues.Add(vk::ClearDepthStencilValue(1.0f, 0));
 
 			vk::RenderPassBeginInfo renderPassBeginInfo = vk::RenderPassBeginInfo()
-				.setRenderPass(dynamic_cast<VK::RenderTargetLayout*>(renderTargetLayout)->renderPass)
+				.setRenderPass(((VK::FrameBuffer*)frameBuffer)->renderTargetLayout->renderPass)
 				.setFramebuffer(dynamic_cast<VK::FrameBuffer*>(frameBuffer)->framebuffer)
 				.setRenderArea(vk::Rect2D().setOffset(vk::Offset2D(0, 0)).setExtent(vk::Extent2D(dynamic_cast<VK::FrameBuffer*>(frameBuffer)->width, dynamic_cast<VK::FrameBuffer*>(frameBuffer)->height)))
 				.setClearValueCount(clearValues.Count())
@@ -4164,6 +4190,11 @@ namespace VK
 		Texture2D* CreateTexture2D(TextureUsage usage)
 		{
 			return new Texture2D(usage);
+		}
+
+		Texture2DArray * CreateTexture2DArray(TextureUsage /*usage*/, int /*w*/, int /*h*/, int /*layers*/, int /*mipLevelCount*/, StorageFormat /*pFormat*/)
+		{
+			throw CoreLib::NotImplementedException();
 		}
 
 		TextureSampler* CreateTextureSampler()

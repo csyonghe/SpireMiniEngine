@@ -5,6 +5,27 @@ namespace GameEngine
 {
 	using namespace VectorMath;
 
+	int Actor::ParseInt(CoreLib::Text::TokenReader & parser)
+	{
+		return parser.ReadInt();
+	}
+
+	bool Actor::ParseBool(CoreLib::Text::TokenReader & parser)
+	{
+		if (parser.LookAhead("true"))
+		{
+			parser.ReadToken();
+			return true;
+		}
+		else if (parser.LookAhead("false"))
+		{
+			parser.ReadToken();
+			return false;
+		}
+		else
+			return ParseInt(parser) != 0;
+	}
+
 	Vec3 Actor::ParseVec3(CoreLib::Text::TokenReader & parser)
 	{
 		Vec3 rs;

@@ -39,6 +39,7 @@ namespace GameEngine
 		void BindMouseInputHandler(ActorMouseInputHandlerFunc handlerFunc);
 		void UnbindMouseInputHandler(ActorMouseInputHandlerFunc handlerFunc);
 		void DispatchInput();
+		void DispatchAction(CoreLib::String actionName, float actionValue = 1.0f);
 	};
 }
 

@@ -7,7 +7,9 @@ namespace GameEngine
 	const int MaxWorldRenderPasses = 8;
 	const int MaxPostRenderPasses = 32;
 	const int MaxTextureBindings = 32;
-
+	const int MaxShadowCascades = 8;
+	const int MaxViewUniformSize = 4096;
+	const int MaxLightBufferSize = 16384;
 }
 
 #endif

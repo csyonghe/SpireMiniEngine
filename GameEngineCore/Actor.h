@@ -21,12 +21,21 @@ namespace GameEngine
 	};
 
 	class RendererService;
+	class DrawableSink;
+
+	struct GetDrawablesParameter
+	{
+		RendererService * rendererService;
+		DrawableSink * sink;
+		VectorMath::Vec3 CameraPos, CameraDir;
+	};
 
 	class Actor : public CoreLib::RefObject
 	{
 	protected:
 		VectorMath::Matrix4 localTransform;
-
+		int ParseInt(CoreLib::Text::TokenReader & parser);
+		bool ParseBool(CoreLib::Text::TokenReader & parser);
 		VectorMath::Vec3 ParseVec3(CoreLib::Text::TokenReader & parser);
 		VectorMath::Vec4 ParseVec4(CoreLib::Text::TokenReader & parser);
 		VectorMath::Matrix4 ParseMatrix4(CoreLib::Text::TokenReader & parser);
@@ -47,7 +56,7 @@ namespace GameEngine
 		virtual void RegisterUI(GraphicsUI::UIEntry *) {}
 		virtual void Parse(Level * level, CoreLib::Text::TokenReader & parser, bool & isInvalid);
 		virtual void SerializeToText(CoreLib::StringBuilder & sb);
-		virtual void GetDrawables(RendererService *) {}
+		virtual void GetDrawables(const GetDrawablesParameter & /*params*/) {}
 		virtual CoreLib::String GetTypeName() { return "Actor"; }
 		VectorMath::Matrix4 GetLocalTransform()
 		{

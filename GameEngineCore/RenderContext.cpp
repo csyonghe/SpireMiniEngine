@@ -3,7 +3,7 @@
 #include "Mesh.h"
 #include "Engine.h"
 #include "TextureCompressor.h"
-
+#include <assert.h>
 #include "CoreLib/LibIO.h"
 #include "CoreLib/Graphics/TextureFile.h"
 
@@ -36,7 +36,8 @@ namespace GameEngine
 				}
 			}
 			);
-			instanceUniformUpdated = true;
+			if (uniforms.instanceUniformCount)
+				scene->instanceUniformMemory.Sync(uniforms.instanceUniform, uniforms.instanceUniformCount);
 		}
 	}
 
@@ -57,8 +58,8 @@ namespace GameEngine
 		*(bufferPtr++) = *((Vec4*)(normMat.values));
 		*(bufferPtr++) = *((Vec4*)(normMat.values + 4));
 		*(bufferPtr++) = *((Vec4*)(normMat.values + 8));
-
-		transformUniformUpdated = true;
+		if (uniforms.transformUniformCount)
+			scene->staticTransformMemory.Sync(uniforms.transformUniform, uniforms.transformUniformCount);
 	}
 
 	void Drawable::UpdateTransformUniform(const VectorMath::Matrix4 & localTransform, const Pose & pose)
@@ -90,7 +91,8 @@ namespace GameEngine
 			*(bufferPtr++) = *((Vec4*)(normMat.values + 4));
 			*(bufferPtr++) = *((Vec4*)(normMat.values + 8));
 		}
-		transformUniformUpdated = true;
+		if (uniforms.transformUniformCount)
+			scene->skeletalTransformMemory.Sync(uniforms.transformUniform, uniforms.transformUniformCount);
 	}
 	RefPtr<DrawableMesh> SceneResource::LoadDrawableMesh(Mesh * mesh)
 	{
@@ -277,7 +279,7 @@ namespace GameEngine
 		return rs;
 	}
 
-	PipelineClass SceneResource::LoadMaterialPipeline(String identifier, Material * material, RenderTargetLayout * renderTargetLayout, MeshVertexFormat vertFormat, String entryPointShader)
+	PipelineClass SceneResource::LoadMaterialPipeline(String identifier, Material * material, RenderTargetLayout * renderTargetLayout, MeshVertexFormat vertFormat, String entryPointShader, Procedure<PipelineBuilder*> setAdditionalArgs)
 	{
 		auto hw = rendererResource->hardwareRenderer;
 
@@ -293,7 +295,8 @@ namespace GameEngine
 		pipelineBuilder->SetBindingLayout(1, BindingType::UniformBuffer);
 		pipelineBuilder->SetBindingLayout(2, BindingType::UniformBuffer);
 		pipelineBuilder->SetBindingLayout(3, BindingType::StorageBuffer);
-		pipelineBuilder->DepthCompareFunc = CompareFunc::LessEqual;
+		pipelineBuilder->FixedFunctionStates.DepthCompareFunc = CompareFunc::LessEqual;
+		setAdditionalArgs(pipelineBuilder.Ptr());
 		for (auto var : material->Variables)
 		{
 			if (var.Value.VarType == DynamicVariableType::Texture)
@@ -317,19 +320,19 @@ namespace GameEngine
 			Shader* shader;
 			if (compiledShader.Key == "vs")
 			{
-				shader = LoadShader(Path::ReplaceExt(material->ShaderFile, compiledShader.Key.Buffer()), compiledShader.Value.Buffer(), compiledShader.Value.Count(), ShaderType::VertexShader);
+				shader = LoadShader(identifier + compiledShader.Key.Buffer(), compiledShader.Value.Buffer(), compiledShader.Value.Count(), ShaderType::VertexShader);
 			}
 			else if (compiledShader.Key == "fs")
 			{
-				shader = LoadShader(Path::ReplaceExt(material->ShaderFile, compiledShader.Key.Buffer()), compiledShader.Value.Buffer(), compiledShader.Value.Count(), ShaderType::FragmentShader);
+				shader = LoadShader(identifier + compiledShader.Key.Buffer(), compiledShader.Value.Buffer(), compiledShader.Value.Count(), ShaderType::FragmentShader);
 			}
 			else if (compiledShader.Key == "tcs")
 			{
-				shader = LoadShader(Path::ReplaceExt(material->ShaderFile, compiledShader.Key.Buffer()), compiledShader.Value.Buffer(), compiledShader.Value.Count(), ShaderType::HullShader);
+				shader = LoadShader(identifier + compiledShader.Key.Buffer(), compiledShader.Value.Buffer(), compiledShader.Value.Count(), ShaderType::HullShader);
 			}
 			else if (compiledShader.Key == "tes")
 			{
-				shader = LoadShader(Path::ReplaceExt(material->ShaderFile, compiledShader.Key.Buffer()), compiledShader.Value.Buffer(), compiledShader.Value.Count(), ShaderType::DomainShader);
+				shader = LoadShader(identifier + compiledShader.Key.Buffer(), compiledShader.Value.Buffer(), compiledShader.Value.Count(), ShaderType::DomainShader);
 			}
 			pipelineClass.shaders.Add(shader);
 		}
@@ -359,17 +362,18 @@ namespace GameEngine
 		pipelineClassCache = EnumerableDictionary<String, PipelineClass>();
 		textures = EnumerableDictionary<String, RefPtr<Texture2D>>();
 	}
-	RefPtr<RenderTarget> RendererSharedResource::AcquireRenderTarget(String name, StorageFormat format)
+	void RendererSharedResource::UpdateRenderResultFrameBuffer(RenderOutput * output)
 	{
-		RefPtr<RenderTarget> result;
-		if (renderTargets.TryGetValue(name, result))
+		RenderAttachments attachments;
+		for (int i = 0; i < output->bindings.Count(); i++)
 		{
-			if (result->Format == format)
-				return result;
-			else
-				throw InvalidProgramException("the required buffer is not in required format.");
+			if (output->bindings[i]->Texture)
+				attachments.SetAttachment(i, output->bindings[i]->Texture.Ptr());
+			else if (output->bindings[i]->TextureArray)
+				attachments.SetAttachment(i, output->bindings[i]->TextureArray.Ptr(), output->bindings[i]->Layer);
 		}
-		throw InvalidProgramException("the required buffer does not exist.");
+		if (attachments.attachments.Count())
+			output->frameBuffer = output->renderTargetLayout->CreateFrameBuffer(attachments);
 	}
 	DataType GetStorageDataType(StorageFormat format)
 	{
@@ -399,7 +403,82 @@ namespace GameEngine
 		}
 		return dataType;
 	}
-	RefPtr<RenderTarget> RendererSharedResource::ProvideOrModifyRenderTarget(String name, StorageFormat format)
+
+	void ShadowMapResource::Init(HardwareRenderer * hwRenderer, RendererSharedResource * res)
+	{
+		auto & graphicsSettings = Engine::Instance()->GetGraphicsSettings();
+
+		shadowMapArray = hwRenderer->CreateTexture2DArray(TextureUsage::DepthAttachment, graphicsSettings.ShadowMapResolution, graphicsSettings.ShadowMapResolution,
+			graphicsSettings.ShadowMapArraySize, 1, StorageFormat::Depth32);
+		shadowMapArrayFreeBits.SetMax(graphicsSettings.ShadowMapArraySize);
+		shadowMapArrayFreeBits.Clear();
+		shadowMapArraySize = graphicsSettings.ShadowMapArraySize;
+
+		shadowMapRenderTargetLayout = hwRenderer->CreateRenderTargetLayout(MakeArrayView(TextureUsage::DepthAttachment));
+		shadowMapRenderOutputs.SetSize(shadowMapArraySize);
+		for (int i = 0; i < shadowMapArraySize; i++)
+		{
+			RenderAttachments attachment;
+			attachment.SetAttachment(0, shadowMapArray.Ptr(), i);
+			shadowMapRenderOutputs[i] = res->CreateRenderOutput(shadowMapRenderTargetLayout.Ptr(),
+				new RenderTarget(StorageFormat::Depth32, shadowMapArray, i, graphicsSettings.ShadowMapResolution, graphicsSettings.ShadowMapResolution));
+		}
+	}
+
+	void ShadowMapResource::Destroy()
+	{
+		shadowMapRenderTargetLayout = nullptr;
+		for (auto & x : shadowMapRenderOutputs)
+			x = nullptr;
+		shadowMapRenderOutputs.Clear();
+		shadowMapArray = nullptr;
+	}
+
+	void ShadowMapResource::Reset()
+	{
+		shadowMapArrayFreeBits.Clear();
+	}
+
+	int ShadowMapResource::AllocShadowMaps(int count)
+	{
+		for (int i = 0; i <= shadowMapArraySize - count; i++)
+		{
+			if (!shadowMapArrayFreeBits.Contains(i))
+			{
+				bool occupied = false;
+				for (int j = i + 1; j < i + count; j++)
+				{
+					if (shadowMapArrayFreeBits.Contains(j))
+					{
+						occupied = true;
+						break;
+					}
+				}
+				if (occupied)
+					i += count - 1;
+				else
+				{
+					for (int j = i; j < i + count; j++)
+					{
+						shadowMapArrayFreeBits.Add(j);
+					}
+					return i;
+				}
+			}
+		}
+		return -1;
+	}
+	void ShadowMapResource::FreeShadowMaps(int id, int count)
+	{
+		assert(id + count <= shadowMapArraySize);
+		for (int i = id; i < id + count; i++)
+		{
+			assert(shadowMapArrayFreeBits.Contains(i));
+			shadowMapArrayFreeBits.Remove(i);
+		}
+	}
+
+	RefPtr<RenderTarget> RendererSharedResource::LoadSharedRenderTarget(String name, StorageFormat format, float ratio, int w, int h)
 	{
 		RefPtr<RenderTarget> result;
 		if (renderTargets.TryGetValue(name, result))
@@ -409,19 +488,26 @@ namespace GameEngine
 			else
 				throw InvalidProgramException("the required buffer is not in required format.");
 		}
-		return ProvideRenderTarget(name, format);
-	}
-	RefPtr<RenderTarget> RendererSharedResource::ProvideRenderTarget(String name, StorageFormat format)
-	{
-		if (renderTargets.ContainsKey(name))
-			throw InvalidProgramException("the buffer already exists.");
-		RefPtr<RenderTarget> result = new RenderTarget();
+		result = new RenderTarget();
 		result->Format = format;
-		if (screenWidth > 0)
+		result->UseFixedResolution = ratio == 0.0f;
+		if (screenWidth > 0 || result->UseFixedResolution)
 		{
 			result->Texture = hardwareRenderer->CreateTexture2D(TextureUsage::ColorAttachment);
-			result->Texture->SetData(format, screenWidth, screenHeight, 1, GetStorageDataType(format), nullptr);
+			if (ratio == 0.0f)
+			{
+				result->Width = w;
+				result->Height = h;
+			}
+			else
+			{
+				result->Width = (int)(screenWidth * ratio);
+				result->Height = (int)(screenHeight * ratio);
+			}
+			result->Texture->SetData(format, result->Width, result->Height, 1, GetStorageDataType(format), nullptr);
 		}
+		result->FixedWidth = w;
+		result->FixedHeight = h;
 		renderTargets[name] = result;
 		return result;
 	}
@@ -431,17 +517,96 @@ namespace GameEngine
 		screenHeight = h;
 		for (auto & r : renderTargets)
 		{
-			r.Value->Texture = hardwareRenderer->CreateTexture2D(TextureUsage::ColorAttachment);
-			r.Value->Texture->SetData(r.Value->Format, (int)(screenWidth * r.Value->ResolutionScale), 
-				(int)(screenHeight * r.Value->ResolutionScale), 1, GetStorageDataType(r.Value->Format), nullptr);
+			if (!r.Value->UseFixedResolution)
+			{
+				r.Value->Texture = hardwareRenderer->CreateTexture2D(TextureUsage::ColorAttachment);
+				r.Value->Width = (int)(screenWidth * r.Value->ResolutionScale);
+				r.Value->Height = (int)(screenHeight * r.Value->ResolutionScale);
+				r.Value->Texture->SetData(r.Value->Format, r.Value->Width,
+					r.Value->Height, 1, GetStorageDataType(r.Value->Format), nullptr);
+			}
+		}
+		for (auto & output : renderOutputs)
+		{
+			if (!output->bindings.First()->UseFixedResolution)
+				UpdateRenderResultFrameBuffer(output.Ptr());
 		}
 	}
 	int RendererSharedResource::GetTextureBindingStart()
 	{
 		if (api == RenderAPI::Vulkan)
-			return 4;
+			return 5;
 		else
 			return 0;
+	}
+	void RendererSharedResource::SetViewUniformData(void * data, int size)
+	{
+		assert(size < MaxViewUniformSize);
+		//memcpy(viewUniformPtr, data, size);
+		viewUniformBuffer->SetData(0, data, size);
+	}
+	void RendererSharedResource::Init(HardwareApiFactory * hwFactory, HardwareRenderer * phwRenderer)
+	{
+		hardwareFactory = hwFactory;
+		hardwareRenderer = phwRenderer;
+
+		// Vertex buffer for VS bypass
+		const float fsTri[] =
+		{
+			-1.0f, -1.0f, 0.0f, 0.0f,
+			1.0f, -1.0f, 1.0f, 0.0f,
+			1.0f, 1.0f, 1.0f, 1.0f,
+			-1.0f, 1.0f, 0.0f, 1.0f
+		};
+		fullScreenQuadVertBuffer = hardwareRenderer->CreateBuffer(BufferUsage::ArrayBuffer);
+		fullScreenQuadVertBuffer->SetData((void*)&fsTri[0], sizeof(fsTri));
+
+		// Create and resize uniform buffer
+		viewUniformBuffer = hardwareRenderer->CreateBuffer(BufferUsage::UniformBuffer);
+		viewUniformBuffer->SetData(nullptr, MaxViewUniformSize);
+		//viewUniformPtr = viewUniformBuffer->Map();
+
+		// Create common texture samplers
+		nearestSampler = hardwareRenderer->CreateTextureSampler();
+		nearestSampler->SetFilter(TextureFilter::Nearest);
+
+		linearSampler = hardwareRenderer->CreateTextureSampler();
+		linearSampler->SetFilter(TextureFilter::Linear);
+
+		textureSampler = hardwareRenderer->CreateTextureSampler();
+		textureSampler->SetFilter(TextureFilter::Anisotropic16x);
+
+		shadowSampler = hardwareRenderer->CreateTextureSampler();
+		shadowSampler->SetFilter(TextureFilter::Linear);
+		shadowSampler->SetDepthCompare(CompareFunc::LessEqual);
+
+		shadowMapResources.Init(hardwareRenderer.Ptr(), this);
+
+		lightUniformBuffer = hardwareRenderer->CreateBuffer(BufferUsage::UniformBuffer);
+		lightUniformBuffer->SetData(nullptr, MaxLightBufferSize);
+	}
+	void RendererSharedResource::Destroy()
+	{
+		shadowMapResources.Destroy();
+		textureSampler = nullptr;
+		nearestSampler = nullptr;
+		linearSampler = nullptr;
+		//viewUniformBuffer->Unmap();
+		viewUniformBuffer = nullptr;
+		lightUniformBuffer = nullptr;
+		renderTargets = CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<RenderTarget>>();
+		fullScreenQuadVertBuffer = nullptr;
+	}
+	
+	RenderTarget::RenderTarget(GameEngine::StorageFormat format, CoreLib::RefPtr<Texture2DArray> texArray, int layer, int w, int h)
+	{
+		TextureArray = texArray;
+		Format = format;
+		UseFixedResolution = true;
+		Layer = layer;
+		ResolutionScale = 0.0f;
+		FixedWidth = Width = w;
+		FixedHeight = Height = h;
 	}
 }
 

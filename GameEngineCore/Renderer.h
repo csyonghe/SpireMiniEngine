@@ -16,8 +16,8 @@ namespace GameEngine
 	class Renderer : public CoreLib::Object
 	{
 	public:
-		virtual void RegisterWorldRenderPass(WorldRenderPass * pass) = 0;
-		virtual void RegisterPostRenderPass(PostRenderPass * pass) = 0;
+		virtual int RegisterWorldRenderPass(WorldRenderPass * pass) = 0;
+		virtual int RegisterPostRenderPass(PostRenderPass * pass) = 0;
 		virtual void InitializeLevel(Level * level) = 0;
 		virtual void TakeSnapshot() = 0;
 		virtual void RenderFrame() = 0;

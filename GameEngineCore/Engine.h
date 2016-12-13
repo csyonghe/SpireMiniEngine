@@ -19,6 +19,7 @@ namespace GameEngine
 	public:
 		RenderAPI API;
 		WindowHandle Window;
+        bool NoConsole = false;
 		int Width = 400, Height = 400;
 		int GpuId;
 		CoreLib::String GameDirectory, EngineDirectory, StartupLevelName;

@@ -43,6 +43,8 @@ namespace GameEngine
                 break;
             case ContactLabel::InAir: return String("InAir");
                 break;
+            default:
+                return "";
             }
         }
     };
@@ -59,21 +61,61 @@ namespace GameEngine
         float DistancePassed = 0.f;
     };
 
+    class RSGStateKey
+    {
+    public:
+        int mgStateId;
+        float yaw;
+        Vec3 pos;
+
+        int GetHashCode()
+        {
+            int yawQ = (int)(yaw * 200.0f);
+            int posX = (int)(pos.x * 10000.0f);
+            int posZ = (int)(pos.z * 10000.0f);
+
+            return (mgStateId << 18) ^ (yawQ ^ posX ^ posZ);
+        }
+
+        bool operator == (const RSGStateKey & other)
+        {
+            return mgStateId == other.mgStateId && (int)(yaw * 200.0f) == (int)(other.yaw * 200.0f) &&
+                (int)(pos.x * 10000.0f) == (int)(other.pos.x*10000.0f) &&
+                (int)(pos.z * 10000.0f) == (int)(other.pos.z*10000.0f);
+        }
+    };
+
     class RSGState : public RefObject
     {
     public:
         RSGState* Parent = nullptr;
         List<RefPtr<SGState>> SGStateList;
         float Cost = 0.f;
-        bool operator<(const RSGState & b) const {
+        float G = 0.f;
+        bool isDeleted = false;
+        bool operator<(const RSGState & b) const 
+        {
             return Cost > b.Cost;
+        }
+
+        RSGStateKey GetKey()
+        {
+            auto state = SGStateList.Last();
+            RSGStateKey key;
+            key.pos = state->Pos;
+            key.yaw = state->Yaw;
+            key.mgStateId = state->StateId;
+            return key;
         }
     };
 
     class IndexPair
     {
     public:
-        int Id1, Id2;
+        int Id1 = 0, Id2 = 0;
+        IndexPair(int id1, int id2) : Id1(id1), Id2(id2) {}
+        IndexPair() = default;
+
         int GetHashCode()
         {
             return (Id1 << 16) ^ Id2;

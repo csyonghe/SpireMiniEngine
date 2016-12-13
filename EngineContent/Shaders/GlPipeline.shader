@@ -12,11 +12,24 @@ pipeline StandardPipeline
     [Pinned]
     input world MaterialUniform;
     
+    [Pinned]
+    input world LightData;
+
     world CoarseVertex;// : "glsl(vertex:projCoord)" using projCoord export standardExport;
     world Fragment;// : "glsl" export fragmentExport;
     
     require @CoarseVertex vec4 projCoord; 
-    
+    [Binding: "4"]
+    extern @(CoarseVertex*, Fragment*) Uniform<LightData> LightDataBlock; 
+    import(LightData->Fragment) uniformImport<T>()
+    {
+        return project(LightDataBlock);
+    }
+    import(LightData->CoarseVertex) uniformImport<T>()
+    {
+        return project(LightDataBlock);
+    }
+
     [Binding: "2"]
     extern @(CoarseVertex*, Fragment*) Uniform<MaterialUniform> MaterialUniformBlock; 
     import(MaterialUniform->CoarseVertex) uniformImport<T>()
@@ -94,6 +107,18 @@ pipeline TessellationPipeline : StandardPipeline
     [Binding: "2"]
     input world MaterialUniform;
     
+    [Pinned]
+    [Binding: "4"]
+    input world LightData;
+
+    [Binding: "4"]
+    extern @(CoarseVertex*, Fragment*, ControlPoint*, FineVertex*, TessPatch*) Uniform<LightData> LightDataBlock; 
+    import(LightData->CoarseVertex) uniformImport<T>() { return project(LightDataBlock); }
+    import(LightData->Fragment) uniformImport<T>() { return project(LightDataBlock); }
+    import(LightData->ControlPoint) uniformImport<T>() { return project(LightDataBlock); }
+    import(LightData->FineVertex) uniformImport<T>() { return project(LightDataBlock); }
+    import(LightData->TessPatch) uniformImport<T>() { return project(LightDataBlock); }
+
     world CoarseVertex;
     world ControlPoint;
     world CornerPoint;

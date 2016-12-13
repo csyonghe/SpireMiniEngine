@@ -59,17 +59,17 @@ public:
 		if (uiForm)
 			Engine::Instance()->GetUiEntry()->RemoveForm(uiForm);
 	}
-	virtual void GetDrawables(RendererService * renderService) override
+	virtual void GetDrawables(const GetDrawablesParameter & param) override
 	{
 		if (!boxDrawable)
 		{
-			Mesh boxMesh = Mesh::CreateBox(VectorMath::Vec3::Create(-10.0f), VectorMath::Vec3::Create(10.0f));
-			boxDrawable = renderService->CreateStaticDrawable(&boxMesh, &material);
+			Mesh boxMesh = Mesh::CreateBox(VectorMath::Vec3::Create(-30.0f, 0.0f, -30.0f), VectorMath::Vec3::Create(30.0, 80.0f, 30.0f));
+			boxDrawable = param.rendererService->CreateStaticDrawable(&boxMesh, &material);
 		}
 		if (boxDrawable)
 		{
 			boxDrawable->UpdateTransformUniform(localTransform);
-			renderService->Add(boxDrawable.Ptr());
+			param.sink->AddDrawable(boxDrawable.Ptr());
 		}
 	}
 };

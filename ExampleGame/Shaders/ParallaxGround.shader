@@ -3,7 +3,7 @@ module MaterialGeometry
 {
     require vec3 coarseVertPos;
     require vec3 coarseVertNormal;
-    public using PN_Tessellation;
+    public using NoTessellation;
     public vec3 displacement = vec3(0.0);
 }
 module MaterialPattern

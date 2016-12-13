@@ -53,9 +53,29 @@ namespace GameEngine
 		roll = pRoll;
 		TransformFromCamera(localTransform, yaw, pitch, roll, position);
 	}
+	VectorMath::Vec3 CameraActor::GetDirection()
+	{
+		return VectorMath::Vec3::Create(-localTransform.m[0][2], -localTransform.m[1][2], -localTransform.m[2][2]);
+	}
 	void CameraActor::SetCollisionRadius(float value)
 	{
 		collisionRadius = value;
+	}
+	CoreLib::Graphics::ViewFrustum CameraActor::GetFrustum(float aspect)
+	{
+		CoreLib::Graphics::ViewFrustum result;
+		result.FOV = FOV;
+		result.Aspect = aspect;
+		result.CamDir.x = -localTransform.m[0][2];
+		result.CamDir.y = -localTransform.m[1][2];
+		result.CamDir.z = -localTransform.m[2][2];
+		result.CamUp.x = localTransform.m[0][1];
+		result.CamUp.y = localTransform.m[1][1];
+		result.CamUp.z = localTransform.m[2][1];
+		result.CamPos = position;
+		result.zMin = ZNear;
+		result.zMax = ZFar;
+		return result;
 	}
 	bool CameraActor::ParseField(Level * level, CoreLib::Text::TokenReader & parser, bool & isInvalid)
 	{

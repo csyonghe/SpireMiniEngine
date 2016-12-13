@@ -183,6 +183,13 @@ enum
 	SPIRE_API void spAddSearchPath(SpireCompilationContext * ctx, const char * searchDir);
 
 	/*!
+	@brief Add a macro definition to be used during preprocessing.
+	@param key The name of the macro to define.
+	@param value The value of the macro to define.
+	*/
+    SPIRE_API void spAddPreprocessorDefine(SpireCompilationContext * ctx, const char * key, const char * value);
+
+	/*!
 	@brief Sets a parameter used by the compiler back-end.
 	@param ctx The compilation context.
 	@param paramName The name of the parameter.
@@ -288,7 +295,7 @@ enum
 	/*!
 	@brief Retrieve the name of a SpireModule.
 	@param module The module to get the name of.
-	@return The name of the module as a null-terminated string, or NULL if there are any errors.
+	@return The name of the module as a null-terminated string, or NULL if ther are any errors.
 	@note The memory for the return value will be freed when the containing SpireCopmilationContext is destroyed.
 	*/
 	SPIRE_API const char * spGetModuleName(SpireModule * module);

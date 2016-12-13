@@ -3,7 +3,8 @@ shader DeferredLighting : StandardPipeline
 	public @MeshVertex vec2 vertPos;
 	public @MeshVertex vec2 vertUV;
 	public using SystemUniforms;
-
+	public using LightingParams;
+	
 	@ViewUniform Texture2D albedoTex;
 	@ViewUniform Texture2D pbrTex;
 	@ViewUniform Texture2D normalTex;

@@ -5,6 +5,7 @@
 #include "FreeRoamCameraController.h"
 #include "MotionGraphMeshActor.h"
 #include "AnimationVisualizationActor.h"
+#include "DirectionalLightActor.h"
 
 namespace GameEngine
 {
@@ -17,5 +18,7 @@ namespace GameEngine
 		REGISTER_ACTOR_CLASS(FreeRoamCameraController);
         REGISTER_ACTOR_CLASS(MotionGraphMesh);
         REGISTER_ACTOR_CLASS(AnimationVisualization);
+		REGISTER_ACTOR_CLASS(DirectionalLight);
+
 	}
 }

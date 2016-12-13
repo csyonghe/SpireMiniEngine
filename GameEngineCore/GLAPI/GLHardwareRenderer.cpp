@@ -653,6 +653,83 @@ namespace GLL
 		}
 	};
 
+	class Texture2DArray : public Texture, public GameEngine::Texture2DArray
+	{
+	public:
+		Texture2DArray()
+		{
+			BindTarget = GL_TEXTURE_2D_ARRAY;
+		}
+		~Texture2DArray()
+		{
+			if (Handle)
+			{
+				glDeleteTextures(1, &Handle);
+				Handle = 0;
+			}
+		}
+		StorageFormat GetFormat()
+		{
+			return storageFormat;
+		}
+		void GetSize(int & width, int & height, int & layers)
+		{
+			glBindTexture(GL_TEXTURE_2D_ARRAY, Handle);
+			glGetTexLevelParameteriv(GL_TEXTURE_2D_ARRAY, 0, GL_TEXTURE_WIDTH, &width);
+			glGetTexLevelParameteriv(GL_TEXTURE_2D_ARRAY, 0, GL_TEXTURE_HEIGHT, &height);
+			glGetTexLevelParameteriv(GL_TEXTURE_2D_ARRAY, 0, GL_TEXTURE_DEPTH, &layers);
+
+			glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+		}
+		virtual void SetData(int mipLevel, int xOffset, int yOffset, int layerOffset, int width, int height, int layerCount, DataType inputType, void * data) override
+		{
+			this->internalFormat = TranslateStorageFormat(storageFormat);
+			this->format = TranslateDataTypeToFormat(inputType);
+			this->type = TranslateDataTypeToInputType(inputType);
+			if (this->internalFormat == GL_DEPTH_COMPONENT16 || this->internalFormat == GL_DEPTH_COMPONENT24 || this->internalFormat == GL_DEPTH_COMPONENT32)
+				this->format = GL_DEPTH_COMPONENT;
+			else if (this->internalFormat == GL_DEPTH24_STENCIL8)
+				this->format = GL_DEPTH_STENCIL;
+			if (storageFormat == StorageFormat::BC1 || storageFormat == StorageFormat::BC5)
+			{
+				assert(xOffset == 0 && yOffset == 0);
+				int blocks = (int)(ceil(width / 4.0f) * ceil(height / 4.0f));
+				int bufferSize = storageFormat == StorageFormat::BC5 ? blocks * 16 : blocks * 8;
+				glBindTexture(GL_TEXTURE_2D_ARRAY, Handle);
+				glCompressedTexImage3D(GL_TEXTURE_2D, mipLevel, internalFormat, width, height, layerOffset, 0, bufferSize, data);
+				glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+			}
+			else
+			{		
+				glBindTexture(GL_TEXTURE_2D_ARRAY, Handle);
+				glTexSubImage3D(GL_TEXTURE_2D_ARRAY, mipLevel, xOffset, yOffset, layerOffset, width, height, layerCount, this->format, this->type, data);
+				glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+			}
+		}
+		int GetComponents()
+		{
+			switch (this->format)
+			{
+			case GL_RED:
+				return 1;
+			case GL_RG:
+				return 2;
+			case GL_RGB:
+				return 3;
+			case GL_RGBA:
+				return 4;
+			}
+			return 4;
+		}
+		
+		void BuildMipmaps()
+		{
+			glBindTexture(GL_TEXTURE_2D_ARRAY, Handle);
+			glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
+			glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+		}
+	};
+
 	class TextureCube : public Texture
 	{
 	public:
@@ -716,6 +793,10 @@ namespace GLL
 		{
 			glNamedFramebufferTexture(Handle, GL_COLOR_ATTACHMENT0 + attachmentPoint, texture.Handle, level);
 		}
+		void SetColorRenderTarget(int attachmentPoint, const Texture2DArray &texture, int layer, int level = 0)
+		{
+			glNamedFramebufferTextureLayer(Handle, GL_COLOR_ATTACHMENT0 + attachmentPoint, texture.Handle, level, layer);
+		}
 		void SetColorRenderTarget(int attachmentPoint, const TextureCube &texture, TextureCubeFace face)
 		{
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Handle);
@@ -747,26 +828,58 @@ namespace GLL
 		void SetDepthStencilRenderTarget(const Texture2D &texture)
 		{
 			if (texture.internalFormat == GL_DEPTH24_STENCIL8)
+			{
+				glNamedFramebufferTexture(Handle, GL_DEPTH_ATTACHMENT, 0, 0);
 				glNamedFramebufferTexture(Handle, GL_DEPTH_STENCIL_ATTACHMENT, texture.Handle, 0);
+			}
 			else
+			{
+				glNamedFramebufferTexture(Handle, GL_DEPTH_STENCIL_ATTACHMENT, 0, 0);
 				glNamedFramebufferTexture(Handle, GL_DEPTH_ATTACHMENT, texture.Handle, 0);
+			}
+		}
+
+		void SetDepthStencilRenderTarget(const Texture2DArray &texture, int layer)
+		{
+			if (texture.internalFormat == GL_DEPTH24_STENCIL8)
+			{
+				glNamedFramebufferTextureLayer(Handle, GL_DEPTH_ATTACHMENT, 0, 0, layer);
+				glNamedFramebufferTextureLayer(Handle, GL_DEPTH_STENCIL_ATTACHMENT, texture.Handle, 0, layer);
+			}
+			else
+			{
+				glNamedFramebufferTextureLayer(Handle, GL_DEPTH_STENCIL_ATTACHMENT, 0, 0, layer);
+				glNamedFramebufferTextureLayer(Handle, GL_DEPTH_ATTACHMENT, texture.Handle, 0, layer);
+			}
 		}
 
 		void SetDepthStencilRenderTarget(const TextureCube &texture, TextureCubeFace face)
 		{
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Handle);
 			if (texture.internalFormat == GL_DEPTH24_STENCIL8)
-				glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X+(int)face, texture.Handle, 0);
+			{
+				glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (int)face, 0, 0);
+				glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (int)face, texture.Handle, 0);
+			}
 			else
+			{
+				glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (int)face, 0, 0);
 				glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (int)face, texture.Handle, 0);
+			}
 		}
 
 		void SetDepthStencilRenderTarget(const RenderBuffer &buffer)
 		{
 			if (buffer.internalFormat == GL_DEPTH24_STENCIL8)
+			{
+				glNamedFramebufferRenderbuffer(Handle, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, 0);
 				glNamedFramebufferRenderbuffer(Handle, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, buffer.Handle);
+			}
 			else
+			{
+				glNamedFramebufferRenderbuffer(Handle, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, 0);
 				glNamedFramebufferRenderbuffer(Handle, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, buffer.Handle);
+			}
 		}
 
 		void SetStencilRenderTarget(const RenderBuffer &buffer)
@@ -788,7 +901,28 @@ namespace GLL
 	class FrameBufferDescriptor : public GameEngine::FrameBuffer
 	{
 	public:
-		CoreLib::List<GLL::Texture2D*> attachments;
+		struct Attachment
+		{
+			struct
+			{
+				GLL::Texture2D* tex2D = nullptr;
+				GLL::Texture2DArray* tex2DArray = nullptr;
+			} handle;
+			int layer = -1;
+			Attachment(GLL::Texture2D * tex)
+			{
+				handle.tex2D = tex;
+				layer = -1;
+			}
+			Attachment(GLL::Texture2DArray* texArr, int l)
+			{
+				handle.tex2DArray = texArr;
+				layer = l;
+			}
+			Attachment() = default;
+		};
+	public:
+		CoreLib::List<Attachment> attachments;
 	};
 
 	class RenderTargetLayout : public GameEngine::RenderTargetLayout
@@ -875,7 +1009,10 @@ namespace GLL
 
 			for (auto renderAttachment : renderAttachments.attachments)
 			{
-				result->attachments.Add(dynamic_cast<Texture2D*>(renderAttachment));
+				if (renderAttachment.handle.tex2D)
+					result->attachments.Add(FrameBufferDescriptor::Attachment(dynamic_cast<GLL::Texture2D*>(renderAttachment.handle.tex2D)));
+				else if (renderAttachment.handle.tex2DArray)
+					result->attachments.Add(FrameBufferDescriptor::Attachment(dynamic_cast<GLL::Texture2DArray*>(renderAttachment.handle.tex2DArray), renderAttachment.layer));
 			}
 
 			return result;
@@ -982,6 +1119,8 @@ namespace GLL
 
 	class VertexArray : public GL_Object
 	{
+	private:
+		int lastAttribCount = 0;
 	public:
 		void SetIndex(BufferObject indices)
 		{
@@ -994,6 +1133,8 @@ namespace GLL
 		{
 			glBindVertexArray(Handle);
 			glBindBuffer(GL_ARRAY_BUFFER, vertices.Handle);
+			for (int i = 0; i < lastAttribCount; i++)
+				glDisableVertexAttribArray(i);
 			for (int i = 0; i < attribs.Count(); i++)
 			{
 				//glVertexArrayVertexBuffer(Handle, i, ((GL_BufferObject*)vertices)->Handle, attribs[i].StartOffset, vertSize);
@@ -1011,6 +1152,7 @@ namespace GLL
 			}
 
 			glBindVertexArray(0);
+			lastAttribCount = attribs.Count() + startId;
 		}
 	};
 
@@ -1288,6 +1430,8 @@ namespace GLL
 		BlendMode BlendMode;
 		unsigned int StencilMask, StencilReference;
 		CullMode CullMode;
+		bool enablePolygonOffset;
+		float polygonOffsetFactor, polygonOffsetUnits;
 	};
 
 	class PipelineInstance : public GameEngine::PipelineInstance
@@ -1395,10 +1539,10 @@ namespace GLL
 		{
 			PipelineSettings settings;
 			settings.format = format;
-			settings.primitiveRestart = PrimitiveRestartEnabled;
+			settings.primitiveRestart = FixedFunctionStates.PrimitiveRestartEnabled;
 			if (isTessellation)
 			{
-				switch (PrimitiveTopology)
+				switch (FixedFunctionStates.PrimitiveTopology)
 				{
 				case PrimitiveType::Lines:
 					settings.patchSize = 2;
@@ -1410,7 +1554,7 @@ namespace GLL
 					settings.patchSize = 4;
 					break;
 				case PrimitiveType::Patches:
-					settings.patchSize = PatchSize;
+					settings.patchSize = FixedFunctionStates.PatchSize;
 					break;
 				default:
 					throw InvalidOperationException("invalid primitive type for tessellation.");
@@ -1418,20 +1562,22 @@ namespace GLL
 				settings.primitiveType = PrimitiveType::Patches;
 			}
 			else
-				settings.primitiveType = PrimitiveTopology;
+				settings.primitiveType = FixedFunctionStates.PrimitiveTopology;
 			settings.program = shaderProgram;
 			
-			settings.DepthCompareFunc = DepthCompareFunc;
-			settings.StencilCompareFunc = StencilCompareFunc;
-			settings.StencilFailOp = StencilFailOp;
-			settings.StencilDepthFailOp = StencilDepthFailOp;
-			settings.StencilDepthPassOp = StencilDepthPassOp;
-			settings.StencilMask = StencilMask;
-			settings.StencilReference = StencilReference;
-			settings.CullMode = CullMode;
+			settings.DepthCompareFunc = FixedFunctionStates.DepthCompareFunc;
+			settings.StencilCompareFunc = FixedFunctionStates.StencilCompareFunc;
+			settings.StencilFailOp = FixedFunctionStates.StencilFailOp;
+			settings.StencilDepthFailOp = FixedFunctionStates.StencilDepthFailOp;
+			settings.StencilDepthPassOp = FixedFunctionStates.StencilDepthPassOp;
+			settings.StencilMask = FixedFunctionStates.StencilMask;
+			settings.StencilReference = FixedFunctionStates.StencilReference;
+			settings.CullMode = FixedFunctionStates.CullMode;
 
-			settings.BlendMode = BlendMode;
-
+			settings.BlendMode = FixedFunctionStates.BlendMode;
+			settings.enablePolygonOffset = FixedFunctionStates.EnablePolygonOffset;
+			settings.polygonOffsetFactor = FixedFunctionStates.PolygonOffsetFactor;
+			settings.polygonOffsetUnits = FixedFunctionStates.PolygonOffsetUnits;
 
 			return new Pipeline(settings);
 		}
@@ -1453,7 +1599,7 @@ namespace GLL
 
 	struct SetViewportData
 	{
-		int x, y, width, height;
+		int x = 0, y = 0, width = 0, height = 0;
 	};
 	struct PipelineData
 	{
@@ -1475,7 +1621,8 @@ namespace GLL
 	};
 	struct AttachmentData
 	{
-		CoreLib::ArrayView<GameEngine::Texture2D*> attachments;
+		int drawBufferMask = 1;
+		bool depth = true, stencil = true;
 	};
 
 	class CommandData
@@ -1502,7 +1649,7 @@ namespace GLL
 	public:
 		CoreLib::List<CommandData> buffer;
 	public:
-		virtual void BeginRecording(GameEngine::RenderTargetLayout* /*renderTargetLayout*/, GameEngine::FrameBuffer* /*frameBuffer*/)
+		virtual void BeginRecording(GameEngine::FrameBuffer* /*frameBuffer*/)
 		{
 			buffer.Clear();
 		}
@@ -1587,12 +1734,48 @@ namespace GLL
 			data.blit.src = srcImage;
 			buffer.Add(data);
 		}
-		virtual void ClearAttachments(RenderAttachments renderAttachments) override
+		void ClearAttachmentsImpl(ArrayView<TextureUsage> attachments)
 		{
 			CommandData data;
 			data.command = Command::ClearAttachments;
-			data.clear.attachments = renderAttachments.attachments.GetArrayView();
+            data.clear = GLL::AttachmentData();
+			int i = 0;
+			for (auto & attach : attachments)
+			{
+				StorageFormat f = StorageFormat::Invalid;
+				bool isDepth = (attach == TextureUsage::DepthAttachment || attach == TextureUsage::SampledDepthAttachment);
+				i++;
+				if (isDepth)
+				{
+					data.clear.depth = true;
+					data.clear.stencil = true;
+				}
+				else if (f != StorageFormat::Invalid)
+					data.clear.drawBufferMask |= (1 << i);
+			}
 			buffer.Add(data);
+		}
+		virtual void ClearAttachments(ArrayView<TextureUsage> renderAttachments, int /*w*/, int /*h*/) override
+		{
+			ClearAttachmentsImpl(renderAttachments);
+		}
+		virtual void ClearAttachments(GameEngine::FrameBuffer * frameBuffer) override
+		{
+			auto & attachments = ((GLL::FrameBufferDescriptor*)frameBuffer)->attachments;
+			Array<TextureUsage, 16> usage;
+			for (auto & attach : attachments)
+			{
+				StorageFormat f = StorageFormat::Invalid;
+				if (attach.handle.tex2D)
+					f = dynamic_cast<GLL::Texture2D*>(attach.handle.tex2D)->storageFormat;
+				else if (attach.handle.tex2DArray)
+					f = dynamic_cast<GLL::Texture2DArray*>(attach.handle.tex2DArray)->storageFormat;
+				if (f == StorageFormat::Depth24Stencil8 || f == StorageFormat::Depth32)
+					usage.Add(TextureUsage::DepthAttachment);
+				else
+					usage.Add(TextureUsage::ColorAttachment);
+			}
+			ClearAttachmentsImpl(usage.GetArrayView());
 		}
 	};
 
@@ -1760,28 +1943,37 @@ namespace GLL
 			}
 		}
 
-		virtual void ExecuteCommandBuffers(GameEngine::RenderTargetLayout* renderTargetLayout, GameEngine::FrameBuffer* frameBuffer, CoreLib::ArrayView<GameEngine::CommandBuffer*> commands) override
+		virtual void ExecuteCommandBuffers(GameEngine::FrameBuffer* frameBuffer, CoreLib::ArrayView<GameEngine::CommandBuffer*> commands) override
 		{
 			glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+			auto fb = (GLL::FrameBufferDescriptor*)(frameBuffer);
 			auto setupFrameBuffer = [&]()
 			{
 				int location = 0;
 				int mask = 0;
-				for (auto renderAttachment : dynamic_cast<GLL::FrameBufferDescriptor*>(frameBuffer)->attachments)
+				for (auto renderAttachment : fb->attachments)
 				{
-					switch (dynamic_cast<GLL::RenderTargetLayout*>(renderTargetLayout)->attachments[location])
+					bool isDepth = false;
+					if (renderAttachment.handle.tex2D)
+						isDepth = renderAttachment.handle.tex2D->storageFormat == StorageFormat::Depth24Stencil8 ||
+						renderAttachment.handle.tex2D->storageFormat == StorageFormat::Depth32;
+					else if(renderAttachment.handle.tex2DArray)
+						isDepth = renderAttachment.handle.tex2DArray->storageFormat == StorageFormat::Depth24Stencil8 ||
+						renderAttachment.handle.tex2DArray->storageFormat == StorageFormat::Depth32;
+					if (isDepth)
 					{
-					case TextureUsage::ColorAttachment:
-					case TextureUsage::SampledColorAttachment:
-						srcFrameBuffer.SetColorRenderTarget(location, *renderAttachment);
+						if (renderAttachment.handle.tex2D)
+							srcFrameBuffer.SetDepthStencilRenderTarget(*renderAttachment.handle.tex2D);
+						else if (renderAttachment.handle.tex2DArray)
+							srcFrameBuffer.SetDepthStencilRenderTarget(*renderAttachment.handle.tex2DArray, renderAttachment.layer);
+					}
+					else
+					{
+						if (renderAttachment.handle.tex2D)
+							srcFrameBuffer.SetColorRenderTarget(location, *renderAttachment.handle.tex2D);
+						else if (renderAttachment.handle.tex2DArray)
+							srcFrameBuffer.SetColorRenderTarget(location, *renderAttachment.handle.tex2DArray, renderAttachment.layer);
 						mask |= (1 << location);
-						break;
-					case TextureUsage::DepthAttachment:
-					case TextureUsage::SampledDepthAttachment:
-						srcFrameBuffer.SetDepthStencilRenderTarget(*renderAttachment);
-						break;
-					case TextureUsage::Sampled:
-						throw HardwareRendererException("Can't use sampled image as a RenderAttachment");
 					}
 					location++;
 				}
@@ -1820,7 +2012,7 @@ namespace GLL
 							BindBuffer(BufferType::StorageBuffer, binding.location, *reinterpret_cast<BufferObject*>(binding.buf.buffer), binding.buf.offset, binding.buf.range);
 						break;
 					case BindingType::Texture:
-						UseTexture(binding.location, *reinterpret_cast<Texture2D*>(binding.tex.texture), *reinterpret_cast<TextureSampler*>(binding.tex.sampler));
+						UseTexture(binding.location, *dynamic_cast<GLL::Texture*>(binding.tex.texture), *reinterpret_cast<TextureSampler*>(binding.tex.sampler));
 						break;
 					default:
 						break;
@@ -1862,6 +2054,13 @@ namespace GLL
 						}
 						if (pipelineSettings.primitiveType == PrimitiveType::Patches)
 							glPatchParameteri(GL_PATCH_VERTICES, pipelineSettings.patchSize);
+						if (pipelineSettings.enablePolygonOffset)
+						{
+							glEnable(GL_POLYGON_OFFSET_FILL);
+							glPolygonOffset(pipelineSettings.polygonOffsetFactor, pipelineSettings.polygonOffsetUnits);
+						}
+						else
+							glDisable(GL_POLYGON_OFFSET_FILL);
 						SetZTestMode(pipelineSettings.DepthCompareFunc);
 						SetBlendMode(pipelineSettings.BlendMode);
 						StencilMode smode;
@@ -1903,30 +2102,20 @@ namespace GLL
 						SetWriteFrameBuffer(srcFrameBuffer);
 						break;
 					case Command::ClearAttachments:
-						Clear(1, 1, 1);
+						// TODO: ignoring drawBufferMask for now, assuming clearing all current framebuffer bindings
+						Clear(command.clear.depth, command.clear.drawBufferMask!=0, command.clear.stencil);
 						break;
 					}
 				}
 			}
 
 			int location = 0;
-			auto layout = (GLL::RenderTargetLayout*)renderTargetLayout;
-			for (location = 0; location < layout->attachments.Count(); location++)
+			for (location = 0; location < fb->attachments.Count(); location++)
 			{
-				switch (layout->attachments[location])
-				{
-				case TextureUsage::ColorAttachment:
-				case TextureUsage::SampledColorAttachment:
-					srcFrameBuffer.SetColorRenderTarget(location, Texture2D());
-					break;
-				case TextureUsage::DepthAttachment:
-				case TextureUsage::SampledDepthAttachment:
-					srcFrameBuffer.SetDepthStencilRenderTarget(Texture2D());
-					break;
-				default:
-					break;
-				}
+				srcFrameBuffer.SetColorRenderTarget(location, Texture2D());
 			}
+			srcFrameBuffer.SetDepthStencilRenderTarget(Texture2D());
+			srcFrameBuffer.SetDepthStencilRenderTarget(Texture2D());
 		}
 
 		void Blit(GameEngine::Texture2D* dstImage, GameEngine::Texture2D* srcImage)
@@ -2411,6 +2600,31 @@ namespace GLL
 			rs->BindTarget = GL_TEXTURE_2D;
 			return rs;
 		}
+
+		virtual Texture2DArray* CreateTexture2DArray(TextureUsage /*usage*/, int w, int h, int layers, int mipLevelCount, StorageFormat format) override
+		{
+			GLuint handle = 0;
+			if (glCreateTextures)
+				glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &handle);
+			else
+			{
+				glGenTextures(1, &handle);
+				glBindTexture(GL_TEXTURE_2D_ARRAY, handle);
+			}
+			glBindTexture(GL_TEXTURE_2D_ARRAY, handle);
+			glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8.0f);
+			glTextureStorage3D(handle, mipLevelCount, TranslateStorageFormat(format), w, h, layers);
+			glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+
+			auto rs = new Texture2DArray();
+			rs->Handle = handle;
+			rs->storageFormat = format;
+			rs->BindTarget = GL_TEXTURE_2D_ARRAY;
+			return rs;
+		}
+
 
 		TextureCube CreateTextureCube()
 		{

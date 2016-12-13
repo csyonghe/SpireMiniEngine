@@ -38,24 +38,19 @@ namespace GameEngine
 			shaderList.Add(shader);
 		}
 		pipelineBuilder->SetShaders(shaderList.GetArrayView());
-		pipelineBuilder->PrimitiveTopology = PrimitiveType::TriangleFans;
+		pipelineBuilder->FixedFunctionStates.PrimitiveTopology = PrimitiveType::TriangleFans;
 		pipeline = pipelineBuilder->ToPipeline(renderTargetLayout.Ptr());
 
 		commandBuffer = hwRenderer->CreateCommandBuffer();
-		RenderPass::Create();
-	}
-
-	void PostRenderPass::UpdateFrameBuffer()
-	{
-		RecordCommandBuffer();
+		AcquireRenderTargets();
 	}
 
 	void PostRenderPass::Execute()
 	{
-		hwRenderer->ExecuteCommandBuffers(renderTargetLayout.Ptr(), frameBuffer.Ptr(), MakeArrayView(commandBuffer.Ptr()));
+		hwRenderer->ExecuteCommandBuffers(frameBuffer.Ptr(), MakeArrayView(commandBuffer.Ptr()));
 	}
 
-	void PostRenderPass::RecordCommandBuffer()
+	void PostRenderPass::RecordCommandBuffer(int screenWidth, int screenHeight)
 	{
 		PipelineBinding pipelineBinding;
 		RenderAttachments renderAttachments;
@@ -63,11 +58,11 @@ namespace GameEngine
 		pipelineInstance = pipeline->CreateInstance(pipelineBinding);
 		frameBuffer = renderTargetLayout->CreateFrameBuffer(renderAttachments);
 
-		commandBuffer->BeginRecording(renderTargetLayout.Ptr(), frameBuffer.Ptr());
+		commandBuffer->BeginRecording(frameBuffer.Ptr());
 		if (clearFrameBuffer)
-			commandBuffer->ClearAttachments(renderAttachments);
+			commandBuffer->ClearAttachments(frameBuffer.Ptr());
 
-		commandBuffer->SetViewport(0, 0, sharedRes->screenWidth, sharedRes->screenHeight);
+		commandBuffer->SetViewport(0, 0, screenWidth, screenHeight);
 		commandBuffer->BindVertexBuffer(sharedRes->fullScreenQuadVertBuffer.Ptr());
 		commandBuffer->BindPipeline(pipelineInstance.Ptr());
 		commandBuffer->Draw(0, 4);

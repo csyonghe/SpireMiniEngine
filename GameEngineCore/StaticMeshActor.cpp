@@ -39,16 +39,16 @@ namespace GameEngine
 		return false;
 	}
 
-	void StaticMeshActor::GetDrawables(RendererService * renderService)
+	void StaticMeshActor::GetDrawables(const GetDrawablesParameter & params)
 	{
 		if (!drawable)
-			drawable = renderService->CreateStaticDrawable(Mesh, MaterialInstance);
+			drawable = params.rendererService->CreateStaticDrawable(Mesh, MaterialInstance);
 		if (localTransformChanged)
 		{
 			drawable->UpdateTransformUniform(localTransform);
 			localTransformChanged = false;
 		}
-		renderService->Add(drawable.Ptr());
+		params.sink->AddDrawable(drawable.Ptr());
 	}
 
 	void StaticMeshActor::SetLocalTransform(const VectorMath::Matrix4 & val)

@@ -9,7 +9,8 @@ namespace GameEngine
 	{
 	public:
 		bool UseDeferredRenderer = false;
-
+		int ShadowMapArraySize = 8;
+		int ShadowMapResolution = 1024;
 		void LoadFromFile(CoreLib::String fileName);
 		void SaveToFile(CoreLib::String fileName);
 	};

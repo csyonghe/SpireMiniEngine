@@ -9,30 +9,30 @@ namespace GameEngine
 	class RenderPass : public CoreLib::Object
 	{
 	protected:
+		int renderPassId = -1;
 		RendererSharedResource * sharedRes = nullptr;
 		SceneResource * sceneRes = nullptr;
 		HardwareRenderer * hwRenderer = nullptr;
-		CoreLib::RefPtr<FrameBuffer> frameBuffer;
 		CoreLib::RefPtr<RenderTargetLayout> renderTargetLayout;
-		CoreLib::RefPtr<CommandBuffer> clearCommandBuffer;
-
-		virtual void Create();
-		virtual void AcquireRenderTargets() = 0;
+		CoreLib::Array<CoreLib::RefPtr<CommandBuffer>, 32> commandBufferPool;
+		int poolAllocPtr = 0;
+		CommandBuffer * AllocCommandBuffer();
+		virtual void Create() = 0;
 	public:
 		void Init(RendererSharedResource * pSharedRes, SceneResource * pSceneRes);
-		virtual void UpdateFrameBuffer() = 0;
-		FrameBuffer * GetFrameBuffer()
-		{
-			return frameBuffer.Ptr();
-		}
 		RenderTargetLayout * GetRenderTargetLayout()
 		{
 			return renderTargetLayout.Ptr();
 		}
-		CommandBuffer * GetClearCommandBuffer()
+		void SetId(int id)
 		{
-			return clearCommandBuffer.Ptr();
+			renderPassId = id;
 		}
+		void ResetInstancePool()
+		{
+			poolAllocPtr = 0;
+		}
+		RenderPassInstance CreateInstance(RenderOutput * output, void * viewUniformData, int viewUniformSize);
 		virtual char * GetName() = 0;
 	};
 }

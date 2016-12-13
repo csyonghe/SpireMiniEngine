@@ -46,6 +46,8 @@ namespace GameEngine
 			OnResized.Bind(this, &MainForm::FormResized);
 			OnFocus.Bind([](auto, auto) {Engine::Instance()->EnableInput(true); });
 			OnLostFocus.Bind([](auto, auto) {Engine::Instance()->EnableInput(false); });
+			SetClientWidth(1920);
+			SetClientHeight(1080);
 		}
 		
 		void FormResized(Object *, EventArgs)
@@ -133,7 +135,8 @@ int wWinMain(
 			videoRecParams.Enabled = true;
 			videoRecParams.FramesPerSecond = (int)StringToInt(parser.GetOptionValue("-recfps"));
 		}
-
+        if (parser.OptionExists("-no_console"))
+            args.NoConsole = true;
 		auto form = new MainForm(videoRecParams);
 		Application::SetMainLoopEventHandler(new CoreLib::WinForm::NotifyEvent(form, &MainForm::MainLoop));
 

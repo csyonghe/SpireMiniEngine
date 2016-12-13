@@ -20,7 +20,7 @@ namespace GameEngine
 		Mesh * Mesh = nullptr;
 		Material * MaterialInstance;
 		virtual void Tick() override { }
-		virtual void GetDrawables(RendererService * renderService) override;
+		virtual void GetDrawables(const GetDrawablesParameter & params) override;
 		virtual void SetLocalTransform(const VectorMath::Matrix4 & val) override;
 		virtual EngineActorType GetEngineType() override
 		{

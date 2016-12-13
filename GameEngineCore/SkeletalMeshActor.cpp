@@ -61,12 +61,12 @@ namespace GameEngine
 			Animation->GetPose(nextPose, time);
 	}
 
-	void SkeletalMeshActor::GetDrawables(RendererService * renderService)
+	void SkeletalMeshActor::GetDrawables(const GetDrawablesParameter & params)
 	{
 		if (!drawable)
-			drawable = renderService->CreateSkeletalDrawable(Mesh, Skeleton, MaterialInstance);
+			drawable = params.rendererService->CreateSkeletalDrawable(Mesh, Skeleton, MaterialInstance);
 		drawable->UpdateTransformUniform(localTransform, nextPose);
-		renderService->Add(drawable.Ptr());
+		params.sink->AddDrawable(drawable.Ptr());
 	}
 
 	void SkeletalMeshActor::OnLoad()

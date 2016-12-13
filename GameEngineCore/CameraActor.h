@@ -1,6 +1,7 @@
 #ifndef GAME_ENGINE_CAMERA_ACTOR_H
 #define GAME_ENGINE_CAMERA_ACTOR_H
 
+#include "CoreLib/Graphics/ViewFrustum.h"
 #include "CoreLib/VectorMath.h"
 #include "Actor.h"
 
@@ -34,8 +35,10 @@ namespace GameEngine
 		void SetPitch(float value);
 		void SetRoll(float value);
 		void SetOrientation(float pYaw, float pPitch, float pRoll);
+		VectorMath::Vec3 GetDirection();
 		float GetCollisionRadius() { return collisionRadius; }
 		void SetCollisionRadius(float value);
+		CoreLib::Graphics::ViewFrustum GetFrustum(float aspect);
 		virtual void Tick() override { }
 		virtual EngineActorType GetEngineType() override
 		{

@@ -36,6 +36,7 @@ namespace GameEngine
             nextState = &motionGraph->States[nextStateId];
             nextStateRootTransform = nextState->Pose.Transforms[0];
             nextStateRootTransform.Translation = lastState->Velocity + lastState->Pose.Transforms[0].Translation;
+            nextStateRootTransform.Translation.y = nextState->Pose.Transforms[0].Translation.y;
             nextStateRootTransform.SetYawAngle(yaw + nextState->YawAngularVelocity);
             transitionGap++;
         }
@@ -64,8 +65,9 @@ namespace GameEngine
                     lastStateId != motionGraph->States.Count() - 1 &&
                     motionGraph->States[lastStateId + 1].Sequence == motionGraph->States[lastStateId].Sequence)
                 {
-                    nextState = &motionGraph->States[lastStateId + 1];
-                    nextStateId = lastStateId + 1;
+                    
+                    nextStateId = lastState->ChildrenIds.First();
+                    nextState = &motionGraph->States[nextStateId];
                     transitionGap++;
                 }
                 // if there is not other transitions to go, continue with its child
@@ -114,13 +116,14 @@ namespace GameEngine
 
                 nextStateRootTransform.SetYawAngle(yaw + nextState->YawAngularVelocity);
                 nextStateRootTransform.Translation += velocity;
+                nextStateRootTransform.Translation.y = nextState->Pose.Transforms[0].Translation.y;
 
-                if (nextState->Contact == ContactLabel::LeftFootOnFloor)
-                    nextStateRootTransform.Translation.y = floorHeight + nextState->LeftFootToRootDistance;
-                else if (nextState->Contact == ContactLabel::RightFootOnFloor)
-                    nextStateRootTransform.Translation.y = floorHeight + nextState->RightFootToRootDistance;
-                else if (nextState->Contact == ContactLabel::BothFeetOnFloor)
-                    nextStateRootTransform.Translation.y = floorHeight + Math::Min(nextState->LeftFootToRootDistance, nextState->RightFootToRootDistance);
+                //if (nextState->Contact == ContactLabel::LeftFootOnFloor)
+                //    nextStateRootTransform.Translation.y = floorHeight + nextState->LeftFootToRootDistance;
+                //else if (nextState->Contact == ContactLabel::RightFootOnFloor)
+                //    nextStateRootTransform.Translation.y = floorHeight + nextState->RightFootToRootDistance;
+                //else if (nextState->Contact == ContactLabel::BothFeetOnFloor)
+                //    nextStateRootTransform.Translation.y = floorHeight + Math::Min(nextState->LeftFootToRootDistance, nextState->RightFootToRootDistance);
             }
         }
 

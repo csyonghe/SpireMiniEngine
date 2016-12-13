@@ -17,9 +17,6 @@
 #include "WorldRenderPass.h"
 #include "PostRenderPass.h"
 
-#define DEFERRED 0
-const char* lightingString = DEFERRED ? "DeferredLighting" : "ForwardLighting";
-
 using namespace CoreLib;
 using namespace VectorMath;
 
@@ -39,22 +36,6 @@ namespace GameEngine
 	template<typename T>
 	void use(const T &) {}
 
-
-	class SystemUniforms
-	{
-	public:
-		Matrix4 ViewTransform, ViewProjectionTransform, InvViewTransform, InvViewProjTransform;
-		Vec3 CameraPos;
-        float Time;
-	};
-
-	struct BoneTransform
-	{
-		Matrix4 TransformMatrix;
-		Vec4 NormalMatrix[3];
-	};
-	
-
 	Drawable::~Drawable()
 	{
 		if (uniforms.instanceUniform)
@@ -67,6 +48,8 @@ namespace GameEngine
 				scene->skeletalTransformMemory.Free(uniforms.transformUniform, uniforms.transformUniformCount);
 		}
 	}
+
+	IRenderProcedure * CreateStandardRenderProcedure();
 
 	class RendererImpl : public Renderer
 	{
@@ -105,11 +88,6 @@ namespace GameEngine
 			RendererServiceImpl(RendererImpl * pRenderer)
 				: renderer(pRenderer)
 			{}
-			List<Drawable*> drawables;
-			virtual void Add(Drawable * object) override
-			{
-				drawables.Add(object);
-			}
 			virtual CoreLib::RefPtr<Drawable> CreateStaticDrawable(Mesh * mesh, Material * material) override
 			{
 				auto sceneResources = renderer->sceneRes.Ptr();
@@ -152,89 +130,61 @@ namespace GameEngine
 		RendererSharedResource sharedRes;
 		RefPtr<SceneResource> sceneRes;
 		RefPtr<RendererServiceImpl> renderService;
+		RefPtr<IRenderProcedure> renderProcedure;
 		List<RefPtr<WorldRenderPass>> worldRenderPasses;
 		List<RefPtr<PostRenderPass>> postRenderPasses;
+		List<RenderPassInstance> renderPassInstances;
 		HardwareRenderer * hardwareRenderer = nullptr;
 		Level* level = nullptr;
-		Array<RefPtr<CommandBuffer>, MaxWorldRenderPasses> worldRenderPassCommandBuffers;
-		SystemUniforms sysUniforms;
 
 		int uniformBufferAlignment = 256;
 		int storageBufferAlignment = 32;
 	private:
-		void RecordCommandBuffer()
+		void RunRenderProcedure()
 		{
 			if (!level) return;
-
-			for (int i = 0; i < worldRenderPasses.Count(); i++)
-			{
-				auto cmdBuffer = worldRenderPassCommandBuffers[i].Ptr();
-				cmdBuffer->BeginRecording(worldRenderPasses[i]->GetRenderTargetLayout(), worldRenderPasses[i]->GetFrameBuffer());
-				cmdBuffer->SetViewport(0, 0, sharedRes.screenWidth, sharedRes.screenHeight);
-				for (auto& obj : renderService->drawables)
-				{
-					if (obj->pipelineInstances[i])
-					{
-						cmdBuffer->BindIndexBuffer(obj->mesh->indexBuffer.Ptr());
-						cmdBuffer->BindVertexBuffer(obj->mesh->vertexBuffer.Ptr());
-						cmdBuffer->BindPipeline(obj->pipelineInstances[i].Ptr());
-						cmdBuffer->DrawIndexed(0, obj->mesh->indexCount);
-					}
-				}
-				cmdBuffer->EndRecording();
-			}
+			renderPassInstances.Clear();
+			RenderProcedureParameters params;
+            Array<CameraActor*, 8> cameras;
+            cameras.Add(level->CurrentCamera.Ptr());
+			params.level = level;
+			params.renderer = this;
+            params.cameras = cameras.GetArrayView();
+			params.rendererService = renderService.Ptr();
+			renderProcedure->Run(renderPassInstances, params);
 		}
 	public:
 		RendererImpl(WindowHandle window, RenderAPI api)
 			: sharedRes(api)
 		{
+			HardwareApiFactory * hwFactory = nullptr;
 			switch (api)
 			{
 			case RenderAPI::Vulkan:
-				sharedRes.hardwareFactory = CreateVulkanFactory();
+				hwFactory = CreateVulkanFactory();
 				break;
 			case RenderAPI::OpenGL:
-				sharedRes.hardwareFactory = CreateOpenGLFactory();
+				hwFactory = CreateOpenGLFactory();
 				break;
 			}
-			sharedRes.hardwareRenderer = sharedRes.hardwareFactory->CreateRenderer(Engine::Instance()->GpuId);
-			hardwareRenderer = sharedRes.hardwareRenderer.Ptr();
+			hardwareRenderer = hwFactory->CreateRenderer(Engine::Instance()->GpuId);
 			hardwareRenderer->BindWindow(window, 640, 480);
+
+			sharedRes.Init(hwFactory, hardwareRenderer);
 			
 			// Fetch uniform buffer alignment requirements
 			uniformBufferAlignment = hardwareRenderer->UniformBufferAlignment();
 			storageBufferAlignment = hardwareRenderer->StorageBufferAlignment();
 			
-			// Vertex buffer for VS bypass
-			const float fsTri[] =
-			{
-				-1.0f, -1.0f, 0.0f, 0.0f,
-				1.0f, -1.0f, 1.0f, 0.0f,
-				1.0f, 1.0f, 1.0f, 1.0f,
-				-1.0f, 1.0f, 0.0f, 1.0f
-			};
-			sharedRes.fullScreenQuadVertBuffer = hardwareRenderer->CreateBuffer(BufferUsage::ArrayBuffer);
-			sharedRes.fullScreenQuadVertBuffer->SetData((void*)&fsTri[0], sizeof(fsTri));
-
-			// Create and resize uniform buffer
-			sharedRes.sysUniformBuffer = hardwareRenderer->CreateMappedBuffer(BufferUsage::UniformBuffer);
-			sharedRes.sysUniformBuffer->SetData(nullptr, sizeof(SystemUniforms));
-
-			// Create common texture samplers
-			sharedRes.nearestSampler = hardwareRenderer->CreateTextureSampler();
-			sharedRes.nearestSampler->SetFilter(TextureFilter::Nearest);
-
-			sharedRes.linearSampler = hardwareRenderer->CreateTextureSampler();
-			sharedRes.linearSampler->SetFilter(TextureFilter::Linear);
-
-			sharedRes.textureSampler = hardwareRenderer->CreateTextureSampler();
-			sharedRes.textureSampler->SetFilter(TextureFilter::Anisotropic16x);
-
 			sceneRes = new SceneResource(&sharedRes);
 			renderService = new RendererServiceImpl(this);
+
+			renderProcedure = CreateStandardRenderProcedure();
+			renderProcedure->Init(this);
 		}
 		~RendererImpl()
 		{
+			renderProcedure = nullptr;
 			sceneRes = nullptr;
 			sharedRes.Destroy();
 		}
@@ -244,21 +194,23 @@ namespace GameEngine
 			hardwareRenderer->Wait();
 		}
 
-		virtual void RegisterWorldRenderPass(WorldRenderPass * renderPass) override
+		virtual int RegisterWorldRenderPass(WorldRenderPass * renderPass) override
 		{
 			if (worldRenderPasses.Count() >= MaxWorldRenderPasses)
 				throw InvalidOperationException("Number of registered world render passes exceeds engine limit.");
 			renderPass->Init(&sharedRes, sceneRes.Ptr());
 			worldRenderPasses.Add(renderPass);
-			worldRenderPassCommandBuffers.Add(hardwareRenderer->CreateCommandBuffer());
+			renderPass->SetId(worldRenderPasses.Count() - 1);
+			return worldRenderPasses.Count() - 1;
 		}
 
-		virtual void RegisterPostRenderPass(PostRenderPass * renderPass) override
+		virtual int RegisterPostRenderPass(PostRenderPass * renderPass) override
 		{
 			if (postRenderPasses.Count() >= MaxPostRenderPasses)
 				throw InvalidOperationException("Number of registered post render passes exceeds engine limit.");
 			renderPass->Init(&sharedRes, sceneRes.Ptr());
 			postRenderPasses.Add(renderPass);
+			return postRenderPasses.Count() - 1;
 		}
 
 		virtual HardwareRenderer * GetHardwareRenderer() override
@@ -277,81 +229,23 @@ namespace GameEngine
 		{
 			if (!level)
 				return;
-
-			renderService->drawables.Clear();
-			for (auto & actor : level->Actors)
-			{
-				actor.Value->GetDrawables(renderService.Ptr());
-			}
-			for (int i = 0; i < renderService->drawables.Count(); i++)
-			{
-				auto drawable = renderService->drawables[i];
-
-				drawable->UpdateMaterialUniform();
-				if (drawable->instanceUniformUpdated)
-				{
-					if (drawable->uniforms.instanceUniform)
-						sceneRes->instanceUniformMemory.Sync(drawable->uniforms.instanceUniform, drawable->uniforms.instanceUniformCount);
-					drawable->instanceUniformUpdated = false;
-				}
-				if (drawable->transformUniformUpdated)
-				{
-					switch (drawable->type)
-					{
-					case DrawableType::Static:
-						sceneRes->staticTransformMemory.Sync(drawable->uniforms.transformUniform, drawable->uniforms.transformUniformCount);
-						break;
-					case DrawableType::Skeletal:
-						sceneRes->skeletalTransformMemory.Sync(drawable->uniforms.transformUniform, drawable->uniforms.transformUniformCount);
-						break;
-					}
-					drawable->transformUniformUpdated = false;
-				}
-			}
-
-			RecordCommandBuffer();
-
-            this->sysUniforms.Time = Engine::Instance()->GetTime();
-			// Update system uniforms
-			if (level->CurrentCamera)
-			{
-				this->sysUniforms.CameraPos = level->CurrentCamera->GetPosition();
-				this->sysUniforms.ViewTransform = level->CurrentCamera->GetLocalTransform();
-				Matrix4 projMatrix;
-				Matrix4::CreatePerspectiveMatrixFromViewAngle(projMatrix,
-					level->CurrentCamera->FOV, sharedRes.screenWidth / (float)sharedRes.screenHeight,
-					level->CurrentCamera->ZNear, level->CurrentCamera->ZFar);
-				Matrix4::Multiply(this->sysUniforms.ViewProjectionTransform, projMatrix, this->sysUniforms.ViewTransform);
-			}
-			else
-			{
-				this->sysUniforms.CameraPos = Vec3::Create(0.0f);
-				Matrix4::CreateIdentityMatrix(this->sysUniforms.ViewTransform);
-				Matrix4::CreatePerspectiveMatrixFromViewAngle(this->sysUniforms.ViewProjectionTransform,
-					75.0f, sharedRes.screenWidth / (float)sharedRes.screenHeight, 40.0f, 200000.0f);
-			}
-			this->sysUniforms.ViewTransform.Inverse(this->sysUniforms.InvViewTransform);
-			this->sysUniforms.ViewProjectionTransform.Inverse(this->sysUniforms.InvViewProjTransform);
-			sharedRes.sysUniformBuffer->SetData(&sysUniforms, sizeof(SystemUniforms));
+			RunRenderProcedure();
 		}
 		virtual void RenderFrame() override
 		{
 			if (!level) return;
-			Array<GameEngine::CommandBuffer*, 2> commandBufferList1;
-			for (int i = 0; i < worldRenderPassCommandBuffers.Count(); i++)
+
+			for (auto & pass : renderPassInstances)
 			{
-				auto clearCmd = worldRenderPasses[i]->GetClearCommandBuffer();
-				if (clearCmd)
-					commandBufferList1.Add(clearCmd);
-				commandBufferList1.Add(worldRenderPassCommandBuffers[i].Ptr());
-				hardwareRenderer->ExecuteCommandBuffers(worldRenderPasses[i]->GetRenderTargetLayout(), worldRenderPasses[i]->GetFrameBuffer(), commandBufferList1.GetArrayView());
+				if (pass.viewUniformSize)
+					sharedRes.SetViewUniformData(pass.viewUniformPtr, pass.viewUniformSize);
+				hardwareRenderer->ExecuteCommandBuffers(pass.renderOutput->GetFrameBuffer(), MakeArrayView(pass.commandBuffer));
 			}
 
 			for (auto & post : postRenderPasses)
 			{
 				post->Execute();
 			}
-
 		}
 		virtual RendererSharedResource * GetSharedResource() override
 		{
@@ -368,17 +262,14 @@ namespace GameEngine
 		virtual void Resize(int w, int h) override
 		{
 			sharedRes.Resize(w, h);
-			for (auto & renderPass : worldRenderPasses)
-				renderPass->UpdateFrameBuffer();
 			for (auto & post : postRenderPasses)
-				post->UpdateFrameBuffer();
+				post->RecordCommandBuffer(w, h);
 			
 			hardwareRenderer->Resize(w, h);
-			RecordCommandBuffer();
 		}
 		Texture2D * GetRenderedImage()
 		{
-			return sharedRes.AcquireRenderTarget("litColor", StorageFormat::RGBA_8)->Texture.Ptr();
+			return sharedRes.LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8)->Texture.Ptr();
 		}
 	};
 

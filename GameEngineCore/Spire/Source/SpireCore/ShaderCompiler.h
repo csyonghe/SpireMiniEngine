@@ -16,6 +16,7 @@ namespace Spire
 
 		enum class CompilerMode
 		{
+			ProduceLibrary,
 			ProduceShader,
 			GenerateChoice
 		};
@@ -34,6 +35,7 @@ namespace Spire
 			String ScheduleSource, ScheduleFileName;
 			String SymbolToCompile;
 			List<String> SearchDirectories;
+            Dictionary<String, String> PreprocessorDefinitions;
 		};
 
 		class CompileUnit
@@ -53,7 +55,7 @@ namespace Spire
 		class ShaderCompiler : public CoreLib::Basic::Object
 		{
 		public:
-			virtual CompileUnit Parse(CompileResult & result, String source, String fileName, IncludeHandler* includeHandler) = 0;
+			virtual CompileUnit Parse(CompileResult & result, String source, String fileName, IncludeHandler* includeHandler, Dictionary<String,String> const& preprocessorDefinitions) = 0;
 			virtual void Compile(CompileResult & result, CompilationContext & context, List<CompileUnit> & units, const CompileOptions & options) = 0;
 			void Compile(CompileResult & result, List<CompileUnit> & units, const CompileOptions & options)
 			{

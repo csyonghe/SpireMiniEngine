@@ -2,12 +2,10 @@
 #include "Engine.h"
 #include "MeshBuilder.h"
 #include "AnimationSynthesizer.h"
+#include <ppl.h>
 
 namespace GameEngine
 {
-    //#define DEBUG
-    
-
     class SearchGraphAnimationSynthesizer : public AnimationSynthesizer
     {
     private:
@@ -15,6 +13,7 @@ namespace GameEngine
         MotionGraph * motionGraph = nullptr;
         CatmullSpline & userPath;
         List<RefPtr<RSGState>> path;
+        List<int> parentCount;
         BoneTransformation lastTransformation;
         BoneTransformation nextTransformation;
         int   lastStateId = -1;     // id in path
@@ -23,24 +22,33 @@ namespace GameEngine
         int   nextNodeId = 0;
 
         int   currentSegmentId = 0;
+        int   minTransitionGap = 10000;
+        int   counter = 0;
         float lastStateTime = 0.f;
-        float goalThreshold = 25.0;
-        int   minTransitionGap = 60;
-
-        int counter = 0;
-
+        float goalThreshold = 30.0f;
+        float maxDeltaPos = 80.0f;
+       
     private:
+        void getMgStateParentCount()
+        {
+            int numStates = motionGraph->States.Count();
+
+            for (int i = 0; i < numStates; i++)
+                parentCount.Add(0);
+
+            for (int i = 0; i < numStates; i++)
+            {
+                for (auto child : motionGraph->States[i].ChildrenIds)
+                {
+                    parentCount[child] += 1;
+                }
+            }
+        }
         bool hasAchievedGoal(Vec3 pos, Vec3 goal)
         {
-            float distance = (goal - pos).Length();
-//#ifndef DEBUG
-//            counter++;
-//            if (counter % 100 == 0)
-//            {
-//                printf("Distance: %f\n", distance);
-//                counter = 0;
-//            }
-//#endif
+            auto d = (goal - pos);
+            d.y = 0.0f;
+            float distance = d.Length();
             if (distance < goalThreshold)
                 return true;
 
@@ -57,6 +65,29 @@ namespace GameEngine
 
             return false;
         }
+        bool hasExpanded(const List<RefPtr<RSGState>> & closeList, const SGState* statePtr)
+        {
+            for (auto p : closeList)
+            {
+                auto sgPtr = p->SGStateList.Last();
+                if (sgPtr->StateId == statePtr->StateId &&
+                    sgPtr->Yaw == statePtr->Yaw &&
+                    sgPtr->Pos == statePtr->Pos)
+                    return true;
+            }
+            return false;
+        }
+        bool isTransitionState(int i)
+        {
+            if (parentCount.Count() == 0)
+                getMgStateParentCount();
+
+            if (motionGraph->States[i].ChildrenIds.Count() > 1 ||
+                parentCount[i] > 1)
+                return true;
+            else
+                return false;
+        }
 
     public:
         SearchGraphAnimationSynthesizer(Skeleton * pSkeleton, MotionGraph * pMotionGraph, CatmullSpline & path)
@@ -64,15 +95,29 @@ namespace GameEngine
         {
             printf("start calculating optimal path.\n");
             clock_t start = clock();
-            GetOptimalPath(currentSegmentId, currentSegmentId + 1);
+            for (int i = 0; i < userPath.KeyPoints.Count(); i++)
+            //for(int i = 0; i < 2; i++)
+            {
+                currentSegmentId = i;
+                GetOptimalPathWithPrecomputeAndParallel(currentSegmentId, currentSegmentId + 1);
+                printf("----------------------------------------------\n");
+                printf("GetOptimalPath from %d to %d\n", currentSegmentId, currentSegmentId + 1);
+                printf("----------------------------------------------\n");
+            }
+            
+            //GetOptimalPath(currentSegmentId, currentSegmentId + 1);
             clock_t end = clock();
             double elapsed_secs = double(end - start) / CLOCKS_PER_SEC;
             printf("%lf seconds.\n", elapsed_secs);
         }
-
         virtual void GetPose(Pose & p, float time) override
         {
             time = time * motionGraph->Speed;
+            if (path.Count() == 0)
+            {
+                p = motionGraph->States[0].Pose;
+                return;
+            }
 
             if (lastStateId == -1 || (time - lastStateTime) > motionGraph->Duration)
             {
@@ -135,7 +180,42 @@ namespace GameEngine
                 p.Transforms[i] = BoneTransformation::Lerp(lastMG->Pose.Transforms[i], nextMG->Pose.Transforms[i], t);
             }
         }
-        void  GetOptimalPathWithPrecompute(int start, int end)
+        void CompactStates(RSGState* rsgState, const Vec3 & goalPos, float overThreshold)
+        {
+            while (true)
+            {
+                auto lastSG = rsgState->SGStateList.Last();
+
+                RefPtr<SGState> state = new SGState();
+                state->StateId = lastSG->MGStatePtr->ChildrenIds.First();
+                state->MGStatePtr = &(motionGraph->States[state->StateId]);
+
+                //Quaternion rotation = lastState->MGStatePtr->Pose.Transforms[0].Rotation;
+                //Quaternion::SetYawAngle(rotation, lastState->Yaw);
+                //Vec3 velocity = rotation.Transform(state->MGStatePtr->Velocity);
+                Matrix4 roty;
+                Matrix4::RotationY(roty, lastSG->Yaw);
+                Vec3 velocity = roty.TransformNormal(state->MGStatePtr->Velocity);
+
+                state->Pos = lastSG->Pos + velocity;
+
+                // hack
+                state->Pos.y = state->MGStatePtr->Pose.Transforms[0].Translation.y;
+
+                state->Yaw = lastSG->Yaw + state->MGStatePtr->YawAngularVelocity;
+                state->TimePassed = lastSG->TimePassed + 1;
+                state->DistancePassed = lastSG->DistancePassed + velocity.Length();
+                state->TransitionGap = 0;
+
+                rsgState->SGStateList.Add(state);
+                if (isTransitionState(state->StateId) ||
+                    rsgState->SGStateList.Count() > minTransitionGap ||
+                    hasAchievedGoal(state->Pos, goalPos) ||
+                    hasNoResult(state->Pos, goalPos, overThreshold))
+                    break;
+            }
+        }
+        void GetOptimalPathWithPrecompute(int start, int end)
         {
             auto comparator = [](const RefPtr<RSGState> & s0, const RefPtr<RSGState> & s1)
             {
@@ -145,13 +225,21 @@ namespace GameEngine
             List<RefPtr<RSGState>> expandedList;
 
             RefPtr<RSGState> startNode = new RSGState();
+            Vec3 goalPos = userPath.KeyPoints[end].Pos;
+            float overThreshold = 2.0f * (userPath.KeyPoints[end].Pos - userPath.KeyPoints[start].Pos).Length();
             if (path.Count() == 0)
             {
+                Vec3 tangent = userPath.KeyPoints[start + 1].Pos - userPath.KeyPoints[start].Pos;
+                tangent = tangent.Normalize();
+                float theta = acosf(tangent.x);
+                if (tangent.z > 0)
+                    theta = -theta;
+
                 RefPtr<SGState> state = new SGState();
                 state->Pos = userPath.KeyPoints[start].Pos;
                 state->StateId = 0;
                 state->MGStatePtr = &(motionGraph->States[0]);
-                state->Yaw = 0.f;
+                state->Yaw = theta;
                 state->TimePassed = 0.f;
                 state->DistancePassed = 0.f;
                 state->TransitionGap = 0;
@@ -171,9 +259,103 @@ namespace GameEngine
                 state->TransitionGap = 0;
                 startNode->SGStateList.Add(state);
             }
-        }
+            openList.push(startNode);
 
-        void  GetOptimalPath(int start, int end)
+            CompactStates(startNode.Ptr(), goalPos, overThreshold);
+            startNode->Cost = CalculateCost(*startNode.Ptr(), end);
+
+            while (true)
+            {
+                if (openList.size() == 0)
+                    break;
+
+                RefPtr<RSGState> expandedRSG = openList.top();
+                openList.pop();
+
+                //printf("sequence %d, id %d\n", expandedRSG->SGStateList.Last()->MGStatePtr->Sequence, expandedRSG->SGStateList.Last()->MGStatePtr->IdInsequence);
+                //printf("distance: %f\n", (expandedRSG->SGStateList.Last()->Pos - goalPos).Length());
+                //printf("yaw: %f\n\n", expandedRSG->SGStateList.Last()->Yaw);
+
+                auto expandedSG = expandedRSG->SGStateList.Last();
+                if (hasAchievedGoal(expandedSG->Pos, goalPos) ||
+                    hasNoResult(expandedSG->Pos, goalPos, overThreshold))
+                    break;
+                
+                int i = expandedSG->StateId;
+
+                for (int j = 0; j < motionGraph->States.Count(); j++)
+                {
+                    if (! isTransitionState(j))
+                        continue;
+
+                    StateTransitionInfo info;
+                    if (motionGraph->TransitionDictionary.TryGetValue(IndexPair(i, j), info))
+                    {
+                        if (info.DeltaPos.Length() > maxDeltaPos)
+                            continue;
+
+                        RefPtr<RSGState> rsgState = new RSGState();
+                        if (info.ShortestPath.Count() < 2)
+                            printf("Error: info.ShortestPath.Count() < 2");
+                        for (int k = 1; k < info.ShortestPath.Count(); k++)
+                        {
+                            RefPtr<SGState> sgState = new SGState();
+                            int index = info.ShortestPath[k];
+                            auto state = motionGraph->States[index];
+                            SGState* lastSGState = nullptr;
+                            if (rsgState->SGStateList.Count() == 0)
+                                lastSGState = expandedSG.Ptr();
+                            else
+                                lastSGState = rsgState->SGStateList.Last().Ptr();
+
+                            float yaw = lastSGState->Yaw;
+                            Quaternion rotation = motionGraph->States[index - 1].Pose.Transforms[0].Rotation;
+                            Quaternion::SetYawAngle(rotation, yaw);
+                            Vec3 velocity = rotation.Transform(state.Velocity);
+                            sgState->Pos = lastSGState->Pos + velocity;
+                            sgState->Yaw = yaw + state.YawAngularVelocity;
+                            sgState->StateId = index;
+                            sgState->TimePassed = lastSGState->TimePassed + 1;
+                            sgState->DistancePassed = lastSGState->DistancePassed + velocity.Length();
+                            sgState->MGStatePtr = &motionGraph->States[index];
+                            sgState->TransitionGap = 0;
+                            rsgState->SGStateList.Add(sgState);
+                            if (hasAchievedGoal(sgState->Pos, goalPos) ||
+                                hasNoResult(sgState->Pos, goalPos, overThreshold))
+                                break;
+                        }
+                        rsgState->Parent = expandedRSG.Ptr();
+                        rsgState->Cost = CalculateCost(*rsgState.Ptr(), end);
+                        //rsgState->Cost = (rsgState->SGStateList.Last()->Pos - goalPos).Length();
+                        if (hasExpanded(expandedList, rsgState->SGStateList.Last().Ptr()))
+                            continue;
+                        openList.push(rsgState);
+                        expandedList.Add(rsgState);
+                    }
+                }
+            }
+
+            // extract optimal Path
+            List<RefPtr<RSGState>> optimalPath;
+            if (expandedList.Count() == 0)
+            {
+                printf("No expand list");
+                return;
+            }
+
+            auto p = expandedList.Last();
+            while (p)
+            {
+                optimalPath.Add(p);
+                p = p->Parent;
+            }
+
+            for (int i = optimalPath.Count() - 1; i >= 0; i--)
+            {
+                path.Add(optimalPath[i]);
+            }
+        }
+        void GetOptimalPath(int start, int end)
         {
             auto comparator = [](const RefPtr<RSGState> & s0, const RefPtr<RSGState> & s1)
             {
@@ -182,7 +364,7 @@ namespace GameEngine
             std::priority_queue<RefPtr<RSGState>, std::vector<RefPtr<RSGState>>, decltype(comparator)> openList(comparator);
             List<RefPtr<RSGState>> expandedList;
 
-            float overThreshold = 5.0f * (userPath.KeyPoints[end].Pos - userPath.KeyPoints[start].Pos).Length();
+            float overThreshold = 2.0f * (userPath.KeyPoints[end].Pos - userPath.KeyPoints[start].Pos).Length();
             RefPtr<RSGState> startNode = new RSGState();
             if (path.Count() == 0)
             {
@@ -217,41 +399,7 @@ namespace GameEngine
                 state->TransitionGap = 0;
                 startNode->SGStateList.Add(state);
             }
-
-            while (true)
-            {
-                auto lastState = startNode->SGStateList.Last();
-
-                RefPtr<SGState> state = new SGState();
-                state->StateId = lastState->MGStatePtr->ChildrenIds.First();
-                state->MGStatePtr = &(motionGraph->States[state->StateId]);
-                     
-                //Quaternion rotation = lastState->MGStatePtr->Pose.Transforms[0].Rotation;
-                //Quaternion::SetYawAngle(rotation, lastState->Yaw);
-                //Vec3 velocity = rotation.Transform(state->MGStatePtr->Velocity);
-                Matrix4 roty;
-                Matrix4::RotationY(roty, lastState->Yaw);
-                Vec3 velocity = roty.TransformNormal(state->MGStatePtr->Velocity);
-
-                state->Pos = userPath.KeyPoints[start].Pos + velocity;
-                state->Yaw = lastState->Yaw + state->MGStatePtr->YawAngularVelocity;
-                state->TimePassed = lastState->TimePassed + 1;
-                state->DistancePassed = lastState->DistancePassed + velocity.Length();
-                state->TransitionGap = 0;
-
-                startNode->SGStateList.Add(state);
-
-                if (state->MGStatePtr->ChildrenIds.Count() > 1 ||
-                    startNode->SGStateList.Count() > minTransitionGap ||
-                    hasAchievedGoal(state->Pos, userPath.KeyPoints[end].Pos))
-                    break;
-                if (hasNoResult(state->Pos, userPath.KeyPoints[end].Pos, overThreshold))
-                {
-                    Print("Cannot find a path to achieve result. \n");
-                    return;
-                }
-            }
-
+            CompactStates(startNode.Ptr(), userPath.KeyPoints[end].Pos, overThreshold);
             startNode->Parent = nullptr;
             startNode->Cost = CalculateCost(*startNode, end);
             openList.push(startNode);
@@ -277,11 +425,14 @@ namespace GameEngine
                 if (hasAchievedGoal(expandedRSG->SGStateList.Last()->Pos, userPath.KeyPoints[end].Pos))
                     break;
 
+                float distance = (expandedRSG->SGStateList.Last()->Pos - userPath.KeyPoints[end].Pos).Length();
+                printf("Distance: %f\n", distance);
+
                 auto expandedSG = expandedRSG->SGStateList.Last();
 
-               /* printf("(Sequence %d, Id %d) , Pos (%f, %f)\n", 
+                printf("(Sequence %d, Id %d) , Pos (%f, %f)\n", 
                     expandedSG->MGStatePtr->Sequence, expandedSG->MGStatePtr->IdInsequence,
-                    expandedSG->Pos.x, expandedSG->Pos.z);*/
+                    expandedSG->Pos.x, expandedSG->Pos.z);
 
                 auto childrenList = expandedSG->MGStatePtr->ChildrenIds;
                 for (auto child : childrenList)
@@ -302,45 +453,19 @@ namespace GameEngine
                     Vec3 velocity = roty.TransformNormal(node->MGStatePtr->Velocity);
 
                     node->Pos = expandedSG->Pos + velocity;
+
+                    // hack
+                    node->Pos.y = node->MGStatePtr->Pose.Transforms[0].Translation.y;
+
                     node->DistancePassed = expandedSG->DistancePassed + velocity.Length();
                     node->TimePassed = expandedSG->TimePassed + 1;
                     node->TransitionGap = 0;
 
                     rsgNode->SGStateList.Add(node);
-
-                    while (true)
-                    {
-                        auto lastSG = rsgNode->SGStateList.Last();
-
-                        RefPtr<SGState> temp = new SGState();
-                        temp->StateId = lastSG->MGStatePtr->ChildrenIds.First();
-                        temp->MGStatePtr = &(motionGraph->States[temp->StateId]);
-                        temp->Yaw = lastSG->Yaw + temp->MGStatePtr->YawAngularVelocity;
-
-                        //Quaternion rotation2 = lastSG->MGStatePtr->Pose.Transforms[0].Rotation;
-                        //Quaternion::SetYawAngle(rotation2, lastSG->Yaw);
-                        //Vec3 velocity2 = rotation2.Transform(temp->MGStatePtr->Velocity);
-                        Matrix4 roty2;
-                        Matrix4::RotationY(roty2, lastSG->Yaw);
-                        Vec3 velocity2 = roty2.TransformNormal(temp->MGStatePtr->Velocity);
-
-                        temp->Pos = lastSG->Pos + velocity2;
-                        temp->DistancePassed = lastSG->DistancePassed + velocity2.Length();
-                        temp->TimePassed = lastSG->TimePassed + 1;
-                        temp->TransitionGap = 0;
-                        rsgNode->SGStateList.Add(temp);
-
-                        if (temp->MGStatePtr->ChildrenIds.Count() > 1 ||
-                            rsgNode->SGStateList.Count() > minTransitionGap ||
-                            hasAchievedGoal(temp->Pos, userPath.KeyPoints[end].Pos) ||
-                            hasNoResult(temp->Pos, userPath.KeyPoints[end].Pos, overThreshold))
-                            break;
-                    }
-                    
-                    if (hasNoResult(rsgNode->SGStateList.Last()->Pos, userPath.KeyPoints[end].Pos, overThreshold))
-                    {
+                    CompactStates(rsgNode.Ptr(), userPath.KeyPoints[end].Pos, overThreshold);
+                    if (hasExpanded(expandedList, rsgNode->SGStateList.Last().Ptr()))
                         continue;
-                    }
+
                     rsgNode->Cost = CalculateCost(*rsgNode, end);
                     openList.push(rsgNode);
 
@@ -401,12 +526,194 @@ namespace GameEngine
             }
 #endif
         }
+        void GetOptimalPathWithPrecomputeAndParallel(int start, int end)
+        {
+            auto comparator = [](const RefPtr<RSGState> & s0, const RefPtr<RSGState> & s1)
+            {
+                return s0->Cost > s1->Cost;
+            };
+            std::priority_queue<RefPtr<RSGState>, std::vector<RefPtr<RSGState>>, decltype(comparator)> openList(comparator);
+            
+            EnumerableDictionary<RSGStateKey, RefPtr<RSGState>> closeDictionary;
+            EnumerableDictionary<RSGStateKey, RefPtr<RSGState>> openDictionary;
+
+            RefPtr<RSGState> startNode = new RSGState();
+            Vec3 goalPos = userPath.KeyPoints[end].Pos;
+            float overThreshold = 2.0f * (userPath.KeyPoints[end].Pos - userPath.KeyPoints[start].Pos).Length();
+            if (path.Count() == 0)
+            {
+                Vec3 tangent = userPath.KeyPoints[start + 1].Pos - userPath.KeyPoints[start].Pos;
+                tangent = tangent.Normalize();
+                float theta = acosf(tangent.x);
+                if (tangent.z > 0)
+                    theta = -theta;
+
+                RefPtr<SGState> state = new SGState();
+                state->Pos = userPath.KeyPoints[start].Pos;
+                state->StateId = 0;
+                state->MGStatePtr = &(motionGraph->States[0]);
+                state->Yaw = theta;
+                state->TimePassed = 0.f;
+                state->DistancePassed = 0.f;
+                state->TransitionGap = 0;
+                startNode->SGStateList.Add(state);
+            }
+            else
+            {
+                auto lastEnd = path[path.Count() - 1]->SGStateList.Last();
+
+                RefPtr<SGState> state = new SGState();
+                state->Pos = lastEnd->Pos;
+                state->StateId = lastEnd->StateId;
+                state->MGStatePtr = lastEnd->MGStatePtr;
+                state->Yaw = lastEnd->Yaw;
+                state->TimePassed = 0.f;
+                state->DistancePassed = 0.f;
+                state->TransitionGap = 0;
+                startNode->SGStateList.Add(state);
+            }
+            openList.push(startNode);
+            openDictionary[startNode->GetKey()] = startNode;
+
+            CompactStates(startNode.Ptr(), goalPos, overThreshold);
+            CalculateFGCost(startNode.Ptr(), end);
+
+            while (true)
+            {
+                if (openList.size() == 0)
+                    break;
+
+                RefPtr<RSGState> expandedRSG = openList.top();
+                openList.pop();
+                openDictionary.Remove(expandedRSG->GetKey());
+                if (expandedRSG->isDeleted)
+                    continue;
+
+                closeDictionary[expandedRSG->GetKey()] = expandedRSG;
+
+                auto expandedSG = expandedRSG->SGStateList.Last();
+                if (hasAchievedGoal(expandedSG->Pos, goalPos) ||
+                    hasNoResult(expandedSG->Pos, goalPos, overThreshold))
+                    break;
+
+                int i = expandedSG->StateId;
+
+                for (int j = 0; j < motionGraph->States.Count(); j++)
+                {
+                    if (!isTransitionState(j))
+                        continue;
+
+                    StateTransitionInfo info;
+                    if (motionGraph->TransitionDictionary.TryGetValue(IndexPair(i, j), info))
+                    {
+                        if (info.DeltaPos.Length() > maxDeltaPos)
+                            continue;
+
+                        RefPtr<RSGState> rsgState = new RSGState();
+                        if (info.ShortestPath.Count() < 2)
+                            printf("Error: info.ShortestPath.Count() < 2");
+                        for (int k = 1; k < info.ShortestPath.Count(); k++)
+                        {
+                            RefPtr<SGState> sgState = new SGState();
+                            int index = info.ShortestPath[k];
+                            auto state = motionGraph->States[index];
+                            SGState* lastSGState = nullptr;
+                            if (rsgState->SGStateList.Count() == 0)
+                                lastSGState = expandedSG.Ptr();
+                            else
+                                lastSGState = rsgState->SGStateList.Last().Ptr();
+
+                            float yaw = lastSGState->Yaw;
+                            Quaternion rotation = motionGraph->States[index - 1].Pose.Transforms[0].Rotation;
+                            Quaternion::SetYawAngle(rotation, yaw);
+                            Vec3 velocity = rotation.Transform(state.Velocity);
+                            sgState->Pos = lastSGState->Pos + velocity;
+                            sgState->Yaw = yaw + state.YawAngularVelocity;
+                            sgState->StateId = index;
+                            sgState->TimePassed = lastSGState->TimePassed + 1;
+                            sgState->DistancePassed = lastSGState->DistancePassed + velocity.Length();
+                            sgState->MGStatePtr = &motionGraph->States[index];
+                            sgState->TransitionGap = 0;
+                            rsgState->SGStateList.Add(sgState);
+                            if (hasAchievedGoal(sgState->Pos, goalPos) ||
+                                hasNoResult(sgState->Pos, goalPos, overThreshold))
+                                break;
+                        }
+                        rsgState->Parent = expandedRSG.Ptr();
+                        CalculateFGCost(rsgState.Ptr(), end);
+                        if (closeDictionary.ContainsKey(rsgState->GetKey()))
+                            continue;
+
+                        RefPtr<RSGState> existingState;
+                        if (openDictionary.TryGetValue(rsgState->GetKey(), existingState))
+                        {
+                            if (rsgState->G < existingState->G)
+                            {
+                                existingState->isDeleted = true;
+                            }
+                        }
+                        
+                        openList.push(rsgState);
+                        openDictionary[rsgState->GetKey()] = rsgState;
+                    }
+                }
+            }
+
+            // extract optimal Path
+            List<RefPtr<RSGState>> optimalPath;
+
+            auto p = closeDictionary.Last().Value;
+            while (p)
+            {
+                optimalPath.Add(p);
+                p = p->Parent;
+            }
+
+            for (int i = optimalPath.Count() - 1; i >= 0; i--)
+            {
+                path.Add(optimalPath[i]);
+            }
+        }
+        void CalculateFGCost(RSGState* statePtr, int end)
+        {
+            auto sgState = statePtr->SGStateList.Last();
+
+            float walk_speed = 70.0f;
+            float turn_speed = Math::Pi * 0.5f / 1.5f;
+            Vec3 tangent = userPath.KeyPoints[end].Pos - sgState->Pos;
+            tangent.y = 0.0f;
+            tangent = tangent.Normalize();
+            float theta = acosf(tangent.x);
+            if (tangent.z > 0)
+                theta = -theta;
+
+            float g = sgState->DistancePassed / walk_speed;
+            Vec3 dp = (userPath.KeyPoints[end].Pos - sgState->Pos);
+            dp.y = 0.0f;
+            float h = (dp.Length() / walk_speed + abs(theta - sgState->Yaw) / turn_speed) * 120.0f;
+            statePtr->G = g;
+            statePtr->Cost = g + h;
+        }
         float CalculateCost(const RSGState & state, int end)
         {
             auto sgState = state.SGStateList.Last();
 
-            float g = sgState->DistancePassed;
-            float h = (userPath.KeyPoints[end].Pos - sgState->Pos).Length();
+            //float g = sgState->DistancePassed;
+            //float h = (userPath.KeyPoints[end].Pos - sgState->Pos).Length();
+            float walk_speed = 70.0f;
+            float turn_speed = Math::Pi * 0.5f / 1.5f;
+            //float turn_speed = Math::Pi;
+            Vec3 tangent = userPath.KeyPoints[end].Pos - sgState->Pos;
+            tangent.y = 0.0f;
+            tangent = tangent.Normalize();
+            float theta = acosf(tangent.x);
+            if (tangent.z > 0)
+                theta = -theta;
+
+            float g = sgState->DistancePassed / walk_speed;
+            Vec3 dp = (userPath.KeyPoints[end].Pos - sgState->Pos);
+            dp.y = 0.0f;
+            float h = (dp.Length() / walk_speed + abs(theta - sgState->Yaw) / turn_speed) * 120.0f;
             return g + h;
         }
     };
@@ -514,16 +821,16 @@ namespace GameEngine
             Animation->GetPose(nextPose, time);
     }
 
-    void MotionGraphMeshActor::GetDrawables(RendererService * renderService)
+    void MotionGraphMeshActor::GetDrawables(const GetDrawablesParameter & params)
     {
         if (!drawable)
-            drawable = renderService->CreateSkeletalDrawable(Mesh, Skeleton, MaterialInstance);
+            drawable = params.rendererService->CreateSkeletalDrawable(Mesh, Skeleton, MaterialInstance);
         if (!pathIndicatorDrawable && path)
         {
             diskIndicatorMaterial = *Engine::Instance()->GetLevel()->LoadMaterial("LineIndicator.material");
             //diskIndicatorMaterial.SetVariable("solidColor", DynamicVariable(Vec3::Create(0.7f, 0.7f, 0.0f)));
             MeshBuilder mb;
-            mb.AddDisk(path->KeyPoints.Last().Pos + Vec3::Create(0.0f, 1.0f, 0.0f), Vec3::Create(0.f, 1.f, 0.f), 20.0f, 18.0f, 32);
+            mb.AddDisk(path->KeyPoints.Last().Pos + Vec3::Create(0.0f, 1.0f, 0.0f), Vec3::Create(0.f, 1.f, 0.f), 27.0f, 24.0f, 32);
             for (int i = 0; i < path->KeyPoints.Count() - 1; i++)
             {
                 mb.AddLine(path->KeyPoints[i].Pos + Vec3::Create(0.0f, 1.0f, 0.0f),
@@ -532,16 +839,16 @@ namespace GameEngine
             }
             
             auto mesh = mb.ToMesh();
-            pathIndicatorDrawable = renderService->CreateStaticDrawable(&mesh, &diskIndicatorMaterial);
+            pathIndicatorDrawable = params.rendererService->CreateStaticDrawable(&mesh, &diskIndicatorMaterial);
         }
 
         drawable->UpdateTransformUniform(localTransform, nextPose);
         Matrix4 scaleMatrix;
         Matrix4::Scale(scaleMatrix, 2.0f, 2.0f, 2.0f);
         pathIndicatorDrawable->UpdateTransformUniform(scaleMatrix);
-        renderService->Add(drawable.Ptr());
+        params.sink->AddDrawable(drawable.Ptr());
         if (pathIndicatorDrawable)
-            renderService->Add(pathIndicatorDrawable.Ptr());
+            params.sink->AddDrawable(pathIndicatorDrawable.Ptr());
     }
 
     void MotionGraphMeshActor::OnLoad()
