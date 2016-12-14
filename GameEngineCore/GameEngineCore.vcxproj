@@ -154,6 +154,7 @@
     <ClCompile Include="Actor.cpp" />
     <ClCompile Include="AnimationSynthesizer.cpp" />
     <ClCompile Include="AnimationVisualizationActor.cpp" />
+    <ClCompile Include="AtmospherePostRenderPass.cpp" />
     <ClCompile Include="CameraActor.cpp" />
     <ClCompile Include="CatmullSpline.cpp" />
     <ClCompile Include="DeferredLightingPostRenderPass.cpp" />

@@ -4197,6 +4197,11 @@ namespace VK
 			throw CoreLib::NotImplementedException();
 		}
 
+		Texture3D * CreateTexture3D(TextureUsage /*usage*/, int /*w*/, int /*h*/, int /*layers*/, int /*mipLevelCount*/, StorageFormat /*pFormat*/)
+		{
+			throw CoreLib::NotImplementedException();
+		}
+
 		TextureSampler* CreateTextureSampler()
 		{
 			return new TextureSampler();

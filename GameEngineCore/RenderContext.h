@@ -198,6 +198,7 @@ namespace GameEngine
 	public:
 		virtual void Init(Renderer * renderer) = 0;
 		virtual void Run(CoreLib::List<RenderPassInstance> & renderPasses, const RenderProcedureParameters & params) = 0;
+		virtual RenderTarget* GetOutput() = 0;
 	};
 
 	class ShadowMapResource

@@ -54,8 +54,8 @@ namespace CoreLib
 		{
 			if (currentCommandWriter)
 			{
-				wchar_t buffer[1024];
-				swprintf_s(buffer, format, args...);
+				char buffer[1024];
+				snprintf(buffer, 1024, format, args...);
 				currentCommandWriter->Write(buffer);
 			}
 		}

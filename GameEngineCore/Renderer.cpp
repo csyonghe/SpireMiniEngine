@@ -269,7 +269,7 @@ namespace GameEngine
 		}
 		Texture2D * GetRenderedImage()
 		{
-			return sharedRes.LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8)->Texture.Ptr();
+			return renderProcedure->GetOutput()->Texture.Ptr();
 		}
 	};
 

@@ -50,7 +50,9 @@ module LightingParams
     public @LightData int numCascades;
     public @LightData mat4[8] lightMatrix;
     public @LightData vec4[2] zPlanes;
+    [Binding: "16"]
     public @LightData Texture2DArrayShadow shadowMapArray;
+    [Binding: "16"]
     public @LightData SamplerState shadowMapSampler;
 }
 
@@ -110,7 +112,7 @@ module NoAnimation
     }
     public vec3 worldTransformNormal(vec3 norm)
     {
-        return (normalMatrix * vec4(norm, 1)).xyz;
+        return normalize((normalMatrix * vec4(norm, 1)).xyz);
     }
 }
 
@@ -154,6 +156,8 @@ module SkeletalAnimation
             result.tangent += tp * boneWeight;
             //result.tangent = tp;
         }
+        result.normal = normalize(result.normal);
+        result.tangent = normalize(result.tangent);
         return result;
     }
     public vec3 coarseVertPos = skinning.pos;

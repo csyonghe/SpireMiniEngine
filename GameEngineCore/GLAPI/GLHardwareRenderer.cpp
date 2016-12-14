@@ -696,7 +696,7 @@ namespace GLL
 				int blocks = (int)(ceil(width / 4.0f) * ceil(height / 4.0f));
 				int bufferSize = storageFormat == StorageFormat::BC5 ? blocks * 16 : blocks * 8;
 				glBindTexture(GL_TEXTURE_2D_ARRAY, Handle);
-				glCompressedTexImage3D(GL_TEXTURE_2D, mipLevel, internalFormat, width, height, layerOffset, 0, bufferSize, data);
+				glCompressedTexImage3D(GL_TEXTURE_2D_ARRAY, mipLevel, internalFormat, width, height, layerOffset, 0, bufferSize, data);
 				glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
 			}
 			else
@@ -727,6 +727,76 @@ namespace GLL
 			glBindTexture(GL_TEXTURE_2D_ARRAY, Handle);
 			glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
 			glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+		}
+	};
+
+	class Texture3D : public Texture, public GameEngine::Texture3D
+	{
+	public:
+		Texture3D()
+		{
+			BindTarget = GL_TEXTURE_3D;
+		}
+		~Texture3D()
+		{
+			if (Handle)
+			{
+				glDeleteTextures(1, &Handle);
+				Handle = 0;
+			}
+		}
+		StorageFormat GetFormat()
+		{
+			return storageFormat;
+		}
+		void GetSize(int & width, int & height, int & layers)
+		{
+			glBindTexture(GL_TEXTURE_3D, Handle);
+			glGetTexLevelParameteriv(GL_TEXTURE_3D, 0, GL_TEXTURE_WIDTH, &width);
+			glGetTexLevelParameteriv(GL_TEXTURE_3D, 0, GL_TEXTURE_HEIGHT, &height);
+			glGetTexLevelParameteriv(GL_TEXTURE_3D, 0, GL_TEXTURE_DEPTH, &layers);
+
+			glBindTexture(GL_TEXTURE_3D, 0);
+		}
+		virtual void SetData(int mipLevel, int xOffset, int yOffset, int layerOffset, int width, int height, int layerCount, DataType inputType, void * data) override
+		{
+			this->internalFormat = TranslateStorageFormat(storageFormat);
+			this->format = TranslateDataTypeToFormat(inputType);
+			this->type = TranslateDataTypeToInputType(inputType);
+			if (this->internalFormat == GL_DEPTH_COMPONENT16 || this->internalFormat == GL_DEPTH_COMPONENT24 || this->internalFormat == GL_DEPTH_COMPONENT32)
+				this->format = GL_DEPTH_COMPONENT;
+			else if (this->internalFormat == GL_DEPTH24_STENCIL8)
+				this->format = GL_DEPTH_STENCIL;
+			if (storageFormat == StorageFormat::BC1 || storageFormat == StorageFormat::BC5)
+			{
+				assert(xOffset == 0 && yOffset == 0);
+				int blocks = (int)(ceil(width / 4.0f) * ceil(height / 4.0f));
+				int bufferSize = storageFormat == StorageFormat::BC5 ? blocks * 16 : blocks * 8;
+				glBindTexture(GL_TEXTURE_3D, Handle);
+				glCompressedTexImage3D(GL_TEXTURE_3D, mipLevel, internalFormat, width, height, layerOffset, 0, bufferSize, data);
+				glBindTexture(GL_TEXTURE_3D, 0);
+			}
+			else
+			{
+				glBindTexture(GL_TEXTURE_3D, Handle);
+				glTexSubImage3D(GL_TEXTURE_3D, mipLevel, xOffset, yOffset, layerOffset, width, height, layerCount, this->format, this->type, data);
+				glBindTexture(GL_TEXTURE_3D, 0);
+			}
+		}
+		int GetComponents()
+		{
+			switch (this->format)
+			{
+			case GL_RED:
+				return 1;
+			case GL_RG:
+				return 2;
+			case GL_RGB:
+				return 3;
+			case GL_RGBA:
+				return 4;
+			}
+			return 4;
 		}
 	};
 
@@ -2598,6 +2668,30 @@ namespace GLL
 			auto rs = new Texture2D();
 			rs->Handle = handle;
 			rs->BindTarget = GL_TEXTURE_2D;
+			return rs;
+		}
+
+		virtual Texture3D* CreateTexture3D(TextureUsage /*usage*/, int w, int h, int depth, int mipLevelCount, StorageFormat format) override
+		{
+			GLuint handle = 0;
+			if (glCreateTextures)
+				glCreateTextures(GL_TEXTURE_3D, 1, &handle);
+			else
+			{
+				glGenTextures(1, &handle);
+				glBindTexture(GL_TEXTURE_3D, handle);
+			}
+			glBindTexture(GL_TEXTURE_3D, handle);
+			glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexParameterf(GL_TEXTURE_3D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8.0f);
+			glTextureStorage3D(handle, mipLevelCount, TranslateStorageFormat(format), w, h, depth);
+			glBindTexture(GL_TEXTURE_3D, 0);
+
+			auto rs = new Texture3D();
+			rs->Handle = handle;
+			rs->storageFormat = format;
+			rs->BindTarget = GL_TEXTURE_3D;
 			return rs;
 		}
 

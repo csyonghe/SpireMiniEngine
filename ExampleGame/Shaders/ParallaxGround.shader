@@ -16,13 +16,15 @@ module MaterialPattern
     @MaterialUniform Texture2D albedoMap;
     @MaterialUniform Texture2D normalMap;
     @MaterialUniform Texture2D displacementMap;
+    @MaterialUniform float uvScale;
+
     require SamplerState textureSampler;
 
     vec3 viewDirTan = WorldSpaceToTangentSpace(normalize(cameraPos - pos));
     using pom = ParallaxOcclusionMapping(
         heightTexture: displacementMap,
         viewDirTangentSpace: WorldSpaceToTangentSpace(normalize(cameraPos - pos)),
-        uv: vertUV,
+        uv: vertUV * uvScale,
         parallaxScale: 0.02
     );
     

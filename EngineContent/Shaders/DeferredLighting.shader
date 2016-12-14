@@ -3,14 +3,19 @@ shader DeferredLighting : StandardPipeline
 	public @MeshVertex vec2 vertPos;
 	public @MeshVertex vec2 vertUV;
 	public using SystemUniforms;
-	public using LightingParams;
 	
+	[Binding: "0"]
 	@ViewUniform Texture2D albedoTex;
+	[Binding: "1"]
 	@ViewUniform Texture2D pbrTex;
+	[Binding: "2"]	
 	@ViewUniform Texture2D normalTex;
+	[Binding: "3"]
 	@ViewUniform Texture2D depthTex;
 
-    public vec4 projCoord = vec4(vertPos.xy, 0.0, 1.0);
+	public using LightingParams;
+
+	public vec4 projCoord = vec4(vertPos.xy, 0.0, 1.0);
 
 	public vec3 normal = normalTex.Sample(textureSampler, vertUV).xyz * 2.0 - 1.0;
 	public vec3 pbr = pbrTex.Sample(textureSampler, vertUV).xyz;
@@ -20,13 +25,12 @@ shader DeferredLighting : StandardPipeline
 	public vec3 albedo = albedoTex.Sample(textureSampler, vertUV).xyz;
 	public float selfShadow(vec3 x) { return 1.0; }
     vec3 lightParam = vec3(roughness, metallic, specular);
-	float z = depthTex.Sample(textureSampler, vertUV).r*2-1;
+	float z = depthTex.Sample(textureSampler, vertUV).r;
     float x = vertUV.x*2-1;
     float y = vertUV.y*2-1;
-	vec4 position = invViewProjTransform * vec4(x, y, -z, 1.0f);
+	vec4 position = invViewProjTransform * vec4(x, y, z, 1.0f);
 	vec3 pos = position.xyz / position.w;
 	using lighting = Lighting();
 
     public out @Fragment vec4 outputColor = vec4(lighting.result, 1.0);
-    //public out @fs vec4 outputColor = vec4(pos, 1.0);
 }

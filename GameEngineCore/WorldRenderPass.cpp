@@ -38,11 +38,12 @@ namespace GameEngine
 		pipelineBinding.BindUniformBuffer(4, sharedRes->lightUniformBuffer.Ptr());
 		int k = 0;
 		Array<GameEngine::Texture*, MaxTextureBindings> textures;
-		pipelineBinding.BindTexture(sharedRes->GetTextureBindingStart(), sharedRes->shadowMapResources.shadowMapArray.Ptr(), sharedRes->shadowSampler.Ptr());
 
 		material->FillInstanceUniformBuffer([&](String tex) {textures.Add(sceneRes->LoadTexture(tex)); }, [](auto) {}, [](int) {});
 		for (auto texture : textures)
-			pipelineBinding.BindTexture(sharedRes->GetTextureBindingStart() + 1 + k++, texture, sharedRes->textureSampler.Ptr());
+			pipelineBinding.BindTexture(sharedRes->GetTextureBindingStart() + k++, texture, sharedRes->textureSampler.Ptr());
+
+		pipelineBinding.BindTexture(sharedRes->GetTextureBindingStart() + 16, sharedRes->shadowMapResources.shadowMapArray.Ptr(), sharedRes->shadowSampler.Ptr());
 
 		return pipelineClass.pipeline->CreateInstance(pipelineBinding);
 	}

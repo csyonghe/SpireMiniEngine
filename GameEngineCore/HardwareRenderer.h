@@ -391,6 +391,15 @@ namespace GameEngine
 		virtual void BuildMipmaps() = 0;
 	};
 
+	class Texture3D : public Texture
+	{
+	protected:
+		Texture3D() {};
+	public:
+		virtual void GetSize(int &width, int &height, int &depth) = 0;
+		virtual void SetData(int mipLevel, int xOffset, int yOffset, int zOffset, int width, int height, int depth, DataType inputType, void * data) = 0;
+	};
+
 	class TextureSampler : public CoreLib::RefObject
 	{
 	protected:
@@ -685,6 +694,7 @@ namespace GameEngine
 		virtual Buffer* CreateMappedBuffer(BufferUsage usage) = 0;
 		virtual Texture2D* CreateTexture2D(TextureUsage usage) = 0;
 		virtual Texture2DArray* CreateTexture2DArray(TextureUsage usage, int width, int height, int layers, int mipLevelCount, StorageFormat format) = 0;
+		virtual Texture3D* CreateTexture3D(TextureUsage usage, int width, int height, int depth, int mipLevelCount, StorageFormat format) = 0;
 		virtual TextureSampler * CreateTextureSampler() = 0;
 		virtual Shader* CreateShader(ShaderType stage, const char* data, int size) = 0;
 		virtual RenderTargetLayout* CreateRenderTargetLayout(CoreLib::ArrayView<TextureUsage> bindings) = 0;

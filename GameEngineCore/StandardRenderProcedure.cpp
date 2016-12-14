@@ -68,7 +68,10 @@ namespace GameEngine
 			if (deferredLightingOutput)
 				sharedRes->DestroyRenderOutput(deferredLightingOutput);
 		}
-
+		virtual RenderTarget* GetOutput() override
+		{
+			return sharedRes->LoadSharedRenderTarget("litAtmosphereColor", StorageFormat::RGBA_8).Ptr();
+		}
 		virtual void Init(Renderer * renderer) override
 		{
 			sharedRes = renderer->GetSharedResource();
@@ -100,6 +103,8 @@ namespace GameEngine
 				);
 				forwardBaseInstance = forwardRenderPass->CreateInstance(forwardBaseOutput, &viewUniform, sizeof(viewUniform));
 			}
+
+			renderer->RegisterPostRenderPass(CreateAtmospherePostRenderPass());
 		}
 		virtual void Run(CoreLib::List<RenderPassInstance>& renderPasses, const RenderProcedureParameters & params) override
 		{

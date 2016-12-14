@@ -34,7 +34,7 @@ namespace GameEngine
 			pipelineBuilder->SetBindingLayout(offset + 1, BindingType::Texture); // PBR
 			pipelineBuilder->SetBindingLayout(offset + 2, BindingType::Texture); // Normal
 			pipelineBuilder->SetBindingLayout(offset + 3, BindingType::Texture); // Depth
-			pipelineBuilder->SetBindingLayout(offset + 7, BindingType::Texture); // Shadow
+			pipelineBuilder->SetBindingLayout(offset + 16, BindingType::Texture); // Shadow
 		}
 		virtual void UpdatePipelineBinding(PipelineBinding & binding, RenderAttachments & attachments) override
 		{
@@ -48,7 +48,7 @@ namespace GameEngine
 			binding.BindTexture(offset + 1, pbrBuffer->Texture.Ptr(), sharedRes->nearestSampler.Ptr());
 			binding.BindTexture(offset + 2, normalBuffer->Texture.Ptr(), sharedRes->nearestSampler.Ptr());
 			binding.BindTexture(offset + 3, depthBuffer->Texture.Ptr(), sharedRes->nearestSampler.Ptr());
-			binding.BindTexture(offset + 7, sharedRes->shadowMapResources.shadowMapArray.Ptr(), sharedRes->shadowSampler.Ptr());
+			binding.BindTexture(offset + 16, sharedRes->shadowMapResources.shadowMapArray.Ptr(), sharedRes->shadowSampler.Ptr());
 			attachments.SetAttachment(0, litColorBuffer->Texture.Ptr());
 		}
 		virtual String GetShaderFileName() override
