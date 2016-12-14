@@ -451,7 +451,7 @@ enum
 	@note The backing memory of the returned code buffer is owned by the SpireCompilationResult object. Destroying the SpireCompilationResult object will render this code
 	buffer unusable.
 	*/
-	SPIRE_API char * spGetShaderStageSource(SpireCompilationResult * result, const char * shaderName, const char * stage, int * length);
+	SPIRE_API const char * spGetShaderStageSource(SpireCompilationResult * result, const char * shaderName, const char * stage, int * length);
 
 	/*!
 	@brief Destroys the SpireCompilationResult object.

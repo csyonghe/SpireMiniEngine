@@ -3,6 +3,8 @@
 #define CORE_LIB_SECURE_CRT_H
 #include <stdarg.h>
 #include <stdlib.h>
+#include <string.h>
+#include <wchar.h>
 
 inline void memcpy_s(void *dest, size_t numberOfElements, const void * src, size_t count)
 {
@@ -22,9 +24,9 @@ inline size_t fread_s(void * buffer, size_t bufferSize, size_t elementSize, size
 	return fread(buffer, elementSize, count, stream);
 }
 
-inline size_t wcsnlen_s(const wchar_t * str, size_t numberofElements)
+inline size_t wcsnlen_s(const wchar_t * str, size_t /*numberofElements*/)
 {
-	return wcsnlen(str, numberofElements);
+	return wcslen(str);
 }
 
 inline size_t strnlen_s(const char * str, size_t numberofElements)
@@ -61,7 +63,7 @@ inline void strcpy_s(char * strDestination, size_t /*numberOfElements*/, const c
 
 inline void wcsncpy_s(wchar_t * strDestination, size_t /*numberOfElements*/, const wchar_t * strSource, size_t count)
 {
-	wcsncpy(strDestination, strSource, count);
+	wcscpy(strDestination, strSource);
 	//wcsncpy(strDestination, strSource, count);
 }
 inline void strncpy_s(char * strDestination, size_t /*numberOfElements*/, const char * strSource, size_t count)

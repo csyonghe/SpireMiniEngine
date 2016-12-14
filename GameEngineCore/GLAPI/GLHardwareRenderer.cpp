@@ -2590,7 +2590,7 @@ namespace GLL
 			if (vertexShader.Handle)
 				glAttachShader(handle, vertexShader.Handle);
 
-			List<char*> varyingPtrs;
+			List<const char*> varyingPtrs;
 			varyingPtrs.Reserve(varyings.Count());
 			for (auto & v : varyings)
 				varyingPtrs.Add(v.Buffer());

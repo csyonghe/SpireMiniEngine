@@ -22,11 +22,12 @@ namespace CoreLib
 
 		bool File::Exists(const String & fileName)
 		{
-			struct _stat32 statVar;
 #ifdef _WIN32
+			struct _stat32 statVar;
 			return ::_wstat32(((String)fileName).ToWString(), &statVar) != -1;
 #else
-			return ::_stat32(((String)fileName).Buffer(), &statVar) != -1;
+			struct stat statVar;
+			return ::stat(fileName.Buffer(), &statVar) == 0;
 #endif
 		}
 
