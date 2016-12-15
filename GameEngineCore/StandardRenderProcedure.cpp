@@ -4,6 +4,7 @@
 #include "Renderer.h"
 #include "RenderPassRegistry.h"
 #include "DirectionalLightActor.h"
+#include "AtmosphereActor.h"
 #include "CoreLib/Graphics/ViewFrustum.h"
 
 namespace GameEngine
@@ -44,10 +45,12 @@ namespace GameEngine
 		WorldRenderPass * shadowRenderPass = nullptr;
 		WorldRenderPass * forwardRenderPass = nullptr;
 		WorldRenderPass * gBufferRenderPass = nullptr;
+		PostRenderPass * atmospherePass = nullptr;
+		PostRenderPass * deferredLightingPass = nullptr;
+
 		RenderOutput * forwardBaseOutput = nullptr;
 		RenderOutput * gBufferOutput = nullptr;
 		RenderOutput * deferredLightingOutput = nullptr;
-
 		StandardViewUniforms viewUniform;
 
 		RenderPassInstance forwardBaseInstance;
@@ -58,6 +61,9 @@ namespace GameEngine
 		List<DirectionalLightActor*> directionalLights;
 		Array<StandardViewUniforms, 128> shadowMapViewUniforms;
 		List<LightUniforms> lightingData;
+
+		bool useAtmosphere = false;
+
 	public:
 		~StandardRenderProcedure()
 		{
@@ -70,7 +76,10 @@ namespace GameEngine
 		}
 		virtual RenderTarget* GetOutput() override
 		{
-			return sharedRes->LoadSharedRenderTarget("litAtmosphereColor", StorageFormat::RGBA_8).Ptr();
+			if (useAtmosphere)
+				return sharedRes->LoadSharedRenderTarget("litAtmosphereColor", StorageFormat::RGBA_8).Ptr();
+			else
+				return sharedRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8).Ptr();
 		}
 		virtual void Init(Renderer * renderer) override
 		{
@@ -82,7 +91,8 @@ namespace GameEngine
 			{
 				gBufferRenderPass = CreateGBufferRenderPass();
 				renderer->RegisterWorldRenderPass(gBufferRenderPass);
-				renderer->RegisterPostRenderPass(CreateDeferredLightingPostRenderPass());
+				deferredLightingPass = CreateDeferredLightingPostRenderPass();
+				renderer->RegisterPostRenderPass(deferredLightingPass);
 				gBufferOutput = sharedRes->CreateRenderOutput(
 					gBufferRenderPass->GetRenderTargetLayout(),
 					sharedRes->LoadSharedRenderTarget("baseColorBuffer", StorageFormat::RGBA_8),
@@ -104,9 +114,10 @@ namespace GameEngine
 				forwardBaseInstance = forwardRenderPass->CreateInstance(forwardBaseOutput, &viewUniform, sizeof(viewUniform));
 			}
 
-			renderer->RegisterPostRenderPass(CreateAtmospherePostRenderPass());
+			atmospherePass = CreateAtmospherePostRenderPass();
+			renderer->RegisterPostRenderPass(atmospherePass);
 		}
-		virtual void Run(CoreLib::List<RenderPassInstance>& renderPasses, const RenderProcedureParameters & params) override
+		virtual void Run(CoreLib::List<RenderPassInstance>& renderPasses, CoreLib::List<PostRenderPass*> & postPasses, const RenderProcedureParameters & params) override
 		{
 			int w = 0, h = 0;
 			if (forwardRenderPass)
@@ -157,17 +168,29 @@ namespace GameEngine
 			sink.Clear();
 			
 			directionalLights.Clear();
+			
+			CoreLib::Graphics::BBox levelBounds;
+			levelBounds.Init();
 
 			for (auto & actor : params.level->Actors)
 			{
+				levelBounds.Union(actor.Value->Bounds);
 				actor.Value->GetDrawables(getDrawableParam);
-				if (actor.Value->GetEngineType() == EngineActorType::Light)
+				auto actorType = actor.Value->GetEngineType();
+				if (actorType == EngineActorType::Light)
 				{
 					auto light = dynamic_cast<LightActor*>(actor.Value.Ptr());
 					if (light->lightType == LightType::Directional)
 					{
 						directionalLights.Add((DirectionalLightActor*)(light));
 					}
+				}
+				else if (actorType == EngineActorType::Atmosphere)
+				{
+					useAtmosphere = true;
+					auto atmosphere = dynamic_cast<AtmosphereActor*>(actor.Value.Ptr());
+					atmosphere->Parameters.SunDir = atmosphere->Parameters.SunDir.Normalize();
+					atmospherePass->SetParameters(&atmosphere->Parameters, sizeof(atmosphere->Parameters));
 				}
 			}
 			if (camera)
@@ -226,7 +249,7 @@ namespace GameEngine
 								transformedCorner.z = Math::FastFloor(transformedCorner.z / texelSize) * texelSize;
 								Matrix4 projMatrix;
 								Matrix4::CreateOrthoMatrix(projMatrix, transformedCorner.x, transformedCorner.x + viewSize,
-									transformedCorner.y + viewSize, transformedCorner.y, -Vec3::Dot(dirLight->Direction, dirLightPos), 100.0f, ClipSpaceType::ZeroToOne);
+									transformedCorner.y + viewSize, transformedCorner.y, -Vec3::Dot(dirLight->Direction, dirLightPos), 2000.0f, ClipSpaceType::ZeroToOne);
 
 								Matrix4::Multiply(shadowMapView.ViewProjectionTransform, projMatrix, shadowMapView.ViewTransform);
 
@@ -258,11 +281,16 @@ namespace GameEngine
 			{
 				gBufferInstance.RecordCommandBuffer(From(sink.GetDrawables()));
 				renderPasses.Add(gBufferInstance);
+				postPasses.Add(deferredLightingPass);
 			}
 			else
 			{
 				forwardBaseInstance.RecordCommandBuffer(From(sink.GetDrawables()));
 				renderPasses.Add(forwardBaseInstance);
+			}
+			if (useAtmosphere)
+			{
+				postPasses.Add(atmospherePass);
 			}
 		}
 	};

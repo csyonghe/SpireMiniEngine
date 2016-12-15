@@ -18,7 +18,7 @@ namespace GameEngine
         InAir
     };
 
-    class MGState
+    class MGState : public RefObject
     {
     public:
         Pose Pose;

@@ -134,6 +134,7 @@ namespace GameEngine
 		List<RefPtr<WorldRenderPass>> worldRenderPasses;
 		List<RefPtr<PostRenderPass>> postRenderPasses;
 		List<RenderPassInstance> renderPassInstances;
+		List<PostRenderPass*> postPassInstances;
 		HardwareRenderer * hardwareRenderer = nullptr;
 		Level* level = nullptr;
 
@@ -144,6 +145,7 @@ namespace GameEngine
 		{
 			if (!level) return;
 			renderPassInstances.Clear();
+			postPassInstances.Clear();
 			RenderProcedureParameters params;
             Array<CameraActor*, 8> cameras;
             cameras.Add(level->CurrentCamera.Ptr());
@@ -151,7 +153,7 @@ namespace GameEngine
 			params.renderer = this;
             params.cameras = cameras.GetArrayView();
 			params.rendererService = renderService.Ptr();
-			renderProcedure->Run(renderPassInstances, params);
+			renderProcedure->Run(renderPassInstances, postPassInstances, params);
 		}
 	public:
 		RendererImpl(WindowHandle window, RenderAPI api)
@@ -242,10 +244,8 @@ namespace GameEngine
 				hardwareRenderer->ExecuteCommandBuffers(pass.renderOutput->GetFrameBuffer(), MakeArrayView(pass.commandBuffer));
 			}
 
-			for (auto & post : postRenderPasses)
-			{
-				post->Execute();
-			}
+			for (auto pass : postPassInstances)
+				pass->Execute();
 		}
 		virtual RendererSharedResource * GetSharedResource() override
 		{

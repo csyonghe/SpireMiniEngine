@@ -151,7 +151,8 @@ namespace GameEngine
 
 	class RenderPassInstance
 	{
-		friend class RenderPass;
+		friend class WorldRenderPass;
+		friend class PostRenderPass;
 		friend class RendererImpl;
 	private:
 		int renderPassId = -1;
@@ -197,7 +198,7 @@ namespace GameEngine
 	{
 	public:
 		virtual void Init(Renderer * renderer) = 0;
-		virtual void Run(CoreLib::List<RenderPassInstance> & renderPasses, const RenderProcedureParameters & params) = 0;
+		virtual void Run(CoreLib::List<RenderPassInstance> & renderPasses, CoreLib::List<PostRenderPass*> & postPasses, const RenderProcedureParameters & params) = 0;
 		virtual RenderTarget* GetOutput() = 0;
 	};
 

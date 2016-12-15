@@ -129,7 +129,7 @@ namespace GameEngine
 		while (!parser.IsEnd() && !parser.LookAhead("}"))
 		{
 			if (!ParseField(level, parser, isInvalid))
-				parser.ReadToken();
+				throw CoreLib::Text::TextFormatException("invalid level syntax at " + parser.NextToken().Position.ToString());
 		}
 		parser.Read("}");
 	}

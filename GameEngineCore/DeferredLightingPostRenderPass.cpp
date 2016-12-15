@@ -59,6 +59,8 @@ namespace GameEngine
 		{
 			return "DeferredLighting";
 		}
+		virtual void SetParameters(void * /*data*/, int /*count*/) override
+		{}
 	};
 
 	PostRenderPass * CreateDeferredLightingPostRenderPass()

@@ -13,6 +13,7 @@ namespace GameEngine
 			parser.ReadToken();
 			MeshName = parser.ReadStringLiteral();
 			Mesh = level->LoadMesh(MeshName);
+			Bounds = Mesh->Bounds;
 			if (!Mesh)
 			{
 				isInvalid = true;
@@ -55,6 +56,7 @@ namespace GameEngine
 	{
 		Actor::SetLocalTransform(val);
 		localTransformChanged = true;
+		CoreLib::Graphics::TransformBBox(Bounds, localTransform, Mesh->Bounds);
 	}
 
 }

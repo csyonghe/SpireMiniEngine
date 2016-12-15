@@ -12,6 +12,7 @@ namespace GameEngine
 			parser.ReadToken();
 			MeshName = parser.ReadStringLiteral();
 			Mesh = level->LoadMesh(MeshName);
+			Bounds = Mesh->Bounds;
 			if (!Mesh)
 				isInvalid = false;
 			return true;
@@ -74,5 +75,11 @@ namespace GameEngine
         if (this->SimpleAnimation)
             Animation = new SimpleAnimationSynthesizer(Skeleton, this->SimpleAnimation);
 		Tick();
+	}
+
+	void SkeletalMeshActor::SetLocalTransform(const VectorMath::Matrix4 & val)
+	{
+		Actor::SetLocalTransform(val);
+		CoreLib::Graphics::TransformBBox(Bounds, localTransform, Mesh->Bounds);
 	}
 }

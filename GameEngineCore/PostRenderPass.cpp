@@ -57,7 +57,6 @@ namespace GameEngine
 		UpdatePipelineBinding(pipelineBinding, renderAttachments);
 		pipelineInstance = pipeline->CreateInstance(pipelineBinding);
 		frameBuffer = renderTargetLayout->CreateFrameBuffer(renderAttachments);
-
 		commandBuffer->BeginRecording(frameBuffer.Ptr());
 		if (clearFrameBuffer)
 			commandBuffer->ClearAttachments(frameBuffer.Ptr());

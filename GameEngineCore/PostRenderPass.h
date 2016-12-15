@@ -9,6 +9,7 @@ namespace GameEngine
 	{
 	protected:
 		bool clearFrameBuffer = false;
+		CoreLib::RefPtr<RenderOutput> renderOutput;
 		CoreLib::RefPtr<FrameBuffer> frameBuffer;
 		CoreLib::RefPtr<CommandBuffer> commandBuffer;
 		CoreLib::RefPtr<Pipeline> pipeline;
@@ -21,6 +22,7 @@ namespace GameEngine
 	public:
 		void Execute();
 		virtual void RecordCommandBuffer(int screenWidth, int screenHeight);
+		virtual void SetParameters(void * data, int count) = 0;
 	};
 }
 

@@ -99,7 +99,7 @@ namespace GameEngine
             //for(int i = 0; i < 2; i++)
             {
                 currentSegmentId = i;
-                GetOptimalPathWithPrecomputeAndParallel(currentSegmentId, currentSegmentId + 1);
+                GetOptimalPathWithPrecomputeAndParallel(currentSegmentId, currentSegmentId + 1, 4);
                 printf("----------------------------------------------\n");
                 printf("GetOptimalPath from %d to %d\n", currentSegmentId, currentSegmentId + 1);
                 printf("----------------------------------------------\n");
@@ -526,14 +526,20 @@ namespace GameEngine
             }
 #endif
         }
-        void GetOptimalPathWithPrecomputeAndParallel(int start, int end)
+        void GetOptimalPathWithPrecomputeAndParallel(int start, int end, int numThread)
         {
             auto comparator = [](const RefPtr<RSGState> & s0, const RefPtr<RSGState> & s1)
             {
                 return s0->Cost > s1->Cost;
             };
             std::priority_queue<RefPtr<RSGState>, std::vector<RefPtr<RSGState>>, decltype(comparator)> openList(comparator);
-            
+            List<RefPtr<std::priority_queue<RefPtr<RSGState>, std::vector<RefPtr<RSGState>>, decltype(comparator)>>> tempOpenLists;
+            for (int i = 0; i < numThread; i++)
+            {
+                RefPtr<std::priority_queue<RefPtr<RSGState>, std::vector<RefPtr<RSGState>>, decltype(comparator)>> p = new std::priority_queue<RefPtr<RSGState>, std::vector<RefPtr<RSGState>>, decltype(comparator)>(comparator);
+                tempOpenLists.Add(p);
+            }
+
             EnumerableDictionary<RSGStateKey, RefPtr<RSGState>> closeDictionary;
             EnumerableDictionary<RSGStateKey, RefPtr<RSGState>> openDictionary;
 
@@ -597,7 +603,7 @@ namespace GameEngine
                     break;
 
                 int i = expandedSG->StateId;
-
+                List<int> jCandidates;
                 for (int j = 0; j < motionGraph->States.Count(); j++)
                 {
                     if (!isTransitionState(j))
@@ -609,6 +615,19 @@ namespace GameEngine
                         if (info.DeltaPos.Length() > maxDeltaPos)
                             continue;
 
+                        jCandidates.Add(j);
+                    }
+                }
+                
+                int threadRange = jCandidates.Count() / numThread;
+                concurrency::parallel_for(0, numThread, [&](int threadId)
+                {
+                    int startId = threadRange * threadId;
+                    int endId = startId + threadRange;
+                    for (int m = startId; m < endId; m++)
+                    {
+                        int j = jCandidates[m];
+                        auto info = motionGraph->TransitionDictionary[IndexPair(i, j)].GetValue();
                         RefPtr<RSGState> rsgState = new RSGState();
                         if (info.ShortestPath.Count() < 2)
                             printf("Error: info.ShortestPath.Count() < 2");
@@ -642,7 +661,7 @@ namespace GameEngine
                         rsgState->Parent = expandedRSG.Ptr();
                         CalculateFGCost(rsgState.Ptr(), end);
                         if (closeDictionary.ContainsKey(rsgState->GetKey()))
-                            continue;
+                            return;
 
                         RefPtr<RSGState> existingState;
                         if (openDictionary.TryGetValue(rsgState->GetKey(), existingState))
@@ -652,10 +671,19 @@ namespace GameEngine
                                 existingState->isDeleted = true;
                             }
                         }
-                        
-                        openList.push(rsgState);
-                        openDictionary[rsgState->GetKey()] = rsgState;
+
+                        //openList.push(rsgState);
+                        //openDictionary[rsgState->GetKey()] = rsgState;
+                        tempOpenLists[threadId]->push(rsgState);
                     }
+                });
+
+                for (int j = 0; j < numThread; j++)
+                {
+                    RefPtr<RSGState> p = tempOpenLists[j]->top();
+                    tempOpenLists[j]->pop();
+                    openList.push(p);
+                    openDictionary[p->GetKey()] = p;
                 }
             }
 

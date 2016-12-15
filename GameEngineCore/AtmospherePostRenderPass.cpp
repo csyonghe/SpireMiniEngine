@@ -2,6 +2,8 @@
 #include "Mesh.h"
 #include "Engine.h"
 #include "CoreLib/LibIO.h"
+#include "Atmosphere.h"
+#include <assert.h>
 
 using namespace CoreLib;
 using namespace CoreLib::IO;
@@ -10,16 +12,12 @@ namespace GameEngine
 {
 	using namespace VectorMath;
 
-	struct AtmosphereParameters
-	{
-		Vec3 SunDir; float padding = 0.0f;
-	};
 	class AtmospherePostRenderPass : public PostRenderPass
 	{
 	protected:
 		RefPtr<RenderTarget> colorBuffer, depthBuffer, colorOutBuffer;
 		RefPtr<Buffer> parameterBuffer;
-		AtmosphereParameters params;
+		
 		RefPtr<Texture2D> transmittanceTex, irradianceTex;
 		RefPtr<Texture3D> inscatterTex;
 		bool isValid = true;
@@ -71,8 +69,10 @@ namespace GameEngine
 				}
 			}
 
-			params.SunDir = Vec3::Create(1.0f, 1.0f, 0.5f).Normalize();
-			parameterBuffer->SetData(&params, sizeof(params));
+			// initialize parameter buffer with default params
+			AtmosphereParameters defaultParams;
+			defaultParams.SunDir = Vec3::Create(1.0f, 1.0f, 0.5f).Normalize();
+			parameterBuffer->SetData(&defaultParams, sizeof(defaultParams));
 		}
 		virtual void AcquireRenderTargets() override
 		{
@@ -117,6 +117,11 @@ namespace GameEngine
 		virtual char * GetName() override
 		{
 			return "Atmosphere";
+		}
+		virtual void SetParameters(void * data, int count) override
+		{
+			assert(count == sizeof(AtmosphereParameters));
+			parameterBuffer->SetData(data, count);
 		}
 	};
 

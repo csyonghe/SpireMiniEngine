@@ -28,6 +28,7 @@ namespace GameEngine
 			return nextPose;
 		}
 		virtual void GetDrawables(const GetDrawablesParameter & params) override;
+		virtual void SetLocalTransform(const VectorMath::Matrix4 & val) override;
 		virtual EngineActorType GetEngineType() override
 		{
 			return EngineActorType::Drawable;

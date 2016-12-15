@@ -22,7 +22,6 @@ namespace GameEngine
         CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<MotionGraph>> MotionGraphs;
 		CoreLib::EnumerableDictionary<CoreLib::String, RefPtr<Actor>> Actors;
 		CoreLib::RefPtr<CameraActor> CurrentCamera;
-		
 		Level(const CoreLib::String & fileName);
 		~Level();
 		Mesh * LoadMesh(const CoreLib::String & fileName);

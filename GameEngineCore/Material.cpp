@@ -36,6 +36,8 @@ namespace GameEngine
 				auto val = DynamicVariable::Parse(parser);
 				Variables[name] = val;
 			}
+			else
+				throw CoreLib::Text::TextFormatException("invalid material syntax");
 		}
 		parser.Read("}");
 	}

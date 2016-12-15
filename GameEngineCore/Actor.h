@@ -17,7 +17,7 @@ namespace GameEngine
 {
 	enum class EngineActorType
 	{
-		Drawable, Light, BoundingVolume, Camera, UserController
+		Drawable, Light, Atmosphere, BoundingVolume, Camera, UserController
 	};
 
 	class RendererService;

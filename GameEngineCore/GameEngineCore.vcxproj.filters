@@ -99,9 +99,14 @@
     <ClCompile Include="ShadowRenderPass.cpp">
       <Filter>Renderer</Filter>
     </ClCompile>
-    <ClCompile Include="DirectionalLightActor.cpp" />
     <ClCompile Include="AtmospherePostRenderPass.cpp">
       <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="AtmosphereActor.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectionalLightActor.cpp">
+      <Filter>Actors</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -193,6 +198,12 @@
       <Filter>Actors</Filter>
     </ClInclude>
     <ClInclude Include="LightActor.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="Atmosphere.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="AtmosphereActor.h">
       <Filter>Actors</Filter>
     </ClInclude>
   </ItemGroup>
