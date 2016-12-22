@@ -5,7 +5,8 @@ shader DeferredLighting : StandardPipeline
 	param Texture2D normalTex;
 	param Texture2D depthTex;
 	param SamplerState nearestSampler;
-	
+
+	[Binding: "1"]
 	public using ForwardBasePassParams;
 
 	public @MeshVertex vec2 vertPos;

@@ -463,7 +463,8 @@ shader AtmospherePostPass : StandardPipeline
 
     param SamplerState linearSampler;
 	param SamplerState nearestSampler;
-
+    
+    [Binding: "1"]
     public using ForwardBasePassParams;
 
     float atmosphericFogScale = atmosphereParams.x;

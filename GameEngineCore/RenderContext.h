@@ -211,8 +211,8 @@ namespace GameEngine
 					commandBuffer->BindIndexBuffer(mesh->indexBuffer.Ptr());
 					commandBuffer->BindVertexBuffer(mesh->vertexBuffer.Ptr());
 					commandBuffer->BindPipeline(pipelineInst->pipeline.Ptr());
-					commandBuffer->BindDescriptorSet(1, obj->GetTransformModule()->Descriptors.Ptr());
 					commandBuffer->BindDescriptorSet(2, obj->GetMaterial()->MaterialModule->Descriptors.Ptr());
+					commandBuffer->BindDescriptorSet(3, obj->GetTransformModule()->Descriptors.Ptr());
 					commandBuffer->DrawIndexed(0, mesh->indexCount);
 				}
 			}

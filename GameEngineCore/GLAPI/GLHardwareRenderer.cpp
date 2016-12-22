@@ -1692,7 +1692,8 @@ namespace GLL
 			settings.bindingLayout.SetSize(descLayouts.Count());
 			for (int i = 0; i < descLayouts.Count(); i++)
 			{
-				settings.bindingLayout[i].AddRange(descLayouts[i]->layouts);
+				if (descLayouts[i])
+					settings.bindingLayout[i].AddRange(descLayouts[i]->layouts);
 			}
 			return new Pipeline(settings);
 		}
