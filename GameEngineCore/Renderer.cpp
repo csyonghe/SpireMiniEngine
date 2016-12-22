@@ -1,6 +1,5 @@
 #include "Renderer.h"
 #include "HardwareRenderer.h"
-#include "HardwareApiFactory.h"
 
 #include "Engine.h"
 #include "SkeletalMeshActor.h"
@@ -33,19 +32,11 @@ namespace GameEngine
 		return ptr;
 	}
 
-	template<typename T>
-	void use(const T &) {}
-
 	Drawable::~Drawable()
 	{
-		if (uniforms.instanceUniform)
-			scene->instanceUniformMemory.Free(uniforms.instanceUniform, uniforms.instanceUniformCount);
-		if (uniforms.transformUniform)
+		if (transformModule && transformModule->UniformPtr)
 		{
-			if (type == DrawableType::Static)
-				scene->staticTransformMemory.Free(uniforms.transformUniform, uniforms.transformUniformCount);
-			else
-				scene->skeletalTransformMemory.Free(uniforms.transformUniform, uniforms.transformUniformCount);
+			scene->transformMemory.Free(transformModule->UniformPtr, transformModule->BufferLength);
 		}
 	}
 
@@ -63,65 +54,42 @@ namespace GameEngine
 				RefPtr<Drawable> rs = new Drawable(sceneResources);
 				rs->mesh = sceneResources->LoadDrawableMesh(mesh).Ptr();
 				rs->material = material;
-
-				int ptr = 0;
-				material->FillInstanceUniformBuffer([&](const String &)
-				{
-				},
-					[&](auto & val)
-				{
-					use(val);
-					ptr += sizeof(val);
-				},
-					[&](int alignment)
-				{
-					ptr = GameEngine::Align(ptr, alignment);
-				}
-				);
-
-				rs->uniforms.instanceUniform = (unsigned char*)sceneResources->instanceUniformMemory.Alloc(ptr);
-				rs->uniforms.instanceUniformCount = ptr;
-
 				return rs;
 			}
 		public:
 			RendererServiceImpl(RendererImpl * pRenderer)
 				: renderer(pRenderer)
 			{}
-			virtual CoreLib::RefPtr<Drawable> CreateStaticDrawable(Mesh * mesh, Material * material) override
+			ModuleInstance * CreateTransformModuleInstance(const char * name, int uniformBufferSize)
 			{
 				auto sceneResources = renderer->sceneRes.Ptr();
+				return renderer->sharedRes.CreateModuleInstance(spFindModule(renderer->sharedRes.spireContext, name), &sceneResources->transformMemory, uniformBufferSize);
+			}
 
+			virtual CoreLib::RefPtr<Drawable> CreateStaticDrawable(Mesh * mesh, Material * material) override
+			{
 				RefPtr<Drawable> rs = CreateDrawableShared(mesh, material);
 				rs->type = DrawableType::Static;
-
-				rs->uniforms.transformUniform = (unsigned char*)sceneResources->staticTransformMemory.Alloc(sizeof(Vec4) * 7);
-				rs->uniforms.transformUniformCount = sizeof(Vec4) * 7;
-
+				rs->transformModule = CreateTransformModuleInstance("NoAnimation", (int)(sizeof(Vec4) * 7));
 				rs->pipelineInstances.SetSize(renderer->worldRenderPasses.Count());
 				for (int i = 0; i < renderer->worldRenderPasses.Count(); i++)
 				{
-					rs->pipelineInstances[i] = renderer->worldRenderPasses[i]->CreatePipelineStateObject(material, mesh, rs->uniforms, rs->type);
+					rs->pipelineInstances[i] = renderer->worldRenderPasses[i]->CreatePipelineStateObject(renderer->sceneRes.Ptr(), material, mesh, rs->type);
 				}
 				return rs;
 			}
 			virtual CoreLib::RefPtr<Drawable> CreateSkeletalDrawable(Mesh * mesh, Skeleton * skeleton, Material * material) override
 			{
-				auto sceneResources = renderer->sceneRes.Ptr();
-
 				RefPtr<Drawable> rs = CreateDrawableShared(mesh, material);
 				rs->type = DrawableType::Skeletal;
 				rs->skeleton = skeleton;
-
 				int poseMatrixSize = skeleton->Bones.Count() * (sizeof(Vec4) * 7);
-
-				rs->uniforms.transformUniform = (unsigned char*)sceneResources->skeletalTransformMemory.Alloc(poseMatrixSize);
-				rs->uniforms.transformUniformCount = poseMatrixSize;
-
+				rs->transformModule = CreateTransformModuleInstance("SkeletalAnimation", poseMatrixSize);
 				rs->pipelineInstances.SetSize(renderer->worldRenderPasses.Count());
+
 				for (int i = 0; i < renderer->worldRenderPasses.Count(); i++)
 				{
-					rs->pipelineInstances[i] = renderer->worldRenderPasses[i]->CreatePipelineStateObject(material, mesh, rs->uniforms, rs->type);
+					rs->pipelineInstances[i] = renderer->worldRenderPasses[i]->CreatePipelineStateObject(renderer->sceneRes.Ptr(), material, mesh, rs->type);
 				}
 				return rs;
 			}
@@ -136,6 +104,7 @@ namespace GameEngine
 		List<RenderPassInstance> renderPassInstances;
 		List<PostRenderPass*> postPassInstances;
 		HardwareRenderer * hardwareRenderer = nullptr;
+
 		Level* level = nullptr;
 
 		int uniformBufferAlignment = 256;
@@ -159,26 +128,25 @@ namespace GameEngine
 		RendererImpl(WindowHandle window, RenderAPI api)
 			: sharedRes(api)
 		{
-			HardwareApiFactory * hwFactory = nullptr;
 			switch (api)
 			{
 			case RenderAPI::Vulkan:
-				hwFactory = CreateVulkanFactory();
+				hardwareRenderer = CreateVulkanHardwareRenderer(Engine::Instance()->GpuId);
 				break;
 			case RenderAPI::OpenGL:
-				hwFactory = CreateOpenGLFactory();
+				hardwareRenderer = CreateGLHardwareRenderer();
 				break;
 			}
-			hardwareRenderer = hwFactory->CreateRenderer(Engine::Instance()->GpuId);
+
 			hardwareRenderer->BindWindow(window, 640, 480);
 
-			sharedRes.Init(hwFactory, hardwareRenderer);
+			sharedRes.Init(hardwareRenderer);
 			
 			// Fetch uniform buffer alignment requirements
 			uniformBufferAlignment = hardwareRenderer->UniformBufferAlignment();
 			storageBufferAlignment = hardwareRenderer->StorageBufferAlignment();
 			
-			sceneRes = new SceneResource(&sharedRes);
+			sceneRes = new SceneResource(&sharedRes, sharedRes.spireContext);
 			renderService = new RendererServiceImpl(this);
 
 			renderProcedure = CreateStandardRenderProcedure();
@@ -200,7 +168,7 @@ namespace GameEngine
 		{
 			if (worldRenderPasses.Count() >= MaxWorldRenderPasses)
 				throw InvalidOperationException("Number of registered world render passes exceeds engine limit.");
-			renderPass->Init(&sharedRes, sceneRes.Ptr());
+			renderPass->Init(&sharedRes);
 			worldRenderPasses.Add(renderPass);
 			renderPass->SetId(worldRenderPasses.Count() - 1);
 			return worldRenderPasses.Count() - 1;
@@ -210,7 +178,7 @@ namespace GameEngine
 		{
 			if (postRenderPasses.Count() >= MaxPostRenderPasses)
 				throw InvalidOperationException("Number of registered post render passes exceeds engine limit.");
-			renderPass->Init(&sharedRes, sceneRes.Ptr());
+			renderPass->Init(&sharedRes);
 			postRenderPasses.Add(renderPass);
 			return postRenderPasses.Count() - 1;
 		}
@@ -239,8 +207,6 @@ namespace GameEngine
 
 			for (auto & pass : renderPassInstances)
 			{
-				if (pass.viewUniformSize)
-					sharedRes.SetViewUniformData(pass.viewUniformPtr, pass.viewUniformSize);
 				hardwareRenderer->ExecuteCommandBuffers(pass.renderOutput->GetFrameBuffer(), MakeArrayView(pass.commandBuffer));
 			}
 
@@ -262,8 +228,7 @@ namespace GameEngine
 		virtual void Resize(int w, int h) override
 		{
 			sharedRes.Resize(w, h);
-			for (auto & post : postRenderPasses)
-				post->RecordCommandBuffer(w, h);
+			renderProcedure->ResizeFrame(w, h);
 			
 			hardwareRenderer->Resize(w, h);
 		}

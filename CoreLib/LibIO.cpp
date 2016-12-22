@@ -104,10 +104,8 @@ namespace CoreLib
 			sb.Append(path3);
 			return sb.ProduceString();
 		}
-#ifdef CreateDirectory
-#undef CreateDirectory
-#endif
-		bool Path::CreateDirectory(const String & path)
+
+		bool Path::CreateDir(const String & path)
 		{
 #if defined(_WIN32)
 			return _wmkdir(path.ToWString()) == 0;

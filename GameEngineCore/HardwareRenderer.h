@@ -65,7 +65,46 @@ namespace GameEngine
 
 	enum class BindingType
 	{
-		Unused, UniformBuffer, StorageBuffer, Texture
+		Unused, UniformBuffer, StorageBuffer, Texture, Sampler
+	};
+
+	struct DescriptorLayout
+	{
+		int Location; //> location in the descritpor set
+		BindingType Type; //< type of the resource binding this descriptor is about
+		// LegacyBindingPoint is used by OpenGL renderer so that it knows what actual binding point this descriptor maps to.
+		// This information is provided by the shader compiler.
+		CoreLib::List<int> LegacyBindingPoints;
+		DescriptorLayout() = default;
+		DescriptorLayout(int loc, BindingType type, int legacyBinding = -1)
+		{
+			Location = loc;
+			Type = type;
+			if (legacyBinding != -1)
+				LegacyBindingPoints.Add(legacyBinding);
+		}
+	};
+
+	class DescriptorSetLayout
+	{
+	protected:
+		DescriptorSetLayout() {}
+	};
+
+	class Texture;
+	class TextureSampler;
+	class Buffer;
+
+	class DescriptorSet : public CoreLib::RefObject
+	{
+	protected:
+		DescriptorSet() {}
+	public:
+		virtual void BeginUpdate() = 0;
+		virtual void Update(int location, Texture* texture) = 0;
+		virtual void Update(int location, TextureSampler* sampler) = 0;
+		virtual void Update(int location, Buffer* buffer, int offset = 0, int length = -1) = 0;
+		virtual void EndUpdate() = 0;
 	};
 
 	enum class DataType
@@ -344,6 +383,12 @@ namespace GameEngine
 	{
 	public:
 		CoreLib::List<VertexAttributeDesc> Attributes;
+		inline int Size()
+		{
+			if (Attributes.Count())
+				return Attributes.Last().StartOffset + DataTypeSize(Attributes.Last().Type);
+			return 0;
+		}
 	};
 
 	/*
@@ -526,102 +571,18 @@ namespace GameEngine
 		Texture* texture;
 		TextureSampler* sampler;
 	};
+
 	struct BufferBinding
 	{
 		Buffer* buffer;
 		int offset;
 		int range;
 	};
-	struct BindingDescription
-	{
-		BindingType type;
-		int location;
-		union
-		{
-			TextureBinding tex;
-			BufferBinding buf;
-		};
-	};
-
-	class PipelineBinding
-	{
-	private:		
-		CoreLib::List<BindingDescription> bindings;
-
-	public:
-		const CoreLib::List<BindingDescription>& GetBindings() const
-		{
-			return bindings;
-		}
-
-		void BindUniformBuffer(int binding, Buffer* buffer, int offset, int range)
-		{
-			BindingDescription description;
-			description.type = BindingType::UniformBuffer;
-			description.location = binding;
-			description.buf.buffer = buffer;
-			description.buf.offset = offset;
-			description.buf.range = range;
-
-			bindings.Add(description);
-		}
-		void BindUniformBuffer(int binding, Buffer* buffer)
-		{
-			BindingDescription description;
-			description.type = BindingType::UniformBuffer;
-			description.location = binding;
-			description.buf.buffer = buffer;
-			description.buf.offset = 0;
-			description.buf.range = 0;
-
-			bindings.Add(description);
-		}
-		void BindStorageBuffer(int binding, Buffer* buffer, int offset, int range)
-		{
-			BindingDescription description;
-			description.type = BindingType::StorageBuffer;
-			description.location = binding;
-			description.buf.buffer = buffer;
-			description.buf.offset = offset;
-			description.buf.range = range;
-
-			bindings.Add(description);
-		}
-		void BindStorageBuffer(int binding, Buffer* buffer)
-		{
-			BindingDescription description;
-			description.type = BindingType::StorageBuffer;
-			description.location = binding;
-			description.buf.buffer = buffer;
-			description.buf.offset = 0;
-			description.buf.range = 0;
-
-			bindings.Add(description);
-		}
-		void BindTexture(int binding, Texture* texture, TextureSampler* sampler)
-		{
-			BindingDescription description;
-			description.type = BindingType::Texture;
-			description.location = binding;
-			description.tex.texture = texture;
-			description.tex.sampler = sampler;
-
-			bindings.Add(description);
-		}
-	};
-
-	class PipelineInstance : public CoreLib::RefObject
-	{
-	protected:
-		PipelineInstance() {}
-	};
 
 	class Pipeline : public CoreLib::RefObject
 	{
 	protected:
 		Pipeline() {}
-	public:
-		virtual PipelineInstance* CreateInstance(const PipelineBinding& pipelineBinding) = 0;
 	};
 
 	class FixedFunctionPipelineStates
@@ -650,7 +611,7 @@ namespace GameEngine
 		FixedFunctionPipelineStates FixedFunctionStates;
 		virtual void SetShaders(CoreLib::ArrayView<Shader*> shaders) = 0;
 		virtual void SetVertexLayout(VertexFormat vertexFormat) = 0;
-		virtual void SetBindingLayout(int bindingId, BindingType bindType) = 0;
+		virtual void SetBindingLayout(CoreLib::ArrayView<DescriptorSetLayout*> descriptorSets) = 0;
 		virtual Pipeline* ToPipeline(RenderTargetLayout* renderTargetLayout) = 0;
 	};
 
@@ -667,7 +628,8 @@ namespace GameEngine
 		virtual void SetViewport(int x, int y, int width, int height) = 0;
 		virtual void BindVertexBuffer(Buffer* vertexBuffer) = 0;
 		virtual void BindIndexBuffer(Buffer* indexBuffer) = 0;
-		virtual void BindPipeline(PipelineInstance* pipelineInstance) = 0;
+		virtual void BindPipeline(Pipeline* pipeline) = 0;
+		virtual void BindDescriptorSet(int binding, DescriptorSet* descSet) = 0;
 		virtual void Draw(int firstVertex, int vertexCount) = 0;
 		virtual void DrawInstanced(int numInstances, int firstVertex, int vertexCount) = 0;
 		virtual void DrawIndexed(int firstIndex, int indexCount) = 0;
@@ -699,8 +661,11 @@ namespace GameEngine
 		virtual Shader* CreateShader(ShaderType stage, const char* data, int size) = 0;
 		virtual RenderTargetLayout* CreateRenderTargetLayout(CoreLib::ArrayView<TextureUsage> bindings) = 0;
 		virtual PipelineBuilder* CreatePipelineBuilder() = 0;
+		virtual DescriptorSetLayout* CreateDescriptorSetLayout(CoreLib::ArrayView<DescriptorLayout> descriptors) = 0;
+		virtual DescriptorSet * CreateDescriptorSet(DescriptorSetLayout* layout) = 0;
+		virtual int GetDescriptorPoolCount() = 0;
 		virtual CommandBuffer* CreateCommandBuffer() = 0;
-		virtual CoreLib::String GetSpireBackendName() = 0;
+		virtual int GetSpireTarget() = 0;
 		virtual int UniformBufferAlignment() = 0;
 		virtual int StorageBufferAlignment() = 0;
 	};

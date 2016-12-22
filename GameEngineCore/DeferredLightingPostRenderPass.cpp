@@ -12,6 +12,7 @@ namespace GameEngine
 	{
 	protected:
 		RefPtr<RenderTarget> baseColorBuffer, pbrBuffer, normalBuffer, depthBuffer, litColorBuffer;
+		RefPtr<DescriptorSet> deferredDescSet;
 	public:
 		virtual void AcquireRenderTargets() override
 		{
@@ -21,34 +22,31 @@ namespace GameEngine
 			normalBuffer = sharedRes->LoadSharedRenderTarget("normalBuffer", StorageFormat::RGB10_A2);
 			litColorBuffer = sharedRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8);
 		}
-		virtual void SetupPipelineBindingLayout(PipelineBuilder * pipelineBuilder, List<TextureUsage> & renderTargets) override
+		virtual void SetupPipelineBindingLayout(PipelineBuilder * /*pipelineBuilder*/, List<TextureUsage> & renderTargets) override
 		{
 			renderTargets.Add(TextureUsage::ColorAttachment);
 			renderTargets.Add(TextureUsage::ColorAttachment);
 			renderTargets.Add(TextureUsage::ColorAttachment);
 			renderTargets.Add(TextureUsage::DepthAttachment);
 
-			pipelineBuilder->SetBindingLayout(1, BindingType::UniformBuffer);
-			int offset = sharedRes->GetTextureBindingStart();
-			pipelineBuilder->SetBindingLayout(offset + 0, BindingType::Texture); // Albedo
-			pipelineBuilder->SetBindingLayout(offset + 1, BindingType::Texture); // PBR
-			pipelineBuilder->SetBindingLayout(offset + 2, BindingType::Texture); // Normal
-			pipelineBuilder->SetBindingLayout(offset + 3, BindingType::Texture); // Depth
-			pipelineBuilder->SetBindingLayout(offset + 16, BindingType::Texture); // Shadow
+			deferredDescSet = hwRenderer->CreateDescriptorSet(descLayouts[0].Ptr());
 		}
-		virtual void UpdatePipelineBinding(PipelineBinding & binding, RenderAttachments & attachments) override
+		virtual void UpdatePipelineBinding(SharedModuleInstances sharedModules, DescriptorSetBindings & binding, RenderAttachments & attachments) override
 		{
 			if (!litColorBuffer->Texture)
 				return;
+			binding.Bind(0, deferredDescSet.Ptr());
+			binding.Bind(1, sharedModules.View->Descriptors.Ptr());
+			binding.Bind(2, sharedModules.Lighting->Descriptors.Ptr());
 
-			binding.BindUniformBuffer(1, sharedRes->viewUniformBuffer.Ptr());
-			binding.BindUniformBuffer(4, sharedRes->lightUniformBuffer.Ptr());
-			int offset = sharedRes->GetTextureBindingStart();
-			binding.BindTexture(offset + 0, baseColorBuffer->Texture.Ptr(), sharedRes->nearestSampler.Ptr());
-			binding.BindTexture(offset + 1, pbrBuffer->Texture.Ptr(), sharedRes->nearestSampler.Ptr());
-			binding.BindTexture(offset + 2, normalBuffer->Texture.Ptr(), sharedRes->nearestSampler.Ptr());
-			binding.BindTexture(offset + 3, depthBuffer->Texture.Ptr(), sharedRes->nearestSampler.Ptr());
-			binding.BindTexture(offset + 16, sharedRes->shadowMapResources.shadowMapArray.Ptr(), sharedRes->shadowSampler.Ptr());
+			deferredDescSet->BeginUpdate();
+			deferredDescSet->Update(0, baseColorBuffer->Texture.Ptr());
+			deferredDescSet->Update(1, pbrBuffer->Texture.Ptr());
+			deferredDescSet->Update(2, normalBuffer->Texture.Ptr());
+			deferredDescSet->Update(3, depthBuffer->Texture.Ptr());
+			deferredDescSet->Update(4, sharedRes->nearestSampler.Ptr());
+			deferredDescSet->EndUpdate();
+
 			attachments.SetAttachment(0, litColorBuffer->Texture.Ptr());
 		}
 		virtual String GetShaderFileName() override

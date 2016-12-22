@@ -30,32 +30,6 @@ vec3 desaturate(vec3 color, float factor)
     return mix(color, vec3(lum, lum, lum), factor);
 }
 
-module SystemUniforms
-{
-    public @ViewUniform mat4 viewTransform;
-    public @ViewUniform mat4 viewProjectionTransform;
-    public @ViewUniform mat4 invViewTransform;
-    public @ViewUniform mat4 invViewProjTransform;
-    public @ViewUniform vec3 cameraPos;
-    public @ViewUniform float time;
-    public @ViewUniform SamplerState textureSampler;
-    
-}
-
-module LightingParams
-{
-    public @LightData vec3 lightDir;
-    public @LightData vec3 lightColor;
-    public @LightData int shadowMapId;
-    public @LightData int numCascades;
-    public @LightData mat4[8] lightMatrix;
-    public @LightData vec4[2] zPlanes;
-    [Binding: "16"]
-    public @LightData Texture2DArrayShadow shadowMapArray;
-    [Binding: "16"]
-    public @LightData SamplerState shadowMapSampler;
-}
-
 module TangentSpaceTransform
 {
     require vec3 coarseVertTangent;
@@ -95,6 +69,9 @@ struct BoneTransform
 
 module NoAnimation
 {
+    param mat4 modelMatrix; 
+    param mat3 normalMatrix; 
+    
     require vec3 vertPos;
     require vec3 vertNormal;
     require vec3 vertTangent;
@@ -103,16 +80,13 @@ module NoAnimation
     public @CoarseVertex vec3 coarseVertNormal = vertNormal;
     public @CoarseVertex vec3 coarseVertTangent = vertTangent;
     
-    @ModelInstance mat4 modelMatrix; 
-    @ModelInstance mat4 normalMatrix; 
-    
     public vec3 worldTransformPos(vec3 pos)
     {
         return (modelMatrix * vec4(pos, 1)).xyz;
     }
     public vec3 worldTransformNormal(vec3 norm)
     {
-        return normalize((normalMatrix * vec4(norm, 1)).xyz);
+        return normalize((normalMatrix * norm).xyz);
     }
 }
 
@@ -132,8 +106,8 @@ module SkeletalAnimation
     require uint boneWeights;
 
     require mat4 viewProjectionTransform;
-	[Binding:"3"]
-    @ViewUniform StructuredBuffer<BoneTransform> boneTransforms;
+
+    param BoneTransform[] boneTransforms;
     
     public SkinningResult skinning
     {
@@ -396,22 +370,22 @@ module ParallaxOcclusionMapping
 
 module Lighting
 {
+    public param vec3 lightDir;
+    public param vec3 lightColor;
+    public param int shadowMapId;
+    public param int numCascades;
+    public param mat4[8] lightMatrix;
+    public param vec4[2] zPlanes;
+    public param Texture2DArrayShadow shadowMapArray;
+    public param SamplerState shadowMapSampler;
+
     require vec3 normal;   
     require vec3 albedo;
     require vec3 lightParam;
     require vec3 pos;
-    require vec3 lightDir;
-    require vec3 lightColor;
     require vec3 cameraPos;
     require float selfShadow(vec3 lightDir);
-    require int shadowMapId;
-    require int numCascades; // TODO: commenting out this line results compiler crash
-    require Texture2DArrayShadow shadowMapArray;
-    require SamplerState shadowMapSampler;
     require mat4 viewTransform;
-    require vec4[2] zPlanes;
-    require mat4[8] lightMatrix;
-    
     
     vec3 view = normalize(cameraPos - pos);
     inline float roughness_in = lightParam.x;

@@ -3,7 +3,7 @@
 #include "../CoreLib/Tokenizer.h"
 #include "../SpireCore/StdInclude.h"
 #include "../../Spire.h"
-#include "../SpireCore/TypeTranslation.h"
+#include "../SpireCore/TypeLayout.h"
 #include "../SpireCore/Preprocessor.h"
 
 using namespace CoreLib::Basic;
@@ -15,6 +15,13 @@ struct SpireDiagnosticSink
 {
 	int errorCount;
 	CoreLib::List<Spire::Compiler::Diagnostic> diagnostics;
+};
+
+struct SpireParameterSet
+{
+	ILModuleParameterSet * paramSet = nullptr;
+	int bindingSlotCount = 0;
+	List<SpireResourceBindingInfo> bindings;
 };
 
 namespace SpireLib
@@ -244,33 +251,26 @@ namespace SpireLib
 	{
 		StringBuilder writer;
 		writer << "name " << MetaData.ShaderName << EndLine;
-		for (auto & stage : MetaData.Stages)
+		for (auto & ublock : MetaData.ParameterSets)
 		{
-			writer << "stage " << stage.Key << EndLine << "{" << EndLine;
-			writer << "target " << stage.Value.TargetName << EndLine;
-			for (auto & blk : stage.Value.InputBlocks)
+			writer << "paramset \"" << ublock.Key << "\" size " << ublock.Value->BufferSize 
+				<< " binding " << ublock.Value->DescriptorSetId << "\n{\n";
+			for (auto & entry : ublock.Value->Parameters)
 			{
-				writer << "in " << blk << ";\n";
-			}
-			writer << "out " << stage.Value.OutputBlock << ";\n";
-			for (auto & comp : stage.Value.Components)
-				writer << "comp " << comp << ";\n";
-			writer << "}" << EndLine;
-		}
-		for (auto & ublock : MetaData.InterfaceBlocks)
-		{
-			writer << "interface " << ublock.Key << " size " << ublock.Value.Size << "\n{\n";
-			for (auto & entry : ublock.Value.Entries)
-			{
-				writer << entry.Type->ToString() << " " << entry.Name << " : " << entry.Offset << "," << entry.Size;
-				if (entry.Attributes.Count())
+				writer << entry.Value->Name << "(\"" << entry.Key << "\") : ";
+				entry.Value->Type->Serialize(writer);
+				writer << " at ";
+				if (entry.Value->BindingPoints.Count())
 				{
-					writer << "\n{\n";
-					for (auto & attrib : entry.Attributes)
-					{
-						writer << attrib.Key << " : " << CoreLib::Text::EscapeStringLiteral(attrib.Value) << ";\n";
-					}
-					writer << "}";
+					writer << "binding(";
+					for (auto binding : entry.Value->BindingPoints)
+						writer << binding << " ";
+					writer << ")";
+				}
+				else
+				{
+					writer << "buffer(" << entry.Value->BufferOffset << ", "
+						<< (int)GetTypeSize(entry.Value->Type.Ptr(), LayoutRule::Std140) << ")";
 				}
 				writer << ";\n";
 			}
@@ -306,7 +306,7 @@ namespace SpireLib
 	void ShaderLibFile::Clear()
 	{
 		Sources.Clear();
-		MetaData.Stages.Clear();
+		MetaData.ParameterSets.Clear();
 		Sources.Clear();
 	}
 
@@ -333,75 +333,49 @@ namespace SpireLib
 				ReadSource(Sources, parser, src);
 				parser.Read("}");
 			}
-
-			else if (fieldName == "stage")
+			else if (fieldName == "paramset")
 			{
-				StageMetaData stage;
-				stage.Name = parser.ReadWord();
+				RefPtr<ILModuleParameterSet> paramSet = new ILModuleParameterSet();
+				paramSet->BindingName = parser.ReadStringLiteral();
+				if (parser.LookAhead("size"))
+				{
+					parser.ReadToken();
+					paramSet->BufferSize = parser.ReadInt();
+				}
+				if (parser.LookAhead("binding"))
+				{
+					parser.ReadToken();
+					paramSet->DescriptorSetId = parser.ReadInt();
+				}
 				parser.Read("{");
 				while (!parser.LookAhead("}"))
 				{
-					auto subFieldName = parser.ReadWord();
-					if (subFieldName == "target")
-						stage.TargetName = parser.ReadWord();
-					else if (subFieldName == "in")
+					RefPtr<ILModuleParameterInstance> inst = new ILModuleParameterInstance();
+					inst->Name = parser.ReadWord();
+					parser.Read("(");
+					auto key = parser.ReadStringLiteral();
+					parser.Read(")");
+					inst->Type = ILType::Deserialize(parser);
+					parser.Read("at");
+					if (parser.LookAhead("binding"))
 					{
-						stage.InputBlocks.Add(parser.ReadWord());
-						parser.Read(";");
+						parser.ReadToken();
+						parser.Read("(");
+						while (!parser.LookAhead(")"))
+							inst->BindingPoints.Add(parser.ReadInt());
+						parser.Read(")");
 					}
-					else if (subFieldName == "out")
+					else
 					{
-						stage.OutputBlock = parser.ReadWord();
-						parser.Read(";");
+						parser.Read("buffer");
+						parser.Read("(");
+						inst->BufferOffset = parser.ReadInt();
+						parser.Read(")");
 					}
-					else if (subFieldName == "comp")
-					{
-						auto compName = parser.ReadWord();
-						parser.Read(";");
-						stage.Components.Add(compName);
-					}
+					paramSet->Parameters.Add(key, inst);
 				}
 				parser.Read("}");
-				MetaData.Stages[stage.Name] = stage;
-			}
-			else if (fieldName == "interface")
-			{
-				InterfaceBlockMetaData block;
-				if (!parser.LookAhead("{") && !parser.LookAhead("size"))
-					block.Name = parser.ReadWord();
-				if (parser.LookAhead("size"))
-				{
-					parser.ReadWord();
-					block.Size = parser.ReadInt();
-				}
-				parser.Read("{");
-				while (!parser.LookAhead("}") && !parser.IsEnd())
-				{
-					InterfaceBlockEntry entry;
-					entry.Type = TypeFromString(parser);
-					entry.Name = parser.ReadWord();
-					parser.Read(":");
-					entry.Offset = parser.ReadInt();
-					parser.Read(",");
-					entry.Size = parser.ReadInt();
-					if (parser.LookAhead("{"))
-					{
-						parser.Read("{");
-						while (!parser.LookAhead("}") && !parser.IsEnd())
-						{
-							auto attribName = parser.ReadWord();
-							parser.Read(":");
-							auto attribValue = parser.ReadStringLiteral();
-							parser.Read(";");
-							entry.Attributes[attribName] = attribValue;
-						}
-						parser.Read("}");
-					}
-					parser.Read(";");
-					block.Entries.Add(entry);
-				}
-				parser.Read("}");
-				MetaData.InterfaceBlocks[block.Name] = block;
+				MetaData.ParameterSets.Add(paramSet->BindingName, paramSet);
 			}
 		}
 	}
@@ -456,17 +430,19 @@ namespace SpireLib
 	{
 	public:
 		CoreLib::EnumerableDictionary<String, CompiledShaderSource> Sources;
+		CoreLib::EnumerableDictionary<String, List<SpireParameterSet>> ParamSets;
+
 	};
 
 	class ComponentMetaData
 	{
 	public:
-		RefPtr<ILType> Type;
+        RefPtr<ExpressionType> Type;
 		String TypeName;
-		String Register;
 		String Name;
 		int Offset = 0;
 		int Alignment = 0;
+		int Size = 0;
 		int GetHashCode()
 		{
 			return Name.GetHashCode();
@@ -481,8 +457,8 @@ namespace SpireLib
 	{
 	public:
 		String Name;
-		EnumerableDictionary<String, List<ComponentMetaData>> ComponentsByWorld;
-		EnumerableHashSet<ComponentMetaData> Requirements;
+		List<ComponentMetaData> Parameters;
+		List<ComponentMetaData> Requirements;
 	};
 
 	class CompilationContext
@@ -490,13 +466,16 @@ namespace SpireLib
 	private:
 		bool useCache = false;
 		CoreLib::String cacheDir;
-		List<CompileUnit> moduleUnits;
-		RefPtr<Spire::Compiler::CompilationContext> compileContext;
-		HashSet<String> processedModuleUnits;
+		struct State
+		{
+			List<CompileUnit> moduleUnits;
+			HashSet<String> processedModuleUnits;
+			EnumerableDictionary<String, ModuleMetaData> modules;
+		};
+		List<State> states;
+		List<RefPtr<Spire::Compiler::CompilationContext>> compileContext;
 		RefPtr<ShaderCompiler> compiler;
-		RefPtr<ProgramSyntaxNode> programToCompile;
 		int errorCount = 0;
-		EnumerableDictionary<String, ModuleMetaData> modules;
 
 		struct IncludeHandlerImpl : IncludeHandler
 		{
@@ -537,8 +516,9 @@ namespace SpireLib
 		CompilationContext(bool /*pUseCache*/, CoreLib::String /*pCacheDir*/)
 		{
 			compiler = CreateShaderCompiler();
-			compileContext = new Spire::Compiler::CompilationContext();
+			compileContext.Add(new Spire::Compiler::CompilationContext());
 			LoadModuleSource(SpireStdLib::GetCode(), "stdlib", NULL);
+			states.Add(State());
 		}
 
 		~CompilationContext()
@@ -548,48 +528,44 @@ namespace SpireLib
 
 		ModuleMetaData * FindModule(CoreLib::String moduleName)
 		{
-			return modules.TryGetValue(moduleName);
+			return states.Last().modules.TryGetValue(moduleName);
 		}
 
 		void UpdateModuleLibrary(List<CompileUnit> & units, SpireDiagnosticSink * sink)
 		{
 			Spire::Compiler::CompileResult result;
-			compiler->Compile(result, *compileContext, units, Options);
-			for (auto & shader : compileContext->Symbols.Shaders)
+			compiler->Compile(result, *compileContext.Last(), units, Options);
+			for (auto & shader : compileContext.Last()->Symbols.Shaders)
 			{
-				if (!modules.ContainsKey(shader.Key))
+				if (!states.Last().modules.ContainsKey(shader.Key))
 				{
 					ModuleMetaData meta;
 					meta.Name = shader.Key;
+					int offset = 0;
 					for (auto & comp : shader.Value->Components)
 					{
+						if (comp.Value->Implementations.Count() != 1)
+							continue;
 						ComponentMetaData compMeta;
 						compMeta.Name = comp.Key;
-						compMeta.Type = TranslateExpressionType(comp.Value->Type->DataType);
+                        compMeta.Type = comp.Value->Type->DataType;
 						compMeta.TypeName = compMeta.Type->ToString();
-						for (auto & impl : comp.Value->Implementations)
+						compMeta.Alignment = (int)GetTypeAlignment(compMeta.Type.Ptr(), LayoutRule::Std140);
+						compMeta.Size = (int)GetTypeSize(compMeta.Type.Ptr(), LayoutRule::Std140);
+						offset = RoundToAlignment(offset, compMeta.Alignment);
+						compMeta.Offset = offset;
+						offset += compMeta.Size;
+						auto impl = comp.Value->Implementations.First();
+						if (impl->SyntaxNode->IsRequire)
 						{
-							impl->SyntaxNode->LayoutAttributes.TryGetValue("Binding", compMeta.Register);
-							if (impl->SyntaxNode->IsParam)
-							{
-								meta.Requirements.Add(compMeta);
-							}
-							else
-							{
-								for (auto & world : impl->Worlds)
-								{
-									auto list = meta.ComponentsByWorld.TryGetValue(world);
-									if (!list)
-									{
-										meta.ComponentsByWorld[world] = List<ComponentMetaData>();
-										list = meta.ComponentsByWorld.TryGetValue(world);
-									}
-									list->Add(compMeta);
-								}
-							}
+							meta.Requirements.Add(compMeta);
+						}
+						else
+						{
+							meta.Parameters.Add(compMeta);
 						}
 					}
-					modules.Add(shader.Key, _Move(meta));
+					states.Last().modules.Add(shader.Key, _Move(meta));
 				}
 			}
 			if (sink)
@@ -602,8 +578,8 @@ namespace SpireLib
 		void LoadModuleSource(CoreLib::String src, CoreLib::String fileName, SpireDiagnosticSink* sink)
 		{
 			List<CompileUnit> units;
-			LoadModuleSource(units, processedModuleUnits, src, fileName, sink);
-			moduleUnits.AddRange(units);
+			LoadModuleSource(units, states.Last().processedModuleUnits, src, fileName, sink);
+			states.Last().moduleUnits.AddRange(units);
 			UpdateModuleLibrary(units, sink);
 		}
 
@@ -667,6 +643,18 @@ namespace SpireLib
 		{
 			return new Shader(name, true);
 		}
+		void PushContext()
+		{
+			states.Add(states.Last());
+			compileContext.Add(new Spire::Compiler::CompilationContext(*compileContext.Last()));
+		}
+		void PopContext()
+		{
+			compileContext.Last() = nullptr;
+			compileContext.SetSize(compileContext.Count() - 1);
+			states.Last() = State();
+			states.SetSize(states.Count() - 1);
+		}
 		bool Compile(CompileResult & result, const Shader & shader, SpireDiagnosticSink* sink)
 		{
 			return Compile(result, shader.GetSource(), shader.GetName(), sink);
@@ -674,7 +662,7 @@ namespace SpireLib
 		bool Compile(CompileResult & result, CoreLib::String source, CoreLib::String fileName, SpireDiagnosticSink* sink)
 		{
 			List<CompileUnit> userUnits;
-			HashSet<String> processedUserUnits = processedModuleUnits;
+			HashSet<String> processedUserUnits = states.Last().processedModuleUnits;
 			if (errorCount != 0)
 				return false;
 
@@ -682,7 +670,7 @@ namespace SpireLib
 			if (errorCount != 0)
 				return false;
 
-			Spire::Compiler::CompilationContext tmpCtx(*compileContext);
+			Spire::Compiler::CompilationContext tmpCtx(*compileContext.Last());
 			Spire::Compiler::CompileResult cresult;
 			compiler->Compile(cresult, tmpCtx, userUnits, Options);
 			result.Sources = cresult.CompiledSource;
@@ -691,6 +679,32 @@ namespace SpireLib
 			{
 				sink->diagnostics.AddRange(cresult.sink.diagnostics);
 				sink->errorCount += cresult.GetErrorCount();
+			}
+			if (errorCount == 0)
+			{
+				for (auto shader : result.Sources)
+				{
+					List<SpireParameterSet> paramSets;
+					for (auto & pset : shader.Value.MetaData.ParameterSets)
+					{
+						SpireParameterSet set;
+						set.paramSet = pset.Value.Ptr();
+						for (auto & item : pset.Value->Parameters)
+						{
+							auto resType = item.Value->Type->GetBindableResourceType();
+							if (resType != BindableResourceType::NonBindable)
+							{
+								SpireResourceBindingInfo info;
+								info.Type = (SpireBindableResourceType)resType;
+								info.NumLegacyBindingPoints = item.Value->BindingPoints.Count();
+								info.LegacyBindingPoints = item.Value->BindingPoints.Buffer();
+								info.Name = item.Value->Name.Buffer();
+							}
+						}
+						paramSets.Add(_Move(set));
+					}
+					result.ParamSets[shader.Key] = _Move(paramSets);
+				}
 			}
 			return errorCount == 0;
 		}
@@ -775,6 +789,16 @@ void spLoadModuleLibraryFromSource(SpireCompilationContext * ctx, const char * s
 	CTX(ctx)->LoadModuleSource(source, fileName, sink);
 }
 
+void spPushContext(SpireCompilationContext * ctx)
+{
+	CTX(ctx)->PushContext();
+}
+
+void spPopContext(SpireCompilationContext * ctx)
+{
+	CTX(ctx)->PopContext();
+}
+
 SpireShader * spCreateShader(SpireCompilationContext * ctx, const char * name)
 {
 	return reinterpret_cast<SpireShader*>(CTX(ctx)->NewShader(name));
@@ -807,62 +831,27 @@ const char * spGetModuleName(SpireModule * module)
 	return moduleNode->Name.Buffer();
 }
 
-int spComponentInfoCollectionGetComponent(SpireComponentInfoCollection * collection, int index, SpireComponentInfo * result)
-{
-	auto list = reinterpret_cast<List<ComponentMetaData>*>(collection);
-	if (!list)
-		return SPIRE_ERROR_INVALID_PARAMETER;
-	if (index < 0 || index >= list->Count())
-		return SPIRE_ERROR_INVALID_PARAMETER;
-	result->Name = (*list)[index].Name.Buffer();
-	result->Alignment = (*list)[index].Alignment;
-	result->Offset = (*list)[index].Offset;
-	result->Size = (*list)[index].Type->GetSize();
-	result->Register = (*list)[index].Register.Buffer();
-	result->TypeName = (*list)[index].TypeName.Buffer();
-	return 0;
-}
-
-int spComponentInfoCollectionGetCount(SpireComponentInfoCollection * collection)
-{
-	auto list = reinterpret_cast<List<ComponentMetaData>*>(collection);
-	if (!list)
-		return SPIRE_ERROR_INVALID_PARAMETER;
-	return list->Count();
-}
-
-SpireComponentInfoCollection * spModuleGetComponentsByWorld(SpireModule * module, const char * worldName, int layout)
+int spModuleGetParameterCount(SpireModule * module)
 {
 	auto moduleNode = MODULE(module);
-	String worldNameStr = worldName;
-	Spire::Compiler::LayoutRule layoutRule;
-	if (layout == SPIRE_LAYOUT_PACKED)
-		layoutRule = LayoutRule::Packed;
-	else if (layout == SPIRE_LAYOUT_UNIFORM)
-		layoutRule = LayoutRule::Std140;
-	else
-		layoutRule = LayoutRule::Std430;
-	if (auto components = moduleNode->ComponentsByWorld.TryGetValue(worldNameStr))
-	{
-		// compute layout
-		int offset = 0;
-		for (auto & comp : *components)
-		{
-			int alignment = comp.Type->GetAlignment(layoutRule);
-			if (layout == SPIRE_LAYOUT_PACKED)
-				alignment = 0;
-			else if (layout == SPIRE_LAYOUT_UNIFORM)
-			{
-				if (comp.Type->IsScalar() || comp.Type->IsVector() && comp.Type->GetVectorSize() < 4)
-					alignment = 16;
-			}
-			offset = RoundToAlignment(offset, alignment);
-			comp.Offset = offset;
-			comp.Alignment = alignment;
-			offset += comp.Type->GetSize(layoutRule);
-		}
-		return reinterpret_cast<SpireComponentInfoCollection*>(components);
-	}
+	return moduleNode->Parameters.Count();
+}
+int spModuleGetParameterBufferSize(SpireModule * module)
+{
+	auto moduleNode = MODULE(module);
+	return moduleNode->Parameters.Last().Offset + moduleNode->Parameters.Last().Size;
+}
+
+int spModuleGetParameter(SpireModule * module, int index, SpireComponentInfo * result)
+{
+	auto moduleNode = MODULE(module);
+	auto & param = moduleNode->Parameters[index];
+	result->TypeName = param.TypeName.Buffer();
+	result->Size = param.Size;
+	result->Offset = param.Offset;
+	result->Alignment = param.Alignment;
+	result->Name = param.Name.Buffer();
+	result->BindableResourceType = (int)param.Type->GetBindableResourceType();
 	return 0;
 }
 
@@ -879,8 +868,8 @@ int spModuleGetRequiredComponents(SpireModule * module, SpireComponentInfo * buf
 	{
 		buffer[ptr].Name = comp.Name.Buffer();
 		buffer[ptr].TypeName = comp.TypeName.Buffer();
-		buffer[ptr].Alignment = comp.Type->GetAlignment();
-		buffer[ptr].Size = comp.Type->GetSize();
+		buffer[ptr].Alignment = (int) GetTypeAlignment(comp.Type.Ptr());
+		buffer[ptr].Size = (int) GetTypeSize(comp.Type.Ptr());
 		buffer[ptr].Offset = comp.Offset;
 		ptr++;
 	}
@@ -1039,13 +1028,67 @@ const char * spGetShaderStageSource(SpireCompilationResult * result, const char 
 			{
 				if (length)
 					*length = state->BinaryCode.Count();
-				return (char*)state->BinaryCode.Buffer();
+				return (const char*)state->BinaryCode.Buffer();
 			}
 		}
 	}
 	return nullptr;
 }
 
+int spGetShaderParameterSetCount(SpireCompilationResult * result, const char * shaderName)
+{
+	auto rs = RS(result);
+	CompiledShaderSource * src = nullptr;
+	if (shaderName == nullptr)
+	{
+		if (rs->Sources.Count())
+			src = &rs->Sources.First().Value;
+	}
+	else
+	{
+		src = rs->Sources.TryGetValue(shaderName);
+	}
+	if (src)
+	{
+		return src->MetaData.ParameterSets.Count();
+	}
+	return 0;
+}
+SpireParameterSet * spGetShaderParameterSet(SpireCompilationResult * result, const char * shaderName, int index)
+{
+	auto rs = RS(result);
+	List<SpireParameterSet> * sets = nullptr;
+	if (shaderName == nullptr)
+	{
+		if (rs->ParamSets.Count())
+			sets = &rs->ParamSets.First().Value;
+	}
+	else
+	{
+		sets = rs->ParamSets.TryGetValue(shaderName);
+	}
+	if (sets)
+	{
+		return &(*sets)[index];
+	}
+	return nullptr;
+}
+const char * spParameterSetGetBindingName(SpireParameterSet * set)
+{
+	return set->paramSet->BindingName.Buffer();
+}
+int spParameterSetGetBindingIndex(SpireParameterSet * set)
+{
+	return set->paramSet->DescriptorSetId;
+}
+int spParameterSetGetBindingSlotCount(SpireParameterSet * set)
+{
+	return set->bindings.Count();
+}
+SpireResourceBindingInfo * spParameterSetGetBindingSlot(SpireParameterSet * set, int index)
+{
+	return &set->bindings[index];
+}
 void spDestroyCompilationResult(SpireCompilationResult * result)
 {
 	delete RS(result);

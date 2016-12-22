@@ -82,13 +82,13 @@ DIAGNOSTIC(-1, Note, seeOpeningToken, "see opening '$0'")
 DIAGNOSTIC(15300, Error, includeFailed, "failed to find include file '$0'")
 DIAGNOSTIC(-1, Error, noIncludeHandlerSpecified, "no `#include` handler was specified")
 
-// 154xx - macros
+// 154xx - macro definition
 DIAGNOSTIC(15400, Warning, macroRedefinition, "redefinition of macro '$0'")
 DIAGNOSTIC(15401, Warning, macroNotDefined, "macro '$0' is not defined")
 DIAGNOSTIC(15403, Error, expectedTokenInMacroParameters, "expected '$0' in macro parameters")
 
-DIAGNOSTIC(15401, Warning, endOfInputInMacroInvocation, "end of input in macro arguments")
-
+// 155xx - macro expansion
+DIAGNOSTIC(15500, Warning, expectedTokenInMacroArguments, "expected '$0' in macro invocation")
 
 // 159xx - user-defined error/warning
 DIAGNOSTIC(15900, Error,    userDefinedError,   "#error: $0")
@@ -201,6 +201,7 @@ DIAGNOSTIC(33034, Error, recordTypeVariableInImportOperator, "cannot declare a r
 DIAGNOSTIC(33037, Error, componetMarkedExportCannotHaveParameters, "component '$0': definition marked as 'export' cannot have parameters.")
 DIAGNOSTIC(33039, Error, componentInInputWorldCantHaveCode, "'$0': no code allowed for component defined in input world.")
 DIAGNOSTIC(33040, Error, requireWithComputation, "'require': cannot define computation on component requirements.")
+DIAGNOSTIC(33042, Error, paramWithComputation, "'param': cannot define computation on parameters.")
 DIAGNOSTIC(33041, Error, pipelineOfModuleIncompatibleWithPipelineOfShader, "pipeline '$0' targeted by module '$1' is incompatible with pipeline '$2' targeted by shader '$3'.")
 DIAGNOSTIC(33070, Error, expectedFunction, "expression preceding parenthesis of apparent call must have function type.")
 DIAGNOSTIC(33071, Error, importOperatorCalledFromAutoPlacedComponent, "cannot call an import operator from an auto-placed component '$0'. try qualify the component with explicit worlds.")
@@ -214,13 +215,14 @@ DIAGNOSTIC(34025, Error, globalComponentConflictWithPreviousDeclaration, "'$0': 
 DIAGNOSTIC(34026, Warning, componentIsAlreadyDefinedUseRequire, "'$0': component is already defined when compiling shader '$1'. use 'require' to declare it as a parameter.")
 DIAGNOSTIC(34062, Error, cylicReference, "cyclic reference: $0");
 DIAGNOSTIC(34064, Error, noApplicableImplicitImportOperator, "cannot find import operator to import component '$0' to world '$1' when compiling '$2'.")
-
+DIAGNOSTIC(34065, Error, resourceTypeMustBeParamOrRequire, "'$0': resource typed component must be declared as 'param' or 'require'.");
 //
 // 4xxxx - IL code generation.
 //
-DIAGNOSTIC(40001, Error, bindingAlreadyOccupied, "resource binding location '$0' is already occupied by component '$1'.")
+DIAGNOSTIC(40001, Error, bindingAlreadyOccupiedByComponent, "resource binding location '$0' is already occupied by component '$1'.")
 DIAGNOSTIC(40002, Error, invalidBindingValue, "binding location '$0' is out of valid range.")
 DIAGNOSTIC(40003, Error, bindingExceedsLimit, "binding location '$0' assigned to component '$1' exceeds maximum limit.")
+DIAGNOSTIC(40004, Error, bindingAlreadyOccupiedByModule, "DescriptorSet ID '$0' is already occupied by module instance '$1'.")
 //
 // 5xxxx - Target code generation.
 //

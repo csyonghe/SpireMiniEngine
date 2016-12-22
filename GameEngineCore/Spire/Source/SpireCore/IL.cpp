@@ -52,26 +52,11 @@ namespace Spire
 				return new ILBasicType(ILBaseType::TextureCubeShadow);
 			if (parser.LookAhead("sampler2DArrayShadow") || parser.LookAhead("Texture2DArrayShadow"))
 				return new ILBasicType(ILBaseType::Texture2DArrayShadow);
+			if (parser.LookAhead("sampler3D") || parser.LookAhead("Texture3D"))
+				return new ILBasicType(ILBaseType::Texture3D);
 			if (parser.LookAhead("bool"))
 				return new ILBasicType(ILBaseType::Bool);
 			return nullptr;
-		}
-
-		RefPtr<ILType> TypeFromString(CoreLib::Text::TokenReader & parser)
-		{
-			auto result = BaseTypeFromString(parser);
-			parser.ReadToken();
-			while (parser.LookAhead("["))
-			{
-				parser.ReadToken();
-				RefPtr<ILArrayType> newResult = new ILArrayType();
-				newResult->BaseType = result;
-				if (!parser.LookAhead("]"))
-					newResult->ArrayLength = parser.ReadInt();
-				result = newResult;
-				parser.Read("]");
-			}
-			return result;
 		}
 
 		int RoundToAlignment(int offset, int alignment)
@@ -178,7 +163,7 @@ namespace Spire
 		{
 			auto basicType = dynamic_cast<ILBasicType*>(this);
 			if (basicType)
-				return basicType->Type == ILBaseType::Int || basicType->Type == ILBaseType::Int2 || basicType->Type == ILBaseType::Int3 || basicType->Type == ILBaseType::Int4 
+				return basicType->Type == ILBaseType::Int || basicType->Type == ILBaseType::Int2 || basicType->Type == ILBaseType::Int3 || basicType->Type == ILBaseType::Int4
 				|| basicType->Type == ILBaseType::UInt || basicType->Type == ILBaseType::UInt2 || basicType->Type == ILBaseType::UInt3 || basicType->Type == ILBaseType::UInt4 ||
 				basicType->Type == ILBaseType::Bool;
 			else
@@ -235,7 +220,7 @@ namespace Spire
 			auto basicType = dynamic_cast<ILBasicType*>(this);
 			if (basicType)
 				return basicType->Type == ILBaseType::Float2 || basicType->Type == ILBaseType::Float3 || basicType->Type == ILBaseType::Float4 ||
-					basicType->Type == ILBaseType::Float3x3 || basicType->Type == ILBaseType::Float4x4;
+				basicType->Type == ILBaseType::Float3x3 || basicType->Type == ILBaseType::Float4x4;
 			else
 				return false;
 		}
@@ -306,6 +291,73 @@ namespace Spire
 				}
 			}
 			return 1;
+		}
+
+		RefPtr<ILType> DeserializeBasicType(CoreLib::Text::TokenReader & reader)
+		{
+			reader.Read("basic");
+			auto rs = BaseTypeFromString(reader);
+			reader.ReadWord();
+			return rs;
+		}
+		RefPtr<ILType> DeserializeStructType(CoreLib::Text::TokenReader & reader)
+		{
+			reader.Read("struct");
+			RefPtr<ILStructType> rs = new ILStructType();
+			rs->TypeName = reader.ReadToken().Content;
+			reader.Read("(");
+			while (reader.LookAhead(")"))
+			{
+				ILStructType::ILStructField field;
+				field.FieldName = reader.ReadToken().Content;
+				reader.Read(":");
+				field.Type = ILType::Deserialize(reader);
+				reader.Read(";");
+			}
+			reader.Read(")");
+			return rs;
+		}
+		RefPtr<ILType> DeserializeArrayType(CoreLib::Text::TokenReader & reader)
+		{
+			reader.Read("array");
+			reader.Read("(");
+			RefPtr<ILArrayType> rs = new ILArrayType();
+			rs->BaseType = ILType::Deserialize(reader);
+			reader.Read(",");
+			rs->ArrayLength = reader.ReadInt();
+			reader.Read(")");
+			return rs;
+		}
+		RefPtr<ILType> DeserializeGenericType(CoreLib::Text::TokenReader & reader)
+		{
+			reader.Read("generic");
+			RefPtr<ILGenericType> rs = new ILGenericType();
+			rs->GenericTypeName = reader.ReadWord();
+			reader.Read("(");
+			rs->BaseType = ILType::Deserialize(reader);
+			reader.Read(")");
+			return rs;
+		}
+		RefPtr<ILType> DeserializeRecordType(CoreLib::Text::TokenReader & reader)
+		{
+			reader.Read("record");
+			RefPtr<ILRecordType> rs = new ILRecordType();
+			rs->TypeName = reader.ReadWord();
+			return rs;
+		}
+		RefPtr<ILType> ILType::Deserialize(CoreLib::Text::TokenReader & reader)
+		{
+			if (reader.LookAhead("basic"))
+				return DeserializeBasicType(reader);
+			else if (reader.LookAhead("struct"))
+				return DeserializeStructType(reader);
+			else if (reader.LookAhead("array"))
+				return DeserializeArrayType(reader);
+			else if (reader.LookAhead("generic"))
+				return DeserializeGenericType(reader);
+			else if (reader.LookAhead("record"))
+				return DeserializeRecordType(reader);
+			return nullptr;
 		}
 
 		bool CFGNode::HasPhiInstruction()
@@ -604,36 +656,6 @@ namespace Spire
 				return true;
 			return false;
 		}
-		void Align(int & ptr, int alignment)
-		{
-			if (ptr % alignment != 0)
-			{
-				ptr = (ptr / alignment + 1) * alignment;
-			}
-		}
-		int ILStructType::GetSize(LayoutRule rule)
-		{
-			int rs = 0;
-			for (auto & m : Members)
-			{
-				int size = m.Type->GetSize(rule);
-				int alignment = m.Type->GetAlignment(rule);
-				Align(rs, alignment);
-				rs += size;
-			}
-			return rs;
-		}
-		int ILStructType::GetAlignment(LayoutRule rule)
-		{
-			int rs = 1;
-			for (auto & m : Members)
-			{
-				int alignment = m.Type->GetAlignment(rule);
-				rs = Math::Max(rs, alignment);
-			}
-			return rs;
-		}
-
 		ILType * ILRecordType::Clone()
 		{
 			auto rs = new ILRecordType(*this);
@@ -659,14 +681,6 @@ namespace Spire
 				return TypeName == recType->TypeName;
 			else
 				return false;
-		}
-		int ILRecordType::GetSize(LayoutRule /*rule*/)
-		{
-			return 0;
-		}
-		int ILRecordType::GetAlignment(LayoutRule /*rule*/)
-		{
-			return 0;
 		}
 		void DiscardInstruction::Accept(InstructionVisitor * visitor)
 		{

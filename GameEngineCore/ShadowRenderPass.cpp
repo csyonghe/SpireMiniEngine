@@ -24,7 +24,7 @@ namespace GameEngine
 			shader ShadowPass : StandardPipeline
 			{
 				public using VertexAttributes;
-				public using SystemUniforms;
+				public using ForwardBasePassParams;
 				public using ANIMATION;
 				public using TangentSpaceTransform;
 				public using MaterialGeometry;

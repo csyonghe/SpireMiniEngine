@@ -2,66 +2,11 @@ pipeline StandardPipeline
 {
     [Pinned]
     input world MeshVertex;
-    
-    [Pinned]
-    input world ModelInstance;
-    
-    [Pinned]
-    input world ViewUniform;
-    
-    [Pinned]
-    input world MaterialUniform;
-    
-    [Pinned]
-    input world LightData;
 
     world CoarseVertex;// : "glsl(vertex:projCoord)" using projCoord export standardExport;
     world Fragment;// : "glsl" export fragmentExport;
     
     require @CoarseVertex vec4 projCoord; 
-    [Binding: "4"]
-    extern @(CoarseVertex*, Fragment*) Uniform<LightData> LightDataBlock; 
-    import(LightData->Fragment) uniformImport<T>()
-    {
-        return project(LightDataBlock);
-    }
-    import(LightData->CoarseVertex) uniformImport<T>()
-    {
-        return project(LightDataBlock);
-    }
-
-    [Binding: "2"]
-    extern @(CoarseVertex*, Fragment*) Uniform<MaterialUniform> MaterialUniformBlock; 
-    import(MaterialUniform->CoarseVertex) uniformImport<T>()
-    {
-        return project(MaterialUniformBlock);
-    }
-    import(MaterialUniform->Fragment) uniformImport<T>()
-    {
-        return project(MaterialUniformBlock);
-    }
-
-    [Binding: "1"]
-    extern @(CoarseVertex*, Fragment*) Uniform<ViewUniform> ViewUniformBlock;
-    import(ViewUniform->CoarseVertex) uniformImport<T>()
-    {
-        return project(ViewUniformBlock);
-    }
-    import(ViewUniform->Fragment) uniformImport<T>()
-    {
-        return project(ViewUniformBlock);
-    }
-    
-    [Binding: "0"]
-    extern @(CoarseVertex*, Fragment*) Uniform<ModelInstance> ModelInstanceBlock;
-    import(ModelInstance->CoarseVertex) uniformImport<T>()
-    {
-        return project(ModelInstanceBlock);
-    }
-    import(ModelInstance->Fragment) uniformImport<T>()
-    {
-        return project(ModelInstanceBlock);
-    }
         
     [VertexInput]
     extern @CoarseVertex MeshVertex vertAttribIn;
@@ -94,30 +39,6 @@ pipeline TessellationPipeline : StandardPipeline
 {
     [Pinned]
     input world MeshVertex;
-    
-    [Pinned]
-    [Binding: "0"]
-    input world ModelInstance;
-   
-    [Pinned]
-    [Binding: "1"]
-    input world ViewUniform;
-    
-    [Pinned]
-    [Binding: "2"]
-    input world MaterialUniform;
-    
-    [Pinned]
-    [Binding: "4"]
-    input world LightData;
-
-    [Binding: "4"]
-    extern @(CoarseVertex*, Fragment*, ControlPoint*, FineVertex*, TessPatch*) Uniform<LightData> LightDataBlock; 
-    import(LightData->CoarseVertex) uniformImport<T>() { return project(LightDataBlock); }
-    import(LightData->Fragment) uniformImport<T>() { return project(LightDataBlock); }
-    import(LightData->ControlPoint) uniformImport<T>() { return project(LightDataBlock); }
-    import(LightData->FineVertex) uniformImport<T>() { return project(LightDataBlock); }
-    import(LightData->TessPatch) uniformImport<T>() { return project(LightDataBlock); }
 
     world CoarseVertex;
     world ControlPoint;
@@ -129,34 +50,7 @@ pipeline TessellationPipeline : StandardPipeline
     require @FineVertex vec4 projCoord; 
     require @ControlPoint vec2 tessLevelInner;
     require @ControlPoint vec4 tessLevelOuter;
-    [Binding: "2"]
-    extern @(CoarseVertex*, Fragment*, ControlPoint*, FineVertex*, TessPatch*) Uniform<MaterialUniform> instanceUniformBlock;
-    
-    import(MaterialUniform->CoarseVertex) uniformImport<T>() { return project(instanceUniformBlock); }
-    import(MaterialUniform->Fragment) uniformImport<T>() { return project(instanceUniformBlock); }
-    import(MaterialUniform->ControlPoint) uniformImport<T>() { return project(instanceUniformBlock); }
-    import(MaterialUniform->FineVertex) uniformImport<T>() { return project(instanceUniformBlock); }
-    import(MaterialUniform->TessPatch) uniformImport<T>() { return project(instanceUniformBlock); }
-    
-    [Binding: "1"]
-    extern @(CoarseVertex*, Fragment*, ControlPoint*, FineVertex*, TessPatch*) Uniform<ViewUniform> ViewUniformBlock;
-    
-    import(ViewUniform->CoarseVertex) uniformImport<T>() { return project(ViewUniformBlock); }
-    import(ViewUniform->Fragment) uniformImport<T>() { return project(ViewUniformBlock); }
-    import(ViewUniform->ControlPoint) uniformImport<T>() { return project(ViewUniformBlock); }
-    import(ViewUniform->FineVertex) uniformImport<T>() { return project(ViewUniformBlock); }
-    import(ViewUniform->TessPatch) uniformImport<T>() { return project(ViewUniformBlock); }
-    
-    [Binding: "0"]
-    extern @(CoarseVertex*, Fragment*, ControlPoint*, FineVertex*, TessPatch*) Uniform<ModelInstance> modelUniformBlock;
-    
-    import(ModelInstance->CoarseVertex) uniformImport() { return project(modelUniformBlock); }
-    import(ModelInstance->ControlPoint) uniformImport() { return project(modelUniformBlock); }
-    import(ModelInstance->FineVertex) uniformImport() { return project(modelUniformBlock); }
-    import(ModelInstance->TessPatch) uniformImport() { return project(modelUniformBlock); }
-    
-    import(ModelInstance->Fragment) uniformImport() { return project(modelUniformBlock); }
-    
+
     [VertexInput]
     extern @CoarseVertex MeshVertex vertAttribs;
     import(MeshVertex->CoarseVertex) vertexImport() { return project(vertAttribs); }

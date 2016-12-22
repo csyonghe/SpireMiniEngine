@@ -93,14 +93,10 @@ module Atmosphere
     // ----------------------------------------------------------------------------
     // PARAMETERIZATION FUNCTIONS
     // ----------------------------------------------------------------------------
-    [Binding: "13"]
-    @ModelInstance Texture2D transmittanceSampler;
-    [Binding: "14"]    
-    @ModelInstance Texture2D skyIrradianceSampler;
-    [Binding: "15"]
-    @ModelInstance Texture3D inscatterSampler;
-    [Binding: "1"]
-	@ModelInstance SamplerState linearSampler;
+    require Texture2D transmittanceSampler;
+    require Texture2D skyIrradianceSampler;
+    require Texture3D inscatterSampler;
+    require SamplerState linearSampler;
 
     vec2 getTransmittanceUV(float r, float mu)
     {
@@ -454,15 +450,21 @@ shader AtmospherePostPass : StandardPipeline
 {
 	public @MeshVertex vec2 vertPos;
 	public @MeshVertex vec2 vertUV;
-	public using SystemUniforms;
-	
-    //[Binding: "0"]
-	@ViewUniform Texture2D colorTex;
-    //[Binding: "1"]    
-	@ViewUniform Texture2D depthTex;
 
-    @ModelInstance vec3 worldSunDir;
-    @ModelInstance vec4 atmosphereParams;
+	param vec3 worldSunDir;
+    param vec4 atmosphereParams;
+    
+    param Texture2D colorTex;
+	param Texture2D depthTex;
+   
+    param Texture2D transmittanceSampler;
+    param Texture2D skyIrradianceSampler;
+    param Texture3D inscatterSampler;
+
+    param SamplerState linearSampler;
+	param SamplerState nearestSampler;
+
+    public using ForwardBasePassParams;
 
     float atmosphericFogScale = atmosphereParams.x;
     
@@ -483,7 +485,7 @@ shader AtmospherePostPass : StandardPipeline
     public out @Fragment vec4 outputColor
     {
 		vec4 result;
-        float z = depthTex.Sample(textureSampler, vertUV).r; 
+        float z = depthTex.Sample(nearestSampler, vertUV).r; 
         float x = vertUV.x*2-1;
         float y = vertUV.y*2-1;
         vec4 position = invViewProjTransform * vec4(x, y, z, 1.0f);
@@ -504,7 +506,7 @@ shader AtmospherePostPass : StandardPipeline
         }
         else
         {
-            vec3 colorIn = colorTex.Sample(textureSampler, vertUV).xyz;
+            vec3 colorIn = colorTex.Sample(nearestSampler, vertUV).xyz;
             vec3 extinction;
             vec3 inscatter = atmosphere.AtmosphericScatterSceneGeometry(cameraPos*0.01 +
                  atmosphere.earthPos, t*atmosphericFogScale, v, z, worldSunDir, extinction);

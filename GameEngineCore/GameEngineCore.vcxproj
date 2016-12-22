@@ -170,7 +170,6 @@
     <ClCompile Include="GBufferRenderPass.cpp" />
     <ClCompile Include="GLAPI\GLHardwareRenderer.cpp" />
     <ClCompile Include="GraphicsSettings.cpp" />
-    <ClCompile Include="HardwareApiFactory.cpp" />
     <ClCompile Include="HardwareInputInterface.cpp" />
     <ClCompile Include="InputDispatcher.cpp" />
     <ClCompile Include="Level.cpp" />
@@ -185,6 +184,7 @@
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="RenderPass.cpp" />
     <ClCompile Include="RenderPassRegistry.h" />
+    <ClCompile Include="ShadeCompiler.cpp" />
     <ClCompile Include="ShadowRenderPass.cpp" />
     <ClCompile Include="SkeletalMeshActor.cpp" />
     <ClCompile Include="Skeleton.cpp" />
@@ -221,7 +221,6 @@
     <ClInclude Include="Engine.h" />
     <ClInclude Include="FreeRoamCameraController.h" />
     <ClInclude Include="GraphicsSettings.h" />
-    <ClInclude Include="HardwareApiFactory.h" />
     <ClInclude Include="HardwareInputInterface.h" />
     <ClInclude Include="HardwareRenderer.h" />
     <ClInclude Include="InputDispatcher.h" />
@@ -237,6 +236,7 @@
     <ClInclude Include="RenderContext.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="RenderPass.h" />
+    <ClInclude Include="ShaderCompiler.h" />
     <ClInclude Include="SkeletalMeshActor.h" />
     <ClInclude Include="Skeleton.h" />
     <ClInclude Include="Spire\Spire.h" />

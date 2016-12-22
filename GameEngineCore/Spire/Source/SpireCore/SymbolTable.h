@@ -47,13 +47,12 @@ namespace Spire
 			String Name, UniqueName, UniqueKey;
 			List<String> ChoiceNames;
 			EnumerableDictionary<ShaderComponentSymbol *, EnumerableHashSet<RefPtr<ImportExpressionSyntaxNode>>> DependentComponents;
-			EnumerableHashSet<ShaderComponentSymbol *>UserComponents;
 			List<RefPtr<ShaderComponentImplSymbol>> Implementations;
 			RefPtr<Type> Type;
-			bool IsParam()
+			bool IsRequire()
 			{
 				for (auto & impl : Implementations)
-					if (impl->SyntaxNode->IsParam)
+					if (impl->SyntaxNode->IsRequire)
 						return true;
 				return false;
 			}
@@ -65,13 +64,6 @@ namespace Spire
 					this->Implementations.Add(new ShaderComponentImplSymbol(*impl));
 				this->Name = other.Name;
 			}
-		};
-		
-		class WorldSymbol
-		{
-		public:
-			bool IsAbstract = false;
-			WorldSyntaxNode * SyntaxNode = nullptr;
 		};
 
 		class PipelineSymbol;
@@ -86,19 +78,24 @@ namespace Spire
 			bool IsPublic;
 		};
 
-		class ShaderSymbol
-		{
-		public:
-			bool IsAbstract = false;
-			bool SemanticallyChecked = false;
-			ShaderSyntaxNode * SyntaxNode = nullptr;
-			PipelineSymbol * Pipeline = nullptr;
+        class ShaderSymbolBase
+        {
+        public:
+			PipelineSymbol * ParentPipeline = nullptr;
 
 			// components that are functions, they are also listed in Components, index by original names
 			EnumerableDictionary<String, List<RefPtr<ShaderComponentSymbol>>> FunctionComponents; 
 			
 			// all components in this shader, function components are indexed by their unique names
 			EnumerableDictionary<String, RefPtr<ShaderComponentSymbol>> Components;
+        };
+
+		class ShaderSymbol : public ShaderSymbolBase
+		{
+		public:
+			bool IsAbstract = false;
+			bool SemanticallyChecked = false;
+			ShaderSyntaxNode * SyntaxNode = nullptr;
 
 			List<ShaderComponentSymbol*> GetComponentDependencyOrder();
 			EnumerableHashSet<ShaderSymbol*> DependentShaders;
@@ -113,10 +110,26 @@ namespace Spire
 			ComponentReference ResolveComponentReference(String compName, bool topLevel = true);
 		};
 
+		class ShaderClosure;
+
+		class ComponentInstance
+		{
+		public:
+			ShaderComponentSymbol * Symbol = nullptr;
+			ShaderClosure * Closure = nullptr;
+			ComponentInstance() = default;
+			ComponentInstance(ShaderClosure * closure, ShaderComponentSymbol * comp)
+			{
+				Closure = closure;
+				Symbol = comp;
+			}
+		};
+
 		class ShaderClosure : public Object
 		{
 		public:
 			ShaderClosure * Parent = nullptr;
+			ShaderSyntaxNode * ModuleSyntaxNode = nullptr;
 			CodePosition Position;
 			PipelineSymbol * Pipeline = nullptr;
 			bool IsInPlace = false;
@@ -125,7 +138,7 @@ namespace Spire
 			CodePosition UsingPosition;
 			EnumerableDictionary<String, RefPtr<ShaderComponentSymbol>> RefMap;
 			EnumerableDictionary<String, RefPtr<ShaderComponentSymbol>> Components;
-			EnumerableDictionary<String, ShaderComponentSymbol *> AllComponents;
+			EnumerableDictionary<String, ComponentInstance> AllComponents;
 			EnumerableDictionary<String, RefPtr<ShaderClosure>> SubClosures;
 			RefPtr<ShaderComponentSymbol> FindComponent(String name, bool findInPrivate = false, bool includeParams = true);
 			RefPtr<ShaderClosure> FindClosure(String name);
@@ -151,7 +164,7 @@ namespace Spire
 			List<Node> Nodes;
 		};
 
-		class PipelineSymbol
+		class PipelineSymbol : public ShaderSymbolBase
 		{
 		private:
 			List<String> WorldTopologyOrder;
@@ -163,10 +176,8 @@ namespace Spire
 			EnumerableDictionary<String, List<RefPtr<ImportOperatorDefSyntaxNode>>> ImportOperators;
 			// SourceWorld=>DestinationWorld=>ImportOperator
 			EnumerableDictionary<String, EnumerableDictionary<String, List<RefPtr<ImportOperatorDefSyntaxNode>>>> ImportOperatorsByPath;
-			EnumerableDictionary<String, RefPtr<ShaderComponentSymbol>> Components;
-			EnumerableDictionary<String, List<RefPtr<ShaderComponentSymbol>>> FunctionComponents;
 			EnumerableDictionary<String, EnumerableHashSet<String>> WorldDependency;
-			EnumerableDictionary<String, WorldSymbol> Worlds;
+            EnumerableDictionary<String, WorldSyntaxNode*> Worlds;
 			bool IsAbstractWorld(String world);
 			bool IsChildOf(PipelineSymbol * parentPipeline);
 			
@@ -178,14 +189,6 @@ namespace Spire
 
 		class CompileResult;
 
-		class StructSymbol
-		{
-		public:
-			String Name;
-			RefPtr<StructSyntaxNode> SyntaxNode;
-			RefPtr<ILStructType> Type;
-		};
-
 		class SymbolTable
 		{
 		private:
@@ -195,7 +198,7 @@ namespace Spire
 			EnumerableDictionary<String, RefPtr<FunctionSymbol>> Functions; // indexed by internal name
 			EnumerableDictionary<String, RefPtr<ShaderSymbol>> Shaders;
 			EnumerableDictionary<String, RefPtr<PipelineSymbol>> Pipelines;
-			EnumerableDictionary<String, RefPtr<StructSymbol>> Structs;
+			EnumerableDictionary<String, Decl*> globalDecls;
 			List<ShaderSymbol*> ShaderDependenceOrder;
 			bool SortShaders(); // return true if success, return false if dependency is cyclic
 			void EvalFunctionReferenceClosure();
@@ -206,6 +209,8 @@ namespace Spire
 			bool IsWorldImplicitlyReachable(PipelineSymbol * pipe, EnumerableHashSet<String> & src, String targetWorld, RefPtr<ExpressionType> type);
 			bool IsWorldImplicitlyReachable(PipelineSymbol * pipe, String src, String targetWorld, RefPtr<ExpressionType> type);
 			List<ImportPath> FindImplicitImportOperatorChain(PipelineSymbol * pipe, String worldSrc, String worldDest, RefPtr<ExpressionType> type);
+
+            Decl* LookUp(String const& name);
 		};
 
 		class UniqueIdGenerator

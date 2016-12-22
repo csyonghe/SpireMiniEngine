@@ -11,12 +11,11 @@ namespace GameEngine
 	protected:
 		int renderPassId = -1;
 		RendererSharedResource * sharedRes = nullptr;
-		SceneResource * sceneRes = nullptr;
 		HardwareRenderer * hwRenderer = nullptr;
 		CoreLib::RefPtr<RenderTargetLayout> renderTargetLayout;
 		virtual void Create() = 0;
 	public:
-		void Init(RendererSharedResource * pSharedRes, SceneResource * pSceneRes);
+		void Init(RendererSharedResource * pSharedRes);
 		RenderTargetLayout * GetRenderTargetLayout()
 		{
 			return renderTargetLayout.Ptr();

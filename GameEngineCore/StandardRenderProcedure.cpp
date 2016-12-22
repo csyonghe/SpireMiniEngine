@@ -56,10 +56,14 @@ namespace GameEngine
 		RenderPassInstance forwardBaseInstance;
 		RenderPassInstance gBufferInstance;
 
+		DeviceMemory renderPassUniformMemory;
+		SharedModuleInstances sharedModules;
+		CoreLib::RefPtr<ModuleInstance> forwardBasePassParams, lightingParams;
+		CoreLib::List<CoreLib::RefPtr<ModuleInstance>> shadowViewInstances;
+
 		DrawableSink sink;
 
 		List<DirectionalLightActor*> directionalLights;
-		Array<StandardViewUniforms, 128> shadowMapViewUniforms;
 		List<LightUniforms> lightingData;
 
 		bool useAtmosphere = false;
@@ -100,7 +104,7 @@ namespace GameEngine
 					sharedRes->LoadSharedRenderTarget("normalBuffer", StorageFormat::RGB10_A2),
 					sharedRes->LoadSharedRenderTarget("depthBuffer", StorageFormat::Depth24Stencil8)
 				);
-				gBufferInstance = gBufferRenderPass->CreateInstance(gBufferOutput, &viewUniform, sizeof(viewUniform));
+				gBufferInstance = gBufferRenderPass->CreateInstance(gBufferOutput);
 			}
 			else
 			{
@@ -111,11 +115,23 @@ namespace GameEngine
 					sharedRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8),
 					sharedRes->LoadSharedRenderTarget("depthBuffer", StorageFormat::Depth24Stencil8)
 				);
-				forwardBaseInstance = forwardRenderPass->CreateInstance(forwardBaseOutput, &viewUniform, sizeof(viewUniform));
+				forwardBaseInstance = forwardRenderPass->CreateInstance(forwardBaseOutput);
 			}
 
 			atmospherePass = CreateAtmospherePostRenderPass();
 			renderer->RegisterPostRenderPass(atmospherePass);
+
+			// initialize forwardBasePassModule and lightingModule
+			renderPassUniformMemory.Init(sharedRes->hardwareRenderer.Ptr(), BufferUsage::UniformBuffer, 22, sharedRes->hardwareRenderer->UniformBufferAlignment());
+			forwardBasePassParams = sharedRes->CreateModuleInstance(spFindModule(sharedRes->spireContext, "ForwardBasePassParams"), &renderPassUniformMemory);
+			forwardBasePassParams->Descriptors->BeginUpdate();
+			forwardBasePassParams->Descriptors->Update(1, sharedRes->textureSampler.Ptr());
+			forwardBasePassParams->Descriptors->EndUpdate();
+			lightingParams = sharedRes->CreateModuleInstance(spFindModule(sharedRes->spireContext, "Lighting"), &renderPassUniformMemory);
+			for (int i = 0; i < MaxShadowCascades; i++)
+				shadowViewInstances.Add(sharedRes->CreateModuleInstance(spFindModule(sharedRes->spireContext, "ForwardBasePassParams"), &renderPassUniformMemory));
+			sharedModules.View = forwardBasePassParams.Ptr();
+			sharedModules.Lighting = lightingParams.Ptr();
 		}
 		virtual void Run(CoreLib::List<RenderPassInstance>& renderPasses, CoreLib::List<PostRenderPass*> & postPasses, const RenderProcedureParameters & params) override
 		{
@@ -198,7 +214,7 @@ namespace GameEngine
 				int shadowMapSize = Engine::Instance()->GetGraphicsSettings().ShadowMapResolution;
 				float zmin = camera->ZNear;
 				float aspect = w / (float)h;
-				shadowMapViewUniforms.Clear();
+				int shadowMapViewInstancePtr = 0;
 				for (auto dirLight : directionalLights)
 				{
 					LightUniforms lightData;
@@ -255,7 +271,6 @@ namespace GameEngine
 
 								shadowMapView.ViewProjectionTransform.Inverse(shadowMapView.InvViewProjTransform);
 								shadowMapView.ViewTransform.Inverse(shadowMapView.InvViewTransform);
-								shadowMapViewUniforms.Add(shadowMapView);
 
 								Matrix4 viewportMatrix;
 								Matrix4::CreateIdentityMatrix(viewportMatrix);
@@ -263,10 +278,22 @@ namespace GameEngine
 								viewportMatrix.m[1][1] = 0.5f; viewportMatrix.m[3][1] = 0.5f;
 								viewportMatrix.m[2][2] = 1.0f; viewportMatrix.m[3][2] = 0.0f;
 								Matrix4::Multiply(lightData.lightMatrix[i], viewportMatrix, shadowMapView.ViewProjectionTransform);
-								auto pass = shadowRenderPass->CreateInstance(shadowMapRes.shadowMapRenderOutputs[i + shadowMapStartId].Ptr(),
-									&shadowMapViewUniforms[shadowMapViewUniforms.Count() - 1],
-									sizeof(StandardViewUniforms));
-								pass.RecordCommandBuffer(From(sink.GetDrawables()));
+								auto pass = shadowRenderPass->CreateInstance(shadowMapRes.shadowMapRenderOutputs[i + shadowMapStartId].Ptr());
+								DescriptorSetBindings bindings;
+								ModuleInstance * shadowMapPassInstance = nullptr;
+								if (shadowMapViewInstancePtr < shadowViewInstances.Count())
+								{
+									shadowMapPassInstance = shadowViewInstances[shadowMapViewInstancePtr++].Ptr();
+								}
+								else
+								{
+									shadowViewInstances.Add(sharedRes->CreateModuleInstance(spFindModule(sharedRes->spireContext, "ForwardBasePassParams"), &renderPassUniformMemory));
+									shadowMapViewInstancePtr = shadowViewInstances.Count();
+									shadowMapPassInstance = shadowViewInstances.Last().Ptr();
+								}
+								bindings.Bind(0, shadowMapPassInstance->Descriptors.Ptr());
+								shadowMapPassInstance->SetUniformData(&shadowMapView, sizeof(shadowMapView));
+								pass.RecordCommandBuffer(bindings, From(sink.GetDrawables()));
 								renderPasses.Add(pass);
 							}
 						}
@@ -275,23 +302,33 @@ namespace GameEngine
 				}
 			}
 
-			sharedRes->lightUniformBuffer->SetData(0, lightingData.Buffer(), Math::Min((int)sizeof(LightUniforms)*lightingData.Count(), MaxLightBufferSize));
+			lightingParams->SetUniformData(lightingData.Buffer(), (int)(lightingData.Count()*sizeof(LightUniforms)));
 			
+			DescriptorSetBindings bindings;
+			bindings.Bind(0, forwardBasePassParams->Descriptors.Ptr());
+			bindings.Bind(1, lightingParams->Descriptors.Ptr());
+
 			if (deferred)
 			{
-				gBufferInstance.RecordCommandBuffer(From(sink.GetDrawables()));
+				gBufferInstance.RecordCommandBuffer(bindings, From(sink.GetDrawables()));
 				renderPasses.Add(gBufferInstance);
 				postPasses.Add(deferredLightingPass);
 			}
 			else
 			{
-				forwardBaseInstance.RecordCommandBuffer(From(sink.GetDrawables()));
+				forwardBaseInstance.RecordCommandBuffer(bindings, From(sink.GetDrawables()));
 				renderPasses.Add(forwardBaseInstance);
 			}
 			if (useAtmosphere)
 			{
 				postPasses.Add(atmospherePass);
 			}
+		}
+
+		virtual void ResizeFrame(int w, int h) override
+		{
+			atmospherePass->RecordCommandBuffer(sharedModules, w, h);
+			deferredLightingPass->RecordCommandBuffer(sharedModules, w, h);
 		}
 	};
 

@@ -12,6 +12,7 @@ namespace GameEngine
 	class PostRenderPass;
 	class RendererSharedResource;
 	class SceneResource;
+	class Material;
 
 	class Renderer : public CoreLib::Object
 	{

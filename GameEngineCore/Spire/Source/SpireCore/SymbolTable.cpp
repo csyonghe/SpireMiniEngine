@@ -116,7 +116,7 @@ namespace Spire
 				for (auto & p : paths)
 				{
 					String world0 = p.Nodes.Last().TargetWorld;
-					for (auto op : SyntaxNode->ImportOperators)
+					for (auto op : SyntaxNode->GetImportOperators())
 					{
 						if (op->SourceWorld.Content == world0)
 						{
@@ -140,9 +140,9 @@ namespace Spire
 
 		bool PipelineSymbol::IsAbstractWorld(String world)
 		{
-			WorldSymbol ws;
-			if (Worlds.TryGetValue(world, ws))
-				return ws.IsAbstract;
+			WorldSyntaxNode* worldDecl;
+			if (Worlds.TryGetValue(world, worldDecl))
+				return worldDecl->IsAbstract;
 			return false;
 		}
 
@@ -315,9 +315,9 @@ namespace Spire
 						result = rresult;
 				}
 			}
-			if (Pipeline && Pipeline->Components.TryGetValue(compName, refComp))
+			if (ParentPipeline && ParentPipeline->Components.TryGetValue(compName, refComp))
 			{
-				if (!refComp->IsParam())
+				if (!refComp->IsRequire())
 				{
 					result.Component = refComp.Ptr();
 					return result;
@@ -365,7 +365,7 @@ namespace Spire
 					rs = false;
 					break;
 				}
-				if (impl->SyntaxNode->IsParam != cimpl->SyntaxNode->IsParam)
+				if (impl->SyntaxNode->IsRequire != cimpl->SyntaxNode->IsRequire)
 				{
                     err->diagnose(impl->SyntaxNode->Position,
                         Diagnostics::inconsistentSignatureForComponent,
@@ -396,7 +396,7 @@ namespace Spire
 					break;
 				}
 			}
-			if (impl->SyntaxNode->IsParam && comp->Implementations.Count() != 0)
+			if (impl->SyntaxNode->IsRequire && comp->Implementations.Count() != 0)
 			{
                 err->diagnose(impl->SyntaxNode->Position,
                     Diagnostics::parameterNameConflictsWithExistingDefinition, comp->Name);
@@ -435,7 +435,7 @@ namespace Spire
 				auto typeStr = type->ToString();
 				auto retType = PrintType(req->ReturnType, typeStr);
 				StringBuilder sbInternalName;
-				sbInternalName << req->Name;
+				sbInternalName << req->Name.Content;
 				for (auto & op : req->Parameters)
 				{
 					sbInternalName << "@" << PrintType(op->Type, typeStr);
@@ -500,6 +500,14 @@ namespace Spire
 			}).ToList();
 		}
 
+        Decl* SymbolTable::LookUp(String const& name)
+        {
+            Decl* decl = nullptr;
+            if (globalDecls.TryGetValue(name, decl))
+                return decl;
+            return nullptr;
+        }
+
 		int UniqueIdGenerator::currentGUID = 0;
 		void UniqueIdGenerator::Clear()
 		{
@@ -514,14 +522,14 @@ namespace Spire
 			RefPtr<ShaderComponentSymbol> rs;
 			if (RefMap.TryGetValue(name, rs))
 			{
-				if (includeParams || !rs->IsParam())
+				if (includeParams || !rs->IsRequire())
 					return rs;
 				else
 					return nullptr;
 			}
 			if (Components.TryGetValue(name, rs))
 			{
-				if (includeParams || !rs->IsParam())
+				if (includeParams || !rs->IsRequire())
 					return rs;
 				else
 					return nullptr;
@@ -570,7 +578,7 @@ namespace Spire
 		{
 			List<ShaderComponentSymbol*> comps;
 			for (auto & comp : AllComponents)
-				comps.Add(comp.Value);
+				comps.Add(comp.Value.Symbol);
 			comps.Sort([&](ShaderComponentSymbol*c0, ShaderComponentSymbol*c1)
 			{
 				return c0->Implementations.First()->SyntaxNode->Position < c1->Implementations.First()->SyntaxNode->Position;

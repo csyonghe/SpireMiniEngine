@@ -8,16 +8,15 @@ module MaterialGeometry
 }
 module MaterialPattern
 {
+    param Texture2D albedoMap;
+    param Texture2D normalMap;
+    param Texture2D displacementMap;
+    param float uvScale;
+
     require vec2 vertUV;
     require vec3 WorldSpaceToTangentSpace(vec3 v);
     require vec3 cameraPos;
     require vec3 pos;
-    
-    @MaterialUniform Texture2D albedoMap;
-    @MaterialUniform Texture2D normalMap;
-    @MaterialUniform Texture2D displacementMap;
-    @MaterialUniform float uvScale;
-
     require SamplerState textureSampler;
 
     vec3 viewDirTan = WorldSpaceToTangentSpace(normalize(cameraPos - pos));

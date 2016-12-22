@@ -2,13 +2,14 @@
 #define GLEW_STATIC
 #endif
 
-#include "../GameEngineCore/HardwareRenderer.h"
 #include "CoreLib/PerformanceCounter.h"
-
-#include "../WinForm/Debug.h"
 #include <glew/glew.h>
 #include <glew/wglew.h>
 #include "../VectorMath.h"
+#include "../Spire/Spire.h"
+#include "../WinForm/Debug.h"
+#include "../GameEngineCore/HardwareRenderer.h"
+
 #include <assert.h>
 #pragma comment(lib, "opengl32.lib")
 
@@ -1487,6 +1488,66 @@ namespace GLL
 		}
 	}
 
+	struct BindingLayout
+	{
+		BindingType Type = BindingType::Unused;
+		CoreLib::List<int> BindingPoints;
+	};
+
+	struct Descriptor
+	{
+		BindingType Type = BindingType::Unused;
+		int Offset, Length;
+		union
+		{
+			GLL::Texture * texture;
+			GLL::TextureSampler * sampler;
+			GLL::BufferObject * buffer;
+		} binding;
+	};
+
+	class DescriptorSetLayout : public GameEngine::DescriptorSetLayout
+	{
+	public:
+		List<BindingLayout> layouts;
+	};
+
+	class DescriptorSet : public GameEngine::DescriptorSet
+	{
+	public:
+		List<Descriptor> descriptors;
+		virtual void BeginUpdate() {}
+		virtual void Update(int location, GameEngine::Texture* texture) override
+		{
+			if (location >= descriptors.Count())
+				throw HardwareRendererException("descriptor set write out of bounds.");
+			auto & desc = descriptors[location];
+			desc.binding.texture = dynamic_cast<GLL::Texture*>(texture);
+			desc.Offset = desc.Length = 0;
+			desc.Type = BindingType::Texture;
+		}
+		virtual void Update(int location, GameEngine::TextureSampler* sampler) override
+		{
+			if (location >= descriptors.Count())
+				throw HardwareRendererException("descriptor set write out of bounds.");
+			auto & desc = descriptors[location];
+			desc.binding.sampler = dynamic_cast<GLL::TextureSampler*>(sampler);
+			desc.Offset = desc.Length = 0;
+			desc.Type = BindingType::Texture;
+		}
+		virtual void Update(int location, Buffer* buffer, int offset = 0, int length = -1) override
+		{
+			if (location >= descriptors.Count())
+				throw HardwareRendererException("descriptor set write out of bounds.");
+			auto & desc = descriptors[location];
+			desc.binding.buffer = dynamic_cast<GLL::BufferObject*>(buffer);
+			desc.Offset = offset;
+			desc.Length = length;
+			desc.Type = BindingType::UniformBuffer; // only suggests this is a buffer; actual type is stated in pipeline layout
+		}
+		virtual void EndUpdate() {}
+	};
+
 	struct PipelineSettings
 	{
 		Program program;
@@ -1502,28 +1563,7 @@ namespace GLL
 		CullMode CullMode;
 		bool enablePolygonOffset;
 		float polygonOffsetFactor, polygonOffsetUnits;
-	};
-
-	class PipelineInstance : public GameEngine::PipelineInstance
-	{
-	public:
-		PipelineSettings settings;
-		PipelineBinding binding;
-		int stride;
-		PipelineInstance(const PipelineSettings & pSettings, PipelineBinding pipelineBinding)
-			: settings(pSettings), binding(pipelineBinding)
-		{
-			int maxOffset = -1;
-			stride = 0;
-			for (auto attribute : settings.format.Attributes)
-			{
-				if (attribute.StartOffset > maxOffset)
-				{
-					maxOffset = attribute.StartOffset;
-					stride = maxOffset + DataTypeSize(attribute.Type);
-				}
-			}
-		}
+		List<List<BindingLayout>> bindingLayout; // indexed by bindingLayout[setid][location]
 	};
 
 	class Pipeline : public GameEngine::Pipeline
@@ -1534,11 +1574,6 @@ namespace GLL
 		Pipeline(const PipelineSettings & pSettings)
 			: settings(pSettings)
 		{}
-
-		virtual PipelineInstance* CreateInstance(const PipelineBinding& pipelineBinding) override
-		{
-			return new PipelineInstance(settings, pipelineBinding);
-		}
 	};
 
 	class PipelineBuilder : public GameEngine::PipelineBuilder
@@ -1546,6 +1581,7 @@ namespace GLL
 	public:
 		Program shaderProgram;
 		VertexFormat format;
+		List<DescriptorSetLayout*> descLayouts;
 		bool isTessellation = false;
 		virtual void SetShaders(CoreLib::ArrayView<GameEngine::Shader*> shaders) override
 		{
@@ -1601,9 +1637,13 @@ namespace GLL
 		{
 			format = vertexFormat;
 		}
-		virtual void SetBindingLayout(int /*bindingId*/, BindingType /*bindType*/) override
+		virtual void SetBindingLayout(CoreLib::ArrayView<GameEngine::DescriptorSetLayout*> descriptorSets) override
 		{
-			// Do nothing
+			descLayouts.Clear();
+			for (auto descSet : descriptorSets)
+			{
+				descLayouts.Add((DescriptorSetLayout*)descSet);
+			}
 		}
 		virtual Pipeline* ToPipeline(GameEngine::RenderTargetLayout* /*renderTargetLayout*/) override
 		{
@@ -1649,6 +1689,11 @@ namespace GLL
 			settings.polygonOffsetFactor = FixedFunctionStates.PolygonOffsetFactor;
 			settings.polygonOffsetUnits = FixedFunctionStates.PolygonOffsetUnits;
 
+			settings.bindingLayout.SetSize(descLayouts.Count());
+			for (int i = 0; i < descLayouts.Count(); i++)
+			{
+				settings.bindingLayout[i].AddRange(descLayouts[i]->layouts);
+			}
 			return new Pipeline(settings);
 		}
 	};
@@ -1659,6 +1704,7 @@ namespace GLL
 		BindVertexBuffer,
 		BindIndexBuffer,
 		BindPipeline,
+		BindDescriptorSet,
 		Draw,
 		DrawInstanced,
 		DrawIndexed,
@@ -1673,10 +1719,7 @@ namespace GLL
 	};
 	struct PipelineData
 	{
-		PipelineInstance* instance;
-		int vertSize;
-		bool primitiveRestart = false;
-		PrimitiveType primitiveType;
+		Pipeline* pipeline;
 	};
 	struct DrawData
 	{
@@ -1694,6 +1737,11 @@ namespace GLL
 		int drawBufferMask = 1;
 		bool depth = true, stencil = true;
 	};
+	struct BindDescriptorSetData
+	{
+		DescriptorSet * descSet;
+		int location = 0;
+	};
 
 	class CommandData
 	{
@@ -1707,10 +1755,11 @@ namespace GLL
 			SetViewportData viewport;
 			BufferObject* vertexBuffer;
 			BufferObject* indexBuffer;
-			PipelineData pipeline;
+			PipelineData pipelineData;
 			DrawData draw;
 			BlitData blit;
 			AttachmentData clear;
+			BindDescriptorSetData bindDesc;
 		};
 	};
 
@@ -1719,16 +1768,16 @@ namespace GLL
 	public:
 		CoreLib::List<CommandData> buffer;
 	public:
-		virtual void BeginRecording(GameEngine::FrameBuffer* /*frameBuffer*/)
+		virtual void BeginRecording(GameEngine::FrameBuffer* /*frameBuffer*/) override
 		{
 			buffer.Clear();
 		}
-		virtual void BeginRecording(GameEngine::RenderTargetLayout* /*renderTargetLayout*/)
+		virtual void BeginRecording(GameEngine::RenderTargetLayout* /*renderTargetLayout*/) override
 		{
 			buffer.Clear();
 		}
-		virtual void EndRecording() { /*Do nothing*/ }
-		virtual void SetViewport(int x, int y, int width, int height)
+		virtual void EndRecording() override { /*Do nothing*/ }
+		virtual void SetViewport(int x, int y, int width, int height) override
 		{
 			CommandData data;
 			data.command = Command::SetViewport;
@@ -1738,31 +1787,36 @@ namespace GLL
 			data.viewport.height = height;
 			buffer.Add(data);
 		}
-		virtual void BindVertexBuffer(GameEngine::Buffer* vertexBuffer)
+		virtual void BindVertexBuffer(GameEngine::Buffer* vertexBuffer) override
 		{
 			CommandData data;
 			data.command = Command::BindVertexBuffer;
 			data.vertexBuffer = dynamic_cast<BufferObject*>(vertexBuffer);
 			buffer.Add(data);
 		}
-		virtual void BindIndexBuffer(GameEngine::Buffer* indexBuffer)
+		virtual void BindIndexBuffer(GameEngine::Buffer* indexBuffer) override
 		{
 			CommandData data;
 			data.command = Command::BindIndexBuffer;
 			data.indexBuffer = dynamic_cast<BufferObject*>(indexBuffer);
 			buffer.Add(data);
 		}
-		virtual void BindPipeline(GameEngine::PipelineInstance* pipelineInstance)
+		virtual void BindPipeline(GameEngine::Pipeline* pipeline) override
 		{
 			CommandData data;
 			data.command = Command::BindPipeline;
-			data.pipeline.instance = dynamic_cast<PipelineInstance*>(pipelineInstance);
-			data.pipeline.vertSize = dynamic_cast<PipelineInstance*>(pipelineInstance)->stride;
-			data.pipeline.primitiveRestart = ((GLL::PipelineInstance*)(pipelineInstance))->settings.primitiveRestart;
-			data.pipeline.primitiveType = ((GLL::PipelineInstance*)(pipelineInstance))->settings.primitiveType;
+			data.pipelineData.pipeline = reinterpret_cast<GLL::Pipeline*>(pipeline);
 			buffer.Add(data);
 		}
-		virtual void Draw(int firstVertex, int vertexCount)
+		virtual void BindDescriptorSet(int binding, GameEngine::DescriptorSet* descSet) override
+		{
+			CommandData data;
+			data.command = Command::BindDescriptorSet;
+			data.bindDesc.descSet = reinterpret_cast<GLL::DescriptorSet*>(descSet);
+			data.bindDesc.location = binding;
+			buffer.Add(data);
+		}
+		virtual void Draw(int firstVertex, int vertexCount) override
 		{
 			CommandData data;
 			data.command = Command::Draw;
@@ -1770,7 +1824,7 @@ namespace GLL
 			data.draw.count = vertexCount;
 			buffer.Add(data);
 		}
-		virtual void DrawInstanced(int numInstances, int firstVertex, int vertexCount)
+		virtual void DrawInstanced(int numInstances, int firstVertex, int vertexCount) override
 		{
 			CommandData data;
 			data.command = Command::DrawInstanced;
@@ -1779,7 +1833,7 @@ namespace GLL
 			data.draw.count = vertexCount;
 			buffer.Add(data);
 		}
-		virtual void DrawIndexed(int firstIndex, int indexCount)
+		virtual void DrawIndexed(int firstIndex, int indexCount) override
 		{
 			CommandData data;
 			data.command = Command::DrawIndexed;
@@ -1787,7 +1841,7 @@ namespace GLL
 			data.draw.count = indexCount;
 			buffer.Add(data);
 		}
-		virtual void DrawIndexedInstanced(int numInstances, int firstIndex, int indexCount)
+		virtual void DrawIndexedInstanced(int numInstances, int firstIndex, int indexCount) override
 		{
 			CommandData data;
 			data.command = Command::DrawIndexedInstanced;
@@ -1984,9 +2038,9 @@ namespace GLL
 			height = pheight;
 		}
 
-		virtual String GetSpireBackendName() override
+		virtual int GetSpireTarget() override
 		{
-			return "glsl";
+			return SPIRE_GLSL;
 		}
 
 		virtual void ClearTexture(GameEngine::Texture2D* texture) override
@@ -2059,39 +2113,60 @@ namespace GLL
 			SetStencilMode(StencilMode());
 			// Execute command buffer
 			
-			//
+			Pipeline * currentPipeline = nullptr;
 			BufferObject* currentVertexBuffer = nullptr;
 			PrimitiveType primType = PrimitiveType::Triangles;
-			PipelineBinding currentBinding;
-			auto applyBinding = [&]()
+			Array<DescriptorSet*, 32> boundDescSets;
+			boundDescSets.SetSize(boundDescSets.GetCapacity());
+			for (auto & set : boundDescSets)
+				set = nullptr;
+			auto updateBindings = [&]()
 			{
-				for (auto binding : currentBinding.GetBindings())
+				if (currentPipeline)
 				{
-					switch (binding.type)
+					for (int i = 0; i<currentPipeline->settings.bindingLayout.Count(); i++)
 					{
-					case BindingType::UniformBuffer:
-						if (binding.buf.offset == 0 && binding.buf.range == 0)
-							BindBuffer(BufferType::UniformBuffer, binding.location, *reinterpret_cast<BufferObject*>(binding.buf.buffer));
-						else
-							BindBuffer(BufferType::UniformBuffer, binding.location, *reinterpret_cast<BufferObject*>(binding.buf.buffer), binding.buf.offset, binding.buf.range);
-						break;
-					case BindingType::StorageBuffer:
-						if (binding.buf.offset == 0 && binding.buf.range == 0)
-							BindBuffer(BufferType::StorageBuffer, binding.location, *reinterpret_cast<BufferObject*>(binding.buf.buffer));
-						else
-							BindBuffer(BufferType::StorageBuffer, binding.location, *reinterpret_cast<BufferObject*>(binding.buf.buffer), binding.buf.offset, binding.buf.range);
-						break;
-					case BindingType::Texture:
-						UseTexture(binding.location, *dynamic_cast<GLL::Texture*>(binding.tex.texture), *reinterpret_cast<TextureSampler*>(binding.tex.sampler));
-						break;
-					default:
-						break;
+						auto & descLayout = currentPipeline->settings.bindingLayout[i];
+						auto descSet = boundDescSets[i];
+						if (!descSet) continue;
+						if (descSet->descriptors.Count() != descLayout.Count())
+							throw HardwareRendererException("bound descriptor set does not match descriptor set layout.");
+						for (int j = 0; j < descLayout.Count(); j++)
+						{
+							auto & desc = descSet->descriptors[j];
+							auto & layout = descLayout[j];
+							if (layout.Type == BindingType::Texture && desc.Type == BindingType::Texture)
+							{
+								UseTexture(layout.BindingPoints.First(), *desc.binding.texture);
+							}
+							else if (layout.Type == BindingType::Sampler && desc.Type == BindingType::Sampler)
+							{
+								for (auto binding : layout.BindingPoints)
+									UseSampler(binding, *desc.binding.sampler);
+							}
+							else if ((layout.Type == BindingType::UniformBuffer || layout.Type == BindingType::StorageBuffer) &&
+								desc.Type == BindingType::UniformBuffer)
+							{
+								if (layout.Type == BindingType::UniformBuffer)
+								{
+									if (desc.Offset == 0 && desc.Length == -1)
+										BindBuffer(BufferType::UniformBuffer, layout.BindingPoints.First(), *desc.binding.buffer);
+									else
+										BindBuffer(BufferType::UniformBuffer, layout.BindingPoints.First(), *desc.binding.buffer, desc.Offset, desc.Length);
+
+								}
+							}
+							else
+								throw HardwareRendererException("descriptor type does not match descriptor layout description");
+						}
 					}
 				}
+				else
+					throw HardwareRendererException("must bind pipeline before binding descriptor set.");
 			};
 			for (auto commandBuffer : commands)
 			{
-				for (auto command : reinterpret_cast<GLL::CommandBuffer*>(commandBuffer)->buffer)
+				for (auto & command : reinterpret_cast<GLL::CommandBuffer*>(commandBuffer)->buffer)
 				{
 					switch (command.command)
 					{
@@ -2108,12 +2183,13 @@ namespace GLL
 						break;
 					case Command::BindPipeline:
 					{
-						auto & pipelineSettings = command.pipeline.instance->settings;
+						auto & pipelineSettings = command.pipelineData.pipeline->settings;
+						currentPipeline = command.pipelineData.pipeline;
 						pipelineSettings.program.Use();
 						if (currentVertexBuffer == nullptr) throw HardwareRendererException("For OpenGL, must BindVertexBuffer before BindPipeline.");
-						currentVAO.SetVertex(*currentVertexBuffer, pipelineSettings.format.Attributes.GetArrayView(), command.pipeline.vertSize, 0, 0);
-						primType = command.pipeline.primitiveType;
-						if (command.pipeline.primitiveRestart)
+						currentVAO.SetVertex(*currentVertexBuffer, pipelineSettings.format.Attributes.GetArrayView(), pipelineSettings.format.Size(), 0, 0);
+						primType = pipelineSettings.primitiveType;
+						if (pipelineSettings.primitiveRestart)
 						{
 							glEnable(GL_PRIMITIVE_RESTART);
 							glPrimitiveRestartIndex(0xFFFFFFFF);
@@ -2142,28 +2218,31 @@ namespace GLL
 						smode.StencilReference = pipelineSettings.StencilReference;
 						SetStencilMode(smode);
 						SetCullMode(pipelineSettings.CullMode);
-						currentBinding = command.pipeline.instance->binding;
 						break;
 					}
-					//TODO: I have no idea if these draw functions are even remotely correct
+					case Command::BindDescriptorSet:
+					{
+						boundDescSets[command.bindDesc.location] = command.bindDesc.descSet;
+						break;
+					}
 					case Command::Draw:
 						glBindVertexArray(currentVAO.Handle);
-						applyBinding();
+						updateBindings();
 						glDrawArrays((GLenum)primType, command.draw.first, command.draw.count);
 						break;
 					case Command::DrawInstanced:
 						glBindVertexArray(currentVAO.Handle);
-						applyBinding();
+						updateBindings();
 						glDrawArraysInstanced((GLenum)primType, command.draw.first, command.draw.count, command.draw.instances);
 						break;
 					case Command::DrawIndexed:
 						glBindVertexArray(currentVAO.Handle);
-						applyBinding();
+						updateBindings();
 						glDrawElements((GLenum)primType, command.draw.count, GL_UNSIGNED_INT, (void*)(CoreLib::PtrInt)(command.draw.first * 4));
 						break;
 					case Command::DrawIndexedInstanced:
 						glBindVertexArray(currentVAO.Handle);
-						applyBinding();
+						updateBindings();
 						glDrawElementsInstanced((GLenum)primType, command.draw.count, GL_UNSIGNED_INT, (void*)(CoreLib::PtrInt)(command.draw.first * 4), command.draw.instances);
 						break;
 					case Command::Blit:
@@ -2906,10 +2985,14 @@ namespace GLL
 			if (stencil) bitmask |= GL_STENCIL_BUFFER_BIT;
 			glBlitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, bitmask, GL_LINEAR);
 		}
-		void UseTexture(int channel, const Texture &tex, TextureSampler sampler)
+		void UseTexture(int channel, const Texture &tex)
 		{
 			glActiveTexture(GL_TEXTURE0 + channel);
 			glBindTexture(tex.BindTarget, tex.Handle);
+		}
+		void UseSampler(int channel, TextureSampler sampler)
+		{
+			glActiveTexture(GL_TEXTURE0 + channel);
 			glBindSampler(channel, sampler.Handle);
 		}
 		void UseTextures(ArrayView<Texture> textures, TextureSampler sampler)
@@ -2982,6 +3065,36 @@ namespace GLL
 		GameEngine::CommandBuffer* CreateCommandBuffer() 
 		{
 			return new CommandBuffer();
+		}
+
+		virtual GameEngine::DescriptorSetLayout * CreateDescriptorSetLayout(CoreLib::ArrayView<GameEngine::DescriptorLayout> descriptors) override
+		{
+			auto result = new DescriptorSetLayout();
+			for (auto & desc : descriptors)
+			{
+				BindingLayout layout;
+				layout.BindingPoints = desc.LegacyBindingPoints;
+				layout.Type = desc.Type;
+				result->layouts.Add(layout);
+			}
+			return result;
+		}
+
+		virtual GameEngine::DescriptorSet * CreateDescriptorSet(GameEngine::DescriptorSetLayout * playout) override
+		{
+			auto layout = (DescriptorSetLayout*)playout;
+			DescriptorSet * result = new DescriptorSet();
+			result->descriptors.SetSize(layout->layouts.Count());
+			for (int i = 0; i < layout->layouts.Count(); i++)
+			{
+				result->descriptors[i].Type = layout->layouts[i].Type;
+			}
+			return result;
+		}
+
+		virtual int GetDescriptorPoolCount() override
+		{
+			return 0;
 		}
 
 		void Wait()

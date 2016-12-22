@@ -2,7 +2,8 @@ using "DefaultGeometry.shader";
 
 module MaterialPattern
 {
-    public @MaterialUniform vec3 solidColor;
+    param vec3 solidColor;
+    
     public vec3 albedo = solidColor;
     public vec3 normal = vec3(0.0, 0.0, 1.0);
     public float specular = 0.3;

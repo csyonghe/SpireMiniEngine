@@ -36,12 +36,15 @@ namespace GameEngine
 		{
 			RegisterEngineActorClasses(this);
 
+
 			startTime = lastGameLogicTime = lastRenderingTime = Diagnostics::PerformanceCounter::Start();
 
 			GpuId = args.GpuId;
 
 			gameDir = args.GameDirectory;
 			engineDir = args.EngineDirectory;
+			Path::CreateDir(Path::Combine(gameDir, "Cache"));
+			Path::CreateDir(Path::Combine(gameDir, "Settings"));
 
 			auto graphicsSettingsFile = FindFile("graphics.settings", ResourceType::Settings);
 			if (graphicsSettingsFile.Length())
@@ -263,6 +266,17 @@ namespace GameEngine
 
 	CoreLib::String Engine::FindFile(const CoreLib::String & fileName, ResourceType type)
 	{
+		auto localFile = Path::Combine(GetDirectory(false, type), fileName);
+		if (File::Exists(localFile))
+			return localFile;
+		auto engineFile = Path::Combine(GetDirectory(true, type), fileName);
+		if (File::Exists(engineFile))
+			return engineFile;
+		return CoreLib::String();
+	}
+
+	CoreLib::String Engine::GetDirectory(bool useEngineDir, ResourceType type)
+	{
 		String subDirName;
 		switch (type)
 		{
@@ -283,13 +297,10 @@ namespace GameEngine
 			subDirName = "Settings";
 			break;
 		}
-		auto localFile = Path::Combine(gameDir, subDirName, fileName);
-		if (File::Exists(localFile))
-			return localFile;
-		auto engineFile = Path::Combine(engineDir, subDirName, fileName);
-		if (File::Exists(engineFile))
-			return engineFile;
-		return CoreLib::String();
+		if (useEngineDir)
+			return Path::Combine(engineDir, subDirName);
+		else
+			return Path::Combine(gameDir, subDirName);
 	}
 
 	void Engine::Init(const EngineInitArguments & args)

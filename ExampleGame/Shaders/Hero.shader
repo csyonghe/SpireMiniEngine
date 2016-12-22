@@ -2,9 +2,10 @@ using "DefaultGeometry.shader";
 
 module MaterialPattern
 {
+    param Texture2D albedoMap;
+    
     require vec2 vertUV;
     require SamplerState textureSampler;
-    @MaterialUniform Texture2D albedoMap;
     public vec3 normal = vec3(0.0, 0.0, 1.0);
     public float roughness = 0.4;
     public float metallic = 0.4;

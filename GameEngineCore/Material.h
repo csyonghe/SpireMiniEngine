@@ -3,6 +3,7 @@
 
 #include "CoreLib/Basic.h"
 #include "DynamicVariable.h"
+#include "RenderContext.h"
 
 namespace GameEngine
 {
@@ -11,10 +12,11 @@ namespace GameEngine
 	class Material
 	{
 	public:
+		CoreLib::String Name;
 		CoreLib::String ShaderFile;
 		bool ParameterDirty = true;
+		CoreLib::RefPtr<ModuleInstance> MaterialModule;
 		CoreLib::EnumerableDictionary<CoreLib::String, DynamicVariable> Variables;
-
 		void SetVariable(CoreLib::String name, DynamicVariable value);
 		void Parse(CoreLib::Text::TokenReader & parser);
 		void LoadFromFile(const CoreLib::String & fullFileName);

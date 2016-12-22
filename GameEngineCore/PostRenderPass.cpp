@@ -1,5 +1,6 @@
 #include "PostRenderPass.h"
 #include "HardwareRenderer.h"
+#include "ShaderCompiler.h"
 #include "CoreLib/LibIO.h"
 
 using namespace CoreLib;
@@ -15,13 +16,11 @@ namespace GameEngine
 		deferredVertexFormat.Attributes.Add(VertexAttributeDesc(DataType::Float2, 0, 2 * sizeof(float), 1));
 		RefPtr<PipelineBuilder> pipelineBuilder = hwRenderer->CreatePipelineBuilder();
 		List<TextureUsage> renderTargets;
-		SetupPipelineBindingLayout(pipelineBuilder.Ptr(), renderTargets);
 		pipelineBuilder->SetVertexLayout(deferredVertexFormat);
 		renderTargetLayout = hwRenderer->CreateRenderTargetLayout(renderTargets.GetArrayView());
-		CoreLib::List<Shader*> shaderList;
 		ShaderCompilationResult rs;
 		auto shaderFileName = GetShaderFileName();
-		if (!sharedRes->hardwareFactory->CompileShader(rs, shaderFileName, "", "", ""))
+		if (!CompileShader(rs, sharedRes->spireContext, hwRenderer->GetSpireTarget(), shaderFileName, ""))
 			throw HardwareRendererException("Shader compilation failure");
 
 		for (auto& compiledShader : rs.Shaders)
@@ -29,18 +28,26 @@ namespace GameEngine
 			Shader* shader;
 			if (compiledShader.Key == "vs")
 			{
-				shader = sceneRes->LoadShader(Path::ReplaceExt(shaderFileName, compiledShader.Key.Buffer()), compiledShader.Value.Buffer(), compiledShader.Value.Count(), ShaderType::VertexShader);
+				shader = hwRenderer->CreateShader(ShaderType::VertexShader, (char*)compiledShader.Value.Buffer(), compiledShader.Value.Count());
 			}
 			else if (compiledShader.Key == "fs")
 			{
-				shader = sceneRes->LoadShader(Path::ReplaceExt(shaderFileName, compiledShader.Key.Buffer()), compiledShader.Value.Buffer(), compiledShader.Value.Count(), ShaderType::FragmentShader);
+				shader = hwRenderer->CreateShader(ShaderType::FragmentShader, (char*)compiledShader.Value.Buffer(), compiledShader.Value.Count());
 			}
-			shaderList.Add(shader);
+			shaders.Add(shader);
 		}
-		pipelineBuilder->SetShaders(shaderList.GetArrayView());
+		pipelineBuilder->SetShaders(From(shaders).Select([](auto x) { return x.Ptr(); }).ToList().GetArrayView());
 		pipelineBuilder->FixedFunctionStates.PrimitiveTopology = PrimitiveType::TriangleFans;
+		descLayouts.SetSize(rs.BindingLayouts.Count());
+		for (auto & desc : rs.BindingLayouts)
+		{
+			descLayouts[desc.Value.BindingPoint] = hwRenderer->CreateDescriptorSetLayout(desc.Value.Descriptors.GetArrayView());
+		}
+		pipelineBuilder->SetBindingLayout(From(descLayouts).Select([](auto x) { return x.Ptr(); }).ToList().GetArrayView());
+		
+		SetupPipelineBindingLayout(pipelineBuilder.Ptr(), renderTargets);
 		pipeline = pipelineBuilder->ToPipeline(renderTargetLayout.Ptr());
-
+		
 		commandBuffer = hwRenderer->CreateCommandBuffer();
 		AcquireRenderTargets();
 	}
@@ -50,12 +57,12 @@ namespace GameEngine
 		hwRenderer->ExecuteCommandBuffers(frameBuffer.Ptr(), MakeArrayView(commandBuffer.Ptr()));
 	}
 
-	void PostRenderPass::RecordCommandBuffer(int screenWidth, int screenHeight)
+	void PostRenderPass::RecordCommandBuffer(SharedModuleInstances sharedModules, int screenWidth, int screenHeight)
 	{
-		PipelineBinding pipelineBinding;
+		DescriptorSetBindings descBindings;
 		RenderAttachments renderAttachments;
-		UpdatePipelineBinding(pipelineBinding, renderAttachments);
-		pipelineInstance = pipeline->CreateInstance(pipelineBinding);
+		UpdatePipelineBinding(sharedModules, descBindings, renderAttachments);
+
 		frameBuffer = renderTargetLayout->CreateFrameBuffer(renderAttachments);
 		commandBuffer->BeginRecording(frameBuffer.Ptr());
 		if (clearFrameBuffer)
@@ -63,7 +70,9 @@ namespace GameEngine
 
 		commandBuffer->SetViewport(0, 0, screenWidth, screenHeight);
 		commandBuffer->BindVertexBuffer(sharedRes->fullScreenQuadVertBuffer.Ptr());
-		commandBuffer->BindPipeline(pipelineInstance.Ptr());
+		commandBuffer->BindPipeline(pipeline.Ptr());
+		for (auto & binding : descBindings.bindings)
+			commandBuffer->BindDescriptorSet(binding.index, binding.descriptorSet);
 		commandBuffer->Draw(0, 4);
 		commandBuffer->EndRecording();
 	}

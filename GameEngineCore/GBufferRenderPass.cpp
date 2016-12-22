@@ -15,7 +15,7 @@ namespace GameEngine
 			shader GBufferPass : StandardPipeline
 			{
 				public using VertexAttributes;
-				public using SystemUniforms;
+				public using ForwardBasePassParams;
 				public using ANIMATION;
 				public using TangentSpaceTransform;
 				public using MaterialGeometry;
@@ -34,7 +34,7 @@ namespace GameEngine
 		}
 		virtual char * GetName() override
 		{
-			return "DeferredBase";
+			return "GBuffer";
 		}
 		virtual void Create() override
 		{

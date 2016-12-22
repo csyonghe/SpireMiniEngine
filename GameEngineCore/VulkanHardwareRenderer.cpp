@@ -1,5 +1,6 @@
 #include "HardwareRenderer.h"
 
+#if (0)
 #include "VulkanAPI/vkel.h"
 //#define VK_CPP_NO_EXCEPTIONS
 #include "VulkanAPI/vk_cpp.hpp"
@@ -4249,4 +4250,13 @@ HardwareRenderer* GameEngine::CreateVulkanHardwareRenderer(int gpuId)
 {
 	VK::GpuId = gpuId;
 	return new VK::HardwareRenderer();
+}
+#endif
+
+namespace GameEngine
+{
+	HardwareRenderer* GameEngine::CreateVulkanHardwareRenderer(int /*gpuId*/)
+	{
+		return nullptr;
+	}
 }

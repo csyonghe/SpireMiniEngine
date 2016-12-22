@@ -558,14 +558,13 @@ namespace GraphicsUI
 
 			shader UberUIShader
 			{
-				@uniformIn mat4 orthoMatrix;
+				param mat4 orthoMatrix;
+				param StructuredBuffer<uvec4> uniformInput;
+				param StructuredBuffer<uint> textContent;
+
 				@rootVert vec2 vert_pos;
 				@rootVert vec2 vert_uv;
 				@rootVert int vert_primId;
-				[Binding: "1"]
-				@uniformIn StructuredBuffer<uvec4> uniformInput;
-				[Binding: "2"]
-				@uniformIn StructuredBuffer<uint> textContent;
 				vec4 projCoord = orthoMatrix * vec4(vert_pos, 0.0, 1.0);
 				public out @fs vec4 color
 				{
@@ -762,11 +761,11 @@ namespace GraphicsUI
 	private:
 		RefPtr<Shader> uberVs, uberFs;
 		RefPtr<Pipeline> pipeline;
-		RefPtr<PipelineInstance> pipelineInstance;
 		CoreLib::RefPtr<Texture2D> uiOverlayTexture;
 		RefPtr<Buffer> vertexBuffer, indexBuffer, primitiveBuffer, uniformBuffer;
 		RefPtr<TextureSampler> linearSampler;
 		RefPtr<RenderTargetLayout> renderTargetLayout;
+		RefPtr<DescriptorSet> descSet;
 		RefPtr<FrameBuffer> frameBuffer;
 		RefPtr<CommandBuffer> cmdBuffer;
 		List<UniformField> uniformFields;
@@ -784,13 +783,7 @@ namespace GraphicsUI
 
 			SpireCompilationContext * spireCtx = spCreateCompilationContext(nullptr);
 			SpireDiagnosticSink * diagSink = spCreateDiagnosticSink(spireCtx);
-			auto backend = rendererApi->GetSpireBackendName();
-			if (backend == "glsl")
-				spSetCodeGenTarget(spireCtx, SPIRE_GLSL);
-			else if (backend == "hlsl")
-				spSetCodeGenTarget(spireCtx, SPIRE_HLSL);
-			else
-				spSetCodeGenTarget(spireCtx, SPIRE_SPIRV);
+			spSetCodeGenTarget(spireCtx, rendererApi->GetSpireTarget());
 			String spireShaderSrc(uberSpireShader);
 			auto result = spCompileShaderFromSource(spireCtx, uberSpireShader, "ui_uber_shader", diagSink);
 			if (!spDiagnosticSinkHasAnyErrors(diagSink))
@@ -814,9 +807,10 @@ namespace GraphicsUI
 			vformat.Attributes.Add(VertexAttributeDesc(DataType::Float2, 0, 8, 1));
 			vformat.Attributes.Add(VertexAttributeDesc(DataType::Int, 0, 16, 2));
 			pipeBuilder->SetVertexLayout(vformat);
-			pipeBuilder->SetBindingLayout(0, BindingType::UniformBuffer);
-			pipeBuilder->SetBindingLayout(1, BindingType::StorageBuffer);
-			pipeBuilder->SetBindingLayout(2, BindingType::StorageBuffer);
+			RefPtr<DescriptorSetLayout> descLayout = rendererApi->CreateDescriptorSetLayout(MakeArray(DescriptorLayout(0, BindingType::UniformBuffer),
+				DescriptorLayout(1, BindingType::StorageBuffer),
+				DescriptorLayout(2, BindingType::StorageBuffer)).GetArrayView());
+			pipeBuilder->SetBindingLayout(MakeArrayView(descLayout.Ptr()));
 			pipeBuilder->FixedFunctionStates.PrimitiveRestartEnabled = true;
 			pipeBuilder->FixedFunctionStates.PrimitiveTopology = PrimitiveType::TriangleFans;
 			pipeBuilder->FixedFunctionStates.BlendMode = BlendMode::AlphaBlend;
@@ -842,11 +836,12 @@ namespace GraphicsUI
 			uiOverlayTexture->Resize(4, 4, 1);
 			frameBuffer = renderTargetLayout->CreateFrameBuffer(MakeArrayView(uiOverlayTexture.Ptr()));
 
-			PipelineBinding binding;
-			binding.BindUniformBuffer(0, uniformBuffer.Ptr());
-			binding.BindStorageBuffer(1, primitiveBuffer.Ptr());
-			binding.BindStorageBuffer(2, system->GetTextBufferObject());
-			pipelineInstance = pipeline->CreateInstance(binding);
+			descSet = rendererApi->CreateDescriptorSet(descLayout.Ptr());
+			descSet->BeginUpdate();
+			descSet->Update(0, uniformBuffer.Ptr());
+			descSet->Update(1, primitiveBuffer.Ptr());
+			descSet->Update(2, system->GetTextBufferObject());
+			descSet->EndUpdate();
 		}
 		~GLUIRenderer()
 		{
@@ -888,7 +883,8 @@ namespace GraphicsUI
 			cmdBuffer->Blit(uiOverlayTexture.Ptr(), baseTexture);
 			cmdBuffer->BindVertexBuffer(vertexBuffer.Ptr());
 			cmdBuffer->BindIndexBuffer(indexBuffer.Ptr());
-			cmdBuffer->BindPipeline(pipelineInstance.Ptr());
+			cmdBuffer->BindPipeline(pipeline.Ptr());
+			cmdBuffer->BindDescriptorSet(0, descSet.Ptr());
 			cmdBuffer->SetViewport(0, 0, screenWidth, screenHeight);
 			cmdBuffer->DrawIndexed(0, indexStream.Count());
 			cmdBuffer->EndRecording();

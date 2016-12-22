@@ -23,7 +23,6 @@
     <ClCompile Include="GLAPI\GLHardwareRenderer.cpp">
       <Filter>RenderAPI\GL API</Filter>
     </ClCompile>
-    <ClCompile Include="HardwareApiFactory.cpp" />
     <ClCompile Include="UISystem_Windows.cpp" />
     <ClCompile Include="MotionGraph.cpp" />
     <ClCompile Include="CatmullSpline.cpp" />
@@ -108,6 +107,9 @@
     <ClCompile Include="DirectionalLightActor.cpp">
       <Filter>Actors</Filter>
     </ClCompile>
+    <ClCompile Include="ShadeCompiler.cpp">
+      <Filter>Renderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
@@ -138,8 +140,6 @@
     <ClInclude Include="Common.h" />
     <ClInclude Include="TextureCompressor.h" />
     <ClInclude Include="TextureTool\LibSquish.h" />
-    <ClInclude Include="HardwareRenderer.h" />
-    <ClInclude Include="HardwareApiFactory.h" />
     <ClInclude Include="UISystem_Windows.h" />
     <ClInclude Include="MotionGraph.h" />
     <ClInclude Include="CatmullSpline.h" />
@@ -205,6 +205,12 @@
     </ClInclude>
     <ClInclude Include="AtmosphereActor.h">
       <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="ShaderCompiler.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="HardwareRenderer.h">
+      <Filter>Renderer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

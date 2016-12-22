@@ -20,6 +20,8 @@ namespace GameEngine
 		
 		RefPtr<Texture2D> transmittanceTex, irradianceTex;
 		RefPtr<Texture3D> inscatterTex;
+
+		RefPtr<DescriptorSet> atmosphereDesc;
 		bool isValid = true;
 	public:
 		virtual void Create() override
@@ -80,34 +82,30 @@ namespace GameEngine
 			depthBuffer = sharedRes->LoadSharedRenderTarget("depthBuffer", StorageFormat::Depth24Stencil8);
 			colorOutBuffer = sharedRes->LoadSharedRenderTarget("litAtmosphereColor", StorageFormat::RGBA_8);
 		}
-		virtual void SetupPipelineBindingLayout(PipelineBuilder * pipelineBuilder, List<TextureUsage> & renderTargets) override
+		virtual void SetupPipelineBindingLayout(PipelineBuilder * /*pipelineBuilder*/, List<TextureUsage> & renderTargets) override
 		{
 			renderTargets.Add(TextureUsage::ColorAttachment);
 
-			pipelineBuilder->SetBindingLayout(0, BindingType::UniformBuffer);
-			pipelineBuilder->SetBindingLayout(1, BindingType::UniformBuffer);
-
-			int offset = sharedRes->GetTextureBindingStart();
-			pipelineBuilder->SetBindingLayout(offset + 0, BindingType::Texture); // litColor
-			pipelineBuilder->SetBindingLayout(offset + 1, BindingType::Texture); // depthBuffer
-			pipelineBuilder->SetBindingLayout(offset + 13, BindingType::Texture); // transmittanceTex
-			pipelineBuilder->SetBindingLayout(offset + 14, BindingType::Texture); // irradianceTex
-			pipelineBuilder->SetBindingLayout(offset + 15, BindingType::Texture); // inscatterTex
-
+			atmosphereDesc = hwRenderer->CreateDescriptorSet(descLayouts[0].Ptr());
 		}
-		virtual void UpdatePipelineBinding(PipelineBinding & binding, RenderAttachments & attachments) override
+		virtual void UpdatePipelineBinding(SharedModuleInstances sharedModules, DescriptorSetBindings & binding, RenderAttachments & attachments) override
 		{
 			if (!colorBuffer->Texture)
 				return;
+			binding.Bind(0, atmosphereDesc.Ptr());
+			binding.Bind(1, sharedModules.View->Descriptors.Ptr());
 
-			binding.BindUniformBuffer(0, parameterBuffer.Ptr());
-			binding.BindUniformBuffer(1, sharedRes->viewUniformBuffer.Ptr());
-			int offset = sharedRes->GetTextureBindingStart();
-			binding.BindTexture(offset + 0, colorBuffer->Texture.Ptr(), sharedRes->nearestSampler.Ptr());
-			binding.BindTexture(offset + 1, depthBuffer->Texture.Ptr(), sharedRes->nearestSampler.Ptr());
-			binding.BindTexture(offset + 13, transmittanceTex.Ptr(), sharedRes->linearSampler.Ptr());
-			binding.BindTexture(offset + 14, irradianceTex.Ptr(), sharedRes->linearSampler.Ptr());
-			binding.BindTexture(offset + 15, inscatterTex.Ptr(), sharedRes->linearSampler.Ptr());
+			atmosphereDesc->BeginUpdate();
+			atmosphereDesc->Update(0, parameterBuffer.Ptr());
+			atmosphereDesc->Update(1, colorBuffer->Texture.Ptr());
+			atmosphereDesc->Update(2, depthBuffer->Texture.Ptr());
+			atmosphereDesc->Update(3, transmittanceTex.Ptr());
+			atmosphereDesc->Update(4, irradianceTex.Ptr());
+			atmosphereDesc->Update(5, inscatterTex.Ptr());
+			atmosphereDesc->Update(6, sharedRes->linearSampler.Ptr());
+			atmosphereDesc->Update(7, sharedRes->nearestSampler.Ptr());
+			atmosphereDesc->EndUpdate();
+
 			attachments.SetAttachment(0, colorOutBuffer->Texture.Ptr());
 		}
 		virtual String GetShaderFileName() override

@@ -2,12 +2,12 @@ using "DefaultGeometry.shader";
 
 module MaterialPattern
 {
-    @MaterialUniform Texture2D maskMap;
-    @MaterialUniform Texture2D leatherNormalMap;
-    @MaterialUniform Texture2D baseNormalMap;
-    @MaterialUniform Texture2D aoMap;
-    @MaterialUniform Texture2D leatherSpecularMap;
-    @MaterialUniform Texture2D leatherMap;
+    param Texture2D maskMap;
+    param Texture2D leatherNormalMap;
+    param Texture2D baseNormalMap;
+    param Texture2D aoMap;
+    param Texture2D leatherSpecularMap;
+    param Texture2D leatherMap;
     
     require SamplerState textureSampler;
     require vec2 vertUV;

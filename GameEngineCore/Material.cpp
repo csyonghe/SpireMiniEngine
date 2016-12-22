@@ -45,6 +45,7 @@ namespace GameEngine
 	void Material::LoadFromFile(const CoreLib::String & fullFileName)
 	{
 		CoreLib::Text::TokenReader parser(CoreLib::IO::File::ReadAllText(fullFileName));
+		Name = CoreLib::IO::Path::GetFileName(fullFileName);
 		Parse(parser);
 	}
 }

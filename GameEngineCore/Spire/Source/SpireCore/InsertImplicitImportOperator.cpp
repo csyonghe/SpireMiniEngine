@@ -52,7 +52,7 @@ namespace Spire
 				ComponentDefinitionIR * referencedDef = nullptr;
 				for (auto & compDef : shaderIR->DefinitionsByComponent[componentUniqueName]())
 				{
-					if (compDef.Value->World == world)
+					if (compDef.Value->World == world || compDef.Value->World == "<uniform>")
 						return compDef.Value;
 				}
 				for (auto & compDef : shaderIR->DefinitionsByComponent[componentUniqueName]())
@@ -105,8 +105,8 @@ namespace Spire
 				else
 				{
 					auto targetComp = shaderIR->Shader->AllComponents[componentUniqueName]();
-                    getSink()->diagnose(currentCompDef->SyntaxNode, Diagnostics::noApplicableImplicitImportOperator, targetComp->Name, world, currentCompDef->OriginalName);
-                    getSink()->diagnose(targetComp->Implementations.First()->SyntaxNode, Diagnostics::seeDefinitionOf, targetComp->Name);
+                    getSink()->diagnose(currentCompDef->SyntaxNode, Diagnostics::noApplicableImplicitImportOperator, targetComp.Symbol->Name, world, currentCompDef->OriginalName);
+                    getSink()->diagnose(targetComp.Symbol->Implementations.First()->SyntaxNode, Diagnostics::seeDefinitionOf, targetComp.Symbol->Name);
 					return currentCompDef;
 				}
 			}
