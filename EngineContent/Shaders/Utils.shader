@@ -71,7 +71,7 @@ module NoAnimation
 {
     param mat4 modelMatrix; 
     param mat3 normalMatrix; 
-    
+
     require vec3 vertPos;
     require vec3 vertNormal;
     require vec3 vertTangent;
@@ -107,7 +107,7 @@ module SkeletalAnimation
 
     require mat4 viewProjectionTransform;
 
-    param BoneTransform[] boneTransforms;
+    param BoneTransform[128] boneTransforms;
     
     public SkinningResult skinning
     {
@@ -475,4 +475,15 @@ module Lighting
     public vec3 result = lightColor * 
                         (albedo * (brightness + 0.4)*(1.0-metallic_in) + 
                         mix(albedo, vec3(1.0), 1.0 - metallic_in) * (highlight * shadow));
+}
+
+module ForwardBasePassParams
+{
+    public param mat4 viewTransform;
+    public param mat4 viewProjectionTransform;
+    public param mat4 invViewTransform;
+    public param mat4 invViewProjTransform;
+    public param vec3 cameraPos;
+    public param float time;  
+    public param SamplerState textureSampler;  
 }

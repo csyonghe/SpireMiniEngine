@@ -25,7 +25,7 @@ namespace GameEngine
 
 		for (auto& compiledShader : rs.Shaders)
 		{
-			Shader* shader;
+			Shader* shader = nullptr;
 			if (compiledShader.Key == "vs")
 			{
 				shader = hwRenderer->CreateShader(ShaderType::VertexShader, (char*)compiledShader.Value.Buffer(), compiledShader.Value.Count());

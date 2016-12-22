@@ -82,9 +82,10 @@ namespace GameEngine
 			depthBuffer = sharedRes->LoadSharedRenderTarget("depthBuffer", StorageFormat::Depth24Stencil8);
 			colorOutBuffer = sharedRes->LoadSharedRenderTarget("litAtmosphereColor", StorageFormat::RGBA_8);
 		}
-		virtual void SetupPipelineBindingLayout(PipelineBuilder * /*pipelineBuilder*/, List<TextureUsage> & renderTargets) override
+		virtual void SetupPipelineBindingLayout(PipelineBuilder * pipelineBuilder, List<TextureUsage> & renderTargets) override
 		{
 			renderTargets.Add(TextureUsage::ColorAttachment);
+			pipelineBuilder->SetDebugName("atmosphere");
 
 			atmosphereDesc = hwRenderer->CreateDescriptorSet(descLayouts[0].Ptr());
 		}

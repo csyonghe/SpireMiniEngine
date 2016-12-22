@@ -3,6 +3,7 @@
 #include <wingdi.h>
 #include "CoreLib/VectorMath.h"
 #include "HardwareRenderer.h"
+#include "CoreLib/WinForm/Debug.h"
 #include "Spire/Spire.h"
 
 //#define WINDOWS_10_SCALING
@@ -498,23 +499,10 @@ namespace GraphicsUI
 				[Pinned]
 				input world rootVert;
 
-				[Pinned]
-				input world uniformIn;
-
 				world vs;
 				world fs;
 
 				require @vs vec4 projCoord;
-				[Binding: "0"]
-				extern @(vs*, fs*) Uniform<uniformIn> uniformInBlock;
-				import(uniformIn->vs) uniformImport()
-				{
-					return project(uniformInBlock);
-				}
-				import(uniformIn->fs) uniformImport()
-				{
-					return project(uniformInBlock);
-				}
 				
 				extern @vs rootVert vertAttribIn;
 				import(rootVert->vs) vertexImport()
@@ -794,9 +782,22 @@ namespace GraphicsUI
 				auto fsSrc = (char*)spGetShaderStageSource(result, "UberUIShader", "fs", &len);
 				uberFs = rendererApi->CreateShader(ShaderType::FragmentShader, fsSrc, len);
 			}
+			else
+			{
+				int size = spGetDiagnosticOutput(diagSink, nullptr, 0);
+				List<char> buffer;
+				buffer.SetSize(size);
+				spGetDiagnosticOutput(diagSink, buffer.Buffer(), size);
+				CoreLib::Diagnostics::Debug::WriteLine(String(buffer.Buffer()));
+			}
 			spDestroyDiagnosticSink(diagSink);
 			spDestroyCompilationResult(result);
 			spDestroyCompilationContext(spireCtx);
+
+			if (!uberVs)
+			{
+				throw InvalidProgramException("UI shader compilation failed.");
+			}
 
 			Array<Shader*, 2> shaderList;
 			shaderList.Add(uberVs.Ptr()); shaderList.Add(uberFs.Ptr());
@@ -807,9 +808,9 @@ namespace GraphicsUI
 			vformat.Attributes.Add(VertexAttributeDesc(DataType::Float2, 0, 8, 1));
 			vformat.Attributes.Add(VertexAttributeDesc(DataType::Int, 0, 16, 2));
 			pipeBuilder->SetVertexLayout(vformat);
-			RefPtr<DescriptorSetLayout> descLayout = rendererApi->CreateDescriptorSetLayout(MakeArray(DescriptorLayout(0, BindingType::UniformBuffer),
-				DescriptorLayout(1, BindingType::StorageBuffer),
-				DescriptorLayout(2, BindingType::StorageBuffer)).GetArrayView());
+			RefPtr<DescriptorSetLayout> descLayout = rendererApi->CreateDescriptorSetLayout(MakeArray(DescriptorLayout(0, BindingType::UniformBuffer, 0),
+				DescriptorLayout(1, BindingType::StorageBuffer, 0),
+				DescriptorLayout(2, BindingType::StorageBuffer, 1)).GetArrayView());
 			pipeBuilder->SetBindingLayout(MakeArrayView(descLayout.Ptr()));
 			pipeBuilder->FixedFunctionStates.PrimitiveRestartEnabled = true;
 			pipeBuilder->FixedFunctionStates.PrimitiveTopology = PrimitiveType::TriangleFans;
@@ -825,6 +826,7 @@ namespace GraphicsUI
 			frameBufferLayout.Add(TextureUsage::ColorAttachment);
 
 			renderTargetLayout = rendererApi->CreateRenderTargetLayout(frameBufferLayout.GetArrayView());
+			pipeBuilder->SetDebugName("ui");
 			pipeline = pipeBuilder->ToPipeline(renderTargetLayout.Ptr());
 
 			cmdBuffer = rendererApi->CreateCommandBuffer();
@@ -874,11 +876,6 @@ namespace GraphicsUI
 			indexBuffer->SetData(indexStream.Buffer(), sizeof(int) * indexStream.Count());
 			vertexBuffer->SetData(vertexStream.Buffer(), sizeof(UberVertex) * vertexStream.Count());
 			primitiveBuffer->SetData(uniformFields.Buffer(), sizeof(UniformField) * uniformFields.Count());
-			/*PipelineBinding binding;
-			binding.BindUniformBuffer(0, uniformBuffer.Ptr());
-			binding.BindStorageBuffer(1, primitiveBuffer.Ptr());
-			binding.BindStorageBuffer(2, system->GetTextBufferObject());
-			pipelineInstance = pipeline->CreateInstance(binding);*/
 			cmdBuffer->BeginRecording(frameBuffer.Ptr());
 			cmdBuffer->Blit(uiOverlayTexture.Ptr(), baseTexture);
 			cmdBuffer->BindVertexBuffer(vertexBuffer.Ptr());

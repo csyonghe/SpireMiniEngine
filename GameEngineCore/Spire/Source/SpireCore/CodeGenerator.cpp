@@ -50,7 +50,7 @@ namespace Spire
 			CodeWriter codeWriter;
 			ScopeDictionary<String, ILOperand*> variables;
 			Dictionary<String, RefPtr<ILType>> genericTypeMappings;
-            Dictionary<StructSyntaxNode*, RefPtr<ILStructType>> structTypes;
+			Dictionary<StructSyntaxNode*, RefPtr<ILStructType>> structTypes;
 
 			void PushStack(ILOperand * op)
 			{
@@ -131,8 +131,8 @@ namespace Spire
 		public:
 			virtual RefPtr<StructSyntaxNode> VisitStruct(StructSyntaxNode * st) override
 			{
-                RefPtr<ILStructType> structType = TranslateStructType(st);
-                result.Program->Structs.Add(structType);
+				RefPtr<ILStructType> structType = TranslateStructType(st);
+				result.Program->Structs.Add(structType);
 				return st;
 			}
 			virtual void ProcessFunction(FunctionSyntaxNode * func) override
@@ -151,33 +151,61 @@ namespace Spire
 				// initialize module parameter layouts for all module instances in this shader
 				for (auto module : shader->ModuleInstances)
 				{
-					auto set = new ILModuleParameterSet();
-					set->BindingName = module->BindingName;
-					compiledShader->ModuleParamSets[module->BindingName] = set;
-					Token bindingValStr;
-					if (module->SyntaxNode->Attributes.TryGetValue("Binding", bindingValStr))
+					if (module->BindingIndex != -1)
 					{
-						int bindingVal = StringToInt(bindingValStr.Content);
-						set->DescriptorSetId = bindingVal;
 						ModuleInstanceIR * existingModule;
-						if (usedDescriptorSetBindings.TryGetValue(bindingVal, existingModule))
+						if (usedDescriptorSetBindings.TryGetValue(module->BindingIndex, existingModule))
 						{
-							getSink()->diagnose(bindingValStr.Position, Diagnostics::bindingAlreadyOccupiedByModule, bindingVal, existingModule->BindingName);
-							getSink()->diagnose(existingModule->SyntaxNode->Position, Diagnostics::seeDefinitionOf, existingModule->SyntaxNode->Name.Content);
+							getSink()->diagnose(module->UsingPosition, Diagnostics::bindingAlreadyOccupiedByModule, module->BindingIndex, existingModule->BindingName);
+							getSink()->diagnose(existingModule->UsingPosition, Diagnostics::seeUsingOf, existingModule->SyntaxNode->Name.Content);
+
 						}
-						usedDescriptorSetBindings[bindingVal] = module.Ptr();
+						usedDescriptorSetBindings[module->BindingIndex] = module.Ptr();
+					}
+					else
+					{
+						Token bindingValStr;
+						if (module->SyntaxNode->Attributes.TryGetValue("Binding", bindingValStr))
+						{
+							int bindingVal = StringToInt(bindingValStr.Content);
+							module->BindingIndex = bindingVal;
+							ModuleInstanceIR * existingModule;
+							if (usedDescriptorSetBindings.TryGetValue(bindingVal, existingModule))
+							{
+								getSink()->diagnose(bindingValStr.Position, Diagnostics::bindingAlreadyOccupiedByModule, bindingVal, existingModule->BindingName);
+								getSink()->diagnose(existingModule->SyntaxNode->Position, Diagnostics::seeDefinitionOf, existingModule->SyntaxNode->Name.Content);
+							}
+							usedDescriptorSetBindings[bindingVal] = module.Ptr();
+						}
 					}
 				}
 				// assign DescriptorSetId for unspecified modules
-				for (auto & module : compiledShader->ModuleParamSets)
+				for (auto & module : shader->ModuleInstances)
 				{
-					if (module.Value->DescriptorSetId == -1)
+					if (module->BindingIndex == -1)
 					{
 						while (usedDescriptorSetBindings.ContainsKey(descriptorSetIdAllocator))
 							descriptorSetIdAllocator++;
-						module.Value->DescriptorSetId = descriptorSetIdAllocator;
+						module->BindingIndex = descriptorSetIdAllocator;
 						descriptorSetIdAllocator++;
 					}
+				}
+				shader->ModuleInstances.Sort([](auto x, auto y) {return x->BindingIndex <= y->BindingIndex; });
+				for (auto module : shader->ModuleInstances)
+				{
+					bool hasParam = false;
+					for (auto & comp : module->SyntaxNode->GetMembersOfType<ComponentSyntaxNode>())
+						if (comp->IsParam)
+						{
+							hasParam = true;
+							break;
+						}
+					if (!hasParam)
+						continue;
+					auto set = new ILModuleParameterSet();
+					set->BindingName = module->BindingName;
+					set->DescriptorSetId = module->BindingIndex;
+					compiledShader->ModuleParamSets[module->BindingName] = set;
 				}
 				// allocate binding slots for shader resources (textures, buffers, samplers etc.), as required by legacy APIs
 				Dictionary<int, ComponentDefinitionIR*> usedTextureBindings, usedBufferBindings, usedSamplerBindings, usedStorageBufferBindings;
@@ -221,10 +249,10 @@ namespace Spire
 								break;
 							}
 
-							String bindingValStr;
-							if (def->SyntaxNode->LayoutAttributes.TryGetValue("Binding", bindingValStr))
+							Token bindingValStr;
+							if (def->SyntaxNode->Attributes.TryGetValue("Binding", bindingValStr))
 							{
-								int bindingVal = StringToInt(bindingValStr);
+								int bindingVal = StringToInt(bindingValStr.Content);
 
 								ComponentDefinitionIR * otherComp = nullptr;
 								if (bindingRegistry->TryGetValue(bindingVal, otherComp))
@@ -244,6 +272,7 @@ namespace Spire
 						module->Parameters.Add(def->UniqueName, param);
 					}
 				}
+
 				// second pass: assign binding slots for rest of resource components whose binding is not explicitly specified by user
 				for (auto def : shader->Definitions)
 				{
@@ -308,7 +337,7 @@ namespace Spire
 				result.Program->Shaders.Add(compiledShader);
 
 				genericTypeMappings.Clear();
-				
+
 				// pass 1: iterating all worlds
 				// create ILWorld and ILRecordType objects for all worlds
 
@@ -320,7 +349,7 @@ namespace Spire
 					genericTypeMappings[world.Key] = recordType;
 					w->Name = world.Key;
 					w->OutputType = recordType;
-					w->Attributes = world.Value->LayoutAttributes;
+					w->Attributes = world.Value->Attributes;
 					w->Shader = compiledShader.Ptr();
 					w->IsAbstract = world.Value->IsAbstract;
 					auto impOps = pipeline->GetImportOperatorsFromSourceWorld(world.Key);
@@ -348,7 +377,7 @@ namespace Spire
 						for (auto & comp : components)
 						{
 							ILObjectDefinition compDef;
-							compDef.Attributes = comp->SyntaxNode->LayoutAttributes;
+							compDef.Attributes = comp->SyntaxNode->Attributes;
 							compDef.Name = comp->UniqueName;
 							compDef.Type = TranslateExpressionType(comp->Type.Ptr());
 							compDef.Position = comp->SyntaxNode->Position;
@@ -374,7 +403,7 @@ namespace Spire
 							def.Name = comp->UniqueName;
 							def.Type = TranslateExpressionType(comp->Type.Ptr());
 							def.Position = comp->SyntaxNode->Position;
-							def.Attributes = comp->SyntaxNode->LayoutAttributes;
+							def.Attributes = comp->SyntaxNode->Attributes;
 							world.Value->Inputs.Add(def);
 						}
 					}
@@ -390,7 +419,7 @@ namespace Spire
 						{
 							auto recType = genericTypeMappings[importExpr->ImportOperatorDef->SourceWorld.Content]().As<ILRecordType>();
 							ILObjectDefinition entryDef;
-							entryDef.Attributes = comp->SyntaxNode->LayoutAttributes;
+							entryDef.Attributes = comp->SyntaxNode->Attributes;
 							entryDef.Name = importExpr->ComponentUniqueName;
 							entryDef.Type = TranslateExpressionType(importExpr->Type.Ptr());
 							entryDef.Position = importExpr->Position;
@@ -401,7 +430,7 @@ namespace Spire
 						{
 							auto recType = genericTypeMappings[comp->World]().As<ILRecordType>();
 							ILObjectDefinition entryDef;
-							entryDef.Attributes = comp->SyntaxNode->LayoutAttributes;
+							entryDef.Attributes = comp->SyntaxNode->Attributes;
 							entryDef.Name = comp->UniqueName;
 							entryDef.Type = TranslateExpressionType(comp->Type.Ptr());
 							entryDef.Position = comp->SyntaxNode->Position;
@@ -419,7 +448,7 @@ namespace Spire
 						return def->Dependency;
 					});
 				}
-			
+
 				// generate component functions
 				for (auto & comp : shader->Definitions)
 				{
@@ -451,7 +480,7 @@ namespace Spire
 							if (dep->SyntaxNode->Parameters.Count() == 0)
 							{
 								auto paramType = TranslateExpressionType(dep->Type);
-								String paramName = EscapeDoubleUnderscore("p" + String(id) + "_" + dep->OriginalName); 
+								String paramName = EscapeDoubleUnderscore("p" + String(id) + "_" + dep->OriginalName);
 								func->Parameters.Add(paramName, ILParameter(paramType));
 								auto argInstr = codeWriter.FetchArg(paramType, id + 1);
 								argInstr->Name = paramName;
@@ -517,7 +546,7 @@ namespace Spire
 						if (comp->SyntaxNode->Parameters.Count() == 0)
 							VisitComponent(comp);
 					}
-					
+
 					variables.PopScope();
 					compiledWorld->Code = codeWriter.PopNode();
 					EvalReferencedFunctionClosure(compiledWorld);
@@ -572,7 +601,7 @@ namespace Spire
 				}
 
 				ILOperand * componentVar = nullptr;
-				
+
 				if (currentComponent->SyntaxNode->Expression)
 				{
 					currentComponent->SyntaxNode->Expression->Accept(this);
@@ -593,14 +622,14 @@ namespace Spire
 
 				/*if (!currentComponent->Type->IsTexture() && !currentComponent->Type->IsArray())
 				{
-					auto vartype = TranslateExpressionType(currentComponent->Type.Ptr(), &recordTypes);
-					auto var = codeWriter.AllocVar(vartype, result.Program->ConstantPool->CreateConstant(1));
-					var->Name = varName;
-					codeWriter.Store(var, componentVar);
-					componentVar = var;
+				auto vartype = TranslateExpressionType(currentComponent->Type.Ptr(), &recordTypes);
+				auto var = codeWriter.AllocVar(vartype, result.Program->ConstantPool->CreateConstant(1));
+				var->Name = varName;
+				codeWriter.Store(var, componentVar);
+				componentVar = var;
 				}
 				else*/
-					componentVar->Name = varName;
+				componentVar->Name = varName;
 				currentWorld->Components[currentComponent->UniqueName] = componentVar;
 				variables.Add(currentComponent->UniqueName, componentVar);
 				currentComponent = nullptr;
@@ -670,11 +699,11 @@ namespace Spire
 			{
 				RefPtr<ForInstruction> instr = new ForInstruction();
 				variables.PushScope();
-                if (auto initStmt = stmt->InitialStatement.Ptr())
-                {
-                    // TODO(tfoley): any of this push-pop malarky needed here?
-                    initStmt->Accept(this);
-                }
+				if (auto initStmt = stmt->InitialStatement.Ptr())
+				{
+					// TODO(tfoley): any of this push-pop malarky needed here?
+					initStmt->Accept(this);
+				}
 				if (stmt->PredicateExpression)
 				{
 					codeWriter.PushNode();
@@ -682,7 +711,7 @@ namespace Spire
 					PopStack();
 					instr->ConditionCode = codeWriter.PopNode();
 				}
-			
+
 				if (stmt->SideEffectExpression)
 				{
 					codeWriter.PushNode();
@@ -792,7 +821,7 @@ namespace Spire
 				return stmt;
 			}
 
-            RefPtr<Variable> VisitDeclrVariable(Variable* varDecl)
+			RefPtr<Variable> VisitDeclrVariable(Variable* varDecl)
 			{
 				AllocVarInstruction * varOp = AllocVar(varDecl->Type.Ptr());
 				varOp->Name = EscapeDoubleUnderscore(varDecl->Name.Content);
@@ -1343,78 +1372,78 @@ namespace Spire
 				codeWriter.SetConstantPool(result.Program->ConstantPool.Ptr());
 			}
 
-        private:
-            RefPtr<ILStructType> TranslateStructType(StructSyntaxNode* structDecl)
-            {
-                RefPtr<ILStructType> ilStructType;
+		private:
+			RefPtr<ILStructType> TranslateStructType(StructSyntaxNode* structDecl)
+			{
+				RefPtr<ILStructType> ilStructType;
 
-                if (structTypes.TryGetValue(structDecl, ilStructType))
-                {
-                    return ilStructType;
-                }
+				if (structTypes.TryGetValue(structDecl, ilStructType))
+				{
+					return ilStructType;
+				}
 
-                ilStructType = new ILStructType();
-                ilStructType->TypeName = structDecl->Name.Content;
-                ilStructType->IsIntrinsic = structDecl->IsIntrinsic;
+				ilStructType = new ILStructType();
+				ilStructType->TypeName = structDecl->Name.Content;
+				ilStructType->IsIntrinsic = structDecl->IsIntrinsic;
 
 
-                for (auto field : structDecl->GetFields())
-                {
-                    ILStructType::ILStructField ilField;
-                    ilField.FieldName = field->Name.Content;
-                    ilField.Type = TranslateExpressionType(field->Type.Ptr());
-                    ilStructType->Members.Add(ilField);
-                }
+				for (auto field : structDecl->GetFields())
+				{
+					ILStructType::ILStructField ilField;
+					ilField.FieldName = field->Name.Content;
+					ilField.Type = TranslateExpressionType(field->Type.Ptr());
+					ilStructType->Members.Add(ilField);
+				}
 
-                structTypes.Add(structDecl, ilStructType);
-                return ilStructType;
-            }
+				structTypes.Add(structDecl, ilStructType);
+				return ilStructType;
+			}
 
-		    RefPtr<ILType> TranslateExpressionType(ExpressionType * type)
-		    {
-			    RefPtr<ILType> resultType = 0;
-			    if (auto basicType = type->AsBasicType())
-			    {
-				    if (basicType->BaseType == BaseType::Struct)
-				    {
-                        resultType = TranslateStructType(basicType->structDecl);
-				    }
-				    else if (basicType->BaseType == BaseType::Record)
-				    {
+			RefPtr<ILType> TranslateExpressionType(ExpressionType * type)
+			{
+				RefPtr<ILType> resultType = 0;
+				if (auto basicType = type->AsBasicType())
+				{
+					if (basicType->BaseType == BaseType::Struct)
+					{
+						resultType = TranslateStructType(basicType->structDecl);
+					}
+					else if (basicType->BaseType == BaseType::Record)
+					{
 						return genericTypeMappings[basicType->RecordTypeName]();
-				    }
-				    else if (basicType->BaseType == BaseType::Generic)
-				    {
-					    return genericTypeMappings[basicType->GenericTypeVar]();
-				    }
-				    else
-				    {
-					    auto base = new ILBasicType();
-					    base->Type = (ILBaseType)basicType->BaseType;
-					    resultType = base;
-				    }
-			    }
-			    else if (auto arrType = type->AsArrayType())
-			    {
-				    auto nArrType = new ILArrayType();
-				    nArrType->BaseType = TranslateExpressionType(arrType->BaseType.Ptr());
-				    nArrType->ArrayLength = arrType->ArrayLength;
-				    resultType = nArrType;
-			    }
-			    else if (auto genType = type->AsGenericType())
-			    {
-				    auto gType = new ILGenericType();
-				    gType->GenericTypeName = genType->GenericTypeName;
-				    gType->BaseType = TranslateExpressionType(genType->BaseType.Ptr());
-				    resultType = gType;
-			    }
-			    return resultType;
-		    }
+					}
+					else if (basicType->BaseType == BaseType::Generic)
+					{
+						return genericTypeMappings[basicType->GenericTypeVar]();
+					}
+					else
+					{
+						auto base = new ILBasicType();
+						base->Type = (ILBaseType)basicType->BaseType;
+						resultType = base;
+					}
+				}
+				else if (auto arrType = type->AsArrayType())
+				{
+					auto nArrType = new ILArrayType();
+					nArrType->BaseType = TranslateExpressionType(arrType->BaseType.Ptr());
+					nArrType->ArrayLength = arrType->ArrayLength;
+					resultType = nArrType;
+				}
+				else if (auto genType = type->AsGenericType())
+				{
+					auto gType = new ILGenericType();
+					gType->GenericTypeName = genType->GenericTypeName;
+					gType->BaseType = TranslateExpressionType(genType->BaseType.Ptr());
+					resultType = gType;
+				}
+				return resultType;
+			}
 
-		    RefPtr<ILType> TranslateExpressionType(const RefPtr<ExpressionType> & type)
-		    {
-			    return TranslateExpressionType(type.Ptr());
-		    }
+			RefPtr<ILType> TranslateExpressionType(const RefPtr<ExpressionType> & type)
+			{
+				return TranslateExpressionType(type.Ptr());
+			}
 
 		};
 

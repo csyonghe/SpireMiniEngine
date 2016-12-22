@@ -22,13 +22,13 @@ namespace GameEngine
 			normalBuffer = sharedRes->LoadSharedRenderTarget("normalBuffer", StorageFormat::RGB10_A2);
 			litColorBuffer = sharedRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8);
 		}
-		virtual void SetupPipelineBindingLayout(PipelineBuilder * /*pipelineBuilder*/, List<TextureUsage> & renderTargets) override
+		virtual void SetupPipelineBindingLayout(PipelineBuilder * pipelineBuilder, List<TextureUsage> & renderTargets) override
 		{
 			renderTargets.Add(TextureUsage::ColorAttachment);
 			renderTargets.Add(TextureUsage::ColorAttachment);
 			renderTargets.Add(TextureUsage::ColorAttachment);
 			renderTargets.Add(TextureUsage::DepthAttachment);
-
+			pipelineBuilder->SetDebugName("deferred_lighting");
 			deferredDescSet = hwRenderer->CreateDescriptorSet(descLayouts[0].Ptr());
 		}
 		virtual void UpdatePipelineBinding(SharedModuleInstances sharedModules, DescriptorSetBindings & binding, RenderAttachments & attachments) override
@@ -40,11 +40,11 @@ namespace GameEngine
 			binding.Bind(2, sharedModules.Lighting->Descriptors.Ptr());
 
 			deferredDescSet->BeginUpdate();
-			deferredDescSet->Update(0, baseColorBuffer->Texture.Ptr());
-			deferredDescSet->Update(1, pbrBuffer->Texture.Ptr());
-			deferredDescSet->Update(2, normalBuffer->Texture.Ptr());
-			deferredDescSet->Update(3, depthBuffer->Texture.Ptr());
-			deferredDescSet->Update(4, sharedRes->nearestSampler.Ptr());
+			deferredDescSet->Update(1, baseColorBuffer->Texture.Ptr());
+			deferredDescSet->Update(2, pbrBuffer->Texture.Ptr());
+			deferredDescSet->Update(3, normalBuffer->Texture.Ptr());
+			deferredDescSet->Update(4, depthBuffer->Texture.Ptr());
+			deferredDescSet->Update(5, sharedRes->nearestSampler.Ptr());
 			deferredDescSet->EndUpdate();
 
 			attachments.SetAttachment(0, litColorBuffer->Texture.Ptr());

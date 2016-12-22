@@ -28,6 +28,7 @@ DIAGNOSTIC(-1, Note, implicitParameterMatchingFailedBecauseShaderDoesNotDefineCo
 DIAGNOSTIC(-1, Note, implicitParameterMatchingFailedBecauseTypeMismatch, "implicit parameter matching failed because the component of the same name does not match parameter type '$0'.")
 DIAGNOSTIC(-1, Note, noteShaderIsTargetingPipeine, "shader '$0' is targeting pipeline '$1'")
 DIAGNOSTIC(-1, Note, seeDefinitionOf, "see definition of '$0'")
+DIAGNOSTIC(-1, Note, seeUsingOf, "see using of '$0'")
 DIAGNOSTIC(-1, Note, seeDefinitionOfShader, "see definition of shader '$0'")
 DIAGNOSTIC(-1, Note, seeInclusionOf, "see inclusion of '$0'")
 DIAGNOSTIC(-1, Note, seeModuleBeingUsedIn, "see module '$0' being used in '$1'")
@@ -98,17 +99,20 @@ DIAGNOSTIC(15901, Warning,  userDefinedWarning, "#warning: $0")
 // 2xxxx - Parsing
 //
 
+DIAGNOSTIC(20003, Error, unexpectedToken, "unexpected $0");
+DIAGNOSTIC(20001, Error, unexpectedTokenExpectedTokenType, "unexpected $0, expected $1");
+DIAGNOSTIC(20001, Error, unexpectedTokenExpectedTokenName, "unexpected $0, expected '$1'");
+
 DIAGNOSTIC(0, Error, tokenNameExpectedButEOF, "\"$0\" expected but end of file encountered.");
 DIAGNOSTIC(0, Error, tokenTypeExpectedButEOF, "$0 expected but end of file encountered.");
 DIAGNOSTIC(20001, Error, tokenNameExpected, "\"$0\" expected");
 DIAGNOSTIC(20001, Error, tokenNameExpectedButEOF2, "\"$0\" expected but end of file encountered.");
 DIAGNOSTIC(20001, Error, tokenTypeExpected, "$0 expected");
 DIAGNOSTIC(20001, Error, tokenTypeExpectedButEOF2, "$0 expected but end of file encountered.");
-DIAGNOSTIC(20001, Error, typeNameExpectedBut, "type name expected but '$0' encountered.");
+DIAGNOSTIC(20001, Error, typeNameExpectedBut, "unexpected $0, expected type name");
 DIAGNOSTIC(20001, Error, typeNameExpectedButEOF, "type name expected but end of file encountered.");
 DIAGNOSTIC(20001, Error, unexpectedEOF, " Unexpected end of file.");
 DIAGNOSTIC(20002, Error, syntaxError, "syntax error.");
-DIAGNOSTIC(20003, Error, unexpectedToken, "unexpected token '$0'.");
 DIAGNOSTIC(20004, Error, unexpectedTokenExpectedComponentDefinition, "unexpected token '$0', only component definitions are allowed in a shader scope.")
 DIAGNOSTIC(20008, Error, invalidOperator, "invalid operator '$0'.");
 DIAGNOSTIC(20011, Error, unexpectedColon, "unexpected ':'.")

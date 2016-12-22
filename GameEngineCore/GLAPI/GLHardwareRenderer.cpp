@@ -1497,10 +1497,10 @@ namespace GLL
 	struct Descriptor
 	{
 		BindingType Type = BindingType::Unused;
-		int Offset, Length;
+		int Offset = 0, Length = 0;
 		union
 		{
-			GLL::Texture * texture;
+			GLL::Texture * texture = nullptr;
 			GLL::TextureSampler * sampler;
 			GLL::BufferObject * buffer;
 		} binding;
@@ -1533,7 +1533,7 @@ namespace GLL
 			auto & desc = descriptors[location];
 			desc.binding.sampler = dynamic_cast<GLL::TextureSampler*>(sampler);
 			desc.Offset = desc.Length = 0;
-			desc.Type = BindingType::Texture;
+			desc.Type = BindingType::Sampler;
 		}
 		virtual void Update(int location, Buffer* buffer, int offset = 0, int length = -1) override
 		{
@@ -1570,7 +1570,7 @@ namespace GLL
 	{
 	public:
 		PipelineSettings settings;
-
+		String Name;
 		Pipeline(const PipelineSettings & pSettings)
 			: settings(pSettings)
 		{}
@@ -1579,6 +1579,7 @@ namespace GLL
 	class PipelineBuilder : public GameEngine::PipelineBuilder
 	{
 	public:
+		String debugName;
 		Program shaderProgram;
 		VertexFormat format;
 		List<DescriptorSetLayout*> descLayouts;
@@ -1645,6 +1646,10 @@ namespace GLL
 				descLayouts.Add((DescriptorSetLayout*)descSet);
 			}
 		}
+		virtual void SetDebugName(String name) override
+		{
+			debugName = name;
+		}
 		virtual Pipeline* ToPipeline(GameEngine::RenderTargetLayout* /*renderTargetLayout*/) override
 		{
 			PipelineSettings settings;
@@ -1695,7 +1700,9 @@ namespace GLL
 				if (descLayouts[i])
 					settings.bindingLayout[i].AddRange(descLayouts[i]->layouts);
 			}
-			return new Pipeline(settings);
+			auto rs = new Pipeline(settings);
+			rs->Name = debugName;
+			return rs;
 		}
 	};
 
@@ -2130,12 +2137,14 @@ namespace GLL
 						auto & descLayout = currentPipeline->settings.bindingLayout[i];
 						auto descSet = boundDescSets[i];
 						if (!descSet) continue;
-						if (descSet->descriptors.Count() != descLayout.Count())
+						if (descSet->descriptors.Count() != descLayout.Count() && descLayout.Count() != 0)
 							throw HardwareRendererException("bound descriptor set does not match descriptor set layout.");
 						for (int j = 0; j < descLayout.Count(); j++)
 						{
 							auto & desc = descSet->descriptors[j];
 							auto & layout = descLayout[j];
+							if (!desc.binding.buffer || layout.BindingPoints.Count() == 0)
+								continue;
 							if (layout.Type == BindingType::Texture && desc.Type == BindingType::Texture)
 							{
 								UseTexture(layout.BindingPoints.First(), *desc.binding.texture);
@@ -2145,17 +2154,19 @@ namespace GLL
 								for (auto binding : layout.BindingPoints)
 									UseSampler(binding, *desc.binding.sampler);
 							}
-							else if ((layout.Type == BindingType::UniformBuffer || layout.Type == BindingType::StorageBuffer) &&
-								desc.Type == BindingType::UniformBuffer)
+							else if (layout.Type == BindingType::UniformBuffer && (desc.Type == BindingType::UniformBuffer || desc.Type == BindingType::StorageBuffer))
 							{
-								if (layout.Type == BindingType::UniformBuffer)
-								{
-									if (desc.Offset == 0 && desc.Length == -1)
-										BindBuffer(BufferType::UniformBuffer, layout.BindingPoints.First(), *desc.binding.buffer);
-									else
-										BindBuffer(BufferType::UniformBuffer, layout.BindingPoints.First(), *desc.binding.buffer, desc.Offset, desc.Length);
-
-								}
+								if (desc.Offset == 0 && desc.Length == -1)
+									BindBuffer(BufferType::UniformBuffer, layout.BindingPoints.First(), *desc.binding.buffer);
+								else
+									BindBuffer(BufferType::UniformBuffer, layout.BindingPoints.First(), *desc.binding.buffer, desc.Offset, desc.Length);
+							}
+							else if (layout.Type == BindingType::StorageBuffer && (desc.Type == BindingType::UniformBuffer || desc.Type == BindingType::StorageBuffer))
+							{
+								if (desc.Offset == 0 && desc.Length == -1)
+									BindBuffer(BufferType::StorageBuffer, layout.BindingPoints.First(), *desc.binding.buffer);
+								else
+									BindBuffer(BufferType::StorageBuffer, layout.BindingPoints.First(), *desc.binding.buffer, desc.Offset, desc.Length);
 							}
 							else
 								throw HardwareRendererException("descriptor type does not match descriptor layout description");

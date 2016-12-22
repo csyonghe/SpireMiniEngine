@@ -20,8 +20,8 @@ namespace GameEngine
 		auto cachePostfix = (targetLang == SPIRE_GLSL) ? ".glsl.cse" : (targetLang == SPIRE_HLSL) ? ".hlsl.cse" : ".spv.cse";
 		// Check disk for shaders
 		auto cachedShaderFilename =
-			Path::Combine(Path::GetDirectoryName(actualFilename),
-				Path::ReplaceExt(actualFilename, cachePostfix));
+			Path::Combine(Engine::Instance()->GetDirectory(false, ResourceType::ShaderCache),
+				Path::GetFileName(Path::ReplaceExt(actualFilename, cachePostfix)));
 
 		/*if (CoreLib::IO::File::Exists(cachedShaderFilename))
 		{
@@ -94,7 +94,7 @@ namespace GameEngine
 				DescriptorLayout desc;
 				if (slot->NumLegacyBindingPoints)
 					desc.LegacyBindingPoints.AddRange(slot->LegacyBindingPoints, slot->NumLegacyBindingPoints);
-				desc.Location = j;
+				desc.Location = j + 1;
 				switch (slot->Type)
 				{
 				case SPIRE_SAMPLER:

@@ -612,6 +612,7 @@ namespace GameEngine
 		virtual void SetShaders(CoreLib::ArrayView<Shader*> shaders) = 0;
 		virtual void SetVertexLayout(VertexFormat vertexFormat) = 0;
 		virtual void SetBindingLayout(CoreLib::ArrayView<DescriptorSetLayout*> descriptorSets) = 0;
+		virtual void SetDebugName(CoreLib::String name) = 0;
 		virtual Pipeline* ToPipeline(RenderTargetLayout* renderTargetLayout) = 0;
 	};
 

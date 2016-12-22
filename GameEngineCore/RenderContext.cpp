@@ -269,18 +269,20 @@ namespace GameEngine
 				spModuleGetParameter(module, i, &param);
 				if (param.BindableResourceType != SPIRE_NON_BINDABLE)
 				{
-					bindingLocs[param.Name] = loc;
+					bindingLocs[param.Name] = loc++;
 				}
 				else
 				{
 					DynamicVariable val;
 					if (!material->Variables.TryGetValue(param.Name, val))
-						Print("Invalid material(%S): shader parameter '%S' is not provided in material file.", material->Name.ToWString(), String(param.Name).ToWString());
+					{
+						Print("Invalid material(%S): shader parameter '%S' is not provided in material file.\n", material->Name.ToWString(), String(param.Name).ToWString());
+						isValid = false;
+					}
 					val.Name = param.Name;
 					vars[val.Name] = val;
 				}
 			}
-			material->Variables = _Move(vars);
 			if (isValid)
 			{
 				RefPtr<ModuleInstance> result = rendererResource->CreateModuleInstance(module, &instanceUniformMemory);
@@ -290,19 +292,15 @@ namespace GameEngine
 					DynamicVariable val;
 					if (material->Variables.TryGetValue(binding.Key, val))
 					{
-						vars[binding.Key] = val;
 						auto tex = LoadTexture(val.StringValue);
 						if (tex)
 							result->Descriptors->Update(binding.Value, tex);
-					}
-					else
-					{
-						Print("Invalid material(%S): material does not provide shader paramter '%S'.", material->Name.ToWString(), binding.Key.ToWString());
 					}
 				}
 				result->Descriptors->EndUpdate();
 				return result;
 			}
+			material->Variables = _Move(vars);
 			return nullptr;
 		}
 	}
@@ -410,18 +408,22 @@ namespace GameEngine
 			}
 			pipelineClass->shaders.Add(shader);
 		}
-
+		pipelineBuilder->SetDebugName(identifier);
 		pipelineBuilder->SetShaders(pipelineClass->shaders.GetArrayView());
-		List<DescriptorSetLayout*> descSetLayouts;
+		List<RefPtr<DescriptorSetLayout>> descSetLayouts;
 		for (auto & descSet : rs.BindingLayouts)
 		{
 			auto layout = hw->CreateDescriptorSetLayout(descSet.Value.Descriptors.GetArrayView());
-			descSetLayouts.Add(layout);
+			if (descSet.Value.BindingPoint >= descSetLayouts.Count())
+				descSetLayouts.SetSize(descSet.Value.BindingPoint + 1);
+			descSetLayouts[descSet.Value.BindingPoint] = layout;
+
 		}
-		pipelineBuilder->SetBindingLayout(descSetLayouts.GetArrayView());
+		pipelineBuilder->SetBindingLayout(From(descSetLayouts).Select([](auto x) {return x.Ptr(); }).ToList().GetArrayView());
+
+		setAdditionalArgs(pipelineBuilder.Ptr());
+
 		pipelineClass->pipeline = pipelineBuilder->ToPipeline(renderTargetLayout);
-		for (auto descSet : descSetLayouts)
-			delete descSet;
 		pipelineClassCache[identifier] = pipelineClass;
 
 		if (!material->MaterialModule)
@@ -659,7 +661,8 @@ namespace GameEngine
 		rs->DescriptorLayout = hardwareRenderer->CreateDescriptorSetLayout(descs.GetArrayView());
 		rs->Descriptors = hardwareRenderer->CreateDescriptorSet(rs->DescriptorLayout.Ptr());
 		rs->Descriptors->BeginUpdate();
-		rs->Descriptors->Update(0, rs->UniformMemory->GetBuffer(), rs->BufferOffset, rs->BufferLength);
+		if (rs->UniformMemory)
+			rs->Descriptors->Update(0, rs->UniformMemory->GetBuffer(), rs->BufferOffset, rs->BufferLength);
 		rs->Descriptors->EndUpdate();
 		return rs;
 	}

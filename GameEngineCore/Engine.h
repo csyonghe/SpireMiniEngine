@@ -30,7 +30,7 @@ namespace GameEngine
 	};
 	enum class ResourceType
 	{
-		Mesh, Shader, Level, Texture, Material, Settings
+		Mesh, Shader, Level, Texture, Material, Settings, ShaderCache
 	};
 	enum class TimingMode
 	{

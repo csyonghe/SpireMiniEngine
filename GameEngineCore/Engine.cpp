@@ -43,8 +43,10 @@ namespace GameEngine
 
 			gameDir = args.GameDirectory;
 			engineDir = args.EngineDirectory;
-			Path::CreateDir(Path::Combine(gameDir, "Cache"));
+			Path::CreateDir(Path::Combine(gameDir, "Cache/Shaders"));
 			Path::CreateDir(Path::Combine(gameDir, "Settings"));
+			Path::CreateDir(Path::Combine(gameDir, "Settings"));
+
 
 			auto graphicsSettingsFile = FindFile("graphics.settings", ResourceType::Settings);
 			if (graphicsSettingsFile.Length())
@@ -295,6 +297,9 @@ namespace GameEngine
 			break;
 		case ResourceType::Settings:
 			subDirName = "Settings";
+			break;
+		case ResourceType::ShaderCache:
+			subDirName = "Cache/Shaders";
 			break;
 		}
 		if (useEngineDir)

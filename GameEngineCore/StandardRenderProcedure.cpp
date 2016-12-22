@@ -128,8 +128,10 @@ namespace GameEngine
 			forwardBasePassParams->Descriptors->Update(1, sharedRes->textureSampler.Ptr());
 			forwardBasePassParams->Descriptors->EndUpdate();
 			lightingParams = sharedRes->CreateModuleInstance(spFindModule(sharedRes->spireContext, "Lighting"), &renderPassUniformMemory);
-			for (int i = 0; i < MaxShadowCascades; i++)
-				shadowViewInstances.Add(sharedRes->CreateModuleInstance(spFindModule(sharedRes->spireContext, "ForwardBasePassParams"), &renderPassUniformMemory));
+			lightingParams->Descriptors->BeginUpdate();
+			lightingParams->Descriptors->Update(1, sharedRes->shadowMapResources.shadowMapArray.Ptr());
+			lightingParams->Descriptors->Update(2, sharedRes->shadowSampler.Ptr());
+			lightingParams->Descriptors->EndUpdate();
 			sharedModules.View = forwardBasePassParams.Ptr();
 			sharedModules.Lighting = lightingParams.Ptr();
 		}
@@ -290,6 +292,10 @@ namespace GameEngine
 									shadowViewInstances.Add(sharedRes->CreateModuleInstance(spFindModule(sharedRes->spireContext, "ForwardBasePassParams"), &renderPassUniformMemory));
 									shadowMapViewInstancePtr = shadowViewInstances.Count();
 									shadowMapPassInstance = shadowViewInstances.Last().Ptr();
+									shadowMapPassInstance->Descriptors->BeginUpdate();
+									shadowMapPassInstance->Descriptors->Update(1, sharedRes->textureSampler.Ptr());
+									shadowMapPassInstance->Descriptors->EndUpdate();
+
 								}
 								bindings.Bind(0, shadowMapPassInstance->Descriptors.Ptr());
 								shadowMapPassInstance->SetUniformData(&shadowMapView, sizeof(shadowMapView));
@@ -303,7 +309,7 @@ namespace GameEngine
 			}
 
 			lightingParams->SetUniformData(lightingData.Buffer(), (int)(lightingData.Count()*sizeof(LightUniforms)));
-			
+			forwardBasePassParams->SetUniformData(&viewUniform, (int)sizeof(viewUniform));
 			DescriptorSetBindings bindings;
 			bindings.Bind(0, forwardBasePassParams->Descriptors.Ptr());
 			bindings.Bind(1, lightingParams->Descriptors.Ptr());
