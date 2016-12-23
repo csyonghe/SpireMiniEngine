@@ -245,10 +245,7 @@ module ParallaxOcclusionMapping
     require Texture2D heightTexture;
     require vec3 viewDirTangentSpace;
     require vec2 uv;
-    require float displacementScale;
-    require float uvPerWorldUnit;
-    
-    float parallaxScale = uvPerWorldUnit / displacementScale;
+    require float parallaxScale;
 
     vec3 parallaxMapping
     {
@@ -324,7 +321,6 @@ module ParallaxOcclusionMapping
 
     public vec2 uvOut = parallaxMapping.xy;
     public float heightOut = parallaxMapping.z;
-    public float tOffset = (1.0 - heightOut)*displacementScale/max(viewDirTangentSpace.z, 1e-5f);
 
     public float selfShadow(vec3 L_tangentSpace)
     {
@@ -503,7 +499,6 @@ module ForwardBasePassParams
 
 interface IMaterialPattern
 {
-    float rayOffset = 0.0;
     vec3 albedo = vec3(1.0);
     vec3 normal = vec3(0.0, 0.0, 1.0);
     float roughness = 0.5;

@@ -11,8 +11,4 @@ module MaterialPattern implements IMaterialPattern
     public float metallic = 0.4;
     public float specular = 1.0;
     public vec3 albedo = albedoMap.Sample(textureSampler, vertUV).xyz;
-    public float selfShadow(vec3 lightDir)
-    {
-        return 1.0;
-    }
 }

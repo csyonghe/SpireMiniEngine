@@ -46,10 +46,5 @@ module MaterialPattern implements IMaterialPattern
             mix(Color2, Color2WearSpot, wearFactor), mask.x), 
             Color3, mask.y), SeamColor, aoTex.y) * ao;
     }
-    
-    public float selfShadow(vec3 lightDir)
-    {
-        return 1.0;
-    }
 }
 
