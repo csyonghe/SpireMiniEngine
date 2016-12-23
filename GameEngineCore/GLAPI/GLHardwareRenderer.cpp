@@ -556,31 +556,19 @@ namespace GLL
 		{
 			glClearTexImage(Handle, 0, format, type, &data);
 		}
-		void Resize(int width, int height, int samples, int /*mipLevels*/, bool /*preserveData*/)
+		virtual void SetData(int level, int width, int height, int samples, DataType inputType, void * data) override
 		{
-			glBindTexture(GL_TEXTURE_2D, Handle);
-			if (samples <= 1)
-				glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, type, nullptr);
-			else
-			{
-				glTexImage2DMultisample(GL_TEXTURE_2D, samples, internalFormat, width, height, GL_TRUE);
-			}
-			glBindTexture(GL_TEXTURE_2D, 0);
-		}
-		void SetData(StorageFormat pFormat, int level, int width, int height, int samples, DataType inputType, void * data, bool /*mipmapped*/)
-		{
-			this->storageFormat = pFormat;
-			this->internalFormat = TranslateStorageFormat(pFormat);
+			this->internalFormat = TranslateStorageFormat(storageFormat);
 			this->format = TranslateDataTypeToFormat(inputType);
 			this->type = TranslateDataTypeToInputType(inputType);
 			if (this->internalFormat == GL_DEPTH_COMPONENT16 || this->internalFormat == GL_DEPTH_COMPONENT24 || this->internalFormat == GL_DEPTH_COMPONENT32)
 				this->format = GL_DEPTH_COMPONENT;
 			else if (this->internalFormat == GL_DEPTH24_STENCIL8)
 				this->format = GL_DEPTH_STENCIL;
-			if (pFormat == StorageFormat::BC1 || pFormat == StorageFormat::BC5)
+			if (storageFormat == StorageFormat::BC1 || storageFormat == StorageFormat::BC5)
 			{
 				int blocks = (int)(ceil(width / 4.0f) * ceil(height / 4.0f));
-				int bufferSize = pFormat == StorageFormat::BC5 ? blocks * 16 : blocks * 8;
+				int bufferSize = storageFormat == StorageFormat::BC5 ? blocks * 16 : blocks * 8;
 				glBindTexture(GL_TEXTURE_2D, Handle);
 				glCompressedTexImage2D(GL_TEXTURE_2D, level, internalFormat, width, height, 0, bufferSize, data);
 				glBindTexture(GL_TEXTURE_2D, 0);
@@ -608,9 +596,9 @@ namespace GLL
 				}
 			}
 		}
-		void SetData(StorageFormat pFormat, int width, int height, int samples, DataType inputType, void * data, bool mipmapped = true)
+		virtual void SetData(int width, int height, int samples, DataType inputType, void * data) override
 		{
-			SetData(pFormat, 0, width, height, samples, inputType, data, mipmapped);
+			SetData(0, width, height, samples, inputType, data);
 		}
 		int GetComponents()
 		{
@@ -2740,7 +2728,7 @@ namespace GLL
 			return rs;
 		}
 
-		Texture2D* CreateTexture2D(TextureUsage /*usage*/)
+		virtual Texture2D* CreateTexture2D(TextureUsage /*usage*/, int w, int h, int mipLevelCount, StorageFormat format) override
 		{
 			GLuint handle = 0;
 			if (glCreateTextures)
@@ -2758,6 +2746,7 @@ namespace GLL
 
 			auto rs = new Texture2D();
 			rs->Handle = handle;
+			rs->storageFormat = format;
 			rs->BindTarget = GL_TEXTURE_2D;
 			return rs;
 		}

@@ -419,9 +419,8 @@ namespace GameEngine
 		Texture2D() {};
 	public:
 		virtual void GetSize(int& width, int& height) = 0;
-		virtual void Resize(int width, int height, int samples, int miplevels = 1, bool preserveData = false) = 0;
-		virtual void SetData(StorageFormat format, int level, int width, int height, int samples, DataType inputType, void* data, bool mipmapped = true) = 0;
-		virtual void SetData(StorageFormat format, int width, int height, int samples, DataType inputType, void* data, bool mipmapped = true) = 0;
+		virtual void SetData(int level, int width, int height, int samples, DataType inputType, void* data) = 0;
+		virtual void SetData(int width, int height, int samples, DataType inputType, void* data) = 0;
 		virtual void GetData(int mipLevel, void* data, int bufSize) = 0;
 		virtual void BuildMipmaps() = 0;
 	};
@@ -655,7 +654,7 @@ namespace GameEngine
 		virtual void Wait() = 0;
 		virtual Buffer* CreateBuffer(BufferUsage usage) = 0;
 		virtual Buffer* CreateMappedBuffer(BufferUsage usage) = 0;
-		virtual Texture2D* CreateTexture2D(TextureUsage usage) = 0;
+		virtual Texture2D* CreateTexture2D(TextureUsage usage, int width, int height, int mipLevelCount, StorageFormat format) = 0;
 		virtual Texture2DArray* CreateTexture2DArray(TextureUsage usage, int width, int height, int layers, int mipLevelCount, StorageFormat format) = 0;
 		virtual Texture3D* CreateTexture3D(TextureUsage usage, int width, int height, int depth, int mipLevelCount, StorageFormat format) = 0;
 		virtual TextureSampler * CreateTextureSampler() = 0;
