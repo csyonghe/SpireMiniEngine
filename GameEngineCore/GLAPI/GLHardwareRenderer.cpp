@@ -567,11 +567,7 @@ namespace GLL
 				this->format = GL_DEPTH_STENCIL;
 			if (storageFormat == StorageFormat::BC1 || storageFormat == StorageFormat::BC5)
 			{
-				int blocks = (int)(ceil(width / 4.0f) * ceil(height / 4.0f));
-				int bufferSize = storageFormat == StorageFormat::BC5 ? blocks * 16 : blocks * 8;
-				glBindTexture(GL_TEXTURE_2D, Handle);
-				glCompressedTexImage2D(GL_TEXTURE_2D, level, this->internalFormat, width, height, this->format, bufferSize, data);
-				glBindTexture(GL_TEXTURE_2D, 0);
+				throw HardwareRendererException("cannot change data for compressed textures.");
 			}
 			else
 			{
