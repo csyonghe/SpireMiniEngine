@@ -176,11 +176,16 @@ namespace GameEngine
 
 		auto hw = rendererResource->hardwareRenderer.Ptr();
 
-		auto rs = hw->CreateTexture2D(TextureUsage::Sampled, data.GetWidth(), data.GetHeight(), data.GetMipLevels(), format);
-		for (int i = 0; i < data.GetMipLevels(); i++)
-			rs->SetData(i, Math::Max(data.GetWidth() >> i, 1), Math::Max(data.GetHeight() >> i, 1), 1, dataType, data.GetData(i).Buffer());
-		if (format != StorageFormat::BC1 && format != StorageFormat::BC5)
-			rs->BuildMipmaps();
+		GameEngine::Texture2D* rs;
+		if (format == StorageFormat::BC1 || format == StorageFormat::BC5)
+		{
+			List<void*> mipData;
+			for(int level = 0; level < data.GetMipLevels(); level++)
+				mipData.Add(data.GetData(level).Buffer());
+			rs = hw->CreateTexture2D(TextureUsage::Sampled, data.GetWidth(), data.GetHeight(), data.GetMipLevels(), format, dataType, mipData.GetArrayView());
+		}
+		else
+			rs = hw->CreateTexture2D(data.GetWidth(), data.GetHeight(), format, dataType, data.GetData(0).Buffer());
 		textures[name] = rs;
 		return rs;
 	}

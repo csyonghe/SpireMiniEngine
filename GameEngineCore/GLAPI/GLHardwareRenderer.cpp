@@ -2800,13 +2800,13 @@ namespace GLL
 				int blocks = (int)(ceil(width / 4.0f) * ceil(height / 4.0f));
 				int bufferSize = storageFormat == StorageFormat::BC5 ? blocks * 16 : blocks * 8;
 				for (int level = 0; level < mipLevelCount; level++)
-					glCompressedTexImage2D(GL_TEXTURE_2D, level, internalformat, width, height, 0, bufferSize, mipLevelData[level]);
+					glCompressedTexImage2D(GL_TEXTURE_2D, level, internalformat, Math::Max(width >> level, 1), Math::Max(height >> level, 1), 0, bufferSize, mipLevelData[level]);
 			}
 			else
 			{
 				glTextureStorage2D(handle, mipLevelCount, internalformat, w, h);
 				for (int level = 0; level < mipLevelCount; level++)
-					glTexSubImage2D(GL_TEXTURE_2D, level, 0, 0, width, height, format, type, mipLevelData[level]);
+					glTexSubImage2D(GL_TEXTURE_2D, level, 0, 0, Math::Max(width >> level, 1), Math::Max(height >> level, 1), format, type, mipLevelData[level]);
 			}
 			glBindTexture(GL_TEXTURE_2D, 0);
 
