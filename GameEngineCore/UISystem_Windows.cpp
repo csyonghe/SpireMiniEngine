@@ -27,7 +27,7 @@ using namespace VectorMath;
 using namespace GameEngine;
 
 const int TextBufferSize = 4 * 1024 * 1024;
-const int TextPixelBits = 2;
+const int TextPixelBits = 4;
 const int Log2TextPixelsPerByte = Math::Log2Floor(8 / TextPixelBits);
 
 namespace GraphicsUI
@@ -587,13 +587,13 @@ namespace GraphicsUI
 			
 						ivec2 fetchPos = ivec2(vert_uv * ivec2(textWidth, textHeight));
 						int relAddr = fetchPos.y * textWidth + fetchPos.x;
-						int ptr = startAddr + (relAddr >> 2);
-						uint word = textContent[ptr >> 2];
+						int ptr = startAddr + (relAddr >> 1);  // in bytes
+						uint word = textContent[ptr >> 2];     // fetch the word at ptr
 						uint ptrMod = (ptr & 3);
-						word >>= (ptrMod<<3);
-						int bitPtr = relAddr & 3;
-						word >>= (bitPtr << 1);
-						float alpha = float(word & 3) * (1.0/3.0);
+						word >>= (ptrMod<<3);                  // we are in the right byte now
+						int bitPtr = relAddr & 1;              // two pixels per byte
+						word >>= (bitPtr << 2);                // shift to get the correct half
+						float alpha = float(word & 15) * (1.0/15.0);  // extract alpha
 						result = inputColor;
 						result.w *= alpha;
 					}
@@ -635,116 +635,6 @@ namespace GraphicsUI
 			return result;
 		};
 
-		const char * uberVsSrc = R"(
-				#version 440
-				layout(location = 0) in vec2 vert_pos;
-				layout(location = 1) in vec2 vert_uv;	
-				layout(location = 2) in int vert_primId;
-				layout(binding = 0) uniform UniformBlock
-				{
-					mat4 orthoMatrix;
-				} uniformIn;
-				out vec2 pos;
-				out vec2 uv;
-				flat out int primId;
-				void main()
-				{
-					pos = vert_pos;
-					gl_Position = uniformIn.orthoMatrix * vec4(pos, 0.0, 1.0);
-					uv = vert_uv;
-					primId = vert_primId;
-				}
-			)";
-        const char * uberFsSrc = R"(
-			#version 440
-			layout(std430, binding = 1) buffer uniformBuffer
-			{
-				uvec4 uniformInput[];
-			};
-			layout(std430, binding = 2) buffer textBuffer
-			{
-				uint textContent[];
-			};
-			in vec2 pos;
-			in vec2 uv;
-			flat in int primId;
-			layout(location = 0) out vec4 color;
-
-			// This approximates the error function, needed for the gaussian integral
-			vec4 erf(vec4 x)
-			{
-				vec4 s = sign(x); vec4 a = abs(x);
-				x = 1.0 + (0.278393 + (0.230389 + 0.078108 * (a * a)) * a) * a;
-				x *= x;
-				return s - s / (x * x);
-			}
-			// Return the mask for the shadow of a box from lower to upper
-			float boxShadow(vec2 lower, vec2 upper, vec2 point, float sigma)
-			{
-				vec4 query = vec4(point - lower, point - upper);
-				vec4 integral = 0.5 + 0.5 * erf(query * (sqrt(0.5) / sigma));
-				return (integral.z - integral.x) * (integral.w - integral.y);
-			}
-	
-			void main()
-			{
-				uvec4 params0 = uniformInput[int(primId) * 2];
-				uvec4 params1 = uniformInput[int(primId) * 2 + 1];
-				int clipBoundX = int(params0.x & 65535);
-				int clipBoundY = int(params0.x >> 16);
-				int clipBoundX1 = int(params0.y & 65535);
-				int clipBoundY1 = int(params0.y >> 16);
-				int shaderType = int(params0.z);
-				uint pColor = params0.w;
-				vec4 inputColor = vec4(float(pColor&255), float((pColor>>8)&255), float((pColor>>16)&255), float((pColor>>24)&255)) * (1.0/255.0);
-				if (shaderType == 0) // solid color
-				{
-					if (pos.x < clipBoundX) discard;
-					if (pos.y < clipBoundY) discard;
-					if (pos.x > clipBoundX1) discard;
-					if (pos.y > clipBoundY1) discard;
-					color = inputColor;
-				}
-				else if (shaderType == 1) // text
-				{
-					if (pos.x < clipBoundX) discard;
-					if (pos.y < clipBoundY) discard;
-					if (pos.x > clipBoundX1) discard;
-					if (pos.y > clipBoundY1) discard;
-					
-					int textWidth = int(params1.x);
-					int textHeight = int(params1.y);
-					int startAddr = int(params1.z);
-					
-					ivec2 fetchPos = ivec2(uv * ivec2(textWidth, textHeight));
-					int relAddr = fetchPos.y * textWidth + fetchPos.x;
-					int ptr = startAddr + (relAddr >> 2);
-					uint word = textContent[ptr >> 2];
-					uint ptrMod = (ptr & 3);
-					word >>= (ptrMod<<3);
-					int bitPtr = relAddr & 3;
-					word >>= (bitPtr << 1);
-					float alpha = float(word & 3) * (1.0/3.0);
-					color = inputColor;
-					color.w *= alpha;
-				}
-				else if (shaderType == 2)
-				{
-					if (pos.x > clipBoundX && pos.x < clipBoundX1 && pos.y > clipBoundY && pos.y < clipBoundY1)
-						discard;
-					vec2 origin; vec2 size;
-					origin.x = float(params1.x & 65535);
-					origin.y = float(params1.x >> 16);
-					size.x = float(params1.y & 65535);
-					size.y = float(params1.y >> 16);
-					float shadowSize = float(params1.z);
-					float shadow = boxShadow(origin, origin+size, pos, shadowSize);
-					color = vec4(inputColor.xyz, inputColor.w*shadow);
-				}
-				else
-					discard;
-			}
-		)";
 
 	private:
 		RefPtr<Shader> uberVs, uberFs;
@@ -1362,21 +1252,23 @@ namespace GraphicsUI
 
 		int pixelCount = (TextWidth * TextHeight);
 		int bytes = pixelCount >> Log2TextPixelsPerByte;
+		int textPixelMask = (1 << TextPixelBits) - 1;
 		if (pixelCount & ((1 << Log2TextPixelsPerByte) - 1))
 			bytes++;
 		auto buffer = system->AllocTextBuffer(bytes);
 		if (buffer)
 		{
+			const float valScale = ((1 << TextPixelBits) - 1) / 255.0f;
 			for (int i = 0; i < TextHeight; i++)
 			{
 				for (int j = 0; j < TextWidth; j++)
 				{
 					int idx = i * TextWidth + j;
 					auto val = 255 - (Bit->ScanLine[i][j * 3 + 2] + Bit->ScanLine[i][j * 3 + 1] + Bit->ScanLine[i][j * 3]) / 3;
-					auto packedVal = Math::FastFloor(val / (255.0f / 3.0f) + 0.5f);
+					auto packedVal = Math::FastFloor(val * valScale + 0.5f);
 					int addr = idx >> Log2TextPixelsPerByte;
 					int mod = idx & ((1 << Log2TextPixelsPerByte) - 1);
-					int mask = 3 << (mod * TextPixelBits);
+					int mask = textPixelMask << (mod * TextPixelBits);
 					buffer[addr] = (unsigned char)((buffer[addr] & (~mask)) | (packedVal << (mod * TextPixelBits)));
 				}
 			}
