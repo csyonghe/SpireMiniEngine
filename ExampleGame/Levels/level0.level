@@ -62,7 +62,7 @@ StaticMesh
         shader "ParallaxGround.shader"
         var albedoMap = texture["pebbles_diffuse.TGA"]
         var normalMap = texture["pebbles_normal.TGA"]
-        var heightMap = texture["pebbles_height.TGA"]
+        var displacementMap = texture["pebbles_height.TGA"]
         var uvScale = float[100.0]
     }
     transform [100.0 0.0 0.0 0.0

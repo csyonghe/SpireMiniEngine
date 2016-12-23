@@ -26,6 +26,7 @@ namespace GameEngine
 			{
 				MaterialInstance = level->CreateNewMaterial();
 				MaterialInstance->Parse(parser);
+				MaterialInstance->Name = Name;
 			}
 			else
 			{

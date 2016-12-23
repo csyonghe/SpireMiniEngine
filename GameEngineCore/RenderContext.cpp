@@ -296,6 +296,11 @@ namespace GameEngine
 						if (tex)
 							result->Descriptors->Update(binding.Value, tex);
 					}
+					else
+					{
+						Print("Invalid material(%S): shader parameter '%S' is not provided in material file.\n", material->Name.ToWString(), binding.Key.ToWString());
+						isValid = false;
+					}
 				}
 				result->Descriptors->EndUpdate();
 				return result;
