@@ -570,21 +570,15 @@ namespace GLL
 				int blocks = (int)(ceil(width / 4.0f) * ceil(height / 4.0f));
 				int bufferSize = storageFormat == StorageFormat::BC5 ? blocks * 16 : blocks * 8;
 				glBindTexture(GL_TEXTURE_2D, Handle);
-				glCompressedTexImage2D(GL_TEXTURE_2D, level, internalFormat, width, height, 0, bufferSize, data);
+				glCompressedTexImage2D(GL_TEXTURE_2D, level, this->internalFormat, width, height, this->format, bufferSize, data);
 				glBindTexture(GL_TEXTURE_2D, 0);
 			}
 			else
 			{
-				if (samples > 1)
+				if (samples <= 1)
 				{
 					glBindTexture(GL_TEXTURE_2D, Handle);
-					glTexImage2DMultisample(GL_TEXTURE_2D, samples, this->internalFormat, width, height, GL_TRUE);
-					glBindTexture(GL_TEXTURE_2D, 0);
-				}
-				else
-				{
-					glBindTexture(GL_TEXTURE_2D, Handle);
-					glTexImage2D(GL_TEXTURE_2D, level, this->internalFormat, width, height, 0, this->format, this->type, data);
+					glTexSubImage2D(GL_TEXTURE_2D, level, 0, 0, width, height, this->format, this->type, data);
 					glBindTexture(GL_TEXTURE_2D, 0);
 
 				}
