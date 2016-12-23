@@ -1,6 +1,6 @@
 using "DefaultGeometry.shader";
 
-module MaterialPattern
+module MaterialPattern implements IMaterialPattern
 {
     param Texture2D maskMap;
     param Texture2D leatherNormalMap;

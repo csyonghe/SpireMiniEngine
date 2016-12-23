@@ -560,7 +560,7 @@ namespace Spire
 					}
 					for (auto comp : interfaceNode->GetComponents())
 					{
-						auto compRef = shaderSym->ResolveComponentReference(comp->Name.Content);
+						auto compRef = shaderSym->ResolveComponentReference(GetFullComponentName(comp.Ptr()));
 						if (compRef.IsAccessible)
 						{
 							if (!compRef.Component->Implementations.First()->SyntaxNode->IsPublic())
@@ -572,34 +572,6 @@ namespace Spire
 							{
 								getSink()->diagnose(compRef.Component->Implementations.First()->SyntaxNode->Position, Diagnostics::componentTypeDoesNotMatchInterface, comp->Name, interfaceName);
 								getSink()->diagnose(comp->Position, Diagnostics::seeInterfaceDefinitionOf, comp->Name);
-								bool matchingImplFound = false;
-								for (auto impl : compRef.Component->Implementations)
-								{
-									if (impl->SyntaxNode->Parameters.Count() == comp->Parameters.Count())
-									{
-										matchingImplFound = true;
-										for (int i = 0; i < comp->Parameters.Count(); i++)
-											if (!comp->Parameters[i]->Type->Equals(impl->SyntaxNode->Parameters[i]->Type))
-											{
-												matchingImplFound = false;
-												break;
-											}
-									}
-								}
-								if (!matchingImplFound)
-								{
-									StringBuilder argList;
-									argList << "(";
-									for (auto & param : comp->Parameters)
-									{
-										argList << param->Type->ToString();
-										if (param != comp->Parameters.Last())
-											argList << ", ";
-									}
-									argList << ")";
-									getSink()->diagnose(compRef.Component->Implementations.First()->SyntaxNode->Position, Diagnostics::shaderDidNotDefineComponentFunction, shaderSym->SyntaxNode->Name, comp->Name.Content + argList.ProduceString(), interfaceName);
-									getSink()->diagnose(comp->Position, Diagnostics::seeInterfaceDefinitionOf, comp->Name);
-								}
 							}
 						}
 						else

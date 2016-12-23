@@ -500,3 +500,18 @@ module ForwardBasePassParams
     public param float time;  
     public param SamplerState textureSampler;  
 }
+
+interface IMaterialPattern
+{
+    float rayOffset = 0.0;
+    vec3 albedo = vec3(1.0);
+    vec3 normal = vec3(0.0, 0.0, 1.0);
+    float roughness = 0.5;
+    float metallic = 0.3;
+    float specular = 0.4;
+    float opacity = 1.0;
+    float selfShadow(vec3 lightDir)
+    {
+        return 1.0;        
+    }
+}

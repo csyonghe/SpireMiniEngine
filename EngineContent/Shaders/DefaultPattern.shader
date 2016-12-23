@@ -1,6 +1,6 @@
 using "DefaultGeometry.shader";
 
-module MaterialPattern
+module MaterialPattern implements IMaterialPattern
 {
     public vec3 albedo = vec3(0.9, 0.45, 0.05);
     public vec3 normal = vec3(0.0, 0.0, 1.0);
