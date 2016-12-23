@@ -179,7 +179,7 @@ namespace GameEngine
 		GameEngine::Texture2D* rs;
 		if (format == StorageFormat::BC1 || format == StorageFormat::BC5)
 		{
-			List<void*> mipData;
+			Array<void*, 32> mipData;
 			for(int level = 0; level < data.GetMipLevels(); level++)
 				mipData.Add(data.GetData(level).Buffer());
 			rs = hw->CreateTexture2D(TextureUsage::Sampled, data.GetWidth(), data.GetHeight(), data.GetMipLevels(), format, dataType, mipData.GetArrayView());

@@ -2721,7 +2721,7 @@ namespace GLL
 			if (storageFormat == StorageFormat::BC1 || storageFormat == StorageFormat::BC5)
 				throw HardwareRendererException("Cannot automatically generate mipmaps for compressed textures");
 
-			int mipLevelCount = (int)std::floor(std::log2(max(w, h))) + 1;
+			int mipLevelCount = (int)Math::Log2Floor(Math::Max(w, h)) + 1;
 			GLint internalformat = TranslateStorageFormat(storageFormat);
 			GLenum format = TranslateDataTypeToFormat(dataType);
 			GLenum type = TranslateDataTypeToInputType(dataType);
@@ -2739,7 +2739,7 @@ namespace GLL
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8.0f);
 			glTextureStorage2D(handle, mipLevelCount, internalformat, w, h);
-			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, format, type, data);
+			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, format, type, data);
 			glGenerateMipmap(GL_TEXTURE_2D);
 			glBindTexture(GL_TEXTURE_2D, 0);
 
@@ -2797,16 +2797,20 @@ namespace GLL
 			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8.0f);
 			if (storageFormat == StorageFormat::BC1 || storageFormat == StorageFormat::BC5)
 			{
-				int blocks = (int)(ceil(width / 4.0f) * ceil(height / 4.0f));
-				int bufferSize = storageFormat == StorageFormat::BC5 ? blocks * 16 : blocks * 8;
 				for (int level = 0; level < mipLevelCount; level++)
-					glCompressedTexImage2D(GL_TEXTURE_2D, level, internalformat, Math::Max(width >> level, 1), Math::Max(height >> level, 1), 0, bufferSize, mipLevelData[level]);
+				{
+					int wl = Math::Max(w >> level, 1);
+					int hl = Math::Max(h >> level, 1);
+					int blocks = (int)(ceil(wl / 4.0f) * ceil(hl / 4.0f));
+					int bufferSize = storageFormat == StorageFormat::BC5 ? blocks * 16 : blocks * 8;
+					glCompressedTexImage2D(GL_TEXTURE_2D, level, internalformat, wl, hl, 0, bufferSize, mipLevelData[level]);
+				}
 			}
 			else
 			{
 				glTextureStorage2D(handle, mipLevelCount, internalformat, w, h);
 				for (int level = 0; level < mipLevelCount; level++)
-					glTexSubImage2D(GL_TEXTURE_2D, level, 0, 0, Math::Max(width >> level, 1), Math::Max(height >> level, 1), format, type, mipLevelData[level]);
+					glTexSubImage2D(GL_TEXTURE_2D, level, 0, 0, Math::Max(w >> level, 1), Math::Max(h >> level, 1), format, type, mipLevelData[level]);
 			}
 			glBindTexture(GL_TEXTURE_2D, 0);
 
