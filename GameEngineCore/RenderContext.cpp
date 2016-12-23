@@ -219,6 +219,7 @@ namespace GameEngine
 		}
 		else
 		{
+			Print("cannot load texture '%S'\n", filename.ToWString());
 			CoreLib::Graphics::TextureFile errTex;
 			unsigned char errorTexContent[] =
 			{
@@ -281,26 +282,29 @@ namespace GameEngine
 			if (isValid)
 			{
 				RefPtr<ModuleInstance> result = rendererResource->CreateModuleInstance(module, &instanceUniformMemory);
-				result->Descriptors->BeginUpdate();
-				for (auto binding : bindingLocs)
+				if (result)
 				{
-					DynamicVariable val;
-					if (material->Variables.TryGetValue(binding.Key, val))
+					result->Descriptors->BeginUpdate();
+					for (auto binding : bindingLocs)
 					{
-						auto tex = LoadTexture(val.StringValue);
-						if (tex)
-							result->Descriptors->Update(binding.Value, tex);
+						DynamicVariable val;
+						if (material->Variables.TryGetValue(binding.Key, val))
+						{
+							auto tex = LoadTexture(val.StringValue);
+							if (tex)
+								result->Descriptors->Update(binding.Value, tex);
+						}
+						else
+						{
+							Print("Invalid material(%S): shader parameter '%S' is not provided in material file.\n", material->Name.ToWString(), binding.Key.ToWString());
+							result->Descriptors->Update(binding.Value, LoadTexture("error.texture"));
+						}
 					}
-					else
-					{
-						Print("Invalid material(%S): shader parameter '%S' is not provided in material file.\n", material->Name.ToWString(), binding.Key.ToWString());
-						isValid = false;
-					}
+					result->Descriptors->EndUpdate();
 				}
-				result->Descriptors->EndUpdate();
+				material->Variables = _Move(vars);
 				return result;
 			}
-			material->Variables = _Move(vars);
 			return nullptr;
 		}
 	}
@@ -314,11 +318,33 @@ namespace GameEngine
 			spPushContext(spireContext);
 			spLoadModuleLibrary(spireContext, shaderFile.Buffer(), spireSink);
 			if (spDiagnosticSinkHasAnyErrors(spireSink))
-				Print("Invalid material(%S): cannot compile shader '%S'. Output message:\n%S", material->Name.ToWString(), GetSpireOutput(spireSink).ToWString());
+				Print("Invalid material(%S): cannot compile shader '%S'. Output message:\n%S", material->Name.ToWString(), shaderFile.ToWString(), GetSpireOutput(spireSink).ToWString());
 			else
+			{
 				material->MaterialModule = CreateMaterialModuleInstance(material, "MaterialPattern");
+			}
 			spPopContext(spireContext);
 			spDestroyDiagnosticSink(spireSink);
+		}
+		// use default material if failed to load
+		if (!material->MaterialModule)
+		{
+			if (!defaultMaterialModule)
+			{
+				SpireDiagnosticSink * spireSink = spCreateDiagnosticSink(spireContext);
+				spPushContext(spireContext);
+				spLoadModuleLibrary(spireContext, Engine::Instance()->FindFile("DefaultPattern.shader", ResourceType::Shader).Buffer(), spireSink);
+				if (spDiagnosticSinkHasAnyErrors(spireSink))
+					throw InvalidOperationException("cannot compile DefaultPattern.shader");
+				defaultMaterialModule = CreateMaterialModuleInstance(material, "MaterialPattern");
+				spPopContext(spireContext);
+				spDestroyDiagnosticSink(spireSink);
+			}
+			material->MaterialModule = defaultMaterialModule;
+			material->Variables.Clear();
+			material->ShaderFile = "DefaultPattern.shader";
+			if (!material->MaterialModule)
+				throw InvalidOperationException("failed to load default material.");
 		}
 	}
 	VertexFormat SceneResource::LoadVertexFormat(MeshVertexFormat vertFormat)
@@ -367,6 +393,8 @@ namespace GameEngine
 	RefPtr<PipelineClass> SceneResource::LoadMaterialPipeline(String identifier, Material * material, RenderTargetLayout * renderTargetLayout, MeshVertexFormat vertFormat, String entryPointShader, Procedure<PipelineBuilder*> setAdditionalArgs)
 	{
 		auto hw = rendererResource->hardwareRenderer;
+		if (!material->MaterialModule)
+			RegisterMaterial(material);
 
 		RefPtr<PipelineClass> pipelineClass;
 		if (pipelineClassCache.TryGetValue(identifier, pipelineClass))
@@ -385,7 +413,12 @@ namespace GameEngine
 		ShaderCompilationResult rs;
 
 		if (!CompileShader(rs, spireContext, hw->GetSpireTarget(), material->ShaderFile, vertFormat.GetShaderDefinition() + entryPointShader))
-			throw HardwareRendererException("Shader compilation failure");
+		{
+			ShaderCompilationResult rs2;
+			if (!CompileShader(rs2, spireContext, hw->GetSpireTarget(), "DefaultPattern.shader", vertFormat.GetShaderDefinition() + entryPointShader))
+				throw HardwareRendererException("Shader compilation failure");
+			rs = rs2;
+		}
 
 		for (auto& compiledShader : rs.Shaders)
 		{
@@ -426,9 +459,6 @@ namespace GameEngine
 		pipelineClass->pipeline = pipelineBuilder->ToPipeline(renderTargetLayout);
 		pipelineClassCache[identifier] = pipelineClass;
 
-		if (!material->MaterialModule)
-			RegisterMaterial(material);
-
 		return pipelineClass;
 	}
 	
@@ -447,6 +477,7 @@ namespace GameEngine
 		shaders = EnumerableDictionary<String, RefPtr<Shader>>();
 		pipelineClassCache = EnumerableDictionary<String, RefPtr<PipelineClass>>();
 		textures = EnumerableDictionary<String, RefPtr<Texture2D>>();
+		materials = EnumerableDictionary<String, RefPtr<Material>>();
 	}
 	void RendererSharedResource::UpdateRenderResultFrameBuffer(RenderOutput * output)
 	{

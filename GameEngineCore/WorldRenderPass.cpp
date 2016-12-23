@@ -34,7 +34,6 @@ namespace GameEngine
 	{
 		auto animModule = drawableType == DrawableType::Skeletal ? "SkeletalAnimation" : "NoAnimation";
 		auto entryPoint = GetEntryPointShader().ReplaceAll("ANIMATION", animModule);
-
 		StringBuilder identifierSB(128);
 		identifierSB << material->ShaderFile << GetName() << "_" << mesh->GetVertexFormat().GetTypeId();
 		auto identifier = identifierSB.ProduceString();

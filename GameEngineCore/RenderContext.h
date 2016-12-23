@@ -87,6 +87,11 @@ namespace GameEngine
 #endif
 			UniformMemory->GetBuffer()->SetData(BufferOffset, data, CoreLib::Math::Min(length, BufferLength));
 		}
+		~ModuleInstance()
+		{
+			if (UniformMemory)
+				UniformMemory->Free(UniformPtr, BufferLength);
+		}
 	};
 
 	enum class DrawableType
@@ -265,7 +270,6 @@ namespace GameEngine
 	public:
 		CoreLib::RefPtr<HardwareRenderer> hardwareRenderer;
 		CoreLib::RefPtr<TextureSampler> textureSampler, nearestSampler, linearSampler, shadowSampler;
-		
 		SpireCompilationContext * spireContext = nullptr;
 		void * viewUniformPtr = nullptr;
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<RenderTarget>> renderTargets;
@@ -316,6 +320,7 @@ namespace GameEngine
 	private:
 		RendererSharedResource * rendererResource;
 		SpireCompilationContext * spireContext = nullptr;
+		CoreLib::RefPtr<ModuleInstance> defaultMaterialModule;
 		CoreLib::Dictionary<int, VertexFormat> vertexFormats;
 		CoreLib::EnumerableDictionary<Mesh*, CoreLib::RefPtr<DrawableMesh>> meshes;
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<Shader>> shaders;
@@ -335,7 +340,10 @@ namespace GameEngine
 		DeviceMemory instanceUniformMemory, transformMemory;
 	public:
 		SceneResource(RendererSharedResource * resource, SpireCompilationContext * spireCtx);
-		
+		~SceneResource()
+		{
+			Clear();
+		}
 		void Clear();
 	};
 

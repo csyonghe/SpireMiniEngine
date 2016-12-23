@@ -45,7 +45,7 @@ namespace GameEngine
 			SpireDiagnostic diag;
 			spGetDiagnosticByIndex(diagSink, i, &diag);
 			src.Diagnostics.Add(ShaderCompilationError(diag));
-			CoreLib::Diagnostics::Debug::WriteLine(String(diag.FileName) + "(" + diag.Line + "): " + String(diag.Message));
+			Print("%S(%d): %S\n", String(diag.FileName).ToWString(), diag.Line, String(diag.Message).ToWString());
 		}
 
 		if (spDiagnosticSinkHasAnyErrors(diagSink))
