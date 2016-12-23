@@ -2752,6 +2752,9 @@ namespace GLL
 
 		virtual Texture2D* CreateTexture2D(TextureUsage /*usage*/, int w, int h, int mipLevelCount, StorageFormat format) override
 		{
+			if (format == StorageFormat::BC1 || format == StorageFormat::BC5)
+				throw HardwareRendererException("Compressed textures must supply data at texture creation");
+
 			GLuint handle = 0;
 			if (glCreateTextures)
 				glCreateTextures(GL_TEXTURE_2D, 1, &handle);
