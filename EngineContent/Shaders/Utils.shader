@@ -407,7 +407,7 @@ module Lighting
         float alpha = roughness*roughness;/*sf*/
 
         // F
-        float F_a, F_b;
+        float F_a; float F_b;
         float dotLH5 = Pow4(1.0-dotLH) * (1.0 - dotLH);
         F_a = 1.0;
         F_b = dotLH5;
@@ -457,14 +457,14 @@ module Lighting
     
     float brightness = clamp(dot(lightDir, normal), 0.0, 1.0) * shadow;
 
-    float highlight : phongStandard
+    float highlight_phongStandard
     {
         float alpha = roughness_in*roughness_in;
         float p = 6.644/(alpha*alpha) - 6.644;
         float pi = 3.14159;
         return dotNL *exp2(p * dotNH - p) / (pi * (alpha*alpha)) * specular_in;
     }
-    float highlight : GGXstandard
+    float highlight_GGXstandard
     {
         float D = LightingFuncGGX_D(dotNH,roughness_in);
         vec2 FV_helper = LightingFuncGGX_FV(dotLH,roughness_in);
@@ -472,6 +472,7 @@ module Lighting
         float specular = dotNL * D * FV * specular_in;
         return specular;
     }
+    float highlight = highlight_GGXstandard;
     public vec3 result = lightColor * 
                         (albedo * (brightness + 0.4)*(1.0-metallic_in) + 
                         mix(albedo, vec3(1.0), 1.0 - metallic_in) * (highlight * shadow));

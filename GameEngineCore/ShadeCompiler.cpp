@@ -17,20 +17,19 @@ namespace GameEngine
 		if (!actualFilename.Length())
 			return false;
 
-		auto cachePostfix = (targetLang == SPIRE_GLSL) ? ".glsl.cse" : (targetLang == SPIRE_HLSL) ? ".hlsl.cse" : ".spv.cse";
+		auto cachePostfix = (targetLang == SPIRE_GLSL) ? "glsl.cse" : (targetLang == SPIRE_HLSL) ? "hlsl.cse" : "spv.cse";
 		// Check disk for shaders
 		auto cachedShaderFilename =
 			Path::Combine(Engine::Instance()->GetDirectory(false, ResourceType::ShaderCache),
 				Path::GetFileName(Path::ReplaceExt(actualFilename, cachePostfix)));
 
-		/*if (CoreLib::IO::File::Exists(cachedShaderFilename))
-		{
-		src.LoadFromFile(cachedShaderFilename);
-		return true;
-		}*/
+		//if (!Engine::Instance()->RecompileShaders && CoreLib::IO::File::Exists(cachedShaderFilename))
+		//{
+		//	src.LoadFromFile(cachedShaderFilename);
+		//	return true;
+		//}
 
 		// Compile shader using Spire
-
 		auto diagSink = spCreateDiagnosticSink(spireCtx);
 		spSetCodeGenTarget(spireCtx, targetLang);
 

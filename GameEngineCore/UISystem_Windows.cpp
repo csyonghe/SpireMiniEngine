@@ -493,7 +493,7 @@ namespace GraphicsUI
 		GameEngine::HardwareRenderer * rendererApi;
 		int screenWidth, screenHeight;
 		Matrix4 orthoMatrix;
-		const char * uberSpireShader = R"(
+        const char * uberSpireShader = R"(
 			pipeline EnginePipeline
 			{
 				[Pinned]
@@ -531,7 +531,7 @@ namespace GraphicsUI
 			// This approximates the error function, needed for the gaussian integral
 			vec4 erf(vec4 x)
 			{
-				vec4 s = sign(x), a = abs(x);
+				vec4 s = sign(x); vec4 a = abs(x);
 				x = 1.0 + (0.278393 + (0.230389 + 0.078108 * (a * a)) * a) * a;
 				x *= x;
 				return s - s / (x * x);
@@ -601,7 +601,7 @@ namespace GraphicsUI
 					{
 						if (vert_pos.x > clipBoundX && vert_pos.x < clipBoundX1 && vert_pos.y > clipBoundY && vert_pos.y < clipBoundY1)
 							discard;
-						vec2 origin, size;
+						vec2 origin; vec2 size;
 						origin.x = float(params1.x & 65535);
 						origin.y = float(params1.x >> 16);
 						size.x = float(params1.y & 65535);
@@ -655,7 +655,7 @@ namespace GraphicsUI
 					primId = vert_primId;
 				}
 			)";
-		const char * uberFsSrc = R"(
+        const char * uberFsSrc = R"(
 			#version 440
 			layout(std430, binding = 1) buffer uniformBuffer
 			{
@@ -673,7 +673,7 @@ namespace GraphicsUI
 			// This approximates the error function, needed for the gaussian integral
 			vec4 erf(vec4 x)
 			{
-				vec4 s = sign(x), a = abs(x);
+				vec4 s = sign(x); vec4 a = abs(x);
 				x = 1.0 + (0.278393 + (0.230389 + 0.078108 * (a * a)) * a) * a;
 				x *= x;
 				return s - s / (x * x);
@@ -732,7 +732,7 @@ namespace GraphicsUI
 				{
 					if (pos.x > clipBoundX && pos.x < clipBoundX1 && pos.y > clipBoundY && pos.y < clipBoundY1)
 						discard;
-					vec2 origin, size;
+					vec2 origin; vec2 size;
 					origin.x = float(params1.x & 65535);
 					origin.y = float(params1.x >> 16);
 					size.x = float(params1.y & 65535);
