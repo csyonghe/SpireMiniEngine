@@ -44,12 +44,74 @@ namespace CoreLib
 			typedef T Type;
 		};
 
+		template <typename TQueryable1, typename TEnumerator1, typename TQueryable2, typename TEnumerator2, typename T>
+		class ConcatQuery
+		{
+		private:
+			TQueryable1 items1;
+			TQueryable2 items2;
+		public:
+			ConcatQuery(const TQueryable1 & queryable1, const TQueryable2 & queryable2)
+				: items1(queryable1), items2(queryable2)
+			{}
+			class Enumerator
+			{
+			private:
+				TEnumerator1 ptr1;
+				TEnumerator1 end1;
+				TEnumerator2 ptr2;
+				TEnumerator2 end2;
+			public:
+				Enumerator(const Enumerator &) = default;
+				Enumerator(TEnumerator1 pptr, TEnumerator1 pend, TEnumerator2 pptr2, TEnumerator2 pend2)
+					: ptr1(pptr), end1(pend), ptr2(pptr2), end2(pend2)
+				{}
+				T operator *() const
+				{
+					if (ptr1 != end1)
+						return *(ptr1);
+					else
+						return *(ptr2);
+				}
+				Enumerator& operator ++()
+				{
+					if (ptr1 != end1)
+						++ptr1;
+					else
+						++ptr2;
+					return *this;
+				}
+				Enumerator operator ++(int)
+				{
+					Enumerator rs = *this;
+					++rs;
+					return rs;
+				}
+				bool operator != (const Enumerator & iter) const
+				{
+					return ptr1 != iter.ptr1 || ptr2 != iter.ptr2;
+				}
+				bool operator == (const Enumerator & iter) const
+				{
+					return ptr1 == iter.ptr1 && ptr2 == iter.ptr2;
+				}
+			};
+			Enumerator begin() const
+			{
+				return Enumerator(items1.begin(), items1.end(), items2.begin(), items2.end());
+			}
+			Enumerator end() const
+			{
+				return Enumerator(items1.end(), items1.end(), items2.end(), items2.end());
+			}
+		};
+
 		template <typename TQueryable, typename TEnumerator, typename T, typename TFunc>
 		class WhereQuery
 		{
 		private:
 			TQueryable items;
-			const TFunc & func;
+			TFunc func;
 		public:
 			WhereQuery(const TQueryable & queryable, const TFunc & f)
 				: items(queryable), func(f)
@@ -59,11 +121,11 @@ namespace CoreLib
 			private:
 				TEnumerator ptr;
 				TEnumerator end;
-				const TFunc & func;
+				const TFunc * func;
 			public:
 				Enumerator(const Enumerator &) = default;
 				Enumerator(TEnumerator ptr, TEnumerator end, const TFunc & f)
-					: ptr(ptr), end(end), func(f)
+					: ptr(ptr), end(end), func(&f)
 				{}
 				T operator *() const
 				{
@@ -74,7 +136,7 @@ namespace CoreLib
 					++ptr;
 					while (ptr != end)
 					{
-						if (func(*ptr))
+						if ((*func)(*ptr))
 							break;
 						else
 							++ptr;
@@ -86,7 +148,7 @@ namespace CoreLib
 					Enumerator rs = *this;
 					while (rs.ptr != end)
 					{
-						if (func(*rs.ptr))
+						if ((*func)(*rs.ptr))
 							break;
 						++rs.ptr;
 					}
@@ -184,7 +246,7 @@ namespace CoreLib
 		{
 		private:
 			TQueryable items;
-			const TFunc & func;
+			TFunc func;
 		public:
 			SelectQuery(const TQueryable & queryable, const TFunc & f)
 				: items(queryable), func(f)
@@ -194,15 +256,15 @@ namespace CoreLib
 			private:
 				TEnumerator ptr;
 				TEnumerator end;
-				const TFunc &func;
+				const TFunc * func;
 			public:
 				Enumerator(const Enumerator &) = default;
 				Enumerator(TEnumerator ptr, TEnumerator end, const TFunc & f)
-					: ptr(ptr), end(end), func(f)
+					: ptr(ptr), end(end), func(&f)
 				{}
-				auto operator *() const -> decltype(func(*ptr))
+				auto operator *() const -> decltype((*func)(*ptr))
 				{
-					return func(*ptr);
+					return (*func)(*ptr);
 				}
 				Enumerator& operator ++()
 				{
@@ -239,7 +301,7 @@ namespace CoreLib
 		{
 		private:
 			TQueryable items;
-			const TFunc & func;
+			TFunc func;
 			SelectManyQuery()
 			{}
 		public:
@@ -252,13 +314,13 @@ namespace CoreLib
 			private:
 				TEnumerator ptr;
 				TEnumerator end;
-				const TFunc &func;
+				const TFunc * func;
 				TItems items;
 				TItemPtr subPtr;
 			public:
 				Enumerator(const Enumerator &) = default;
 				Enumerator(TEnumerator ptr, TEnumerator end, const TFunc & f)
-					: ptr(ptr), end(end), func(f)
+					: ptr(ptr), end(end), func(&f)
 				{
 					if (ptr != end)
 					{
@@ -278,7 +340,7 @@ namespace CoreLib
 						++ptr;
 						if (ptr != end)
 						{
-							items = func(*ptr);
+							items = (*func)(*ptr);
 							subPtr = items.begin();
 						}
 						else
@@ -357,6 +419,10 @@ namespace CoreLib
 				return items.end();
 			}
 		public:
+			const TQueryable & GetItems() const
+			{
+				return items;
+			}
 			Queryable(const TQueryable & items)
 				: items(items)
 			{}
@@ -364,6 +430,12 @@ namespace CoreLib
 			Queryable<SkipQuery<TQueryable, TEnumerator, T>, typename SkipQuery<TQueryable, TEnumerator, T>::Enumerator, T> Skip(int count) const
 			{
 				return Queryable<SkipQuery<TQueryable, TEnumerator, T>, typename SkipQuery<TQueryable, TEnumerator, T>::Enumerator, T>(SkipQuery<TQueryable, TEnumerator, T>(items, count));
+			}
+
+			template<typename TQueryable2, typename TEnumerator2>
+			Queryable<ConcatQuery<TQueryable, TEnumerator, TQueryable2, TEnumerator2, T>, typename ConcatQuery<TQueryable, TEnumerator, TQueryable2, TEnumerator2, T>::Enumerator, T> Concat(const Queryable<TQueryable2, TEnumerator2, T> & other) const
+			{
+				return Queryable<ConcatQuery<TQueryable, TEnumerator, TQueryable2, TEnumerator2, T>, typename ConcatQuery<TQueryable, TEnumerator, TQueryable2, TEnumerator2, T>::Enumerator, T>(ConcatQuery<TQueryable, TEnumerator, TQueryable2, TEnumerator2, T>(this->items, other.GetItems()));
 			}
 
 			template<typename TFunc>
@@ -491,10 +563,36 @@ namespace CoreLib
 			return Queryable<ArrayView<T>, T*, T>(list.GetArrayView());
 		}
 
+		template<typename T, typename TAllocator>
+		inline Queryable<List<T, TAllocator>, T*, T> From(List<T, TAllocator> && list)
+		{
+			return Queryable<List<T, TAllocator>, T*, T>(_Move(list));
+		}
+
 		template<typename T>
 		inline Queryable<ArrayView<T>, T*, T> From(const ArrayView<T> & list)
 		{
 			return Queryable<ArrayView<T>, T*, T>(list);
+		}
+
+		template<typename T, int count>
+		inline Queryable<Array<T, count>, T*, T> From(const Array<T, count> & list)
+		{
+			return Queryable<Array<T, count>, T*, T>(list);
+		}
+
+		template<typename T>
+		inline auto From(const T & list) -> Queryable<T, decltype(list.begin()), decltype(*list.begin())>
+		{
+			return Queryable<T, decltype(list.begin()), decltype(*list.begin())>(list);
+		}
+
+		template<typename T>
+		inline Queryable<Array<T, 1>, T*, T> FromSingle(const T & obj)
+		{
+			Array<T, 1> arr;
+			arr.Add(obj);
+			return From(arr);
 		}
 
 		template<typename T>
