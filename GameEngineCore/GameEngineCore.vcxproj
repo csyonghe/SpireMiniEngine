@@ -166,7 +166,6 @@
     <ClCompile Include="EngineActorClasses.cpp" />
     <ClCompile Include="ForwardBaseRenderPass.cpp" />
     <ClCompile Include="FreeRoamCameraController.cpp" />
-    <ClCompile Include="GameEngineCore.cpp" />
     <ClCompile Include="GBufferRenderPass.cpp" />
     <ClCompile Include="GLAPI\GLHardwareRenderer.cpp" />
     <ClCompile Include="GraphicsSettings.cpp" />

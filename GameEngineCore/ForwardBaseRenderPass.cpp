@@ -26,7 +26,7 @@ namespace GameEngine
 				public using MaterialPattern;
 				vec3 lightParam = vec3(roughness, metallic, specular);
 				[Binding: "1"]
-				using lighting = Lighting(TangentSpaceToWorldSpace(normal));
+				using lighting = Lighting(TangentSpaceToWorldSpace(vec3(normal.x, -normal.y, normal.z)));
 				public out @Fragment vec4 outputColor = vec4(lighting.result, 1.0);
 			};
 		)";

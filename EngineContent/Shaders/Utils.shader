@@ -35,9 +35,9 @@ module TangentSpaceTransform
     require vec3 coarseVertTangent;
     require vec3 coarseVertNormal;
     require vec3 worldTransformNormal(vec3 pos);
-    
+    require vec3 worldTransformTangent(vec3 pos);
     public vec3 vNormal = worldTransformNormal(coarseVertNormal).xyz;
-    public vec3 vTangent = worldTransformNormal(coarseVertTangent).xyz;
+    public vec3 vTangent = worldTransformTangent(coarseVertTangent);
     public vec3 vBiTangent = cross(vTangent, vNormal);
     
     public vec3 WorldSpaceToTangentSpace(vec3 v)
@@ -83,6 +83,10 @@ module NoAnimation
     public vec3 worldTransformPos(vec3 pos)
     {
         return (modelMatrix * vec4(pos, 1)).xyz;
+    }
+    public vec3 worldTransformTangent(vec3 tangent)
+    {
+        return normalize(mat3(modelMatrix) * tangent);
     }
     public vec3 worldTransformNormal(vec3 norm)
     {
@@ -141,6 +145,10 @@ module SkeletalAnimation
 	public vec3 worldTransformPos(vec3 pos)
     {
         return pos;
+    }
+    public vec3 worldTransformTangent(vec3 tangent)
+    {
+        return tangent;
     }
     public vec3 worldTransformNormal(vec3 norm)
     {
@@ -237,8 +245,11 @@ module ParallaxOcclusionMapping
     require Texture2D heightTexture;
     require vec3 viewDirTangentSpace;
     require vec2 uv;
-    require float parallaxScale;
+    require float displacementScale;
+    require float uvPerWorldUnit;
     
+    float parallaxScale = uvPerWorldUnit / displacementScale;
+
     vec3 parallaxMapping
     {
         vec3 V = viewDirTangentSpace;
@@ -255,7 +266,7 @@ module ParallaxOcclusionMapping
         // current depth of the layer
         float curLayerHeight = 0.01;
         // shift of texture coordinates for each layer
-        vec2 dtex = parallaxScale * V.xy /V.z / numLayers;
+        vec2 dtex = parallaxScale * V.xy / max(V.z, 1e-5) / numLayers;
         dtex.y = -dtex.y;
         // current texture coordinates
         vec2 currentTextureCoords = T;
@@ -313,7 +324,8 @@ module ParallaxOcclusionMapping
 
     public vec2 uvOut = parallaxMapping.xy;
     public float heightOut = parallaxMapping.z;
-        
+    public float tOffset = (1.0 - heightOut)*displacementScale/max(viewDirTangentSpace.z, 1e-5f);
+
     public float selfShadow(vec3 L_tangentSpace)
     {
         float initialHeight = heightOut - 0.05;
