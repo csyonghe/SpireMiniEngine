@@ -108,6 +108,7 @@ int wWinMain(
 
 		args.API = RenderAPI::OpenGL;
 		args.GpuId = 0;
+		args.RecompileShaders = false;
 
 		CommandLineParser parser(Application::GetCommandLine());
 		if(parser.OptionExists("-vk"))
@@ -118,6 +119,8 @@ int wWinMain(
 			args.EngineDirectory = RemoveQuote(parser.GetOptionValue("-enginedir"));
 		if (parser.OptionExists("-gpu"))
 			args.GpuId = StringToInt(parser.GetOptionValue("-gpu"));
+		if (parser.OptionExists("-recompileshaders"))
+			args.RecompileShaders = true;
 		if (parser.OptionExists("-level"))
 			args.StartupLevelName = parser.GetOptionValue("-level");
 		if (parser.OptionExists("-recdir"))

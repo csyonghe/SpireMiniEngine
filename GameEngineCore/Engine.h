@@ -21,7 +21,8 @@ namespace GameEngine
 		WindowHandle Window;
         bool NoConsole = false;
 		int Width = 400, Height = 400;
-		int GpuId;
+		int GpuId = 0;
+		bool RecompileShaders = false;
 		CoreLib::String GameDirectory, EngineDirectory, StartupLevelName;
 	};
 	enum class EngineThread
@@ -120,6 +121,7 @@ namespace GameEngine
 		int HandleWindowsMessage(HWND hwnd, UINT message, WPARAM &wparam, LPARAM &lparam);
 	public:
 		int GpuId = 0;
+		bool RecompileShaders = false;
 		static Engine * Instance()
 		{
 			if (!instance)

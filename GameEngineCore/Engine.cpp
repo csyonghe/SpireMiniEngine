@@ -40,6 +40,7 @@ namespace GameEngine
 			startTime = lastGameLogicTime = lastRenderingTime = Diagnostics::PerformanceCounter::Start();
 
 			GpuId = args.GpuId;
+			RecompileShaders = args.RecompileShaders;
 
 			gameDir = args.GameDirectory;
 			engineDir = args.EngineDirectory;
