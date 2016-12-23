@@ -100,7 +100,7 @@ module Atmosphere
 
     vec2 getTransmittanceUV(float r, float mu)
     {
-        float uR, uMu;
+        float uR; float uMu;
     #ifdef TRANSMITTANCE_NON_LINEAR
         uR = sqrt((r - Rg) / (Rt - Rg));
         uMu = atan((mu + 0.15) / (1.0 + 0.15) * tan(1.5)) / 1.5;
