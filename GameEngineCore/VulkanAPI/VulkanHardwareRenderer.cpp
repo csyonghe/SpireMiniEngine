@@ -1,9 +1,9 @@
-#include "HardwareRenderer.h"
+#include "../GameEngineCore/HardwareRenderer.h"
 
-#if (0)
-#include "VulkanAPI/vkel.h"
+#if(0)
+#include "vkel.h"
 //#define VK_CPP_NO_EXCEPTIONS
-#include "VulkanAPI/vk_cpp.hpp"
+#include "vk_cpp.hpp"
 
 #include "CoreLib/WinForm/Debug.h"
 #include "CoreLib/VectorMath.h"

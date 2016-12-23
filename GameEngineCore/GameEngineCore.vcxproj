@@ -195,7 +195,7 @@
     <ClCompile Include="TextureTool\LibSquish.cpp" />
     <ClCompile Include="UISystem_Windows.cpp" />
     <ClCompile Include="VulkanAPI\vkel.c" />
-    <ClCompile Include="VulkanHardwareRenderer.cpp" />
+    <ClCompile Include="VulkanAPI\VulkanHardwareRenderer.cpp" />
     <ClCompile Include="WorldRenderPass.cpp" />
   </ItemGroup>
   <ItemGroup>
