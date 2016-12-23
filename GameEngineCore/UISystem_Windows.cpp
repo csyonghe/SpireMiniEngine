@@ -750,7 +750,6 @@ namespace GraphicsUI
 			Matrix4::CreateOrthoMatrix(orthoMatrix, 0.0f, (float)screenWidth, 0.0f, (float)screenHeight, 1.0f, -1.0f);
 			uniformBuffer->SetData(&orthoMatrix, sizeof(orthoMatrix)); 
 			uiOverlayTexture = rendererApi->CreateTexture2D(TextureUsage::ColorAttachment, w, h, 1, StorageFormat::RGBA_8);
-			uiOverlayTexture->SetData(w, h, 1, DataType::Byte4, nullptr);//TODO: delete this line
 			frameBuffer = renderTargetLayout->CreateFrameBuffer(MakeArrayView(uiOverlayTexture.Ptr()));
 		}
 		void BeginUIDrawing()

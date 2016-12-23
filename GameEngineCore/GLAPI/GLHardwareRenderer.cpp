@@ -578,19 +578,13 @@ namespace GLL
 				if (samples > 1)
 				{
 					glBindTexture(GL_TEXTURE_2D, Handle);
-					if (!data)
-						glTexStorage2DMultisample(GL_TEXTURE_2D, samples, this->internalFormat, width, height, GL_TRUE);
-					else
-						glTexImage2DMultisample(GL_TEXTURE_2D, samples, this->internalFormat, width, height, GL_TRUE);
+					glTexImage2DMultisample(GL_TEXTURE_2D, samples, this->internalFormat, width, height, GL_TRUE);
 					glBindTexture(GL_TEXTURE_2D, 0);
 				}
 				else
 				{
 					glBindTexture(GL_TEXTURE_2D, Handle);
-					if (!data)
-						glTexStorage2D(GL_TEXTURE_2D, Math::Log2Ceil(Math::Max(width, height)), this->internalFormat, width, height);
-					else
-						glTexImage2D(GL_TEXTURE_2D, level, this->internalFormat, width, height, 0, this->format, this->type, data);
+					glTexImage2D(GL_TEXTURE_2D, level, this->internalFormat, width, height, 0, this->format, this->type, data);
 					glBindTexture(GL_TEXTURE_2D, 0);
 
 				}
@@ -2742,6 +2736,7 @@ namespace GLL
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8.0f);
+			glTextureStorage2D(handle, mipLevelCount, TranslateStorageFormat(format), w, h);
 			glBindTexture(GL_TEXTURE_2D, 0);
 
 			auto rs = new Texture2D();

@@ -621,7 +621,6 @@ namespace GameEngine
 				result->Height = (int)(screenHeight * ratio);
 			}
 			result->Texture = hardwareRenderer->CreateTexture2D(TextureUsage::ColorAttachment, result->Width, result->Height, 1, format);
-			result->Texture->SetData(result->Width, result->Height, 1, GetStorageDataType(format), nullptr);//TODO: remove this line
 		}
 		result->FixedWidth = w;
 		result->FixedHeight = h;
@@ -639,7 +638,6 @@ namespace GameEngine
 				r.Value->Width = (int)(screenWidth * r.Value->ResolutionScale);
 				r.Value->Height = (int)(screenHeight * r.Value->ResolutionScale);
 				r.Value->Texture = hardwareRenderer->CreateTexture2D(TextureUsage::ColorAttachment, r.Value->Width, r.Value->Height, 1, r.Value->Format);
-				r.Value->Texture->SetData(r.Value->Width, r.Value->Height, 1, GetStorageDataType(r.Value->Format), nullptr);//TODO: remove this line
 			}
 		}
 		for (auto & output : renderOutputs)
