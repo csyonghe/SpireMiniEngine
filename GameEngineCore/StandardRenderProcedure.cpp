@@ -334,7 +334,8 @@ namespace GameEngine
 		virtual void ResizeFrame(int w, int h) override
 		{
 			atmospherePass->RecordCommandBuffer(sharedModules, w, h);
-			deferredLightingPass->RecordCommandBuffer(sharedModules, w, h);
+			if (deferred)
+				deferredLightingPass->RecordCommandBuffer(sharedModules, w, h);
 		}
 	};
 
