@@ -724,8 +724,7 @@ namespace GraphicsUI
 			linearSampler = rendererApi->CreateTextureSampler();
 			linearSampler->SetFilter(TextureFilter::Linear);
 
-			uiOverlayTexture = rendererApi->CreateTexture2D(TextureUsage::ColorAttachment);
-			uiOverlayTexture->Resize(4, 4, 1);
+			uiOverlayTexture = rendererApi->CreateTexture2D(TextureUsage::ColorAttachment, 4, 4, 1, StorageFormat::RGBA_8);
 			frameBuffer = renderTargetLayout->CreateFrameBuffer(MakeArrayView(uiOverlayTexture.Ptr()));
 
 			descSet = rendererApi->CreateDescriptorSet(descLayout.Ptr());
@@ -750,8 +749,7 @@ namespace GraphicsUI
 			rendererApi->Wait();
 			Matrix4::CreateOrthoMatrix(orthoMatrix, 0.0f, (float)screenWidth, 0.0f, (float)screenHeight, 1.0f, -1.0f);
 			uniformBuffer->SetData(&orthoMatrix, sizeof(orthoMatrix)); 
-			uiOverlayTexture = rendererApi->CreateTexture2D(TextureUsage::ColorAttachment);
-			uiOverlayTexture->SetData(GameEngine::StorageFormat::RGBA_8, w, h, 1, DataType::Byte4, nullptr, false);
+			uiOverlayTexture = rendererApi->CreateTexture2D(TextureUsage::ColorAttachment, w, h, 1, StorageFormat::RGBA_8);
 			frameBuffer = renderTargetLayout->CreateFrameBuffer(MakeArrayView(uiOverlayTexture.Ptr()));
 		}
 		void BeginUIDrawing()
@@ -949,9 +947,8 @@ namespace GraphicsUI
 		UIImage(UIWindowsSystemInterface* ctx, const CoreLib::Imaging::Bitmap & bmp)
 		{
 			context = ctx;
-			texture = context->rendererApi->CreateTexture2D(TextureUsage::Sampled);
-			texture->SetData(bmp.GetIsTransparent() ? StorageFormat::RGBA_I8 : StorageFormat::RGB_I8, bmp.GetWidth(), bmp.GetHeight(), 1,
-				bmp.GetIsTransparent() ? DataType::Byte4 : DataType::Byte, bmp.GetPixels());
+			texture = context->rendererApi->CreateTexture2D(TextureUsage::Sampled, bmp.GetWidth(), bmp.GetHeight(), 1, bmp.GetIsTransparent() ? StorageFormat::RGBA_I8 : StorageFormat::RGB_I8);
+			texture->SetData(bmp.GetWidth(), bmp.GetHeight(), 1, bmp.GetIsTransparent() ? DataType::Byte4 : DataType::Byte, bmp.GetPixels());
 			w = bmp.GetWidth();
 			h = bmp.GetHeight();
 		}

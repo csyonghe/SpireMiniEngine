@@ -1,9 +1,9 @@
-#include "HardwareRenderer.h"
+#include "../GameEngineCore/HardwareRenderer.h"
 
-#if (0)
-#include "VulkanAPI/vkel.h"
+#if(0)
+#include "vkel.h"
 //#define VK_CPP_NO_EXCEPTIONS
-#include "VulkanAPI/vk_cpp.hpp"
+#include "vk_cpp.hpp"
 
 #include "CoreLib/WinForm/Debug.h"
 #include "CoreLib/VectorMath.h"
@@ -755,7 +755,7 @@ namespace VK
 		case StorageFormat::RGB10_A2: return vk::Format::eA2R10G10B10UnormPack32;//
 		case StorageFormat::Depth32: return vk::Format::eD32Sfloat;
 		case StorageFormat::Depth24Stencil8: return vk::Format::eD24UnormS8Uint;
-		default: throw HardwareRendererException("Not implemented.");
+		default: throw CoreLib::NotImplementedException();
 		}
 	};
 
@@ -767,7 +767,7 @@ namespace VK
 		case BufferUsage::IndexBuffer: return vk::BufferUsageFlagBits::eIndexBuffer;
 		case BufferUsage::StorageBuffer: return vk::BufferUsageFlagBits::eStorageBuffer;
 		case BufferUsage::UniformBuffer: return vk::BufferUsageFlagBits::eUniformBuffer;
-		default: throw HardwareRendererException("Not implemented.");
+		default: throw CoreLib::NotImplementedException();
 		}
 	}
 
@@ -848,7 +848,7 @@ namespace VK
 		case BindingType::UniformBuffer: return vk::DescriptorType::eUniformBuffer; //TODO: dynamic?
 		case BindingType::StorageBuffer: return vk::DescriptorType::eStorageBuffer; //TODO: ^
 		case BindingType::Unused: throw HardwareRendererException("Attempting to use unused binding");
-		default: throw HardwareRendererException("Not implemented");
+		default: throw CoreLib::NotImplementedException();
 		}
 	}
 
@@ -864,7 +864,7 @@ namespace VK
 		case TextureUsage::SampledDepthAttachment:
 			return vk::ImageLayout::eDepthStencilAttachmentOptimal;
 		case TextureUsage::Sampled: return vk::ImageLayout::eShaderReadOnlyOptimal;
-		default: throw HardwareRendererException("Not implemented");
+		default: throw CoreLib::NotImplementedException();
 		}
 	}
 
@@ -969,14 +969,9 @@ namespace VK
 		case ShaderType::VertexShader: return vk::ShaderStageFlagBits::eVertex;
 		case ShaderType::FragmentShader: return vk::ShaderStageFlagBits::eFragment;
 		case ShaderType::ComputeShader: return vk::ShaderStageFlagBits::eCompute;
-		default: throw HardwareRendererException("Not implemented.");
+		default: throw CoreLib::NotImplementedException();
 		}
 	}
-
-	class RenderBuffer
-	{
-
-	};
 
 	class Texture : public CoreLib::Object
 	{
@@ -986,59 +981,12 @@ namespace VK
 		vk::DeviceMemory memory;
 		StorageFormat format;
 		TextureUsage usage;
-
-		Texture(TextureUsage usage)
+		Texture(TextureUsage usage, int width, int height, int depth, int mipLevels, int arrayLayers, int numSamples, StorageFormat format)
 		{
 			this->usage = usage;
-			if (!!(usage & TextureUsage::DepthAttachment))
-				this->format = StorageFormat::Depth32;
-			else if (!!(usage & TextureUsage::ColorAttachment))
-				this->format = StorageFormat::RGBA_8;
-			else if (!!(usage & TextureUsage::Sampled))
-				this->format = StorageFormat::RGBA_F32;
-		}
-		~Texture()
-		{
-			RendererState::Device().waitIdle(); //TODO: Remove
-			if (memory) RendererState::Device().freeMemory(memory);
-			if (view) RendererState::Device().destroyImageView(view);
-			if (image) RendererState::Device().destroyImage(image);
-		}
-	};
+			this->format = format;
 
-	class Texture2D : public VK::Texture, public GameEngine::Texture2D
-	{
-		//TODO: Need some way of determining layouts and performing transitions properly. 
-	public:
-		int width;
-		int height;
-		int samples = 1;
-		int mipLevels = 1;
-		vk::ImageLayout currentLayout;
-
-		Texture2D(TextureUsage usage) : VK::Texture(usage) {};
-
-		void GetSize(int& pwidth, int& pheight)
-		{
-			pwidth = width;
-			pheight = height;
-		}
-		void Resize(int newWidth, int newHeight, int newSamples, int newMipLevels = 1, bool preserveData = false)
-		{
-			if (this->width == newWidth && this->height == newHeight && this->samples == newSamples && this->mipLevels == newMipLevels)
-				return;
-
-			if (preserveData && this->samples != samples)
-				throw HardwareRendererException("Sample count must be identical to preserve data");
-
-			vk::Image oldImage = image;
-			vk::ImageView oldView = view;
-			vk::DeviceMemory oldMemory = memory;
-
-			int oldWidth = this->width;
-			int oldHeight = this->height;
-			int oldMipLevels = this->mipLevels;
-
+			// Create texture resources
 			vk::ImageAspectFlags aspectFlags = vk::ImageAspectFlagBits::eColor;
 			vk::ImageUsageFlags usageFlags;
 			if (!!(usage & TextureUsage::ColorAttachment))
@@ -1064,15 +1012,14 @@ namespace VK
 				usageFlags |= vk::ImageUsageFlagBits::eSampled;
 			}
 
-			// Create texture resources
 			vk::ImageCreateInfo imageCreateInfo = vk::ImageCreateInfo()
 				.setFlags(vk::ImageCreateFlags())
 				.setImageType(vk::ImageType::e2D)
 				.setFormat(TranslateStorageFormat(format))
-				.setExtent(vk::Extent3D(newWidth, newHeight, 1))
-				.setMipLevels(newMipLevels)
-				.setArrayLayers(1)
-				.setSamples(SampleCount(newSamples))
+				.setExtent(vk::Extent3D(width, height, 1))
+				.setMipLevels(mipLevels)
+				.setArrayLayers(arrayLayers)
+				.setSamples(SampleCount(numSamples))
 				.setTiling(vk::ImageTiling::eOptimal)
 				.setUsage(vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | usageFlags)
 				.setSharingMode(vk::SharingMode::eExclusive)
@@ -1094,9 +1041,9 @@ namespace VK
 			vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
 				.setAspectMask(aspectFlags)
 				.setBaseMipLevel(0)
-				.setLevelCount(newMipLevels)
+				.setLevelCount(mipLevels)
 				.setBaseArrayLayer(0)
-				.setLayerCount(1);
+				.setLayerCount(arrayLayers);
 
 			vk::ImageViewCreateInfo imageViewCreateInfo = vk::ImageViewCreateInfo()
 				.setFlags(vk::ImageViewCreateFlags())
@@ -1107,40 +1054,48 @@ namespace VK
 				.setSubresourceRange(imageSubresourceRange);
 
 			view = RendererState::Device().createImageView(imageViewCreateInfo).value;
-
-			if (preserveData)
-			{
-				if (!oldImage || !oldView || !oldMemory)
-					throw HardwareRendererException("There is no data to preserve");
-
-				(void)oldWidth, oldHeight, oldMipLevels;
-				//TODO: blit the image from the old to new image here
-			}
-
-			// Free old resources
-			if (oldMemory) RendererState::Device().freeMemory(oldMemory);
-			if (oldView) RendererState::Device().destroyImageView(oldView);
-			if (oldImage) RendererState::Device().destroyImage(oldImage);
-
-			// Set texture parameters
-			this->width = newWidth;
-			this->height = newHeight;
-			this->samples = newSamples;
-			this->mipLevels = newMipLevels;
 		}
-		void SetData(StorageFormat pformat, int level, int pwidth, int pheight, int numSamples, DataType inputType, void* data, bool mipmapped = true)
+		~Texture()
+		{
+			RendererState::Device().waitIdle(); //TODO: Remove
+			if (memory) RendererState::Device().freeMemory(memory);
+			if (view) RendererState::Device().destroyImageView(view);
+			if (image) RendererState::Device().destroyImage(image);
+		}
+
+		void SetData(int mipLevel, int width, int height, int depth, int layerOffset, int numLayers) {
+
+		}
+	};
+
+	class Texture2D : public VK::Texture, public GameEngine::Texture2D
+	{
+		//TODO: Need some way of determining layouts and performing transitions properly. 
+	public:
+		int width;
+		int height;
+		int samples = 1;
+		int arrayLayers = 1;
+		int mipLevels = 1;
+		vk::ImageLayout currentLayout;
+
+		Texture2D(TextureUsage usage, int width, int height, int mipLevelCount, StorageFormat format)
+			: VK::Texture(usage, width, height, 1, mipLevelCount, 1, 1, format)
+		{
+			this->width = width;
+			this->height = height;
+			this->mipLevels = mipLevelCount;
+		};
+
+		void GetSize(int& pwidth, int& pheight)
+		{
+			pwidth = width;
+			pheight = height;
+		}
+		void SetData(int level, int pwidth, int pheight, int numSamples, DataType inputType, void* data)
 		{
 			if (numSamples > 1)
 				throw HardwareRendererException("samples must be equal to 1");
-
-			format = pformat;
-			if (level == 0)
-			{
-				if (mipmapped)
-					Resize(pwidth, pheight, numSamples, (int)std::floor(std::log2(max(pwidth, pheight))) + 1);
-				else
-					Resize(pwidth, pheight, numSamples);
-			}
 
 			if (data == nullptr)
 			{
@@ -1497,9 +1452,9 @@ namespace VK
 			}
 			this->currentLayout = LayoutFromUsage(this->usage);
 		}
-		void SetData(StorageFormat pformat, int pwidth, int pheight, int numSamples, DataType inputType, void* data, bool mipmapped = true)
+		void SetData(int pwidth, int pheight, int numSamples, DataType inputType, void* data)
 		{
-			SetData(pformat, 0, pwidth, pheight, numSamples, inputType, data, mipmapped);
+			SetData(0, pwidth, pheight, numSamples, inputType, data);
 		}
 		void BuildMipmaps()
 		{
@@ -1907,6 +1862,35 @@ namespace VK
 			// Destroy staging resources
 			RendererState::Device().freeMemory(stagingMemory);
 			RendererState::Device().destroyBuffer(stagingBuffer);
+		}
+	};
+
+	class Texture2DArray : public VK::Texture, public GameEngine::Texture2DArray
+	{
+	private:
+		int width;
+		int height;
+		int arrayLayers;
+	public:
+		Texture2DArray(TextureUsage usage, int width, int height, int mipLevels, int arrayLayers, StorageFormat newFormat)
+			: VK::Texture(usage, width, height, 1, mipLevels, arrayLayers, 1, newFormat)
+		{
+			this->format = newFormat;
+		};
+
+		virtual void GetSize(int& pwidth, int& pheight, int& players) override
+		{
+			pwidth = this->width;
+			pheight = this->height;
+			players = this->arrayLayers;
+		}
+
+		virtual void SetData(int mipLevel, int xOffset, int yOffset, int layerOffset, int pwidth, int pheight, int layerCount, DataType inputType, void * data) override
+		{
+		}
+
+		virtual void BuildMipmaps() override
+		{
 		}
 	};
 
@@ -2608,8 +2592,8 @@ namespace VK
 					usage = dynamic_cast<Texture2D*>(renderAttachments.attachments[colorReference.attachment].handle.tex2D)->usage;
 				else if (renderAttachments.attachments[colorReference.attachment].handle.tex2DArray)
 				{
-					throw CoreLib::NotImplementedException();
-					//usage = dynamic_cast<Texture2DArray*>(renderAttachments.attachments[colorReference.attachment].handle.tex2DArray)->usage;
+					//throw CoreLib::NotImplementedException();
+					usage = dynamic_cast<Texture2DArray*>(renderAttachments.attachments[colorReference.attachment].handle.tex2DArray)->usage;
 				}
 
 				if (!(usage & TextureUsage::ColorAttachment))
@@ -2622,8 +2606,8 @@ namespace VK
 					usage = dynamic_cast<Texture2D*>(renderAttachments.attachments[depthReference.attachment].handle.tex2D)->usage;
 				else if (renderAttachments.attachments[depthReference.attachment].handle.tex2DArray)
 				{
-					throw CoreLib::NotImplementedException();
-					//usage = dynamic_cast<Texture2DArray*>(renderAttachments.attachments[depthReference.attachment].handle.tex2DArray)->usage;
+					//throw CoreLib::NotImplementedException();
+					usage = dynamic_cast<Texture2DArray*>(renderAttachments.attachments[depthReference.attachment].handle.tex2DArray)->usage;
 				}
 				if (!(usage & TextureUsage::DepthAttachment))
 					throw HardwareRendererException("Incompatible RenderTargetLayout and RenderAttachments");
@@ -2635,9 +2619,12 @@ namespace VK
 			CoreLib::List<vk::ImageView> framebufferAttachmentViews;
 			for (auto attachment : renderAttachments.attachments)
 			{
-				if (attachment.handle.tex2DArray)
-					throw CoreLib::NotImplementedException();
-				framebufferAttachmentViews.Add(dynamic_cast<Texture2D*>(attachment.handle.tex2D)->view);
+				//if (attachment.handle.tex2DArray)
+				//throw CoreLib::NotImplementedException();
+				if (attachment.handle.tex2D)
+					framebufferAttachmentViews.Add(dynamic_cast<Texture2D*>(attachment.handle.tex2D)->view);
+				else if (attachment.handle.tex2DArray)
+					framebufferAttachmentViews.Add(dynamic_cast<Texture2DArray*>(attachment.handle.tex2DArray)->view);
 			}
 
 			vk::FramebufferCreateInfo framebufferCreateInfo = vk::FramebufferCreateInfo()
@@ -3450,7 +3437,7 @@ namespace VK
 		{
 			CoreLib::List<vk::ClearAttachment> attachments;
 			CoreLib::List<vk::ClearRect> rects;
-			
+
 			for (int k = 0; k < renderAttachments.Count(); k++)
 			{
 				vk::ImageAspectFlags aspectMask;
@@ -3493,7 +3480,7 @@ namespace VK
 				vk::ArrayProxy<const vk::ClearAttachment>(attachments.Count(), attachments.Buffer()),
 				vk::ArrayProxy<const vk::ClearRect>(rects.Count(), rects.Buffer())
 			);
-			
+
 		}
 	};
 
@@ -4188,17 +4175,17 @@ namespace VK
 			return new BufferObject(TranslateUsageFlags(usage), vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
 		}
 
-		Texture2D* CreateTexture2D(TextureUsage usage)
+		Texture2D* CreateTexture2D(TextureUsage usage, int width, int height, int mipLevelCount, StorageFormat format)
 		{
-			return new Texture2D(usage);
+			return new Texture2D(usage, width, height, mipLevelCount, format);
 		}
 
-		Texture2DArray * CreateTexture2DArray(TextureUsage /*usage*/, int /*w*/, int /*h*/, int /*layers*/, int /*mipLevelCount*/, StorageFormat /*pFormat*/)
+		Texture2DArray * CreateTexture2DArray(TextureUsage usage, int w, int h, int layers, int mipLevelCount, StorageFormat format)
 		{
-			throw CoreLib::NotImplementedException();
+			return new Texture2DArray(usage, w, h, mipLevelCount, layers, format);
 		}
 
-		Texture3D * CreateTexture3D(TextureUsage /*usage*/, int /*w*/, int /*h*/, int /*layers*/, int /*mipLevelCount*/, StorageFormat /*pFormat*/)
+		Texture3D * CreateTexture3D(TextureUsage /*usage*/, int /*w*/, int /*h*/, int /*layers*/, int /*mipLevelCount*/, StorageFormat /*format*/)
 		{
 			throw CoreLib::NotImplementedException();
 		}

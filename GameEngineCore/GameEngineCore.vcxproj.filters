@@ -17,9 +17,6 @@
     <ClCompile Include="HardwareInputInterface.cpp" />
     <ClCompile Include="TextureCompressor.cpp" />
     <ClCompile Include="TextureTool\LibSquish.cpp" />
-    <ClCompile Include="VulkanHardwareRenderer.cpp">
-      <Filter>Renderer\RenderAPI\Vulkan API</Filter>
-    </ClCompile>
     <ClCompile Include="GLAPI\GLHardwareRenderer.cpp">
       <Filter>Renderer\RenderAPI\GL API</Filter>
     </ClCompile>
@@ -111,6 +108,9 @@
     </ClCompile>
     <ClCompile Include="DeviceMemory.cpp">
       <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="VulkanAPI\VulkanHardwareRenderer.cpp">
+      <Filter>Renderer\RenderAPI\Vulkan API</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

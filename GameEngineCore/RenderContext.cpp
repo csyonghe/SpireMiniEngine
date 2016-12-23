@@ -176,9 +176,9 @@ namespace GameEngine
 
 		auto hw = rendererResource->hardwareRenderer.Ptr();
 
-		auto rs = hw->CreateTexture2D(TextureUsage::Sampled);
+		auto rs = hw->CreateTexture2D(TextureUsage::Sampled, data.GetWidth(), data.GetHeight(), data.GetMipLevels(), format);
 		for (int i = 0; i < data.GetMipLevels(); i++)
-			rs->SetData(format, i, Math::Max(data.GetWidth() >> i, 1), Math::Max(data.GetHeight() >> i, 1), 1, dataType, data.GetData(i).Buffer());
+			rs->SetData(i, Math::Max(data.GetWidth() >> i, 1), Math::Max(data.GetHeight() >> i, 1), 1, dataType, data.GetData(i).Buffer());
 		if (format != StorageFormat::BC1 && format != StorageFormat::BC5)
 			rs->BuildMipmaps();
 		textures[name] = rs;
@@ -610,7 +610,6 @@ namespace GameEngine
 		result->UseFixedResolution = ratio == 0.0f;
 		if (screenWidth > 0 || result->UseFixedResolution)
 		{
-			result->Texture = hardwareRenderer->CreateTexture2D(TextureUsage::ColorAttachment);
 			if (ratio == 0.0f)
 			{
 				result->Width = w;
@@ -621,7 +620,7 @@ namespace GameEngine
 				result->Width = (int)(screenWidth * ratio);
 				result->Height = (int)(screenHeight * ratio);
 			}
-			result->Texture->SetData(format, result->Width, result->Height, 1, GetStorageDataType(format), nullptr);
+			result->Texture = hardwareRenderer->CreateTexture2D(TextureUsage::ColorAttachment, result->Width, result->Height, 1, format);
 		}
 		result->FixedWidth = w;
 		result->FixedHeight = h;
@@ -636,11 +635,9 @@ namespace GameEngine
 		{
 			if (!r.Value->UseFixedResolution)
 			{
-				r.Value->Texture = hardwareRenderer->CreateTexture2D(TextureUsage::ColorAttachment);
 				r.Value->Width = (int)(screenWidth * r.Value->ResolutionScale);
 				r.Value->Height = (int)(screenHeight * r.Value->ResolutionScale);
-				r.Value->Texture->SetData(r.Value->Format, r.Value->Width,
-					r.Value->Height, 1, GetStorageDataType(r.Value->Format), nullptr);
+				r.Value->Texture = hardwareRenderer->CreateTexture2D(TextureUsage::ColorAttachment, r.Value->Width, r.Value->Height, 1, r.Value->Format);
 			}
 		}
 		for (auto & output : renderOutputs)
