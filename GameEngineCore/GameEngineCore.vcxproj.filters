@@ -26,7 +26,6 @@
     <ClCompile Include="UISystem_Windows.cpp" />
     <ClCompile Include="MotionGraph.cpp" />
     <ClCompile Include="CatmullSpline.cpp" />
-    <ClCompile Include="DeviceMemory.cpp" />
     <ClCompile Include="MeshBuilder.cpp" />
     <ClCompile Include="Actor.cpp">
       <Filter>Actors</Filter>
@@ -110,6 +109,9 @@
     <ClCompile Include="ShadeCompiler.cpp">
       <Filter>Renderer</Filter>
     </ClCompile>
+    <ClCompile Include="DeviceMemory.cpp">
+      <Filter>Renderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
@@ -143,7 +145,6 @@
     <ClInclude Include="UISystem_Windows.h" />
     <ClInclude Include="MotionGraph.h" />
     <ClInclude Include="CatmullSpline.h" />
-    <ClInclude Include="DeviceMemory.h" />
     <ClInclude Include="MeshBuilder.h" />
     <ClInclude Include="Actor.h">
       <Filter>Actors</Filter>
@@ -210,6 +211,9 @@
       <Filter>Renderer</Filter>
     </ClInclude>
     <ClInclude Include="HardwareRenderer.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="DeviceMemory.h">
       <Filter>Renderer</Filter>
     </ClInclude>
   </ItemGroup>

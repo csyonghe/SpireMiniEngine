@@ -117,7 +117,6 @@ namespace GameEngine
 		{
 			scene = sceneRes;
 		}
-		~Drawable();
 		inline PipelineClass * GetPipeline(int passId)
 		{
 			return pipelineInstances[passId].Ptr();

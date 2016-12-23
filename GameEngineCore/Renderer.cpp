@@ -31,15 +31,7 @@ namespace GameEngine
 		}
 		return ptr;
 	}
-
-	Drawable::~Drawable()
-	{
-		if (transformModule && transformModule->UniformPtr)
-		{
-			scene->transformMemory.Free(transformModule->UniformPtr, transformModule->BufferLength);
-		}
-	}
-
+	
 	IRenderProcedure * CreateStandardRenderProcedure();
 
 	class RendererImpl : public Renderer
