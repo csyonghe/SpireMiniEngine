@@ -584,7 +584,7 @@ namespace GLL
 				else
 				{
 					glBindTexture(GL_TEXTURE_2D, Handle);
-					glTexImage2D(GL_TEXTURE_2D, level, this->internalFormat, width, height, 0, this->format, this->type, data);
+					glTexSubImage2D(GL_TEXTURE_2D, level, 0, 0, width, height, this->format, this->type, data);
 					glBindTexture(GL_TEXTURE_2D, 0);
 
 				}
@@ -2722,6 +2722,40 @@ namespace GLL
 			return rs;
 		}
 
+		virtual Texture2D* CreateTexture2D(int w, int h, StorageFormat storageFormat, DataType dataType, void* data) override
+		{
+			if (storageFormat == StorageFormat::BC1 || storageFormat == StorageFormat::BC5)
+				throw HardwareRendererException("Cannot automatically generate mipmaps for compressed textures");
+
+			int mipLevelCount = (int)std::floor(std::log2(max(w, h))) + 1;
+			GLint internalformat = TranslateStorageFormat(storageFormat);
+			GLenum format = TranslateDataTypeToFormat(dataType);
+			GLenum type = TranslateDataTypeToInputType(dataType);
+
+			GLuint handle = 0;
+			if (glCreateTextures)
+				glCreateTextures(GL_TEXTURE_2D, 1, &handle);
+			else
+			{
+				glGenTextures(1, &handle);
+				glBindTexture(GL_TEXTURE_2D, handle);
+			}
+			glBindTexture(GL_TEXTURE_2D, handle);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8.0f);
+			glTextureStorage2D(handle, mipLevelCount, internalformat, w, h);
+			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, format, type, data);
+			glGenerateMipmap(GL_TEXTURE_2D);
+			glBindTexture(GL_TEXTURE_2D, 0);
+
+			auto rs = new Texture2D();
+			rs->Handle = handle;
+			rs->storageFormat = storageFormat;
+			rs->BindTarget = GL_TEXTURE_2D;
+			return rs;
+		}
+
 		virtual Texture2D* CreateTexture2D(TextureUsage /*usage*/, int w, int h, int mipLevelCount, StorageFormat format) override
 		{
 			GLuint handle = 0;
@@ -2742,6 +2776,46 @@ namespace GLL
 			auto rs = new Texture2D();
 			rs->Handle = handle;
 			rs->storageFormat = format;
+			rs->BindTarget = GL_TEXTURE_2D;
+			return rs;
+		}
+
+		virtual Texture2D* CreateTexture2D(TextureUsage /*usage*/, int w, int h, int mipLevelCount, StorageFormat storageFormat, DataType dataType, ArrayView<void*> mipLevelData) override
+		{
+			GLint internalformat = TranslateStorageFormat(storageFormat);
+			GLenum format = TranslateDataTypeToFormat(dataType);
+			GLenum type = TranslateDataTypeToInputType(dataType);
+
+			GLuint handle = 0;
+			if (glCreateTextures)
+				glCreateTextures(GL_TEXTURE_2D, 1, &handle);
+			else
+			{
+				glGenTextures(1, &handle);
+				glBindTexture(GL_TEXTURE_2D, handle);
+			}
+			glBindTexture(GL_TEXTURE_2D, handle);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8.0f);
+			if (storageFormat == StorageFormat::BC1 || storageFormat == StorageFormat::BC5)
+			{
+				int blocks = (int)(ceil(width / 4.0f) * ceil(height / 4.0f));
+				int bufferSize = storageFormat == StorageFormat::BC5 ? blocks * 16 : blocks * 8;
+				for (int level = 0; level < mipLevelCount; level++)
+					glCompressedTexImage2D(GL_TEXTURE_2D, level, internalformat, width, height, 0, bufferSize, mipLevelData[level]);
+			}
+			else
+			{
+				glTextureStorage2D(handle, mipLevelCount, internalformat, w, h);
+				for (int level = 0; level < mipLevelCount; level++)
+					glTexSubImage2D(GL_TEXTURE_2D, level, 0, 0, width, height, format, type, mipLevelData[level]);
+			}
+			glBindTexture(GL_TEXTURE_2D, 0);
+
+			auto rs = new Texture2D();
+			rs->Handle = handle;
+			rs->storageFormat = storageFormat;
 			rs->BindTarget = GL_TEXTURE_2D;
 			return rs;
 		}

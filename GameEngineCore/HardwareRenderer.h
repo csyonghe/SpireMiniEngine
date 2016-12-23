@@ -217,8 +217,6 @@ namespace GameEngine
 		Store, DontCare
 	};
 
-
-
 	// Helper Functions
 	// Returns size in bytes of a StorageFormat
 	inline int StorageFormatSize(StorageFormat format)
@@ -654,7 +652,12 @@ namespace GameEngine
 		virtual void Wait() = 0;
 		virtual Buffer* CreateBuffer(BufferUsage usage) = 0;
 		virtual Buffer* CreateMappedBuffer(BufferUsage usage) = 0;
+		// Automatically builds mipmaps with supplied data
+		virtual Texture2D* CreateTexture2D(int width, int height, StorageFormat format, DataType type, void* data) = 0;
+		// Allocates resources for a texture with supplied parameters
 		virtual Texture2D* CreateTexture2D(TextureUsage usage, int width, int height, int mipLevelCount, StorageFormat format) = 0;
+		// Populates the created texture with the data supplied for each mipLevel
+		virtual Texture2D* CreateTexture2D(TextureUsage usage, int width, int height, int mipLevelCount, StorageFormat format, DataType type, CoreLib::ArrayView<void*> mipLevelData) = 0;
 		virtual Texture2DArray* CreateTexture2DArray(TextureUsage usage, int width, int height, int layers, int mipLevelCount, StorageFormat format) = 0;
 		virtual Texture3D* CreateTexture3D(TextureUsage usage, int width, int height, int depth, int mipLevelCount, StorageFormat format) = 0;
 		virtual TextureSampler * CreateTextureSampler() = 0;

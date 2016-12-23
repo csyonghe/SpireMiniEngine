@@ -492,6 +492,8 @@ namespace GameEngine
 		if (attachments.attachments.Count())
 			output->frameBuffer = output->renderTargetLayout->CreateFrameBuffer(attachments);
 	}
+
+	// Converts StorageFormat to DataType
 	DataType GetStorageDataType(StorageFormat format)
 	{
 		DataType dataType;
@@ -516,7 +518,7 @@ namespace GameEngine
 			dataType = DataType::Float3;
 			break;
 		default:
-			throw NotImplementedException("Unsupported storage format as render target.");
+			throw HardwareRendererException("Unsupported storage format as render target.");
 		}
 		return dataType;
 	}
