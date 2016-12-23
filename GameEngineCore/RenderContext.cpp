@@ -231,11 +231,6 @@ namespace GameEngine
 	}
 	Shader * SceneResource::LoadShader(const String & src, void * data, int size, ShaderType shaderType)
 	{
-		{
-			String debugFileName = src + ".spv";
-			BinaryWriter debugWriter(new FileStream(debugFileName, FileMode::Create));
-			debugWriter.Write((unsigned char*)data, size);
-		}
 		RefPtr<Shader> result;
 		if (shaders.TryGetValue(src, result))
 			return result.Ptr();
