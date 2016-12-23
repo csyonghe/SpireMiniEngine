@@ -135,7 +135,7 @@ namespace GameEngine
 		{
 			static char printBuffer[32768];
 			snprintf(printBuffer, 32768, message, args...);
-			if (instance)
+			if (instance && instance->uiCommandForm)
 			{
 				instance->uiCommandForm->Write(printBuffer);
 			}

@@ -12,7 +12,7 @@ namespace GameEngine
 	{
 	private:
 		String shaderEntryPoint = R"(
-			shader GBufferPass : StandardPipeline
+			shader GBufferPass targets StandardPipeline
 			{
 				public using VertexAttributes;
 				[Binding: "0"]

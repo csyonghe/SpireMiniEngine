@@ -325,7 +325,7 @@ namespace GameEngine
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<Shader>> shaders;
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<PipelineClass>> pipelineClassCache;
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<Texture2D>> textures;
-		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<Material>> materials;
+		//CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<Material>> materials;
 		CoreLib::RefPtr<ModuleInstance> CreateMaterialModuleInstance(Material* material, const char * moduleName);
 		void RegisterMaterial(Material * material);
 	public:

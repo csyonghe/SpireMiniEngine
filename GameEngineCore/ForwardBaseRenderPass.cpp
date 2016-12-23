@@ -12,7 +12,7 @@ namespace GameEngine
 	{
 	private:
 		String shaderEntryPoint = R"(
-			shader ForwardBase : StandardPipeline
+			shader ForwardBase targets StandardPipeline
 			{
 				public using VertexAttributes;
 				[Binding: "0"]

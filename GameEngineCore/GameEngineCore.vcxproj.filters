@@ -215,6 +215,9 @@
     <ClInclude Include="DeviceMemory.h">
       <Filter>Renderer</Filter>
     </ClInclude>
+    <ClInclude Include="ModuleInstance.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Spire">

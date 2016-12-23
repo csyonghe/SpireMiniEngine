@@ -446,7 +446,7 @@ module Atmosphere
     
 }
 
-shader AtmospherePostPass : StandardPipeline
+shader AtmospherePostPass targets StandardPipeline
 {
 	public @MeshVertex vec2 vertPos;
 	public @MeshVertex vec2 vertUV;

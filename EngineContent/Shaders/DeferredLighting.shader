@@ -1,4 +1,4 @@
-shader DeferredLighting : StandardPipeline
+shader DeferredLighting targets StandardPipeline
 {
 	param Texture2D albedoTex;
 	param Texture2D pbrTex;

@@ -85,7 +85,7 @@ namespace GameEngine
 		}
 	};
 
-	class DescriptorSetLayout
+	class DescriptorSetLayout : public CoreLib::RefObject
 	{
 	protected:
 		DescriptorSetLayout() {}

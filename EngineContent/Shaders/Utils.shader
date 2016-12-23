@@ -162,7 +162,7 @@ module NoTessellation
     public vec3 fineVertPos = coarseVertPos;
 }
 
-module PN_Tessellation : TessellationPipeline
+module PN_Tessellation targets TessellationPipeline
 {
     require vec3 coarseVertPos;
     require vec3 coarseVertNormal;

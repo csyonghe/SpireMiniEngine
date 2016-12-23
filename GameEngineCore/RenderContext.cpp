@@ -482,7 +482,6 @@ namespace GameEngine
 		shaders = EnumerableDictionary<String, RefPtr<Shader>>();
 		pipelineClassCache = EnumerableDictionary<String, RefPtr<PipelineClass>>();
 		textures = EnumerableDictionary<String, RefPtr<Texture2D>>();
-		materials = EnumerableDictionary<String, RefPtr<Material>>();
 	}
 	void RendererSharedResource::UpdateRenderResultFrameBuffer(RenderOutput * output)
 	{

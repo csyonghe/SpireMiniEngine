@@ -21,7 +21,7 @@ namespace GameEngine
 	{
 	private:
 		CoreLib::String shaderSrc = R"(
-			shader ShadowPass : StandardPipeline
+			shader ShadowPass targets StandardPipeline
 			{
 				public using VertexAttributes;
 				[Binding: "0"]
