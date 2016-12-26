@@ -24,7 +24,8 @@ namespace GameEngine
 		CoreLib::RefPtr<CameraActor> CurrentCamera;
 		Level(const CoreLib::String & fileName);
 		~Level();
-		Mesh * LoadMesh(const CoreLib::String & fileName);
+		Mesh * LoadMesh(CoreLib::String fileName);
+		Mesh * LoadMesh(CoreLib::String name, Mesh m);
 		Skeleton * LoadSkeleton(const CoreLib::String & fileName);
 		Material * LoadMaterial(const CoreLib::String & fileName);
 		Material * CreateNewMaterial();

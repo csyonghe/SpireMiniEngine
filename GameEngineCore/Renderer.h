@@ -14,6 +14,13 @@ namespace GameEngine
 	class SceneResource;
 	class Material;
 
+	class RenderStat
+	{
+	public:
+		int NumDrawCalls = 0;
+		int NumPasses = 0;
+	};
+
 	class Renderer : public CoreLib::Object
 	{
 	public:
@@ -21,6 +28,7 @@ namespace GameEngine
 		virtual int RegisterPostRenderPass(PostRenderPass * pass) = 0;
 		virtual void InitializeLevel(Level * level) = 0;
 		virtual void TakeSnapshot() = 0;
+		virtual RenderStat GetStats() = 0;
 		virtual void RenderFrame() = 0;
 		virtual void DestroyContext() = 0;
 		virtual void Resize(int w, int h) = 0;

@@ -12,9 +12,9 @@ namespace GameEngine
 			targetCamera = (CameraActor*)actor;
 	}
 
-	bool FreeRoamCameraControllerActor::ParseField(Level * level, CoreLib::Text::TokenReader & parser, bool & isInvalid)
+	bool FreeRoamCameraControllerActor::ParseField(CoreLib::Text::TokenReader & parser, bool & isInvalid)
 	{
-		if (Actor::ParseField(level, parser, isInvalid))
+		if (Actor::ParseField(parser, isInvalid))
 			return true;
 		if (parser.LookAhead("TargetCamera"))
 		{

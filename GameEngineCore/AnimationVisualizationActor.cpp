@@ -3,9 +3,9 @@
 
 namespace GameEngine
 {
-    bool AnimationVisualizationActor::ParseField(Level * level, CoreLib::Text::TokenReader & parser, bool & isInvalid)
+    bool AnimationVisualizationActor::ParseField(CoreLib::Text::TokenReader & parser, bool & isInvalid)
     {
-        if (Actor::ParseField(level, parser, isInvalid))
+        if (Actor::ParseField(parser, isInvalid))
             return true;
         if (parser.LookAhead("mesh"))
         {

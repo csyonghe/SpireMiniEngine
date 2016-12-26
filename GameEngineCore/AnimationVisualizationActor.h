@@ -17,7 +17,7 @@ namespace GameEngine
         int frameId = 0;
 
     protected:
-        virtual bool ParseField(Level * level, CoreLib::Text::TokenReader & parser, bool &isInvalid) override;
+        virtual bool ParseField(CoreLib::Text::TokenReader & parser, bool &isInvalid) override;
     
     public:
         Mesh * Mesh = nullptr;

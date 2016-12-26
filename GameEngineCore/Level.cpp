@@ -50,7 +50,7 @@ namespace GameEngine
 		Actors[actor->Name] = nullptr;
 		Actors.Remove(actor->Name);
 	}
-	Mesh * Level::LoadMesh(const CoreLib::String & fileName)
+	Mesh * Level::LoadMesh(CoreLib::String fileName)
 	{
 		RefPtr<Mesh> result = nullptr;
 		if (!Meshes.TryGetValue(fileName, result))
@@ -68,6 +68,12 @@ namespace GameEngine
 				return nullptr;
 			}
 		}
+		return result.Ptr();
+	}
+	Mesh * Level::LoadMesh(CoreLib::String name, Mesh m)
+	{
+		RefPtr<Mesh> result = new Mesh(_Move(m));
+		Meshes.Add(_Move(name), result);
 		return result.Ptr();
 	}
 	Skeleton * Level::LoadSkeleton(const CoreLib::String & fileName)
@@ -102,11 +108,13 @@ namespace GameEngine
 				result->LoadFromFile(actualName);
 				Materials[fileName] = result;
 			}
-			else
+			else if (fileName != "Error.material")
 			{
 				Print("error: cannot load material \'%S\'\n", fileName.ToWString());
-				return nullptr;
+				return LoadMaterial("Error.material");
 			}
+			else
+				return nullptr;
 		}
 		return result.Ptr();
 	}

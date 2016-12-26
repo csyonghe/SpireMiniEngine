@@ -10,6 +10,7 @@
 #include "DeviceMemory.h"
 #include "Mesh.h"
 #include "Common.h"
+#include "FrustumCulling.h"
 
 namespace GameEngine
 {
@@ -113,9 +114,12 @@ namespace GameEngine
 		CoreLib::Array<CoreLib::RefPtr<PipelineClass>, MaxWorldRenderPasses> pipelineInstances;
 		CoreLib::RefPtr<ModuleInstance> transformModule;
 	public:
+		CoreLib::Graphics::BBox Bounds;
 		Drawable(SceneResource * sceneRes)
 		{
 			scene = sceneRes;
+			Bounds.Min = VectorMath::Vec3::Create(-1e9f);
+			Bounds.Max = VectorMath::Vec3::Create(1e9f);
 		}
 		inline PipelineClass * GetPipeline(int passId)
 		{
@@ -194,12 +198,13 @@ namespace GameEngine
 		friend class RendererImpl;
 	private:
 		int renderPassId = -1;
+		int numDrawCalls = 0;
 		Viewport viewport;
 		CommandBuffer * commandBuffer = nullptr;
 		RenderOutput * renderOutput = nullptr;
 	public:
 		template<typename TQueryable, typename TEnumerator>
-		void RecordCommandBuffer(const DescriptorSetBindings & passBindings, const CoreLib::Queryable<TQueryable, TEnumerator, Drawable*> & drawables)
+		void RecordCommandBuffer(const DescriptorSetBindings & passBindings, CullFrustum frustum, const CoreLib::Queryable<TQueryable, TEnumerator, Drawable*> & drawables)
 		{
 			renderOutput->GetSize(viewport.Width, viewport.Height);
 			commandBuffer->BeginRecording(renderOutput->GetFrameBuffer());
@@ -207,14 +212,18 @@ namespace GameEngine
 			commandBuffer->ClearAttachments(renderOutput->GetFrameBuffer());
 			for (auto & binding : passBindings.bindings)
 				commandBuffer->BindDescriptorSet(binding.index, binding.descriptorSet);
+			numDrawCalls = 0;
 			for (auto&& obj : drawables)
 			{
+				if (!frustum.IsBoxInFrustum(obj->Bounds))
+					continue;
+				numDrawCalls++;
 				if (auto pipelineInst = obj->GetPipeline(renderPassId))
 				{
 					auto mesh = obj->GetMesh();
+					commandBuffer->BindPipeline(pipelineInst->pipeline.Ptr());
 					commandBuffer->BindIndexBuffer(mesh->indexBuffer.Ptr());
 					commandBuffer->BindVertexBuffer(mesh->vertexBuffer.Ptr());
-					commandBuffer->BindPipeline(pipelineInst->pipeline.Ptr());
 					commandBuffer->BindDescriptorSet(2, obj->GetMaterial()->MaterialModule->Descriptors.Ptr());
 					commandBuffer->BindDescriptorSet(3, obj->GetTransformModule()->Descriptors.Ptr());
 					commandBuffer->DrawIndexed(0, mesh->indexCount);

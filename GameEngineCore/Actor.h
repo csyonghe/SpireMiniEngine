@@ -33,6 +33,7 @@ namespace GameEngine
 	class Actor : public CoreLib::RefObject
 	{
 	protected:
+		Level * level = nullptr;
 		VectorMath::Matrix4 localTransform;
 		int ParseInt(CoreLib::Text::TokenReader & parser);
 		bool ParseBool(CoreLib::Text::TokenReader & parser);
@@ -43,7 +44,7 @@ namespace GameEngine
 		void Serialize(CoreLib::StringBuilder & sb, const VectorMath::Vec4 & v);
 		void Serialize(CoreLib::StringBuilder & sb, const VectorMath::Matrix4 & v);
 
-		virtual bool ParseField(Level * level, CoreLib::Text::TokenReader & parser, bool &isInvalid);
+		virtual bool ParseField(CoreLib::Text::TokenReader & parser, bool &isInvalid);
 		virtual void SerializeFields(CoreLib::StringBuilder & sb);
 	public:
 		CoreLib::String Name;
@@ -54,7 +55,7 @@ namespace GameEngine
 		virtual void OnLoad() {};
 		virtual void OnUnload() {};
 		virtual void RegisterUI(GraphicsUI::UIEntry *) {}
-		virtual void Parse(Level * level, CoreLib::Text::TokenReader & parser, bool & isInvalid);
+		virtual void Parse(Level * plevel, CoreLib::Text::TokenReader & parser, bool & isInvalid);
 		virtual void SerializeToText(CoreLib::StringBuilder & sb);
 		virtual void GetDrawables(const GetDrawablesParameter & /*params*/) {}
 		virtual CoreLib::String GetTypeName() { return "Actor"; }
@@ -68,6 +69,7 @@ namespace GameEngine
 		}
 		Actor()
 		{
+			Bounds.Init();
 			VectorMath::Matrix4::CreateIdentityMatrix(localTransform);
 		}
 		virtual ~Actor() override;

@@ -96,7 +96,7 @@ namespace GameEngine
                     auto childPos = statePos[childState]();
                     if (thisPos.Y == childPos.Y && state.IdInsequence != graph->States[childId].IdInsequence - 1)
                     {
-                        continue;
+                        //continue;
                         Point points[3];
                         points[0] = thisPos;
                         points[1].X = (thisPos.X + childPos.X) / 2;

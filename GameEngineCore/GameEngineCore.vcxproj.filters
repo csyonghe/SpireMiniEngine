@@ -111,6 +111,10 @@
     <ClCompile Include="VulkanAPI\VulkanHardwareRenderer.cpp">
       <Filter>Renderer\RenderAPI\Vulkan API</Filter>
     </ClCompile>
+    <ClCompile Include="FrustumCulling.cpp">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="DrawCallStatForm.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
@@ -218,6 +222,10 @@
     <ClInclude Include="ModuleInstance.h">
       <Filter>Renderer</Filter>
     </ClInclude>
+    <ClInclude Include="FrustumCulling.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="DrawCallStatForm.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Spire">

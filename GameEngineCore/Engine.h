@@ -11,6 +11,7 @@
 #include "UISystem_Windows.h"
 #include "CoreLib/WinForm/Debug.h"
 #include "GraphicsSettings.h"
+#include "DrawCallStatForm.h"
 
 namespace GameEngine
 {
@@ -46,7 +47,7 @@ namespace GameEngine
 		float fixedFrameDuration = 1.0f / 30.0f;
 		unsigned int frameCounter = 0;
 		GraphicsSettings graphicsSettings;
-
+		CoreLib::String levelToLoad;
 	private:
 		bool enableInput = true;
 		CoreLib::Diagnostics::TimePoint startTime, lastGameLogicTime, lastRenderingTime;
@@ -60,8 +61,11 @@ namespace GameEngine
 		CoreLib::RefPtr<RenderTargetLayout> uiFrameBufferLayout;
 		CoreLib::RefPtr<GraphicsUI::UIEntry> uiEntry;
 		GraphicsUI::CommandForm * uiCommandForm = nullptr;
+		DrawCallStatForm * drawCallStatForm = nullptr;
 		CoreLib::RefPtr<GraphicsUI::UIWindowsSystemInterface> uiSystemInterface;
 
+		bool OnToggleConsoleAction(const CoreLib::String & actionName, float val);
+		void RefreshUI();
 		Engine() {};
 		void InternalInit(const EngineInitArguments & args);
 		~Engine();
@@ -105,6 +109,7 @@ namespace GameEngine
 			return uiEntry.Ptr();
 		}
 		Texture2D * GetRenderResult(bool withUI);
+		
 	public:
 		Actor * CreateActor(const CoreLib::String & name);
 		void RegisterActorClass(const CoreLib::String &name, const CoreLib::Func<Actor*> & actorCreator);
@@ -134,10 +139,17 @@ namespace GameEngine
 		static void Print(const char * message, Args... args)
 		{
 			static char printBuffer[32768];
+			static CoreLib::Diagnostics::TimePoint lastUIUpdate = CoreLib::Diagnostics::PerformanceCounter::Start();
 			snprintf(printBuffer, 32768, message, args...);
 			if (instance && instance->uiCommandForm)
 			{
 				instance->uiCommandForm->Write(printBuffer);
+				float timeElapsed = CoreLib::Diagnostics::PerformanceCounter::EndSeconds(lastUIUpdate);
+				if (timeElapsed > 0.2f)
+				{
+					instance->RefreshUI();
+					lastUIUpdate = CoreLib::Diagnostics::PerformanceCounter::Start();
+				}
 			}
 			else
 			{

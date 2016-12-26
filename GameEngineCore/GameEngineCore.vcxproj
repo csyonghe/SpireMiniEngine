@@ -161,11 +161,13 @@
     <ClCompile Include="DeferredLightingPostRenderPass.cpp" />
     <ClCompile Include="DeviceMemory.cpp" />
     <ClCompile Include="DirectionalLightActor.cpp" />
+    <ClCompile Include="DrawCallStatForm.cpp" />
     <ClCompile Include="DynamicVariable.cpp" />
     <ClCompile Include="Engine.cpp" />
     <ClCompile Include="EngineActorClasses.cpp" />
     <ClCompile Include="ForwardBaseRenderPass.cpp" />
     <ClCompile Include="FreeRoamCameraController.cpp" />
+    <ClCompile Include="FrustumCulling.cpp" />
     <ClCompile Include="GBufferRenderPass.cpp" />
     <ClCompile Include="GLAPI\GLHardwareRenderer.cpp" />
     <ClCompile Include="GraphicsSettings.cpp" />
@@ -216,9 +218,11 @@
     <ClInclude Include="Common.h" />
     <ClInclude Include="DeviceMemory.h" />
     <ClInclude Include="DirectionalLightActor.h" />
+    <ClInclude Include="DrawCallStatForm.h" />
     <ClInclude Include="DynamicVariable.h" />
     <ClInclude Include="Engine.h" />
     <ClInclude Include="FreeRoamCameraController.h" />
+    <ClInclude Include="FrustumCulling.h" />
     <ClInclude Include="GraphicsSettings.h" />
     <ClInclude Include="HardwareInputInterface.h" />
     <ClInclude Include="HardwareRenderer.h" />

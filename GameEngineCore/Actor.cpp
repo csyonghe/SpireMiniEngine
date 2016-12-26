@@ -31,7 +31,11 @@ namespace GameEngine
 		Vec3 rs;
 		parser.Read("[");
 		rs.x = (float)parser.ReadDouble();
+		if (parser.LookAhead(","))
+			parser.ReadToken();
 		rs.y = (float)parser.ReadDouble();
+		if (parser.LookAhead(","))
+			parser.ReadToken();
 		rs.z = (float)parser.ReadDouble();
 		parser.Read("]");
 		return rs;
@@ -40,9 +44,15 @@ namespace GameEngine
 	{
 		Vec4 rs;
 		parser.Read("[");
-		rs.x = (float)parser.ReadDouble();
+		rs.x = (float)parser.ReadDouble(); 
+		if (parser.LookAhead(","))
+			parser.ReadToken();
 		rs.y = (float)parser.ReadDouble();
+		if (parser.LookAhead(","))
+			parser.ReadToken();
 		rs.z = (float)parser.ReadDouble();
+		if (parser.LookAhead(","))
+			parser.ReadToken();
 		rs.w = (float)parser.ReadDouble();
 		parser.Read("]");
 		return rs;
@@ -52,7 +62,11 @@ namespace GameEngine
 		Matrix4 rs;
 		parser.Read("[");
 		for (int i = 0; i < 16; i++)
+		{
 			rs.values[i] = (float)parser.ReadDouble();
+			if (parser.LookAhead(","))
+				parser.ReadToken();
+		}
 		parser.Read("]");
 		return rs;
 	}
@@ -81,7 +95,7 @@ namespace GameEngine
 		sb << "]";
 	}
 
-	bool Actor::ParseField(Level * level, CoreLib::Text::TokenReader & parser, bool &)
+	bool Actor::ParseField(CoreLib::Text::TokenReader & parser, bool &)
 	{
 		if (parser.LookAhead("name"))
 		{
@@ -122,13 +136,14 @@ namespace GameEngine
 			comp->SerializeToText(sb);
 		}
 	}
-	void Actor::Parse(Level * level, CoreLib::Text::TokenReader & parser, bool & isInvalid)
+	void Actor::Parse(Level * plevel, CoreLib::Text::TokenReader & parser, bool & isInvalid)
 	{
+		level = plevel;
 		parser.ReadToken(); // skip class name
 		parser.Read("{");
 		while (!parser.IsEnd() && !parser.LookAhead("}"))
 		{
-			if (!ParseField(level, parser, isInvalid))
+			if (!ParseField(parser, isInvalid))
 				throw CoreLib::Text::TextFormatException("invalid level syntax at " + parser.NextToken().Position.ToString());
 		}
 		parser.Read("}");

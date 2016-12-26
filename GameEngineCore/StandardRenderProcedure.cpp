@@ -5,7 +5,7 @@
 #include "RenderPassRegistry.h"
 #include "DirectionalLightActor.h"
 #include "AtmosphereActor.h"
-#include "CoreLib/Graphics/ViewFrustum.h"
+#include "FrustumCulling.h"
 
 namespace GameEngine
 {
@@ -211,12 +211,13 @@ namespace GameEngine
 					atmospherePass->SetParameters(&atmosphere->Parameters, sizeof(atmosphere->Parameters));
 				}
 			}
+			float aspect = w / (float)h;
 			if (camera)
 			{
 				int shadowMapSize = Engine::Instance()->GetGraphicsSettings().ShadowMapResolution;
 				float zmin = camera->ZNear;
-				float aspect = w / (float)h;
 				int shadowMapViewInstancePtr = 0;
+				auto camFrustum = camera->GetFrustum(aspect);
 				for (auto dirLight : directionalLights)
 				{
 					LightUniforms lightData;
@@ -248,8 +249,7 @@ namespace GameEngine
 								float iOverN = (i+1) / (float)dirLight->NumShadowCascades;
 								float zi = dirLight->TransitionFactor * zmin * pow(zmax / zmin, iOverN) + (1.0f - dirLight->TransitionFactor)*(zmin + (iOverN)*(zmax - zmin));
 								lightData.zPlanes[i] = zi;
-								auto frustum = camera->GetFrustum(aspect);
-								auto verts = frustum.GetVertices(zmin, zi);
+								auto verts = camFrustum.GetVertices(zmin, zi);
 								float d1 = (verts[0] - verts[2]).Length2() * 0.25f;
 								float d2 = (verts[4] - verts[6]).Length2() * 0.25f;
 								float f = zi - zmin;
@@ -265,9 +265,28 @@ namespace GameEngine
 								transformedCorner.x = Math::FastFloor(transformedCorner.x / texelSize) * texelSize;
 								transformedCorner.y = Math::FastFloor(transformedCorner.y / texelSize) * texelSize;
 								transformedCorner.z = Math::FastFloor(transformedCorner.z / texelSize) * texelSize;
+
+								Vec3 levelBoundMax = levelBounds.Max;
+								Vec3 levelBoundMin = levelBounds.Min;
+								if (dirLight->Direction.x > 0)
+								{
+									levelBoundMax.x = levelBounds.Min.x;
+									levelBoundMin.x = levelBounds.Max.x;
+								}
+								if (dirLight->Direction.y > 0)
+								{
+									levelBoundMax.y = levelBounds.Min.y;
+									levelBoundMin.y = levelBounds.Max.y;
+								}
+								if (dirLight->Direction.z > 0)
+								{
+									levelBoundMax.z = levelBounds.Min.z;
+									levelBoundMin.z = levelBounds.Max.z;
+								}
 								Matrix4 projMatrix;
 								Matrix4::CreateOrthoMatrix(projMatrix, transformedCorner.x, transformedCorner.x + viewSize,
-									transformedCorner.y + viewSize, transformedCorner.y, -Vec3::Dot(dirLight->Direction, dirLightPos), 2000.0f, ClipSpaceType::ZeroToOne);
+									transformedCorner.y + viewSize, transformedCorner.y, -Vec3::Dot(dirLight->Direction, levelBoundMin), 
+									-Vec3::Dot(dirLight->Direction, levelBoundMax), ClipSpaceType::ZeroToOne);
 
 								Matrix4::Multiply(shadowMapView.ViewProjectionTransform, projMatrix, shadowMapView.ViewTransform);
 
@@ -299,7 +318,7 @@ namespace GameEngine
 								}
 								bindings.Bind(0, shadowMapPassInstance->Descriptors.Ptr());
 								shadowMapPassInstance->SetUniformData(&shadowMapView, sizeof(shadowMapView));
-								pass.RecordCommandBuffer(bindings, From(sink.GetDrawables()));
+								pass.RecordCommandBuffer(bindings, CullFrustum(shadowMapView.InvViewProjTransform), From(sink.GetDrawables()));
 								renderPasses.Add(pass);
 							}
 						}
@@ -316,13 +335,13 @@ namespace GameEngine
 
 			if (deferred)
 			{
-				gBufferInstance.RecordCommandBuffer(bindings, From(sink.GetDrawables()));
+				gBufferInstance.RecordCommandBuffer(bindings, CullFrustum(camera->GetFrustum(aspect)), From(sink.GetDrawables()));
 				renderPasses.Add(gBufferInstance);
 				postPasses.Add(deferredLightingPass);
 			}
 			else
 			{
-				forwardBaseInstance.RecordCommandBuffer(bindings, From(sink.GetDrawables()));
+				forwardBaseInstance.RecordCommandBuffer(bindings, CullFrustum(camera->GetFrustum(aspect)), From(sink.GetDrawables()));
 				renderPasses.Add(forwardBaseInstance);
 			}
 			if (useAtmosphere)

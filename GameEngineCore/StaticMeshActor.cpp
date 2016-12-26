@@ -1,19 +1,44 @@
 #include "StaticMeshActor.h"
 #include "Level.h"
 #include "Engine.h"
+#include "MeshBuilder.h"
 
 namespace GameEngine
 {
-	bool StaticMeshActor::ParseField(Level * level, CoreLib::Text::TokenReader & parser, bool & isInvalid)
+	bool StaticMeshActor::ParseField(CoreLib::Text::TokenReader & parser, bool & isInvalid)
 	{
-		if (Actor::ParseField(level, parser, isInvalid))
+		if (Actor::ParseField(parser, isInvalid))
 			return true;
 		if (parser.LookAhead("mesh"))
 		{
 			parser.ReadToken();
-			MeshName = parser.ReadStringLiteral();
-			Mesh = level->LoadMesh(MeshName);
-			Bounds = Mesh->Bounds;
+			if (parser.LookAhead("{"))
+			{
+				static int meshCounter = 0;
+				MeshBuilder mb;
+				parser.ReadToken();
+				while (!parser.LookAhead("}"))
+				{
+					parser.Read("box");
+					float x0 = parser.ReadFloat();
+					float y0 = parser.ReadFloat();
+					float z0 = parser.ReadFloat();
+
+					float x1 = parser.ReadFloat();
+					float y1 = parser.ReadFloat();
+					float z1 = parser.ReadFloat();
+
+					mb.AddBox(Vec3::Create(x0, y0, z0), Vec3::Create(x1, y1, z1));
+				}
+				parser.Read("}");
+				Mesh = level->LoadMesh("immMesh" + String(meshCounter++), mb.ToMesh());
+			}
+			else
+			{
+				MeshName = parser.ReadStringLiteral();
+				Mesh = level->LoadMesh(MeshName);
+				Bounds = Mesh->Bounds;
+			}
 			if (!Mesh)
 			{
 				isInvalid = true;
@@ -41,6 +66,11 @@ namespace GameEngine
 		return false;
 	}
 
+	void StaticMeshActor::OnLoad()
+	{
+		SetLocalTransform(localTransform); // update bbox
+	}
+
 	void StaticMeshActor::GetDrawables(const GetDrawablesParameter & params)
 	{
 		if (!drawable)
@@ -50,6 +80,7 @@ namespace GameEngine
 			drawable->UpdateTransformUniform(localTransform);
 			localTransformChanged = false;
 		}
+		drawable->Bounds = Bounds;
 		params.sink->AddDrawable(drawable.Ptr());
 	}
 

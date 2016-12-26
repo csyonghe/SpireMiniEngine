@@ -78,7 +78,7 @@ namespace GameEngine
 using namespace GameEngine;
 using namespace CoreLib::WinForm;
 
-#define COMMAND true
+#define COMMAND false
 #define WINDOWED !COMMAND
 
 String RemoveQuote(String dir)
@@ -89,6 +89,8 @@ String RemoveQuote(String dir)
 }
 
 void RegisterTestUserActor();
+
+#include "FrustumCulling.h"
 
 #if COMMAND
 int wmain(int /*argc*/, const wchar_t ** /*argv*/)
@@ -103,8 +105,26 @@ int wWinMain(
 {
 	Application::Init();
 	{
+
+		{
+			CoreLib::Graphics::ViewFrustum frustum;
+			frustum.CamPos.SetZero();
+			frustum.CamDir = Vec3::Create(0.0f, 0.0f, -1.0f);
+			frustum.CamUp = Vec3::Create(0.0f, 1.0f, 0.0f);
+			frustum.FOV = 75.0f;
+			frustum.Aspect = 1.0f;
+			frustum.zMin = 1.0f;
+			frustum.zMax = 1000.0f;
+			auto cf = CullFrustum(frustum);
+			CoreLib::Graphics::BBox box;
+			box.Min = Vec3::Create(0.0f, 0.0f, -500.0f);
+			box.Max = Vec3::Create(20.0f, 20.0f, -450.0f);
+			bool testRs = cf.IsBoxInFrustum(box);
+		}
+
 		EngineInitArguments args;
 		VideoRecordingParameters videoRecParams;
+
 
 		args.API = RenderAPI::OpenGL;
 		args.GpuId = 0;

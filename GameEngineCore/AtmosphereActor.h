@@ -16,13 +16,14 @@ namespace GameEngine
 		}
 		AtmosphereActor()
 		{
+			Bounds.Init();
 		}
 		virtual EngineActorType GetEngineType() override
 		{
 			return EngineActorType::Atmosphere;
 		}
 	protected:
-		virtual bool ParseField(Level * level, CoreLib::Text::TokenReader & parser, bool &isInvalid) override;
+		virtual bool ParseField(CoreLib::Text::TokenReader & parser, bool &isInvalid) override;
 
 	};
 }

@@ -1164,37 +1164,66 @@ namespace GLL
 	{
 	private:
 		int lastAttribCount = 0;
-	public:
-		void SetIndex(BufferObject indices)
+		GLuint lastBoundVBO = 0;
+		struct AttribState
 		{
-			//glVertexArrayElementBuffer(Handle, indices->Handle);
+			bool activated = false;
+			DataType dataType;
+			int vertSize = 0, ptr = 0, divisor = 0;
+		};
+		AttribState attribStates[32];
+	public:
+		void SetIndex(const BufferObject & indices)
+		{
 			glBindVertexArray(Handle);
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices.Handle);
-			glBindVertexArray(0);
 		}
-		void SetVertex(BufferObject vertices, ArrayView<VertexAttributeDesc> attribs, int vertSize, int startId = 0, int instanceDivisor = 0)
+		void SetVertex(const BufferObject & vertices, ArrayView<VertexAttributeDesc> attribs, int vertSize, int startId = 0, int instanceDivisor = 0)
 		{
+			bool bufferChanged = false;
 			glBindVertexArray(Handle);
-			glBindBuffer(GL_ARRAY_BUFFER, vertices.Handle);
-			for (int i = 0; i < lastAttribCount; i++)
+			if (lastBoundVBO != vertices.Handle)
+			{
+				glBindBuffer(GL_ARRAY_BUFFER, vertices.Handle);
+				lastBoundVBO = vertices.Handle;
+				bufferChanged = true;
+			}
+			for (int i = attribs.Count(); i < lastAttribCount; i++)
+			{
 				glDisableVertexAttribArray(i);
+				attribStates[i].activated = false;
+				attribStates[i].ptr = -1;
+				attribStates[i].divisor = -1;
+			}
 			for (int i = 0; i < attribs.Count(); i++)
 			{
-				//glVertexArrayVertexBuffer(Handle, i, ((GL_BufferObject*)vertices)->Handle, attribs[i].StartOffset, vertSize);
-				//glVertexArrayAttribFormat(Handle, i, GetDataTypeComponenets(attribs[i].Type), TranslateDataTypeToInputType(attribs[i].Type), attribs[i].Normalized, attribs[i].StartOffset);
 				int id = i + startId;
-				if (attribs[i].Location != -1)
-					id = attribs[i].Location;
-				glEnableVertexAttribArray(id);
-				if (attribs[i].Type == DataType::Int || attribs[i].Type == DataType::Int2 || attribs[i].Type == DataType::Int3 || attribs[i].Type == DataType::Int4
-					|| attribs[i].Type == DataType::UInt)
-					glVertexAttribIPointer(id, GetDataTypeComponenets(attribs[i].Type), TranslateDataTypeToInputType(attribs[i].Type), vertSize, (void*)(CoreLib::PtrInt)attribs[i].StartOffset);
-				else
-					glVertexAttribPointer(id, GetDataTypeComponenets(attribs[i].Type), TranslateDataTypeToInputType(attribs[i].Type), attribs[i].Normalized, vertSize, (void*)(CoreLib::PtrInt)attribs[i].StartOffset);
-				glVertexAttribDivisor(id, instanceDivisor);
+				auto & attrib = attribs[i];
+				if (attrib.Location != -1)
+					id = attrib.Location;
+				if (!attribStates[id].activated)
+				{
+					glEnableVertexAttribArray(id);
+					attribStates[id].activated = true;
+				}
+				if (bufferChanged || attribStates[id].dataType != attrib.Type || attribStates[id].vertSize != vertSize ||
+					attribStates[id].ptr != attrib.StartOffset)
+				{
+					if (attrib.Type == DataType::Int || attrib.Type == DataType::Int2 || attrib.Type == DataType::Int3 || attrib.Type == DataType::Int4
+						|| attrib.Type == DataType::UInt)
+						glVertexAttribIPointer(id, GetDataTypeComponenets(attrib.Type), TranslateDataTypeToInputType(attrib.Type), vertSize, (void*)(CoreLib::PtrInt)attrib.StartOffset);
+					else
+						glVertexAttribPointer(id, GetDataTypeComponenets(attrib.Type), TranslateDataTypeToInputType(attrib.Type), attrib.Normalized, vertSize, (void*)(CoreLib::PtrInt)attrib.StartOffset);
+					attribStates[id].dataType = attrib.Type;
+					attribStates[id].vertSize = vertSize;
+					attribStates[id].ptr = attribs[i].StartOffset;
+				}
+				if (attribStates[id].divisor != instanceDivisor)
+				{
+					glVertexAttribDivisor(id, instanceDivisor);
+					attribStates[id].divisor = instanceDivisor;
+				}
 			}
-
-			glBindVertexArray(0);
 			lastAttribCount = attribs.Count() + startId;
 		}
 	};
@@ -1726,10 +1755,8 @@ namespace GLL
 	class CommandData
 	{
 	public:
-		CommandData() {}
-		~CommandData() {}
-
 		Command command;
+		CommandData() {}
 		union
 		{
 			SetViewportData viewport;
@@ -1771,14 +1798,14 @@ namespace GLL
 		{
 			CommandData data;
 			data.command = Command::BindVertexBuffer;
-			data.vertexBuffer = dynamic_cast<BufferObject*>(vertexBuffer);
+			data.vertexBuffer = reinterpret_cast<BufferObject*>(vertexBuffer);
 			buffer.Add(data);
 		}
 		virtual void BindIndexBuffer(GameEngine::Buffer* indexBuffer) override
 		{
 			CommandData data;
 			data.command = Command::BindIndexBuffer;
-			data.indexBuffer = dynamic_cast<BufferObject*>(indexBuffer);
+			data.indexBuffer = reinterpret_cast<BufferObject*>(indexBuffer);
 			buffer.Add(data);
 		}
 		virtual void BindPipeline(GameEngine::Pipeline* pipeline) override
@@ -1894,6 +1921,15 @@ namespace GLL
 		VertexArray currentVAO;
 		FrameBuffer srcFrameBuffer;
 		FrameBuffer dstFrameBuffer;
+		struct BufferBindState
+		{
+			GLuint buffer = 0;
+			int start = 0;
+			int length = -1;
+		};
+		BufferBindState bufferBindState[4][64];
+		GLuint textureBindState[160];
+		GLuint samplerBindState[160];
 	private:
 		void FindExtensionSubstitutes()
 		{
@@ -1917,6 +1953,11 @@ namespace GLL
 			hwnd = 0;
 			hdc = 0;
 			hrc = 0;
+			for (int i = 0; i < 160; i++)
+			{
+				textureBindState[i] = 0;
+				samplerBindState[i] = 0;
+			}
 		}
 		~HardwareRenderer()
 		{
@@ -2094,7 +2135,7 @@ namespace GLL
 			// Execute command buffer
 			
 			Pipeline * currentPipeline = nullptr;
-			BufferObject* currentVertexBuffer = nullptr;
+			BufferObject* currentVertexBuffer = nullptr, *currentIndexBuffer = nullptr;
 			PrimitiveType primType = PrimitiveType::Triangles;
 			Array<DescriptorSet*, 32> boundDescSets;
 			boundDescSets.SetSize(boundDescSets.GetCapacity());
@@ -2129,16 +2170,16 @@ namespace GLL
 							else if (layout.Type == BindingType::UniformBuffer && (desc.Type == BindingType::UniformBuffer || desc.Type == BindingType::StorageBuffer))
 							{
 								if (desc.Offset == 0 && desc.Length == -1)
-									BindBuffer(BufferType::UniformBuffer, layout.BindingPoints.First(), *desc.binding.buffer);
+									BindBuffer(BufferType::UniformBuffer, layout.BindingPoints.First(), desc.binding.buffer->Handle);
 								else
-									BindBuffer(BufferType::UniformBuffer, layout.BindingPoints.First(), *desc.binding.buffer, desc.Offset, desc.Length);
+									BindBuffer(BufferType::UniformBuffer, layout.BindingPoints.First(), desc.binding.buffer->Handle, desc.Offset, desc.Length);
 							}
 							else if (layout.Type == BindingType::StorageBuffer && (desc.Type == BindingType::UniformBuffer || desc.Type == BindingType::StorageBuffer))
 							{
 								if (desc.Offset == 0 && desc.Length == -1)
-									BindBuffer(BufferType::StorageBuffer, layout.BindingPoints.First(), *desc.binding.buffer);
+									BindBuffer(BufferType::StorageBuffer, layout.BindingPoints.First(), desc.binding.buffer->Handle);
 								else
-									BindBuffer(BufferType::StorageBuffer, layout.BindingPoints.First(), *desc.binding.buffer, desc.Offset, desc.Length);
+									BindBuffer(BufferType::StorageBuffer, layout.BindingPoints.First(), desc.binding.buffer->Handle, desc.Offset, desc.Length);
 							}
 							else
 								throw HardwareRendererException("descriptor type does not match descriptor layout description");
@@ -2159,49 +2200,58 @@ namespace GLL
 						break;
 					case Command::BindVertexBuffer:
 					{
-						currentVertexBuffer = command.vertexBuffer;
+						if (currentVertexBuffer != command.vertexBuffer)
+						{
+							currentVertexBuffer = command.vertexBuffer;
+							currentVAO.SetVertex(*currentVertexBuffer, currentPipeline->settings.format.Attributes.GetArrayView(), currentPipeline->settings.format.Size(), 0, 0);
+						}
 						break;
 					}
 					case Command::BindIndexBuffer:
-						currentVAO.SetIndex(*command.indexBuffer);
+						if (currentIndexBuffer != command.indexBuffer)
+						{
+							currentIndexBuffer = command.indexBuffer;
+							currentVAO.SetIndex(*command.indexBuffer);
+						}
 						break;
 					case Command::BindPipeline:
 					{
-						auto & pipelineSettings = command.pipelineData.pipeline->settings;
-						currentPipeline = command.pipelineData.pipeline;
-						pipelineSettings.program.Use();
-						if (currentVertexBuffer == nullptr) throw HardwareRendererException("For OpenGL, must BindVertexBuffer before BindPipeline.");
-						currentVAO.SetVertex(*currentVertexBuffer, pipelineSettings.format.Attributes.GetArrayView(), pipelineSettings.format.Size(), 0, 0);
-						primType = pipelineSettings.primitiveType;
-						if (pipelineSettings.primitiveRestart)
+						if (currentPipeline != command.pipelineData.pipeline)
 						{
-							glEnable(GL_PRIMITIVE_RESTART);
-							glPrimitiveRestartIndex(0xFFFFFFFF);
+							currentPipeline = command.pipelineData.pipeline;
+							auto & pipelineSettings = command.pipelineData.pipeline->settings;
+							pipelineSettings.program.Use();
+							primType = pipelineSettings.primitiveType;
+							if (pipelineSettings.primitiveRestart)
+							{
+								glEnable(GL_PRIMITIVE_RESTART);
+								glPrimitiveRestartIndex(0xFFFFFFFF);
+							}
+							else
+							{
+								glDisable(GL_PRIMITIVE_RESTART);
+							}
+							if (pipelineSettings.primitiveType == PrimitiveType::Patches)
+								glPatchParameteri(GL_PATCH_VERTICES, pipelineSettings.patchSize);
+							if (pipelineSettings.enablePolygonOffset)
+							{
+								glEnable(GL_POLYGON_OFFSET_FILL);
+								glPolygonOffset(pipelineSettings.polygonOffsetFactor, pipelineSettings.polygonOffsetUnits);
+							}
+							else
+								glDisable(GL_POLYGON_OFFSET_FILL);
+							SetZTestMode(pipelineSettings.DepthCompareFunc);
+							SetBlendMode(pipelineSettings.BlendMode);
+							StencilMode smode;
+							smode.DepthFail = pipelineSettings.StencilDepthFailOp;
+							smode.DepthPass = pipelineSettings.StencilDepthPassOp;
+							smode.Fail = pipelineSettings.StencilFailOp;
+							smode.StencilFunc = pipelineSettings.StencilCompareFunc;
+							smode.StencilMask = pipelineSettings.StencilMask;
+							smode.StencilReference = pipelineSettings.StencilReference;
+							SetStencilMode(smode);
+							SetCullMode(pipelineSettings.CullMode);
 						}
-						else
-						{
-							glDisable(GL_PRIMITIVE_RESTART);
-						}
-						if (pipelineSettings.primitiveType == PrimitiveType::Patches)
-							glPatchParameteri(GL_PATCH_VERTICES, pipelineSettings.patchSize);
-						if (pipelineSettings.enablePolygonOffset)
-						{
-							glEnable(GL_POLYGON_OFFSET_FILL);
-							glPolygonOffset(pipelineSettings.polygonOffsetFactor, pipelineSettings.polygonOffsetUnits);
-						}
-						else
-							glDisable(GL_POLYGON_OFFSET_FILL);
-						SetZTestMode(pipelineSettings.DepthCompareFunc);
-						SetBlendMode(pipelineSettings.BlendMode);
-						StencilMode smode;
-						smode.DepthFail = pipelineSettings.StencilDepthFailOp;
-						smode.DepthPass = pipelineSettings.StencilDepthPassOp;
-						smode.Fail = pipelineSettings.StencilFailOp;
-						smode.StencilFunc = pipelineSettings.StencilCompareFunc;
-						smode.StencilMask = pipelineSettings.StencilMask;
-						smode.StencilReference = pipelineSettings.StencilReference;
-						SetStencilMode(smode);
-						SetCullMode(pipelineSettings.CullMode);
 						break;
 					}
 					case Command::BindDescriptorSet:
@@ -2210,22 +2260,18 @@ namespace GLL
 						break;
 					}
 					case Command::Draw:
-						glBindVertexArray(currentVAO.Handle);
 						updateBindings();
 						glDrawArrays((GLenum)primType, command.draw.first, command.draw.count);
 						break;
 					case Command::DrawInstanced:
-						glBindVertexArray(currentVAO.Handle);
 						updateBindings();
 						glDrawArraysInstanced((GLenum)primType, command.draw.first, command.draw.count, command.draw.instances);
 						break;
 					case Command::DrawIndexed:
-						glBindVertexArray(currentVAO.Handle);
 						updateBindings();
 						glDrawElements((GLenum)primType, command.draw.count, GL_UNSIGNED_INT, (void*)(CoreLib::PtrInt)(command.draw.first * 4));
 						break;
 					case Command::DrawIndexedInstanced:
-						glBindVertexArray(currentVAO.Handle);
 						updateBindings();
 						glDrawElementsInstanced((GLenum)primType, command.draw.count, GL_UNSIGNED_INT, (void*)(CoreLib::PtrInt)(command.draw.first * 4), command.draw.instances);
 						break;
@@ -2357,14 +2403,34 @@ namespace GLL
 			if (stencil) bitmask |= GL_STENCIL_BUFFER_BIT;
 			glClear(bitmask);
 		}
-		void BindBuffer(BufferType bufferType, int index, BufferObject buffer)
+
+
+		void BindBuffer(BufferType bufferType, int index, GLuint buffer)
 		{
-			glBindBufferBase(TranslateBufferType(bufferType), index, buffer.Handle);
+			auto & state = bufferBindState[(int)bufferType][index];
+			if (state.buffer != buffer ||
+				state.start != 0 || state.length != -1)
+			{
+				glBindBufferBase(TranslateBufferType(bufferType), index, buffer);
+				state.buffer = buffer;
+				state.start = 0;
+				state.length = -1;
+			}
 		}
-		void BindBuffer(BufferType bufferType, int index, BufferObject buffer, int start, int count)
+		void BindBuffer(BufferType bufferType, int index, GLuint buffer, int start, int count)
 		{
-			if (count > 0) 
-				glBindBufferRange(TranslateBufferType(bufferType), index, buffer.Handle, start, count);
+			if (count > 0)
+			{
+				auto & state = bufferBindState[(int)bufferType][index];
+				if (state.buffer != buffer ||
+					state.start != start || state.length != count)
+				{
+					glBindBufferRange(TranslateBufferType(bufferType), index, buffer, start, count);
+					state.buffer = buffer;
+					state.start = start;
+					state.length = count;
+				}
+			}
 		}
 		void BindBufferAddr(BufferType bufferType, int index, uint64_t addr, int length)
 		{
@@ -3054,57 +3120,22 @@ namespace GLL
 		}
 		void UseTexture(int channel, const Texture &tex)
 		{
-			glActiveTexture(GL_TEXTURE0 + channel);
-			glBindTexture(tex.BindTarget, tex.Handle);
-		}
-		void UseSampler(int channel, TextureSampler sampler)
-		{
-			glActiveTexture(GL_TEXTURE0 + channel);
-			glBindSampler(channel, sampler.Handle);
-		}
-		void UseTextures(ArrayView<Texture> textures, TextureSampler sampler)
-		{
-			for (int i = 0; i < textures.Count(); i++)
+			if (textureBindState[channel] != tex.Handle)
 			{
-				glActiveTexture(GL_TEXTURE0 + i);
-				glBindTexture(textures[i].BindTarget, textures[i].Handle);
-				glBindSampler(i, sampler.Handle);
+				glActiveTexture(GL_TEXTURE0 + channel);
+				glBindTexture(tex.BindTarget, tex.Handle);
+				textureBindState[channel] = tex.Handle;
 			}
 		}
-		void UseTextures(ArrayView<Texture> textures, ArrayView<TextureSampler> samplers)
+		void UseSampler(int channel, const TextureSampler &sampler)
 		{
-			for (int i = 0; i < textures.Count(); i++)
+			if (samplerBindState[channel] != sampler.Handle)
 			{
-				glActiveTexture(GL_TEXTURE0 + i);
-				glBindTexture(textures[i].BindTarget, textures[i].Handle);
-				glBindSampler(i, samplers[i].Handle);
-			}
-			/*for (auto tex : textures)
-			{
-				glMakeTextureHandleResidentARB(((GL_Texture*)tex)->TextureHandle);
-			}*/
-		}
-		void FinishUsingTextures(ArrayView<Texture> textures)
-		{
-			for (int i = 0; i < textures.Count(); i++)
-			{
-				glActiveTexture(GL_TEXTURE0 + i);
-				glBindTexture(textures[i].BindTarget, 0);
-				glBindSampler(i, 0);
-			}
-			/*for (auto tex : textures)
-			{
-				glMakeTextureHandleNonResidentARB(((GL_Texture*)tex)->TextureHandle);
-			}*/
-		}
-		void BindShaderBuffers(ArrayView<BufferObject> buffers)
-		{
-			for (int i = 0; i < buffers.Count(); i++)
-			{
-				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, buffers[i].Handle);
+				glActiveTexture(GL_TEXTURE0 + channel);
+				glBindSampler(channel, sampler.Handle);
+				samplerBindState[channel] = sampler.Handle;
 			}
 		}
-
 		int UniformBufferAlignment() override
 		{
 			GLint uniformBufferAlignment;

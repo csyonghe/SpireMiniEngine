@@ -77,9 +77,9 @@ namespace GameEngine
 		result.zMax = ZFar;
 		return result;
 	}
-	bool CameraActor::ParseField(Level * level, CoreLib::Text::TokenReader & parser, bool & isInvalid)
+	bool CameraActor::ParseField(CoreLib::Text::TokenReader & parser, bool & isInvalid)
 	{
-		if (Actor::ParseField(level, parser, isInvalid))
+		if (Actor::ParseField(parser, isInvalid))
 			return true;
 		if (parser.LookAhead("position"))
 		{

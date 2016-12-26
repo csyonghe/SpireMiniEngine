@@ -135,11 +135,13 @@ namespace GameEngine
     Mesh MeshBuilder::ToMesh()
     {
         Mesh rs;
+		rs.Bounds.Init();
         rs.SetVertexFormat(MeshVertexFormat(0, 1, true, false));
         rs.AllocVertexBuffer(vertices.Count());
         for (int i = 0; i < vertices.Count(); i++)
         {
             auto v = vertices[i];
+			rs.Bounds.Union(v.pos);
             Vec3 binormal = Vec3::Cross(v.tangent, v.normal).Normalize();
             Quaternion q = Quaternion::FromCoordinates(v.tangent, v.normal, binormal);
             rs.SetVertexPosition(i, v.pos);

@@ -63,6 +63,8 @@ namespace GameEngine
 				key = SpecialKeys::Enter;
 			else if (ch == "SHIFT")
 				key = SpecialKeys::Shift;
+			else if (ch == "`")
+				key = SpecialKeys::Tilda;
 			if (isAxis)
 				keyboardAxisMappings[key] = mapVal;
 			else

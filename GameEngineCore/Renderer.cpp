@@ -96,7 +96,7 @@ namespace GameEngine
 		List<RenderPassInstance> renderPassInstances;
 		List<PostRenderPass*> postPassInstances;
 		HardwareRenderer * hardwareRenderer = nullptr;
-
+		RenderStat renderStats;
 		Level* level = nullptr;
 
 		int uniformBufferAlignment = 256;
@@ -193,13 +193,20 @@ namespace GameEngine
 				return;
 			RunRenderProcedure();
 		}
+		virtual RenderStat GetStats() override
+		{
+			return renderStats;
+		}
 		virtual void RenderFrame() override
 		{
 			if (!level) return;
-
+			renderStats.NumDrawCalls = 0;
+			renderStats.NumPasses = 0;
 			for (auto & pass : renderPassInstances)
 			{
 				hardwareRenderer->ExecuteCommandBuffers(pass.renderOutput->GetFrameBuffer(), MakeArrayView(pass.commandBuffer));
+				renderStats.NumPasses++;
+				renderStats.NumDrawCalls += pass.numDrawCalls;
 			}
 
 			for (auto pass : postPassInstances)

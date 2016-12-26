@@ -704,6 +704,7 @@ namespace VectorMath
 		inline void TransposeTransformNormal(Vec3 & rs, const Vec3 & vIn) const;
 		inline void TransposeTransform(Vec3 & rs, const Vec3 & vIn) const;
 		inline void TransposeTransform(Vec4 & rs_d, const Vec4& vIn) const;
+		inline Vec3 TransformHomogeneous(const Vec3 & vIn) const;
 		inline void TransformHomogeneous(Vec3 & rs, const Vec3 & vIn) const;
 		inline void TransformHomogeneous2D(Vec2 & rs, const Vec3 & vIn) const;
 		static inline void MultiplyFPU(Matrix4 &mOut, const Matrix4& M1, const Matrix4& M2);
@@ -1028,6 +1029,18 @@ namespace VectorMath
 		rs.x = m[0][0] * vIn.x + m[1][0] * vIn.y + m[2][0] * vIn.z + m[3][0];
 		rs.y = m[0][1] * vIn.x + m[1][1] * vIn.y + m[2][1] * vIn.z + m[3][1];
 		rs.z = m[0][2] * vIn.x + m[1][2] * vIn.y + m[2][2] * vIn.z + m[3][2];
+	}
+	inline Vec3 Matrix4::TransformHomogeneous(const Vec3 & vIn) const
+	{
+		Vec3 rs;
+		rs.x = m[0][0] * vIn.x + m[1][0] * vIn.y + m[2][0] * vIn.z + m[3][0];
+		rs.y = m[0][1] * vIn.x + m[1][1] * vIn.y + m[2][1] * vIn.z + m[3][1];
+		rs.z = m[0][2] * vIn.x + m[1][2] * vIn.y + m[2][2] * vIn.z + m[3][2];
+		float w = 1.0f / (m[0][3] * vIn.x + m[1][3] * vIn.y + m[2][3] * vIn.z + m[3][3]);
+		rs.x *= w;
+		rs.y *= w;
+		rs.z *= w;
+		return rs;
 	}
 	inline void Matrix4::TransformHomogeneous(Vec3 & rs, const Vec3 & vIn) const
 	{

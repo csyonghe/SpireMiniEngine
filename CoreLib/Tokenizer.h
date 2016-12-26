@@ -154,7 +154,7 @@ namespace CoreLib
 					else
 						return StringToInt(token.Content);
 				}
-				throw TextFormatException("Text parsing error: int expected.");
+				throw TextFormatException("Text parsing error: int expected at " + token.Position.ToString() + ".");
 			}
 			unsigned int ReadUInt()
 			{
@@ -163,7 +163,7 @@ namespace CoreLib
 				{
 					return StringToUInt(token.Content);
 				}
-				throw TextFormatException("Text parsing error: int expected.");
+				throw TextFormatException("Text parsing error: int expected at " + token.Position.ToString() + ".");
 			}
 			double ReadDouble()
 			{
@@ -181,7 +181,7 @@ namespace CoreLib
 					else
 						return StringToDouble(token.Content);
 				}
-				throw TextFormatException("Text parsing error: floating point value expected.");
+				throw TextFormatException("Text parsing error: floating point value expected at " + token.Position.ToString() + ".");
 			}
 			float ReadFloat()
 			{
@@ -194,7 +194,7 @@ namespace CoreLib
 				{
 					return token.Content;
 				}
-				throw TextFormatException("Text parsing error: identifier expected.");
+				throw TextFormatException("Text parsing error: identifier expected at " + token.Position.ToString() + ".");
 			}
 			String Read(const char * expectedStr)
 			{
@@ -203,7 +203,7 @@ namespace CoreLib
 				{
 					return token.Content;
 				}
-				throw TextFormatException("Text parsing error: \'" + String(expectedStr) + "\' expected.");
+				throw TextFormatException("Text parsing error: \'" + String(expectedStr) + "\' expected at " + token.Position.ToString() + ".");
 			}
 			String Read(String expectedStr)
 			{
@@ -212,7 +212,7 @@ namespace CoreLib
 				{
 					return token.Content;
 				}
-				throw TextFormatException("Text parsing error: \'" + expectedStr + "\' expected.");
+				throw TextFormatException("Text parsing error: \'" + expectedStr + "\' expected at " + token.Position.ToString() + ".");
 			}
 			
 			String ReadStringLiteral()
@@ -222,7 +222,7 @@ namespace CoreLib
 				{
 					return token.Content;
 				}
-				throw TextFormatException("Text parsing error: string literal expected.");
+				throw TextFormatException("Text parsing error: string literal expected at " + token.Position.ToString() + ".");
 			}
 			void Back(int count)
 			{

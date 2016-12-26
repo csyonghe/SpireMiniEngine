@@ -19,7 +19,7 @@ namespace GameEngine
         float startTime = 0.0f;
 
     protected:
-        virtual bool ParseField(Level * level, CoreLib::Text::TokenReader & parser, bool &isInvalid) override;
+        virtual bool ParseField(CoreLib::Text::TokenReader & parser, bool &isInvalid) override;
     public:
         CoreLib::RefPtr<AnimationSynthesizer> Animation;
         Mesh * Mesh = nullptr;

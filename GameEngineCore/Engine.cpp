@@ -30,6 +30,23 @@ namespace GameEngine
 
     }
 
+	bool Engine::OnToggleConsoleAction(const CoreLib::String & /*actionName*/, float /*val*/)
+	{
+		if (uiCommandForm)
+			if (uiCommandForm->Visible)
+				uiEntry->CloseWindow(uiCommandForm);
+			else
+				uiEntry->ShowWindow(uiCommandForm);
+		return true;
+	}
+
+	void Engine::RefreshUI()
+	{
+		auto uiCommands = uiEntry->DrawUI();
+		uiSystemInterface->ExecuteDrawCommands(renderer->GetRenderedImage(), uiCommands);
+		renderer->GetHardwareRenderer()->Present(uiSystemInterface->GetRenderedImage());
+	}
+
 	void Engine::InternalInit(const EngineInitArguments & args)
 	{
 		try
@@ -57,7 +74,7 @@ namespace GameEngine
 			auto bindingFile = Path::Combine(gameDir, "bindings.config");
 			if (File::Exists(bindingFile))
 				inputDispatcher->LoadMapping(bindingFile);
-
+			inputDispatcher->BindActionHandler("ToggleConsole", ActionInputHandlerFunc(this, &Engine::OnToggleConsoleAction));
 			// initialize renderer
 			renderer = CreateRenderer(args.Window, args.API);
 			renderer->Resize(args.Width, args.Height);
@@ -72,8 +89,11 @@ namespace GameEngine
                 uiEntry->ShowWindow(uiCommandForm);
             else
                 uiEntry->CloseWindow(uiCommandForm);
+			drawCallStatForm = new DrawCallStatForm(uiEntry.Ptr());
+			drawCallStatForm->Posit(args.Width - drawCallStatForm->GetWidth() - 10, 10, drawCallStatForm->GetWidth(), drawCallStatForm->GetHeight());
+
 			auto configFile = Path::Combine(gameDir, "game.config");
-			String levelToLoad = RemoveQuote(args.StartupLevelName);
+			levelToLoad = RemoveQuote(args.StartupLevelName);
 			if (File::Exists(configFile))
 			{
 				CoreLib::Text::TokenReader parser(File::ReadAllText(configFile));
@@ -86,7 +106,7 @@ namespace GameEngine
 						levelToLoad = defaultLevelName;
 				}
 			}
-			LoadLevel(levelToLoad);
+			
 		}
 		catch (const Exception & e)
 		{
@@ -141,6 +161,14 @@ namespace GameEngine
 			for (auto & actor : level->Actors)
 				actor.Value->Tick();
 		}
+		else
+		{
+			if (levelToLoad.Length())
+			{
+				Print("loading %S\n", levelToLoad.ToWString());
+				LoadLevel(levelToLoad);
+			}
+		}
 		lastGameLogicTime = thisGameLogicTime;
 
 		auto thisRenderingTime = PerformanceCounter::Start();
@@ -154,16 +182,15 @@ namespace GameEngine
 
 		if (aggregateTime > 1.0f)
 		{
-			printf("                                  \r");
-			printf("%.2f ms (%u FPS)\r", aggregateTime/frameCount*1000.0f, (int)(frameCount / aggregateTime));
-		
+			drawCallStatForm->SetFrameRenderTime(aggregateTime / frameCount);
+			auto stats = renderer->GetStats();
+			drawCallStatForm->SetNumDrawCalls(stats.NumDrawCalls);
+			drawCallStatForm->SetNumWorldPasses(stats.NumPasses);
 			aggregateTime = 0.0f;
 			frameCount = 0;
 		}
 
-		auto uiCommands = uiEntry->DrawUI();
-		uiSystemInterface->ExecuteDrawCommands(renderer->GetRenderedImage(), uiCommands);
-		renderer->GetHardwareRenderer()->Present(uiSystemInterface->GetRenderedImage());
+		RefreshUI();
 		//renderer->GetHardwareRenderer()->Present(renderer->GetRenderedImage());
 		frameCounter++;
 	}

@@ -246,6 +246,7 @@ void Export(ExportArguments args)
 			{
 				auto mesh = scene->mMeshes[i];
 				RefPtr<Mesh> meshOut = new Mesh();
+				meshOut->Bounds.Init();
 				meshOut->SetVertexFormat(MeshVertexFormat((int)mesh->GetNumColorChannels(), (int)mesh->GetNumUVChannels(), true, mesh->HasBones()));
 				meshOut->AllocVertexBuffer(mesh->mNumVertices);
 				meshOut->Indices.SetSize(mesh->mNumFaces * 3);
@@ -260,6 +261,7 @@ void Export(ExportArguments args)
 					auto vertPos = Vec3::Create(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z);
 					if (args.FlipYZ)
 						vertPos = FlipYZ(vertPos);
+					meshOut->Bounds.Union(vertPos);
 					meshOut->SetVertexPosition(i, vertPos);
 					for (auto j = 0u; j < mesh->GetNumUVChannels(); j++)
 					{
@@ -343,6 +345,7 @@ void Export(ExportArguments args)
 						meshName = "mesh_" + String((int)i);
 					outName = Path::Combine(Path::GetDirectoryName(outFileName), meshName + ".mesh");
 				}
+				
 				meshOut->SaveToFile(Path::ReplaceExt(outName, "mesh"));
 				wprintf(L"mesh converted. faces: %d, vertices: %d, bones: %d.\n", mesh->mNumFaces, mesh->mNumVertices, mesh->mNumBones);
 			}

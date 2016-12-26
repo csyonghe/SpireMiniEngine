@@ -15,7 +15,7 @@ namespace GameEngine
 		CameraActor * targetCamera = nullptr;
 		void FindTargetCamera();
 	public:
-		virtual bool ParseField(Level * level, CoreLib::Text::TokenReader & parser, bool & isInvalid) override;
+		virtual bool ParseField(CoreLib::Text::TokenReader & parser, bool & isInvalid) override;
 	public:
 		virtual void OnLoad() override;
 		virtual void OnUnload() override;

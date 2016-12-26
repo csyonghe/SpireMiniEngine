@@ -14,12 +14,13 @@ namespace GameEngine
 		CoreLib::RefPtr<Drawable> drawable;
 		bool localTransformChanged = true;
 	protected:
-		virtual bool ParseField(Level * level, CoreLib::Text::TokenReader & parser, bool & isInvalid) override;
+		virtual bool ParseField(CoreLib::Text::TokenReader & parser, bool & isInvalid) override;
 	public:
 		CoreLib::String MeshName;
 		Mesh * Mesh = nullptr;
 		Material * MaterialInstance;
-		virtual void Tick() override { }
+		
+		virtual void OnLoad() override;
 		virtual void GetDrawables(const GetDrawablesParameter & params) override;
 		virtual void SetLocalTransform(const VectorMath::Matrix4 & val) override;
 		virtual EngineActorType GetEngineType() override

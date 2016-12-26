@@ -71,8 +71,8 @@ namespace GameEngine
 			commandBuffer->ClearAttachments(frameBuffer.Ptr());
 
 		commandBuffer->SetViewport(0, 0, screenWidth, screenHeight);
-		commandBuffer->BindVertexBuffer(sharedRes->fullScreenQuadVertBuffer.Ptr());
 		commandBuffer->BindPipeline(pipeline.Ptr());
+		commandBuffer->BindVertexBuffer(sharedRes->fullScreenQuadVertBuffer.Ptr());
 		for (auto & binding : descBindings.bindings)
 			commandBuffer->BindDescriptorSet(binding.index, binding.descriptorSet);
 		commandBuffer->Draw(0, 4);
