@@ -72,7 +72,7 @@ namespace GameEngine
 
 		commandBuffer->SetViewport(0, 0, screenWidth, screenHeight);
 		commandBuffer->BindPipeline(pipeline.Ptr());
-		commandBuffer->BindVertexBuffer(sharedRes->fullScreenQuadVertBuffer.Ptr());
+		commandBuffer->BindVertexBuffer(sharedRes->fullScreenQuadVertBuffer.Ptr(), 0);
 		for (auto & binding : descBindings.bindings)
 			commandBuffer->BindDescriptorSet(binding.index, binding.descriptorSet);
 		commandBuffer->Draw(0, 4);

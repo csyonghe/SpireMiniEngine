@@ -767,8 +767,8 @@ namespace GraphicsUI
 			cmdBuffer->BeginRecording(frameBuffer.Ptr());
 			cmdBuffer->Blit(uiOverlayTexture.Ptr(), baseTexture);
 			cmdBuffer->BindPipeline(pipeline.Ptr());
-			cmdBuffer->BindVertexBuffer(vertexBuffer.Ptr());
-			cmdBuffer->BindIndexBuffer(indexBuffer.Ptr());
+			cmdBuffer->BindVertexBuffer(vertexBuffer.Ptr(), 0);
+			cmdBuffer->BindIndexBuffer(indexBuffer.Ptr(), 0);
 			cmdBuffer->BindDescriptorSet(0, descSet.Ptr());
 			cmdBuffer->SetViewport(0, 0, screenWidth, screenHeight);
 			cmdBuffer->DrawIndexed(0, indexStream.Count());

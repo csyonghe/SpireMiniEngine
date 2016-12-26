@@ -1165,6 +1165,7 @@ namespace GLL
 	private:
 		int lastAttribCount = 0;
 		GLuint lastBoundVBO = 0;
+		int lastBufferOffset = 0;
 		struct AttribState
 		{
 			bool activated = false;
@@ -1175,17 +1176,22 @@ namespace GLL
 	public:
 		void SetIndex(const BufferObject & indices)
 		{
-			glBindVertexArray(Handle);
+			//glBindVertexArray(Handle);
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices.Handle);
 		}
-		void SetVertex(const BufferObject & vertices, ArrayView<VertexAttributeDesc> attribs, int vertSize, int startId = 0, int instanceDivisor = 0)
+		void SetVertex(const BufferObject & vertices, ArrayView<VertexAttributeDesc> attribs, int vertSize, int bufferOffset, int startId = 0, int instanceDivisor = 0)
 		{
 			bool bufferChanged = false;
-			glBindVertexArray(Handle);
+			//glBindVertexArray(Handle);
 			if (lastBoundVBO != vertices.Handle)
 			{
 				glBindBuffer(GL_ARRAY_BUFFER, vertices.Handle);
 				lastBoundVBO = vertices.Handle;
+				bufferChanged = true;
+			}
+			if (bufferOffset != lastBufferOffset)
+			{
+				lastBufferOffset = bufferOffset;
 				bufferChanged = true;
 			}
 			for (int i = attribs.Count(); i < lastAttribCount; i++)
@@ -1211,9 +1217,9 @@ namespace GLL
 				{
 					if (attrib.Type == DataType::Int || attrib.Type == DataType::Int2 || attrib.Type == DataType::Int3 || attrib.Type == DataType::Int4
 						|| attrib.Type == DataType::UInt)
-						glVertexAttribIPointer(id, GetDataTypeComponenets(attrib.Type), TranslateDataTypeToInputType(attrib.Type), vertSize, (void*)(CoreLib::PtrInt)attrib.StartOffset);
+						glVertexAttribIPointer(id, GetDataTypeComponenets(attrib.Type), TranslateDataTypeToInputType(attrib.Type), vertSize, (void*)(CoreLib::PtrInt)(attrib.StartOffset + bufferOffset));
 					else
-						glVertexAttribPointer(id, GetDataTypeComponenets(attrib.Type), TranslateDataTypeToInputType(attrib.Type), attrib.Normalized, vertSize, (void*)(CoreLib::PtrInt)attrib.StartOffset);
+						glVertexAttribPointer(id, GetDataTypeComponenets(attrib.Type), TranslateDataTypeToInputType(attrib.Type), attrib.Normalized, vertSize, (void*)(CoreLib::PtrInt)(attrib.StartOffset + bufferOffset));
 					attribStates[id].dataType = attrib.Type;
 					attribStates[id].vertSize = vertSize;
 					attribStates[id].ptr = attribs[i].StartOffset;
@@ -1751,7 +1757,11 @@ namespace GLL
 		DescriptorSet * descSet;
 		int location = 0;
 	};
-
+	struct BindBufferData
+	{
+		BufferObject * buffer;
+		int offset;
+	};
 	class CommandData
 	{
 	public:
@@ -1760,8 +1770,7 @@ namespace GLL
 		union
 		{
 			SetViewportData viewport;
-			BufferObject* vertexBuffer;
-			BufferObject* indexBuffer;
+			BindBufferData vertexBufferBinding;
 			PipelineData pipelineData;
 			DrawData draw;
 			BlitData blit;
@@ -1794,18 +1803,20 @@ namespace GLL
 			data.viewport.height = height;
 			buffer.Add(data);
 		}
-		virtual void BindVertexBuffer(GameEngine::Buffer* vertexBuffer) override
+		virtual void BindVertexBuffer(GameEngine::Buffer* vertexBuffer, int offset) override
 		{
 			CommandData data;
 			data.command = Command::BindVertexBuffer;
-			data.vertexBuffer = reinterpret_cast<BufferObject*>(vertexBuffer);
+			data.vertexBufferBinding.buffer = reinterpret_cast<BufferObject*>(vertexBuffer);
+			data.vertexBufferBinding.offset = offset;
 			buffer.Add(data);
 		}
-		virtual void BindIndexBuffer(GameEngine::Buffer* indexBuffer) override
+		virtual void BindIndexBuffer(GameEngine::Buffer* indexBuffer, int offset) override
 		{
 			CommandData data;
 			data.command = Command::BindIndexBuffer;
-			data.indexBuffer = reinterpret_cast<BufferObject*>(indexBuffer);
+			data.vertexBufferBinding.buffer = reinterpret_cast<BufferObject*>(indexBuffer);
+			data.vertexBufferBinding.offset = offset;
 			buffer.Add(data);
 		}
 		virtual void BindPipeline(GameEngine::Pipeline* pipeline) override
@@ -2136,6 +2147,7 @@ namespace GLL
 			
 			Pipeline * currentPipeline = nullptr;
 			BufferObject* currentVertexBuffer = nullptr, *currentIndexBuffer = nullptr;
+			int currentVertexBufferOffset = 0; int currentIndexBufferOffset = 0;
 			PrimitiveType primType = PrimitiveType::Triangles;
 			Array<DescriptorSet*, 32> boundDescSets;
 			boundDescSets.SetSize(boundDescSets.GetCapacity());
@@ -2189,6 +2201,7 @@ namespace GLL
 				else
 					throw HardwareRendererException("must bind pipeline before binding descriptor set.");
 			};
+			BindVertexArray(currentVAO);
 			for (auto commandBuffer : commands)
 			{
 				for (auto & command : reinterpret_cast<GLL::CommandBuffer*>(commandBuffer)->buffer)
@@ -2200,19 +2213,21 @@ namespace GLL
 						break;
 					case Command::BindVertexBuffer:
 					{
-						if (currentVertexBuffer != command.vertexBuffer)
+						if (currentVertexBuffer != command.vertexBufferBinding.buffer || currentVertexBufferOffset != command.vertexBufferBinding.offset)
 						{
-							currentVertexBuffer = command.vertexBuffer;
-							currentVAO.SetVertex(*currentVertexBuffer, currentPipeline->settings.format.Attributes.GetArrayView(), currentPipeline->settings.format.Size(), 0, 0);
+							currentVertexBuffer = command.vertexBufferBinding.buffer; 
+							currentVertexBufferOffset = command.vertexBufferBinding.offset;
+							currentVAO.SetVertex(*currentVertexBuffer, currentPipeline->settings.format.Attributes.GetArrayView(), currentPipeline->settings.format.Size(), command.vertexBufferBinding.offset, 0, 0);
 						}
 						break;
 					}
 					case Command::BindIndexBuffer:
-						if (currentIndexBuffer != command.indexBuffer)
+						if (currentIndexBuffer != command.vertexBufferBinding.buffer)
 						{
-							currentIndexBuffer = command.indexBuffer;
-							currentVAO.SetIndex(*command.indexBuffer);
+							currentIndexBuffer = command.vertexBufferBinding.buffer;
+							currentVAO.SetIndex(*currentIndexBuffer);
 						}
+						currentIndexBufferOffset = command.vertexBufferBinding.offset;
 						break;
 					case Command::BindPipeline:
 					{
@@ -2269,11 +2284,11 @@ namespace GLL
 						break;
 					case Command::DrawIndexed:
 						updateBindings();
-						glDrawElements((GLenum)primType, command.draw.count, GL_UNSIGNED_INT, (void*)(CoreLib::PtrInt)(command.draw.first * 4));
+						glDrawElements((GLenum)primType, command.draw.count, GL_UNSIGNED_INT, (void*)(CoreLib::PtrInt)(command.draw.first * 4 + currentIndexBufferOffset));
 						break;
 					case Command::DrawIndexedInstanced:
 						updateBindings();
-						glDrawElementsInstanced((GLenum)primType, command.draw.count, GL_UNSIGNED_INT, (void*)(CoreLib::PtrInt)(command.draw.first * 4), command.draw.instances);
+						glDrawElementsInstanced((GLenum)primType, command.draw.count, GL_UNSIGNED_INT, (void*)(CoreLib::PtrInt)(command.draw.first * 4 + currentIndexBufferOffset), command.draw.instances);
 						break;
 					case Command::Blit:
 						Blit(command.blit.dst, command.blit.src);

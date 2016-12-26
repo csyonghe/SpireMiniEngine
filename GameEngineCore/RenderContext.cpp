@@ -110,15 +110,13 @@ namespace GameEngine
 		if (meshes.TryGetValue(mesh, result))
 			return result;
 
-		auto hw = rendererResource->hardwareRenderer.Ptr();
-
-		result = new DrawableMesh();
-		result->indexBuffer = hw->CreateBuffer(BufferUsage::IndexBuffer);
-		result->vertexBuffer = hw->CreateBuffer(BufferUsage::ArrayBuffer);
+		result = new DrawableMesh(rendererResource);
+		result->vertexBufferOffset = (int)((char*)rendererResource->vertexBufferMemory.Alloc(mesh->GetVertexCount() * mesh->GetVertexSize()) - (char*)rendererResource->vertexBufferMemory.BufferPtr());
+		result->indexBufferOffset = (int)((char*)rendererResource->indexBufferMemory.Alloc(mesh->Indices.Count() * sizeof(mesh->Indices[0])) - (char*)rendererResource->indexBufferMemory.BufferPtr());
 		result->vertexFormat = LoadVertexFormat(mesh->GetVertexFormat());
 		result->vertexCount = mesh->GetVertexCount();
-		result->indexBuffer->SetData(mesh->Indices.Buffer(), mesh->Indices.Count() * sizeof(mesh->Indices[0]));
-		result->vertexBuffer->SetData(mesh->GetVertexBuffer(), mesh->GetVertexCount() * mesh->GetVertexSize());
+		rendererResource->indexBufferMemory.GetBuffer()->SetData(result->indexBufferOffset, mesh->Indices.Buffer(), mesh->Indices.Count() * sizeof(mesh->Indices[0]));
+		rendererResource->vertexBufferMemory.GetBuffer()->SetData(result->vertexBufferOffset, mesh->GetVertexBuffer(), mesh->GetVertexCount() * result->vertexFormat.Size());
 		result->indexCount = mesh->Indices.Count();
 		meshes[mesh] = result;
 		return result;
@@ -757,6 +755,9 @@ namespace GameEngine
 
 		spireContext = spCreateCompilationContext("");
 		LoadShaderLibrary();
+
+		indexBufferMemory.Init(hardwareRenderer.Ptr(), BufferUsage::IndexBuffer, 26, 256);
+		vertexBufferMemory.Init(hardwareRenderer.Ptr(), BufferUsage::ArrayBuffer, 28, 256);
 	}
 	void RendererSharedResource::Destroy()
 	{
@@ -778,6 +779,21 @@ namespace GameEngine
 		ResolutionScale = 0.0f;
 		FixedWidth = Width = w;
 		FixedHeight = Height = h;
+	}
+	Buffer * DrawableMesh::GetVertexBuffer()
+	{
+		return renderRes->vertexBufferMemory.GetBuffer();
+	}
+	Buffer * DrawableMesh::GetIndexBuffer()
+	{
+		return renderRes->indexBufferMemory.GetBuffer();
+	}
+	DrawableMesh::~DrawableMesh()
+	{
+		if (vertexCount)
+			renderRes->vertexBufferMemory.Free((char*)renderRes->vertexBufferMemory.BufferPtr() + vertexBufferOffset, vertexCount * vertexFormat.Size());
+		if (indexCount)
+			renderRes->indexBufferMemory.Free((char*)renderRes->indexBufferMemory.BufferPtr() + indexBufferOffset, indexCount * sizeof(int));
 	}
 }
 

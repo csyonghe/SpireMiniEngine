@@ -624,8 +624,8 @@ namespace GameEngine
 		virtual void BeginRecording(RenderTargetLayout* renderTargetLayout) = 0;
 		virtual void EndRecording() = 0;
 		virtual void SetViewport(int x, int y, int width, int height) = 0;
-		virtual void BindVertexBuffer(Buffer* vertexBuffer) = 0;
-		virtual void BindIndexBuffer(Buffer* indexBuffer) = 0;
+		virtual void BindVertexBuffer(Buffer* vertexBuffer, int byteOffset) = 0;
+		virtual void BindIndexBuffer(Buffer* indexBuffer, int byteOffset) = 0;
 		virtual void BindPipeline(Pipeline* pipeline) = 0;
 		virtual void BindDescriptorSet(int binding, DescriptorSet* descSet) = 0;
 		virtual void Draw(int firstVertex, int vertexCount) = 0;

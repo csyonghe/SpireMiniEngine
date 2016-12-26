@@ -20,6 +20,7 @@ namespace GameEngine
 	class SceneResource;
 	class Renderer;
 	class CameraActor;
+	class RendererSharedResource;
 	class Level;
 
 	struct BoneTransform
@@ -35,11 +36,21 @@ namespace GameEngine
 
 	class DrawableMesh : public CoreLib::RefObject
 	{
+	private:
+		RendererSharedResource * renderRes;
 	public:
-		CoreLib::RefPtr<Buffer> vertexBuffer, indexBuffer;
 		VertexFormat vertexFormat;
-		int vertexCount;
-		int indexCount;
+		int vertexBufferOffset;
+		int indexBufferOffset;
+		int vertexCount = 0;
+		int indexCount = 0;
+		Buffer * GetVertexBuffer();
+		Buffer * GetIndexBuffer();
+		DrawableMesh(RendererSharedResource * pRenderRes)
+		{
+			renderRes = pRenderRes;
+		}
+		~DrawableMesh();
 	};
 
 	struct Viewport
@@ -222,8 +233,8 @@ namespace GameEngine
 				{
 					auto mesh = obj->GetMesh();
 					commandBuffer->BindPipeline(pipelineInst->pipeline.Ptr());
-					commandBuffer->BindIndexBuffer(mesh->indexBuffer.Ptr());
-					commandBuffer->BindVertexBuffer(mesh->vertexBuffer.Ptr());
+					commandBuffer->BindIndexBuffer(mesh->GetIndexBuffer(), mesh->indexBufferOffset);
+					commandBuffer->BindVertexBuffer(mesh->GetVertexBuffer(), mesh->vertexBufferOffset);
 					commandBuffer->BindDescriptorSet(2, obj->GetMaterial()->MaterialModule->Descriptors.Ptr());
 					commandBuffer->BindDescriptorSet(3, obj->GetTransformModule()->Descriptors.Ptr());
 					commandBuffer->DrawIndexed(0, mesh->indexCount);
@@ -287,6 +298,7 @@ namespace GameEngine
 		ModuleInstance * CreateModuleInstance(SpireModule * shaderModule, DeviceMemory * uniformMemory, int uniformBufferSize = 0);
 	public:
 		CoreLib::RefPtr<Buffer> fullScreenQuadVertBuffer;
+		DeviceMemory indexBufferMemory, vertexBufferMemory;
 	public:
 		int screenWidth = 0, screenHeight = 0;
 		CoreLib::RefPtr<RenderTarget> LoadSharedRenderTarget(CoreLib::String name, StorageFormat format, float ratio = 1.0f, int w0 = 1024, int h0 = 1024);
