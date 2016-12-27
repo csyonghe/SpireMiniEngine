@@ -24,7 +24,10 @@ namespace GameEngine
 		{
 			renderPassId = id;
 		}
-		
+		int GetId()
+		{
+			return renderPassId;
+		}
 		virtual char * GetName() = 0;
 	};
 }

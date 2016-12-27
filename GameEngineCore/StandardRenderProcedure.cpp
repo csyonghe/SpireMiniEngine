@@ -211,9 +211,14 @@ namespace GameEngine
 					atmospherePass->SetParameters(&atmosphere->Parameters, sizeof(atmosphere->Parameters));
 				}
 			}
+
 			float aspect = w / (float)h;
 			if (camera)
 			{
+				std::sort(sink.GetDrawables().begin(), sink.GetDrawables().end(), [this](Drawable* d1, Drawable* d2)
+				{
+					return d1->GetPipeline(shadowRenderPass->GetId())->pipeline.Ptr() < d2->GetPipeline(shadowRenderPass->GetId())->pipeline.Ptr();;
+				});
 				int shadowMapSize = Engine::Instance()->GetGraphicsSettings().ShadowMapResolution;
 				float zmin = camera->ZNear;
 				int shadowMapViewInstancePtr = 0;
@@ -335,12 +340,20 @@ namespace GameEngine
 
 			if (deferred)
 			{
+				std::sort(sink.GetDrawables().begin(), sink.GetDrawables().end(), [this](Drawable* d1, Drawable* d2)
+				{
+					return d1->GetPipeline(gBufferRenderPass->GetId())->pipeline.Ptr() < d2->GetPipeline(gBufferRenderPass->GetId())->pipeline.Ptr();
+				});
 				gBufferInstance.RecordCommandBuffer(bindings, CullFrustum(camera->GetFrustum(aspect)), From(sink.GetDrawables()));
 				renderPasses.Add(gBufferInstance);
 				postPasses.Add(deferredLightingPass);
 			}
 			else
 			{
+				std::sort(sink.GetDrawables().begin(), sink.GetDrawables().end(), [this](Drawable* d1, Drawable* d2)
+				{
+					return d1->GetPipeline(forwardRenderPass->GetId())->pipeline.Ptr() < d2->GetPipeline(forwardRenderPass->GetId())->pipeline.Ptr();
+				});
 				forwardBaseInstance.RecordCommandBuffer(bindings, CullFrustum(camera->GetFrustum(aspect)), From(sink.GetDrawables()));
 				renderPasses.Add(forwardBaseInstance);
 			}
