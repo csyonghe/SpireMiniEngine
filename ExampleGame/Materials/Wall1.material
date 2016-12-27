@@ -1,0 +1,8 @@
+material
+{
+    shader "Wall02.shader"
+    var maskTexture = texture["T_FFA_Wall_01_M.texture"]
+    var dirtTexture = texture["T_FFA_Wall_Dirt_01_D.texture"]
+    var diffuseTexture = texture["T_FFA_Wall_01_D.texture"]
+    var normalTexture = texture["T_FFA_Wall_01_N.texture"]
+}

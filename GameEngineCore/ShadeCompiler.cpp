@@ -50,6 +50,9 @@ namespace GameEngine
 
 		if (spDiagnosticSinkHasAnyErrors(diagSink))
 		{
+			auto outputFileName = Path::ReplaceExt(actualFilename, "spire");
+			Print("Spire source written to %S\n", outputFileName.ToWString());
+			File::WriteAllText(outputFileName, shaderSrc);
 			spDestroyDiagnosticSink(diagSink);
 			spDestroyCompilationResult(compileResult);
 			return false;

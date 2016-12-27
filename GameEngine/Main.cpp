@@ -105,23 +105,6 @@ int wWinMain(
 {
 	Application::Init();
 	{
-
-		{
-			CoreLib::Graphics::ViewFrustum frustum;
-			frustum.CamPos.SetZero();
-			frustum.CamDir = Vec3::Create(0.0f, 0.0f, -1.0f);
-			frustum.CamUp = Vec3::Create(0.0f, 1.0f, 0.0f);
-			frustum.FOV = 75.0f;
-			frustum.Aspect = 1.0f;
-			frustum.zMin = 1.0f;
-			frustum.zMax = 1000.0f;
-			auto cf = CullFrustum(frustum);
-			CoreLib::Graphics::BBox box;
-			box.Min = Vec3::Create(0.0f, 0.0f, -500.0f);
-			box.Max = Vec3::Create(20.0f, 20.0f, -450.0f);
-			bool testRs = cf.IsBoxInFrustum(box);
-		}
-
 		EngineInitArguments args;
 		VideoRecordingParameters videoRecParams;
 

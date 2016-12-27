@@ -20,8 +20,14 @@ module MaterialPattern implements IMaterialPattern
     require SamplerState textureSampler;
 
     vec3 viewDirTan = WorldSpaceToTangentSpace(normalize(cameraPos - pos));
+
+    float getGroundHeight(vec2 uvCoord)
+    {
+        return displacementMap.Sample(textureSampler, uvCoord).r;
+    } 
+
     using pom = ParallaxOcclusionMapping(
-        heightTexture: displacementMap,
+        GetHeight: getGroundHeight,
         viewDirTangentSpace: viewDirTan,
         uv: vertUV * uvScale,
         parallaxScale: 0.02

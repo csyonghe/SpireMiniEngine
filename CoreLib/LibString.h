@@ -34,7 +34,7 @@ namespace CoreLib
 			IntType sign;
 			sign = val;
 			if (sign < 0)
-				val = (IntType)(0-val);
+				val = (IntType)(0 - val);
 			do
 			{
 				int digit = (val % radix);
@@ -75,7 +75,7 @@ namespace CoreLib
 				if (buffer)
 					buffer = 0;
 				if (wcharBuffer)
-					delete [] wcharBuffer;
+					delete[] wcharBuffer;
 				buffer = 0;
 				wcharBuffer = 0;
 				length = 0;
@@ -152,7 +152,7 @@ namespace CoreLib
 				}
 			}
 			String(const String & str)
-			{				
+			{
 				this->operator=(str);
 			}
 			String(String&& other)
@@ -206,18 +206,18 @@ namespace CoreLib
 
 			String TrimStart() const
 			{
-				if(!buffer)
+				if (!buffer)
 					return *this;
 				int startIndex = 0;
-				while (startIndex < length && 
+				while (startIndex < length &&
 					(buffer[startIndex] == ' ' || buffer[startIndex] == '\t' || buffer[startIndex] == '\r' || buffer[startIndex] == '\n'))
-						startIndex++;
+					startIndex++;
 				return String(buffer + startIndex);
 			}
 
 			String TrimEnd() const
 			{
-				if(!buffer)
+				if (!buffer)
 					return *this;
 
 				int endIndex = length - 1;
@@ -233,13 +233,13 @@ namespace CoreLib
 
 			String Trim() const
 			{
-				if(!buffer)
+				if (!buffer)
 					return *this;
 
 				int startIndex = 0;
-				while (startIndex < length && 
+				while (startIndex < length &&
 					(buffer[startIndex] == ' ' || buffer[startIndex] == '\t'))
-						startIndex++;
+					startIndex++;
 				int endIndex = length - 1;
 				while (endIndex >= startIndex &&
 					(buffer[endIndex] == ' ' || buffer[endIndex] == '\t'))
@@ -298,14 +298,30 @@ namespace CoreLib
 #endif
 				}
 			}
+			bool operator==(const char * strbuffer) const
+			{
+				if (!buffer)
+					return (strbuffer == 0 || strcmp(strbuffer, "") == 0);
+				if (!strbuffer)
+					return buffer == nullptr || strcmp(buffer.Ptr(), "") == 0;
+				return (strcmp(buffer.Ptr(), strbuffer) == 0);
+			}
 
 			bool operator==(const String & str) const
 			{
 				if (!buffer)
-					return (str.buffer == 0 || strcmp(str.buffer.Ptr(), "")==0);
+					return (str.buffer == 0 || strcmp(str.buffer.Ptr(), "") == 0);
 				if (!str.buffer)
 					return buffer == nullptr || strcmp(buffer.Ptr(), "") == 0;
 				return (strcmp(buffer.Ptr(), str.buffer.Ptr()) == 0);
+			}
+			bool operator!=(const char * strbuffer) const
+			{
+				if (!buffer)
+					return (strbuffer != 0 && strcmp(strbuffer, "") != 0);
+				if (strbuffer == 0)
+					return length != 0;
+				return (strcmp(buffer.Ptr(), strbuffer) != 0);
 			}
 			bool operator!=(const String & str) const
 			{
@@ -352,30 +368,30 @@ namespace CoreLib
 
 			String ToUpper() const
 			{
-				if(!buffer)
+				if (!buffer)
 					return *this;
 				String res;
 				res.length = length;
 				res.buffer = new char[length + 1];
 				for (int i = 0; i <= length; i++)
-					res.buffer[i] = (buffer[i] >= 'a' && buffer[i] <= 'z')? 
-									(buffer[i] - 'a' + 'A') : buffer[i];
+					res.buffer[i] = (buffer[i] >= 'a' && buffer[i] <= 'z') ?
+					(buffer[i] - 'a' + 'A') : buffer[i];
 				return res;
 			}
 
 			String ToLower() const
 			{
-				if(!buffer)
+				if (!buffer)
 					return *this;
 				String res;
 				res.length = length;
 				res.buffer = new char[length + 1];
 				for (int i = 0; i <= length; i++)
-					res.buffer[i] = (buffer[i] >= 'A' && buffer[i] <= 'Z')? 
-									(buffer[i] - 'A' + 'a') : buffer[i];
+					res.buffer[i] = (buffer[i] >= 'A' && buffer[i] <= 'Z') ?
+					(buffer[i] - 'A' + 'a') : buffer[i];
 				return res;
 			}
-			
+
 			int Length() const
 			{
 				return length;
@@ -383,7 +399,7 @@ namespace CoreLib
 
 			int IndexOf(const char * str, int id) const // String str
 			{
-				if(!buffer)
+				if (!buffer)
 					return -1;
 				if (id < 0 || id >= length)
 					return -1;
@@ -392,9 +408,9 @@ namespace CoreLib
 				if (res >= 0)
 					return res;
 				else
-					 return -1;
+					return -1;
 			}
-			
+
 			int IndexOf(const String & str, int id) const
 			{
 				return IndexOf(str.buffer.Ptr(), id);
@@ -416,7 +432,7 @@ namespace CoreLib
 				if (id < 0 || id >= length)
 					throw "SubString: index out of range.";
 #endif
-				if(!buffer)
+				if (!buffer)
 					return -1;
 				for (int i = id; i < length; i++)
 					if (buffer[i] == ch)
@@ -431,7 +447,7 @@ namespace CoreLib
 
 			int LastIndexOf(char ch) const
 			{
-				for (int i = length-1; i>=0; i--)
+				for (int i = length - 1; i >= 0; i--)
 					if (buffer[i] == ch)
 						return i;
 				return -1;
@@ -439,9 +455,9 @@ namespace CoreLib
 
 			bool StartsWith(const char * str) const // String str
 			{
-				if(!buffer)
+				if (!buffer)
 					return false;
-				int strLen =(int) strlen(str);
+				int strLen = (int)strlen(str);
 				if (strLen > length)
 					return false;
 				for (int i = 0; i < strLen; i++)
@@ -457,7 +473,7 @@ namespace CoreLib
 
 			bool EndsWith(char * str)  const // String str
 			{
-				if(!buffer)
+				if (!buffer)
 					return false;
 				int strLen = (int)strlen(str);
 				if (strLen > length)
@@ -475,9 +491,9 @@ namespace CoreLib
 
 			bool Contains(const char * str) const // String str
 			{
-				if(!buffer)
+				if (!buffer)
 					return false;
-				return (IndexOf(str) >= 0)? true : false;
+				return (IndexOf(str) >= 0) ? true : false;
 			}
 
 			bool Contains(const String & str) const
@@ -523,18 +539,18 @@ namespace CoreLib
 			}
 			~StringBuilder()
 			{
-				if(buffer)
-					delete [] buffer;
+				if (buffer)
+					delete[] buffer;
 			}
 			void EnsureCapacity(int size)
 			{
-				if(bufferSize < size)
+				if (bufferSize < size)
 				{
 					char * newBuffer = new char[size + 1];
-					if(buffer)
+					if (buffer)
 					{
 						strcpy_s(newBuffer, size + 1, buffer);
-						delete [] buffer;
+						delete[] buffer;
 					}
 					buffer = newBuffer;
 					bufferSize = size;
@@ -635,16 +651,16 @@ namespace CoreLib
 			void Append(const char * str, int strLen)
 			{
 				int newLength = length + strLen;
-				if(bufferSize < newLength + 1)
+				if (bufferSize < newLength + 1)
 				{
 					int newBufferSize = InitialSize;
-					while(newBufferSize < newLength + 1)
+					while (newBufferSize < newLength + 1)
 						newBufferSize <<= 1;
 					char * newBuffer = new char[newBufferSize];
 					if (buffer)
 					{
 						memcpy(newBuffer, buffer, length);
-						delete [] buffer;
+						delete[] buffer;
 					}
 					memcpy(newBuffer + length, str, strLen);
 					newBuffer[newLength] = '\0';
@@ -694,9 +710,9 @@ namespace CoreLib
 			String GetSubString(int start, int count)
 			{
 				String rs;
-				rs.buffer = new char[count+1];
+				rs.buffer = new char[count + 1];
 				rs.length = count;
-				strncpy_s(rs.buffer.Ptr(), count+1, buffer+start, count);
+				strncpy_s(rs.buffer.Ptr(), count + 1, buffer + start, count);
 				rs.buffer[count] = 0;
 				return rs;
 			}
@@ -706,10 +722,10 @@ namespace CoreLib
 #if _DEBUG
 				if (id >= length || id < 0)
 					throw "Remove: Index out of range.";
-				if(len < 0)
+				if (len < 0)
 					throw "Remove: remove length smaller than zero.";
 #endif
-				int actualDelLength = ((id + len) >= length)? (length - id) : len;
+				int actualDelLength = ((id + len) >= length) ? (length - id) : len;
 				for (int i = id + actualDelLength; i <= length; i++)
 					buffer[i - actualDelLength] = buffer[i];
 				length -= actualDelLength;

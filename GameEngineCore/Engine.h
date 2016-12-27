@@ -139,7 +139,7 @@ namespace GameEngine
 		static void Print(const char * message, Args... args)
 		{
 			static char printBuffer[32768];
-			static CoreLib::Diagnostics::TimePoint lastUIUpdate = CoreLib::Diagnostics::PerformanceCounter::Start();
+			static CoreLib::Diagnostics::TimePoint lastUIUpdate;
 			snprintf(printBuffer, 32768, message, args...);
 			if (instance && instance->uiCommandForm)
 			{
