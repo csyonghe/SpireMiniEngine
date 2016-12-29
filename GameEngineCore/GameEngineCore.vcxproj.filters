@@ -226,6 +226,9 @@
       <Filter>Renderer</Filter>
     </ClInclude>
     <ClInclude Include="DrawCallStatForm.h" />
+    <ClInclude Include="PipelineContext.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Spire">

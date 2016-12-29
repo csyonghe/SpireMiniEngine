@@ -236,6 +236,7 @@
     <ClInclude Include="MotionGraph.h" />
     <ClInclude Include="MotionGraphAnimationSynthesizer.h" />
     <ClInclude Include="MotionGraphMeshActor.h" />
+    <ClInclude Include="PipelineContext.h" />
     <ClInclude Include="PostRenderPass.h" />
     <ClInclude Include="RenderContext.h" />
     <ClInclude Include="Renderer.h" />
