@@ -7,10 +7,10 @@
 #include "HardwareRenderer.h"
 #include "Spire/Spire.h"
 #include "Skeleton.h"
+#include "DeviceMemory.h"
 #include "Mesh.h"
 #include "Common.h"
 #include "FrustumCulling.h"
-#include "PipelineContext.h"
 
 namespace GameEngine
 {
@@ -81,6 +81,31 @@ namespace GameEngine
 		CoreLib::List<CoreLib::RefPtr<DescriptorSetLayout>> descriptorSetLayouts;
 	};
 
+	class ModuleInstance
+	{
+	public:
+		CoreLib::RefPtr<DescriptorSetLayout> DescriptorLayout;
+		CoreLib::RefPtr<DescriptorSet> Descriptors;
+		DeviceMemory * UniformMemory;
+		int BufferOffset = 0, BufferLength = 0;
+		unsigned char * UniformPtr = nullptr;
+		CoreLib::String BindingName;
+
+		void SetUniformData(void * data, int length)
+		{
+#ifdef _DEBUG
+			if (length > BufferLength)
+				throw HardwareRendererException("insufficient uniform buffer.");
+#endif
+			UniformMemory->GetBuffer()->SetData(BufferOffset, data, CoreLib::Math::Min(length, BufferLength));
+		}
+		~ModuleInstance()
+		{
+			if (UniformMemory)
+				UniformMemory->Free(UniformPtr, BufferLength);
+		}
+	};
+
 	enum class DrawableType
 	{
 		Static, Skeletal
@@ -93,7 +118,7 @@ namespace GameEngine
 		friend class RendererServiceImpl;
 	private:
 		SceneResource * scene = nullptr;
-		DrawableMesh * mesh = nullptr;
+		CoreLib::RefPtr<DrawableMesh> mesh = nullptr;
 		Material * material = nullptr;
 		Skeleton * skeleton = nullptr;
 		DrawableType type = DrawableType::Static;
@@ -117,7 +142,7 @@ namespace GameEngine
 		}
 		inline DrawableMesh * GetMesh()
 		{
-			return mesh;
+			return mesh.Ptr();
 		}
 		inline Material* GetMaterial()
 		{
@@ -255,7 +280,7 @@ namespace GameEngine
 	};
 
 	CoreLib::String GetSpireOutput(SpireDiagnosticSink * sink);
-
+	
 	class RendererSharedResource
 	{
 	private:
@@ -326,6 +351,8 @@ namespace GameEngine
 		void RegisterMaterial(Material * material);
 	public:
 		CoreLib::RefPtr<DrawableMesh> LoadDrawableMesh(Mesh * mesh);
+        CoreLib::RefPtr<DrawableMesh> CreateDrawableMesh(Mesh * mesh);
+
 		Texture2D* LoadTexture2D(const CoreLib::String & name, CoreLib::Graphics::TextureFile & data);
 		Texture2D* LoadTexture(const CoreLib::String & filename);
 		Shader* LoadShader(const CoreLib::String & src, void* data, int size, ShaderType shaderType);
@@ -345,8 +372,8 @@ namespace GameEngine
 	class RendererService : public CoreLib::Object
 	{
 	public:
-		virtual CoreLib::RefPtr<Drawable> CreateStaticDrawable(Mesh * mesh, Material * material) = 0;
-		virtual CoreLib::RefPtr<Drawable> CreateSkeletalDrawable(Mesh * mesh, Skeleton * skeleton, Material * material) = 0;
+		virtual CoreLib::RefPtr<Drawable> CreateStaticDrawable(Mesh * mesh, Material * material, bool cacheMesh = true) = 0;
+		virtual CoreLib::RefPtr<Drawable> CreateSkeletalDrawable(Mesh * mesh, Skeleton * skeleton, Material * material, bool cacheMesh = true) = 0;
 	};
 
 	class DrawableSink

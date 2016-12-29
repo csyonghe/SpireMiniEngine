@@ -104,20 +104,25 @@ namespace GameEngine
 		if (transformModule->BufferLength)
 			scene->transformMemory.Sync(transformModule->UniformPtr, transformModule->BufferLength);
 	}
+    RefPtr<DrawableMesh> SceneResource::CreateDrawableMesh(Mesh * mesh)
+    {
+        RefPtr<DrawableMesh> result = new DrawableMesh(rendererResource);
+        result->vertexBufferOffset = (int)((char*)rendererResource->vertexBufferMemory.Alloc(mesh->GetVertexCount() * mesh->GetVertexSize()) - (char*)rendererResource->vertexBufferMemory.BufferPtr());
+        result->indexBufferOffset = (int)((char*)rendererResource->indexBufferMemory.Alloc(mesh->Indices.Count() * sizeof(mesh->Indices[0])) - (char*)rendererResource->indexBufferMemory.BufferPtr());
+        result->vertexFormat = LoadVertexFormat(mesh->GetVertexFormat());
+        result->vertexCount = mesh->GetVertexCount();
+        rendererResource->indexBufferMemory.GetBuffer()->SetData(result->indexBufferOffset, mesh->Indices.Buffer(), mesh->Indices.Count() * sizeof(mesh->Indices[0]));
+        rendererResource->vertexBufferMemory.GetBuffer()->SetData(result->vertexBufferOffset, mesh->GetVertexBuffer(), mesh->GetVertexCount() * result->vertexFormat.Size());
+        result->indexCount = mesh->Indices.Count();
+        return result;
+    }
 	RefPtr<DrawableMesh> SceneResource::LoadDrawableMesh(Mesh * mesh)
 	{
 		RefPtr<DrawableMesh> result;
 		if (meshes.TryGetValue(mesh, result))
-			return result;
+		    return result;
 
-		result = new DrawableMesh(rendererResource);
-		result->vertexBufferOffset = (int)((char*)rendererResource->vertexBufferMemory.Alloc(mesh->GetVertexCount() * mesh->GetVertexSize()) - (char*)rendererResource->vertexBufferMemory.BufferPtr());
-		result->indexBufferOffset = (int)((char*)rendererResource->indexBufferMemory.Alloc(mesh->Indices.Count() * sizeof(mesh->Indices[0])) - (char*)rendererResource->indexBufferMemory.BufferPtr());
-		result->vertexFormat = LoadVertexFormat(mesh->GetVertexFormat());
-		result->vertexCount = mesh->GetVertexCount();
-		rendererResource->indexBufferMemory.GetBuffer()->SetData(result->indexBufferOffset, mesh->Indices.Buffer(), mesh->Indices.Count() * sizeof(mesh->Indices[0]));
-		rendererResource->vertexBufferMemory.GetBuffer()->SetData(result->vertexBufferOffset, mesh->GetVertexBuffer(), mesh->GetVertexCount() * result->vertexFormat.Size());
-		result->indexCount = mesh->Indices.Count();
+        result = CreateDrawableMesh(mesh);
 		meshes[mesh] = result;
 		return result;
 	}

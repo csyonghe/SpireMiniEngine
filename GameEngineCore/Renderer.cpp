@@ -40,11 +40,14 @@ namespace GameEngine
 		{
 		private:
 			RendererImpl * renderer;
-			RefPtr<Drawable> CreateDrawableShared(Mesh * mesh, Material * material)
+			RefPtr<Drawable> CreateDrawableShared(Mesh * mesh, Material * material, bool cacheMesh)
 			{
 				auto sceneResources = renderer->sceneRes.Ptr();
 				RefPtr<Drawable> rs = new Drawable(sceneResources);
-				rs->mesh = sceneResources->LoadDrawableMesh(mesh).Ptr();
+                if (cacheMesh)
+                    rs->mesh = sceneResources->LoadDrawableMesh(mesh);
+                else
+                    rs->mesh = sceneResources->CreateDrawableMesh(mesh);
 				rs->material = material;
 				return rs;
 			}
@@ -58,9 +61,9 @@ namespace GameEngine
 				return renderer->sharedRes.CreateModuleInstance(spFindModule(renderer->sharedRes.spireContext, name), &sceneResources->transformMemory, uniformBufferSize);
 			}
 
-			virtual CoreLib::RefPtr<Drawable> CreateStaticDrawable(Mesh * mesh, Material * material) override
+			virtual CoreLib::RefPtr<Drawable> CreateStaticDrawable(Mesh * mesh, Material * material, bool cacheMesh) override
 			{
-				RefPtr<Drawable> rs = CreateDrawableShared(mesh, material);
+				RefPtr<Drawable> rs = CreateDrawableShared(mesh, material, cacheMesh);
 				rs->type = DrawableType::Static;
 				rs->transformModule = CreateTransformModuleInstance("NoAnimation", (int)(sizeof(Vec4) * 7));
 				rs->pipelineInstances.SetSize(renderer->worldRenderPasses.Count());
@@ -70,9 +73,9 @@ namespace GameEngine
 				}
 				return rs;
 			}
-			virtual CoreLib::RefPtr<Drawable> CreateSkeletalDrawable(Mesh * mesh, Skeleton * skeleton, Material * material) override
+			virtual CoreLib::RefPtr<Drawable> CreateSkeletalDrawable(Mesh * mesh, Skeleton * skeleton, Material * material, bool cacheMesh) override
 			{
-				RefPtr<Drawable> rs = CreateDrawableShared(mesh, material);
+				RefPtr<Drawable> rs = CreateDrawableShared(mesh, material, cacheMesh);
 				rs->type = DrawableType::Skeletal;
 				rs->skeleton = skeleton;
 				int poseMatrixSize = skeleton->Bones.Count() * (sizeof(Vec4) * 7);

@@ -7,7 +7,6 @@
 
 namespace GameEngine
 {
-
 	class ModuleInstance
 	{
 	public:
