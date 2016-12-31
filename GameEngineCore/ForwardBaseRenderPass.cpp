@@ -13,7 +13,11 @@ namespace GameEngine
 	{
 	private:
 		const char * shaderSrc = R"(
-			template shader ForwardBase(passParams:ForwardBasePassParams, lightingModule, geometryModule:IMaterialGeometry, materialModule:IMaterialPattern, animationModule) targets StandardPipeline
+			template shader ForwardBase(passParams : ForwardBasePassParams, 
+                                        lightingModule, 
+                                        geometryModule : IMaterialGeometry, 
+                                        materialModule : IMaterialPattern, 
+                                        animationModule) targets StandardPipeline
 			{
 				public using VertexAttributes;
 				public using passParams;

@@ -17,37 +17,39 @@ namespace GameEngine
 		bool ParameterDirty = true;
 		CoreLib::RefPtr<ModuleInstance> MaterialPatternModule, MaterialGeometryModule;
 		CoreLib::EnumerableDictionary<CoreLib::String, DynamicVariable> Variables;
+		CoreLib::List<DynamicVariable*> PatternVariables, GeometryVariables;
 		void SetVariable(CoreLib::String name, DynamicVariable value);
 		void Parse(CoreLib::Text::TokenReader & parser);
 		void LoadFromFile(const CoreLib::String & fullFileName);
 
 		template<typename WriteTextureFunc, typename WriteFunc, typename AlignFunc>
-		void FillInstanceUniformBuffer(const WriteTextureFunc & writeTex, const WriteFunc & write, const AlignFunc & align)
+		void FillInstanceUniformBuffer(ModuleInstance * module, const WriteTextureFunc & writeTex, const WriteFunc & write, const AlignFunc & align)
 		{
-			for (auto & mvar : Variables)
+			auto& vars = module == MaterialPatternModule.Ptr() ? PatternVariables : GeometryVariables;
+			for (auto & mvar : vars)
 			{
-				if (mvar.Value.VarType == DynamicVariableType::Texture)
+				if (mvar->VarType == DynamicVariableType::Texture)
 				{
-					writeTex(mvar.Value.StringValue);
+					writeTex(mvar->StringValue);
 				}
-				else if (mvar.Value.VarType == DynamicVariableType::Float)
-					write(mvar.Value.FloatValue);
-				else if (mvar.Value.VarType == DynamicVariableType::Int)
-					write(mvar.Value.IntValue);
-				else if (mvar.Value.VarType == DynamicVariableType::Vec2)
+				else if (mvar->VarType == DynamicVariableType::Float)
+					write(mvar->FloatValue);
+				else if (mvar->VarType == DynamicVariableType::Int)
+					write(mvar->IntValue);
+				else if (mvar->VarType == DynamicVariableType::Vec2)
 				{
 					align(8);
-					write(mvar.Value.Vec2Value);
+					write(mvar->Vec2Value);
 				}
-				else if (mvar.Value.VarType == DynamicVariableType::Vec3)
+				else if (mvar->VarType == DynamicVariableType::Vec3)
 				{
 					align(16);
-					write(mvar.Value.Vec3Value);
+					write(mvar->Vec3Value);
 				}
-				else if (mvar.Value.VarType == DynamicVariableType::Vec4)
+				else if (mvar->VarType == DynamicVariableType::Vec4)
 				{
 					align(16);
-					write(mvar.Value.Vec4Value);
+					write(mvar->Vec4Value);
 				}
 			}
 		}

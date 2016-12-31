@@ -117,10 +117,6 @@ namespace GameEngine
 		{
 			return vertFormat;
 		}
-		bool operator < (const Drawable & other)
-		{
-			return ReorderKey < other.ReorderKey;
-		}
 		void UpdateMaterialUniform();
 		void UpdateTransformUniform(const VectorMath::Matrix4 & localTransform);
 		void UpdateTransformUniform(const VectorMath::Matrix4 & localTransform, const Pose & pose);
@@ -278,7 +274,7 @@ namespace GameEngine
 		CoreLib::RefPtr<ModuleInstance> defaultMaterialPatternModule, defaultMaterialGeometryModule;
 		CoreLib::EnumerableDictionary<Mesh*, CoreLib::RefPtr<DrawableMesh>> meshes;
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<Texture2D>> textures;
-		CoreLib::RefPtr<ModuleInstance> CreateMaterialModuleInstance(Material* material, const char * moduleName);
+		CoreLib::RefPtr<ModuleInstance> CreateMaterialModuleInstance(Material* material, const char * moduleName, bool isPatternModule);
 	public:
 		CoreLib::RefPtr<DrawableMesh> LoadDrawableMesh(Mesh * mesh);
         CoreLib::RefPtr<DrawableMesh> CreateDrawableMesh(Mesh * mesh);

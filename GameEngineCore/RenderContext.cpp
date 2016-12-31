@@ -33,7 +33,7 @@ namespace GameEngine
 				{
 					unsigned char * ptr = moduleInstance->UniformPtr;
 					auto end = ptr + moduleInstance->BufferLength;
-					material->FillInstanceUniformBuffer([](const String&) {},
+					material->FillInstanceUniformBuffer(moduleInstance, [](const String&) {},
 						[&](auto & val)
 					{
 						if (ptr + sizeof(val) > end)
@@ -245,7 +245,7 @@ namespace GameEngine
 		}
 	}
 
-	RefPtr<ModuleInstance> SceneResource::CreateMaterialModuleInstance(Material* material, const char * moduleName)
+	RefPtr<ModuleInstance> SceneResource::CreateMaterialModuleInstance(Material* material, const char * moduleName, bool isPatternModule)
 	{
 		bool isValid = true;
 		auto module = spFindModule(spireContext, moduleName);
@@ -258,7 +258,7 @@ namespace GameEngine
 		{
 			int paramCount = spModuleGetParameterCount(module);
 			EnumerableDictionary<String, int> bindingLocs;
-			EnumerableDictionary<String, DynamicVariable> vars;
+			EnumerableDictionary<String, DynamicVariable*> vars;
 			
 			int loc = 1;
 			for (int i = 0; i < paramCount; i++)
@@ -271,14 +271,13 @@ namespace GameEngine
 				}
 				else
 				{
-					DynamicVariable val;
-					if (!material->Variables.TryGetValue(param.Name, val))
+					if (auto val = material->Variables.TryGetValue(param.Name))
+						vars[param.Name] = val;
+					else
 					{
 						Print("Invalid material(%S): shader parameter '%S' is not provided in material file.\n", material->Name.ToWString(), String(param.Name).ToWString());
 						isValid = false;
 					}
-					val.Name = param.Name;
-					vars[val.Name] = val;
 				}
 			}
 			if (isValid)
@@ -304,7 +303,12 @@ namespace GameEngine
 					}
 					result->Descriptors->EndUpdate();
 				}
-				material->Variables = _Move(vars);
+				if (isPatternModule)
+					for (auto& v : vars)
+						material->PatternVariables.Add(v.Value);
+				else
+					for (auto& v : vars)
+						material->GeometryVariables.Add(v.Value);
 				return result;
 			}
 			return nullptr;
@@ -314,6 +318,7 @@ namespace GameEngine
 	void SceneResource::RegisterMaterial(Material * material)
 	{
 		auto shaderFile = Engine::Instance()->FindFile(material->ShaderFile, ResourceType::Shader);
+
 		if (shaderFile.Length())
 		{
 			SpireDiagnosticSink * spireSink = spCreateDiagnosticSink(spireContext);
@@ -322,10 +327,10 @@ namespace GameEngine
 				Print("Invalid material(%S): cannot compile shader '%S'. Output message:\n%S", material->Name.ToWString(), shaderFile.ToWString(), GetSpireOutput(spireSink).ToWString());
 			else
 			{
-				material->MaterialPatternModule = CreateMaterialModuleInstance(material, (Path::GetFileNameWithoutEXT(shaderFile) + "Pattern").Buffer());
+				material->MaterialPatternModule = CreateMaterialModuleInstance(material, (Path::GetFileNameWithoutEXT(shaderFile) + "Pattern").Buffer(), true);
 				auto geometryModuleName = Path::GetFileNameWithoutEXT(shaderFile) + "Geometry";
 				if (spFindModule(spireContext, geometryModuleName.Buffer()))
-					material->MaterialGeometryModule = CreateMaterialModuleInstance(material, geometryModuleName.Buffer());
+					material->MaterialGeometryModule = CreateMaterialModuleInstance(material, geometryModuleName.Buffer(), false);
 			}
 			spDestroyDiagnosticSink(spireSink);
 		}
@@ -334,10 +339,9 @@ namespace GameEngine
 		{
 			if (!defaultMaterialPatternModule)
 			{
-				defaultMaterialPatternModule = CreateMaterialModuleInstance(material, "DefaultPattern");
+				defaultMaterialPatternModule = CreateMaterialModuleInstance(material, "DefaultPattern", true);
 			}
 			material->MaterialPatternModule = defaultMaterialPatternModule;
-			material->Variables.Clear();
 			if (!material->MaterialPatternModule)
 				throw InvalidOperationException("failed to load default material.");
 		}
@@ -346,10 +350,9 @@ namespace GameEngine
 		{
 			if (!defaultMaterialGeometryModule)
 			{
-				defaultMaterialGeometryModule = CreateMaterialModuleInstance(material, "DefaultGeometry");
+				defaultMaterialGeometryModule = CreateMaterialModuleInstance(material, "DefaultGeometry", false);
 			}
 			material->MaterialGeometryModule = defaultMaterialGeometryModule;
-			material->Variables.Clear();
 			if (!material->MaterialGeometryModule)
 				throw InvalidOperationException("failed to load default material.");
 		}
@@ -746,7 +749,7 @@ namespace GameEngine
 			pipelineManager.PopModuleInstance();
 			reorderBuffer.Add(obj);
 		}
-		reorderBuffer.Sort();
+		reorderBuffer.Sort([](Drawable* d1, Drawable* d2) {return d1->ReorderKey < d2->ReorderKey; });
 		renderOutput->GetSize(viewport.Width, viewport.Height);
 		commandBuffer->BeginRecording(renderOutput->GetFrameBuffer());
 		commandBuffer->SetViewport(viewport.X, viewport.Y, viewport.Width, viewport.Height);

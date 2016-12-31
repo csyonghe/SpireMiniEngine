@@ -24,6 +24,7 @@ namespace GameEngine
 		}
 		virtual void Create() override;
 	public:
+		~WorldRenderPass();
 		void ResetInstancePool()
 		{
 			poolAllocPtr = 0;

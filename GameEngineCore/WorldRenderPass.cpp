@@ -42,5 +42,10 @@ namespace GameEngine
 		shader = spCreateShaderFromSource(sharedRes->spireContext, GetShaderSource());
 		SetPipelineStates(fixedFunctionStates);
 	}
+	WorldRenderPass::~WorldRenderPass()
+	{
+		if (shader)
+			spDestroyShader(shader);
+	}
 }
 
