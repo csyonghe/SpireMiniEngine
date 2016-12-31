@@ -22,11 +22,24 @@ namespace GameEngine
 		return String(buffer.Buffer());
 	}
 
+	PipelineClass * Drawable::GetPipeline(int passId, PipelineContext & pipelineManager)
+	{
+		if (pipelineCache[passId] == nullptr)
+		{
+			auto rs = pipelineManager.GetPipeline(&vertFormat);
+			pipelineCache[passId] = rs;
+		}
+		return pipelineCache[passId];
+	}
+
 	void Drawable::UpdateMaterialUniform()
 	{
 		if (material->ParameterDirty)
 		{
 			material->ParameterDirty = false;
+			for (auto & p : pipelineCache)
+				p = nullptr;
+
 			auto update = [=](ModuleInstance * moduleInstance)
 			{
 				if (moduleInstance->BufferLength)
@@ -696,6 +709,7 @@ namespace GameEngine
 		if (indexCount)
 			renderRes->indexBufferMemory.Free((char*)renderRes->indexBufferMemory.BufferPtr() + indexBufferOffset, indexCount * sizeof(int));
 	}
+	
 	void RenderPassInstance::SetFixedOrderDrawContent(PipelineContext & pipelineManager, CullFrustum frustum, CoreLib::ArrayView<Drawable*> drawables)
 	{
 		renderOutput->GetSize(viewport.Width, viewport.Height);
@@ -715,7 +729,7 @@ namespace GameEngine
 			pipelineManager.PushModuleInstance(obj->GetMaterial()->MaterialGeometryModule.Ptr());
 			pipelineManager.PushModuleInstance(obj->GetMaterial()->MaterialPatternModule.Ptr());
 			pipelineManager.PushModuleInstance(obj->GetTransformModule());
-			if (auto pipelineInst = pipelineManager.GetPipeline(&obj->GetVertexFormat()))
+			if (auto pipelineInst = obj->GetPipeline(renderPassId, pipelineManager))
 			{
 				auto mesh = obj->GetMesh();
 				commandBuffer->BindPipeline(pipelineInst->pipeline.Ptr());
@@ -743,7 +757,7 @@ namespace GameEngine
 			pipelineManager.PushModuleInstance(obj->GetMaterial()->MaterialGeometryModule.Ptr());
 			pipelineManager.PushModuleInstance(obj->GetMaterial()->MaterialPatternModule.Ptr());
 			pipelineManager.PushModuleInstance(obj->GetTransformModule());
-			obj->ReorderKey = pipelineManager.GetPipeline(&obj->GetVertexFormat());
+			obj->ReorderKey = obj->GetPipeline(renderPassId, pipelineManager);
 			pipelineManager.PopModuleInstance();
 			pipelineManager.PopModuleInstance();
 			pipelineManager.PopModuleInstance();

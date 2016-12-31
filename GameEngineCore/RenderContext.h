@@ -92,6 +92,7 @@ namespace GameEngine
 		MeshVertexFormat vertFormat;
 		DrawableType type = DrawableType::Static;
 		CoreLib::RefPtr<ModuleInstance> transformModule;
+		CoreLib::Array<PipelineClass*, MaxWorldRenderPasses> pipelineCache;
 	public:
 		CoreLib::Graphics::BBox Bounds;
 		void * ReorderKey = nullptr;
@@ -100,7 +101,11 @@ namespace GameEngine
 			scene = sceneRes;
 			Bounds.Min = VectorMath::Vec3::Create(-1e9f);
 			Bounds.Max = VectorMath::Vec3::Create(1e9f);
+			pipelineCache.SetSize(pipelineCache.GetCapacity());
+			for (auto & p : pipelineCache)
+				p = nullptr;
 		}
+		PipelineClass * GetPipeline(int passId, PipelineContext & pipelineManager);
 		inline ModuleInstance * GetTransformModule()
 		{
 			return transformModule.Ptr();
