@@ -5,6 +5,11 @@ using namespace CoreLib;
 
 namespace GameEngine
 {
+	void WorldRenderPass::Bind()
+	{
+		sharedRes->pipelineManager.BindShader(shader, renderTargetLayout.Ptr(), &fixedFunctionStates);
+	}
+
 	RenderPassInstance WorldRenderPass::CreateInstance(RenderOutput * output)
 	{
 #ifdef _DEBUG
@@ -18,6 +23,7 @@ namespace GameEngine
 		rs.commandBuffer = AllocCommandBuffer();
 		rs.renderPassId = renderPassId;
 		rs.renderOutput = output;
+		rs.fixedFunctionStates = &fixedFunctionStates;
 		return rs;
 	}
 
@@ -30,20 +36,11 @@ namespace GameEngine
 		return commandBufferPool[poolAllocPtr++].Ptr();
 	}
 
-	CoreLib::RefPtr<PipelineClass> WorldRenderPass::CreatePipelineStateObject(SceneResource * sceneRes, Material * material, Mesh * mesh, DrawableType drawableType)
+	void WorldRenderPass::Create()
 	{
-		auto animModule = drawableType == DrawableType::Skeletal ? "SkeletalAnimation" : "NoAnimation";
-		auto entryPoint = GetEntryPointShader().ReplaceAll("ANIMATION", animModule);
-		StringBuilder identifierSB(128);
-		identifierSB << material->ShaderFile << GetName() << "_" << mesh->GetVertexFormat().GetTypeId();
-		auto identifier = identifierSB.ProduceString();
-
-		auto meshVertexFormat = mesh->GetVertexFormat();
-
-		auto pipelineClass = sceneRes->LoadMaterialPipeline(identifier, material, renderTargetLayout.Ptr(), meshVertexFormat, entryPoint, 
-			[this](PipelineBuilder* pb) {SetPipelineStates(pb); });
-
-		return pipelineClass;
+		renderTargetLayout = hwRenderer->CreateRenderTargetLayout(MakeArray(TextureUsage::ColorAttachment, TextureUsage::DepthAttachment).GetArrayView());
+		shader = spCreateShaderFromSource(sharedRes->spireContext, GetShaderSource());
+		SetPipelineStates(fixedFunctionStates);
 	}
 }
 

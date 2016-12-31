@@ -1,6 +1,11 @@
-using "DefaultGeometry.shader";
+module DefaultGeometry implements IMaterialGeometry
+{
+    require vec3 coarseVertPos;
+    public using NoTessellation;
+    public vec3 displacement = vec3(0.0);
+}
 
-module MaterialPattern implements IMaterialPattern
+module DefaultPattern implements IMaterialPattern
 {
     public vec3 albedo = vec3(0.9, 0.45, 0.05);
     public vec3 normal = vec3(0.0, 0.0, 1.0);

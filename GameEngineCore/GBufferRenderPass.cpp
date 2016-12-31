@@ -11,19 +11,16 @@ namespace GameEngine
 	class GBufferRenderPass : public WorldRenderPass
 	{
 	private:
-		String shaderEntryPoint = R"(
-			shader GBufferPass targets StandardPipeline
+		const char * shaderEntryPoint = R"(
+			template shader GBufferPass(passParams:ForwardBasePassParams, geometryModule:IMaterialGeometry, materialModule:IMaterialPattern, animationModule) targets StandardPipeline
 			{
 				public using VertexAttributes;
-				[Binding: "0"]
-				public using ForwardBasePassParams;
-				[Binding: "3"]
-				public using ANIMATION;
+				public using passParams;
+				public using animationModule;
 				public using TangentSpaceTransform;
-				public using MaterialGeometry;
+				public using geometryModule;
 				public using VertexTransform;
-				[Binding: "2"]
-				public using MaterialPattern;
+				public using materialModule;
 				vec3 lightParam = vec3(roughness, metallic, specular);
 				public out @Fragment vec3 outputAlbedo = albedo;
 				public out @Fragment vec3 outputPbr = lightParam;
@@ -31,18 +28,18 @@ namespace GameEngine
 			};
 		)";
 	protected:
-		virtual String GetEntryPointShader() override
-		{
-			return shaderEntryPoint;
-		}
 		virtual char * GetName() override
 		{
 			return "GBuffer";
 		}
-		virtual void Create() override
+		const char * GetShaderSource() override
 		{
-			renderTargetLayout = hwRenderer->CreateRenderTargetLayout(MakeArray(
-				TextureUsage::ColorAttachment, 
+			return shaderEntryPoint;
+		}
+		RenderTargetLayout * CreateRenderTargetLayout() override
+		{
+			return hwRenderer->CreateRenderTargetLayout(MakeArray(
+				TextureUsage::ColorAttachment,
 				TextureUsage::ColorAttachment,
 				TextureUsage::ColorAttachment,
 				TextureUsage::DepthAttachment).GetArrayView());

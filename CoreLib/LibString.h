@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include "SmartPointer.h"
 #include "Common.h"
+#include "Hash.h"
 #include "SecureCRT.h"
 
 namespace CoreLib
@@ -503,18 +504,7 @@ namespace CoreLib
 
 			int GetHashCode() const
 			{
-				if (!buffer)
-					return 0;
-				int hash = 0;
-				int c;
-				char * str = buffer.Ptr();
-				c = *str++;
-				while (c)
-				{
-					hash = c + (hash << 6) + (hash << 16) - hash;
-					c = *str++;
-				}
-				return hash;
+				return CoreLib::Basic::GetHashCode((const char*)buffer.Ptr());
 			}
 			String PadLeft(char ch, int length);
 			String PadRight(char ch, int length);

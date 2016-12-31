@@ -1,12 +1,11 @@
-//using "DefaultGeometry.shader";
-module MaterialGeometry
+module ParallaxGroundGeometry implements IMaterialGeometry
 {
     require vec3 coarseVertPos;
     require vec3 coarseVertNormal;
     public using NoTessellation;
     public vec3 displacement = vec3(0.0);
 }
-module MaterialPattern implements IMaterialPattern
+module ParallaxGroundPattern implements IMaterialPattern
 {
     param Texture2D albedoMap;
     param Texture2D normalMap;

@@ -118,15 +118,7 @@ namespace Spire
 			{
 				StringBuilder nameSb;
 				nameSb << comp->ParentDecl->Name.Content << "." << comp->Name.Content;
-				StringBuilder finalNameSb;
-				for (auto ch : nameSb.ProduceString())
-				{
-					if ((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z'))
-						finalNameSb << ch;
-					else
-						finalNameSb << '_';
-				}
-				return EscapeDoubleUnderscore(finalNameSb.ProduceString());
+				return EscapeCodeName(nameSb.ProduceString());
 			}
 		public:
 			virtual RefPtr<StructSyntaxNode> VisitStruct(StructSyntaxNode * st) override
@@ -348,7 +340,7 @@ namespace Spire
 				currentShader = shader;
 				auto pipeline = shader->Shader->Pipeline;
 				compiledShader = new ILShader();
-				compiledShader->Name = shader->Shader->Name;
+				compiledShader->Name = EscapeCodeName(shader->Shader->Name);
 				compiledShader->Position = shader->Shader->Position;
 
 				GenerateParameterBindingInfo(shader);
@@ -474,7 +466,7 @@ namespace Spire
 				for (auto & comp : shader->Definitions)
 				{
 					currentComponent = comp.Ptr();
-					if (comp->SyntaxNode->Parameters.Count())
+					if (comp->SyntaxNode->IsComponentFunction())
 					{
 						auto funcName = GetComponentFunctionName(comp->SyntaxNode.Ptr());
 						if (result.Program->Functions.ContainsKey(funcName))
@@ -487,7 +479,7 @@ namespace Spire
 						result.Program->Functions[funcName] = func;
 						for (auto dep : comp->GetComponentFunctionDependencyClosure())
 						{
-							if (dep->SyntaxNode->Parameters.Count())
+							if (dep->SyntaxNode->IsComponentFunction())
 							{
 								funcSym->ReferencedFunctions.Add(GetComponentFunctionName(dep->SyntaxNode.Ptr()));
 							}
@@ -498,10 +490,10 @@ namespace Spire
 						codeWriter.PushNode();
 						for (auto & dep : comp->GetComponentFunctionDependencyClosure())
 						{
-							if (dep->SyntaxNode->Parameters.Count() == 0)
+							if (!dep->SyntaxNode->IsComponentFunction())
 							{
 								auto paramType = TranslateExpressionType(dep->Type);
-								String paramName = EscapeDoubleUnderscore("p" + String(id) + "_" + dep->OriginalName);
+								String paramName = EscapeCodeName("p" + String(id) + "_" + dep->OriginalName);
 								func->Parameters.Add(paramName, ILParameter(paramType));
 								auto argInstr = codeWriter.FetchArg(paramType, id + 1);
 								argInstr->Name = paramName;
@@ -509,10 +501,10 @@ namespace Spire
 								id++;
 							}
 						}
-						for (auto & param : comp->SyntaxNode->Parameters)
+						for (auto & param : comp->SyntaxNode->GetParameters())
 						{
 							auto paramType = TranslateExpressionType(param->Type);
-							String paramName = EscapeDoubleUnderscore("p" + String(id) + "_" + param->Name.Content);
+							String paramName = EscapeCodeName("p" + String(id) + "_" + param->Name.Content);
 							func->Parameters.Add(paramName, ILParameter(paramType, GetParamQualifier(param.Ptr())));
 							auto argInstr = codeWriter.FetchArg(paramType, id + 1);
 							argInstr->Name = paramName;
@@ -564,7 +556,7 @@ namespace Spire
 
 					for (auto & comp : components)
 					{
-						if (comp->SyntaxNode->Parameters.Count() == 0)
+						if (!comp->SyntaxNode->IsComponentFunction())
 							VisitComponent(comp);
 					}
 
@@ -603,7 +595,7 @@ namespace Spire
 			void VisitComponent(ComponentDefinitionIR * comp)
 			{
 				currentComponent = comp;
-				String varName = EscapeDoubleUnderscore(currentComponent->OriginalName);
+				String varName = EscapeCodeName(currentComponent->OriginalName);
 				RefPtr<ILType> type = TranslateExpressionType(currentComponent->Type);
 
 				if (comp->SyntaxNode->IsInput())
@@ -667,11 +659,11 @@ namespace Spire
 				variables.PushScope();
 				codeWriter.PushNode();
 				int id = 0;
-				for (auto &param : function->Parameters)
+				for (auto &param : function->GetParameters())
 				{
 					func->Parameters.Add(param->Name.Content, ILParameter(TranslateExpressionType(param->Type), GetParamQualifier(param.Ptr())));
 					auto op = FetchArg(param->Type.Ptr(), ++id);
-					op->Name = EscapeDoubleUnderscore(String("p_") + param->Name.Content);
+					op->Name = EscapeCodeName(String("p_") + param->Name.Content);
 					variables.Add(param->Name.Content, op);
 				}
 				function->Body->Accept(this);
@@ -777,7 +769,7 @@ namespace Spire
 					{
 						stmt->Expression->Accept(this);
 						returnRegister = PopStack();
-						if (currentComponent->SyntaxNode->Parameters.Count() == 0)
+						if (!currentComponent->SyntaxNode->IsComponentFunction())
 						{
 							if (currentWorld->OutputType->Members.ContainsKey(currentComponent->UniqueName))
 							{
@@ -846,7 +838,7 @@ namespace Spire
 			RefPtr<Variable> VisitDeclrVariable(Variable* varDecl)
 			{
 				AllocVarInstruction * varOp = AllocVar(varDecl->Type.Ptr());
-				varOp->Name = EscapeDoubleUnderscore(varDecl->Name.Content);
+				varOp->Name = EscapeCodeName(varDecl->Name.Content);
 				variables.Add(varDecl->Name.Content, varOp);
 				if (varDecl->Expr)
 				{
@@ -1067,12 +1059,14 @@ namespace Spire
 			{
 				variables.PushScope();
 				List<ILOperand*> arguments;
-				for (int i = 0; i < expr->Arguments.Count(); i++)
+				int argIndex = 0;
+				for (auto param : expr->ImportOperatorDef->GetParameters())
 				{
-					expr->Arguments[i]->Accept(this);
+					expr->Arguments[argIndex]->Accept(this);
 					auto argOp = PopStack();
 					arguments.Add(argOp);
-					variables.Add(expr->ImportOperatorDef->Parameters[i]->Name.Content, argOp);
+					variables.Add(param->Name.Content, argOp);
+					argIndex++;
 				}
 				currentImport = expr;
 				auto oldTypeMapping = genericTypeMappings.TryGetValue(expr->ImportOperatorDef->TypeName.Content);
@@ -1177,7 +1171,7 @@ namespace Spire
 					if (basicType->Func)
 					{
 						funcName = basicType->Func->SyntaxNode->IsExtern() ? basicType->Func->SyntaxNode->Name.Content : basicType->Func->SyntaxNode->InternalName;
-						for (auto & param : basicType->Func->SyntaxNode->Parameters)
+						for (auto & param : basicType->Func->SyntaxNode->GetParameters())
 						{
 							if (param->HasModifier(ModifierFlag::Out))
 							{
@@ -1191,7 +1185,7 @@ namespace Spire
 						auto funcCompName = expr->FunctionExpr->Tags["ComponentReference"]().As<StringObject>()->Content;
 						auto funcComp = *(currentShader->DefinitionsByComponent[funcCompName]().TryGetValue(currentComponent->World));
 						funcName = GetComponentFunctionName(funcComp->SyntaxNode.Ptr());
-						for (auto & param : funcComp->SyntaxNode->Parameters)
+						for (auto & param : funcComp->SyntaxNode->GetParameters())
 						{
 							if (param->HasModifier(ModifierFlag::Out))
 							{
@@ -1202,7 +1196,7 @@ namespace Spire
 						// push additional arguments
 						for (auto & dep : funcComp->GetComponentFunctionDependencyClosure())
 						{
-							if (dep->SyntaxNode->Parameters.Count() == 0)
+							if (!dep->SyntaxNode->IsComponentFunction())
 							{
 								ILOperand * op = nullptr;
 								if (variables.TryGetValue(dep->UniqueName, op))

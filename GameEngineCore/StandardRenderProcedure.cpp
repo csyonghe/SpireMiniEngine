@@ -66,6 +66,8 @@ namespace GameEngine
 		List<DirectionalLightActor*> directionalLights;
 		List<LightUniforms> lightingData;
 
+		List<Drawable*> reorderBuffer;
+
 		bool useAtmosphere = false;
 
 	public:
@@ -215,10 +217,6 @@ namespace GameEngine
 			float aspect = w / (float)h;
 			if (camera)
 			{
-				std::sort(sink.GetDrawables().begin(), sink.GetDrawables().end(), [this](Drawable* d1, Drawable* d2)
-				{
-					return d1->GetPipeline(shadowRenderPass->GetId())->pipeline.Ptr() < d2->GetPipeline(shadowRenderPass->GetId())->pipeline.Ptr();;
-				});
 				int shadowMapSize = Engine::Instance()->GetGraphicsSettings().ShadowMapResolution;
 				float zmin = camera->ZNear;
 				int shadowMapViewInstancePtr = 0;
@@ -232,6 +230,7 @@ namespace GameEngine
 					float zmax = dirLight->ShadowDistance;
 					if (dirLight->EnableCascadedShadows && dirLight->NumShadowCascades > 0 && dirLight->NumShadowCascades <= MaxShadowCascades)
 					{
+						shadowRenderPass->Bind();
 						int shadowMapStartId = shadowMapRes.AllocShadowMaps(dirLight->NumShadowCascades);
 						lightData.shadowMapId = shadowMapStartId;
 						if (shadowMapStartId != -1)
@@ -304,26 +303,27 @@ namespace GameEngine
 								viewportMatrix.m[1][1] = 0.5f; viewportMatrix.m[3][1] = 0.5f;
 								viewportMatrix.m[2][2] = 1.0f; viewportMatrix.m[3][2] = 0.0f;
 								Matrix4::Multiply(lightData.lightMatrix[i], viewportMatrix, shadowMapView.ViewProjectionTransform);
-								auto pass = shadowRenderPass->CreateInstance(shadowMapRes.shadowMapRenderOutputs[i + shadowMapStartId].Ptr());
-								DescriptorSetBindings bindings;
-								ModuleInstance * shadowMapPassInstance = nullptr;
+								auto pass = shadowRenderPass->CreateInstance(shadowMapRes.shadowMapRenderOutputs[i + shadowMapStartId].Ptr());\
+
+								ModuleInstance * shadowMapPassModuleInstance = nullptr;
 								if (shadowMapViewInstancePtr < shadowViewInstances.Count())
 								{
-									shadowMapPassInstance = shadowViewInstances[shadowMapViewInstancePtr++].Ptr();
+									shadowMapPassModuleInstance = shadowViewInstances[shadowMapViewInstancePtr++].Ptr();
 								}
 								else
 								{
 									shadowViewInstances.Add(sharedRes->CreateModuleInstance(spFindModule(sharedRes->spireContext, "ForwardBasePassParams"), &renderPassUniformMemory));
 									shadowMapViewInstancePtr = shadowViewInstances.Count();
-									shadowMapPassInstance = shadowViewInstances.Last().Ptr();
-									shadowMapPassInstance->Descriptors->BeginUpdate();
-									shadowMapPassInstance->Descriptors->Update(1, sharedRes->textureSampler.Ptr());
-									shadowMapPassInstance->Descriptors->EndUpdate();
+									shadowMapPassModuleInstance = shadowViewInstances.Last().Ptr();
+									shadowMapPassModuleInstance->Descriptors->BeginUpdate();
+									shadowMapPassModuleInstance->Descriptors->Update(1, sharedRes->textureSampler.Ptr());
+									shadowMapPassModuleInstance->Descriptors->EndUpdate();
 
 								}
-								bindings.Bind(0, shadowMapPassInstance->Descriptors.Ptr());
-								shadowMapPassInstance->SetUniformData(&shadowMapView, sizeof(shadowMapView));
-								pass.RecordCommandBuffer(bindings, CullFrustum(shadowMapView.InvViewProjTransform), From(sink.GetDrawables()));
+								sharedRes->pipelineManager.PushModuleInstance(shadowMapPassModuleInstance);
+								shadowMapPassModuleInstance->SetUniformData(&shadowMapView, sizeof(shadowMapView));
+								pass.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, CullFrustum(shadowMapView.InvViewProjTransform), sink.GetDrawables());
+								sharedRes->pipelineManager.PopModuleInstance();
 								renderPasses.Add(pass);
 							}
 						}
@@ -334,29 +334,25 @@ namespace GameEngine
 
 			lightingParams->SetUniformData(lightingData.Buffer(), (int)(lightingData.Count()*sizeof(LightUniforms)));
 			forwardBasePassParams->SetUniformData(&viewUniform, (int)sizeof(viewUniform));
-			DescriptorSetBindings bindings;
-			bindings.Bind(0, forwardBasePassParams->Descriptors.Ptr());
-			bindings.Bind(1, lightingParams->Descriptors.Ptr());
-
+			
+			sharedRes->pipelineManager.PushModuleInstance(forwardBasePassParams.Ptr());
 			if (deferred)
 			{
-				std::sort(sink.GetDrawables().begin(), sink.GetDrawables().end(), [this](Drawable* d1, Drawable* d2)
-				{
-					return d1->GetPipeline(gBufferRenderPass->GetId())->pipeline.Ptr() < d2->GetPipeline(gBufferRenderPass->GetId())->pipeline.Ptr();
-				});
-				gBufferInstance.RecordCommandBuffer(bindings, CullFrustum(camera->GetFrustum(aspect)), From(sink.GetDrawables()));
+				gBufferRenderPass->Bind();
+				gBufferInstance.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, CullFrustum(camera->GetFrustum(aspect)), sink.GetDrawables());
 				renderPasses.Add(gBufferInstance);
 				postPasses.Add(deferredLightingPass);
 			}
 			else
 			{
-				std::sort(sink.GetDrawables().begin(), sink.GetDrawables().end(), [this](Drawable* d1, Drawable* d2)
-				{
-					return d1->GetPipeline(forwardRenderPass->GetId())->pipeline.Ptr() < d2->GetPipeline(forwardRenderPass->GetId())->pipeline.Ptr();
-				});
-				forwardBaseInstance.RecordCommandBuffer(bindings, CullFrustum(camera->GetFrustum(aspect)), From(sink.GetDrawables()));
+				forwardRenderPass->Bind();
+				sharedRes->pipelineManager.PushModuleInstance(lightingParams.Ptr());
+				forwardBaseInstance.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, CullFrustum(camera->GetFrustum(aspect)), sink.GetDrawables());
+				sharedRes->pipelineManager.PopModuleInstance();
 				renderPasses.Add(forwardBaseInstance);
 			}
+			sharedRes->pipelineManager.PopModuleInstance();
+
 			if (useAtmosphere)
 			{
 				postPasses.Add(atmospherePass);

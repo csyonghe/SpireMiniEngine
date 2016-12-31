@@ -102,9 +102,6 @@
     <ClCompile Include="DirectionalLightActor.cpp">
       <Filter>Actors</Filter>
     </ClCompile>
-    <ClCompile Include="ShadeCompiler.cpp">
-      <Filter>Renderer</Filter>
-    </ClCompile>
     <ClCompile Include="DeviceMemory.cpp">
       <Filter>Renderer</Filter>
     </ClCompile>
@@ -115,6 +112,12 @@
       <Filter>Renderer</Filter>
     </ClCompile>
     <ClCompile Include="DrawCallStatForm.cpp" />
+    <ClCompile Include="PipelineContext.cpp">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="ShaderCompiler.cpp">
+      <Filter>Renderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
@@ -210,9 +213,6 @@
     <ClInclude Include="AtmosphereActor.h">
       <Filter>Actors</Filter>
     </ClInclude>
-    <ClInclude Include="ShaderCompiler.h">
-      <Filter>Renderer</Filter>
-    </ClInclude>
     <ClInclude Include="HardwareRenderer.h">
       <Filter>Renderer</Filter>
     </ClInclude>
@@ -224,6 +224,9 @@
     </ClInclude>
     <ClInclude Include="DrawCallStatForm.h" />
     <ClInclude Include="PipelineContext.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="ShaderCompiler.h">
       <Filter>Renderer</Filter>
     </ClInclude>
   </ItemGroup>

@@ -13,7 +13,7 @@ namespace Spire
 		{
 			StringBuilder sb;
 			sb << comp->Name.Content;
-			for (auto & param : comp->Parameters)
+			for (auto & param : comp->GetParameters())
 			{
 				sb << "@" << param->Type->ToString();
 			}
@@ -335,14 +335,13 @@ namespace Spire
 				{
 					currentImportOperator = op.Ptr();
 					HashSet<String> paraNames;
-					for (auto & para : op->Parameters)
+					for (auto & para : op->GetParameters())
 					{
 						if (paraNames.Contains(para->Name.Content))
 							getSink()->diagnose(para.Ptr(), Diagnostics::parameterAlreadyDefined, para->Name);
 						else
 							paraNames.Add(para->Name.Content);
 						para->Type = TranslateTypeNode(para->TypeNode);
-						op->Scope->decls.AddIfNotExists(para->Name.Content, para.Ptr());
 						if (para->Type->Equals(ExpressionType::Void.Ptr()))
 						{
 							getSink()->diagnose(para.Ptr(), Diagnostics::parameterCannotBeVoid);
@@ -368,7 +367,7 @@ namespace Spire
 				for (auto & comp : interfaceNode->GetComponents())
 				{
 					interfaceNode->Scope->decls.AddIfNotExists(comp->Name.Content, comp.Ptr());
-					for (auto & param : comp->Parameters)
+					for (auto & param : comp->GetParameters())
 					{
 						param->Type = TranslateTypeNode(param->TypeNode);
 						if (param->Expr)
@@ -422,10 +421,10 @@ namespace Spire
 								refComp = funcs->First();
 						if (!refComp)
 							refShader->Components.TryGetValue(arg->ArgumentName.Content, refComp);
-						
+
 						if (refComp)
 						{
-							if (refComp->Implementations.First()->SyntaxNode->Parameters.Count()) // this is a function parameter
+							if (refComp->Implementations.First()->SyntaxNode->IsComponentFunction()) // this is a function parameter
 							{
 								arg->ArgumentName.Content = refComp->Name;
 								// construct an invocation node to resolve overloaded component function
@@ -433,7 +432,7 @@ namespace Spire
 								tempInvoke->Position = arg->Position;
 								tempInvoke->Scope = arg->Scope;
 								tempInvoke->FunctionExpr = arg->Expression;
-								for (auto & param : refComp->Implementations.First()->SyntaxNode->Parameters)
+								for (auto & param : refComp->Implementations.First()->SyntaxNode->GetParameters())
 								{
 									RefPtr<VarExpressionSyntaxNode> tempArg = new VarExpressionSyntaxNode();
 									tempArg->Type = param->Type;
@@ -657,7 +656,7 @@ namespace Spire
 								getSink()->diagnose(shaderSymbol->SyntaxNode, Diagnostics::parametersOnlyAllowedInModules);
 							}
 						}
-						for (auto & param : comp->Parameters)
+						for (auto & param : comp->GetParameters())
 							param->Type = TranslateTypeNode(param->TypeNode);
 						AddNewComponentSymbol(shaderSymbol->Components, shaderSymbol->FunctionComponents, comp);
 					}
@@ -718,10 +717,9 @@ namespace Spire
 				RefPtr<ShaderComponentSymbol> compSym;
 				currentShader->Components.TryGetValue(comp->Name.Content, compSym);
 				this->currentComp = compSym.Ptr();
-				for (auto & param : comp->Parameters)
+				for (auto & param : comp->GetParameters())
 				{
 					param->Accept(this);
-					comp->Scope->decls.Add(param->Name.Content, param.Ptr());
 				}
 				if (comp->Expression)
 				{
@@ -768,7 +766,7 @@ namespace Spire
 					{
 						getSink()->diagnose(compImpl->SyntaxNode.Ptr(), Diagnostics::componentMarkedExportMustHaveWorld, compImpl->SyntaxNode->Name);
 					}
-					if (compImpl->SyntaxNode->Parameters.Count() > 0)
+					if (compImpl->SyntaxNode->IsComponentFunction())
 						getSink()->diagnose(compImpl->SyntaxNode->Name, Diagnostics::componetMarkedExportCannotHaveParameters, compImpl->SyntaxNode->Name);
 				}
 				auto compName = GetFullComponentName(comp.Ptr());
@@ -792,14 +790,14 @@ namespace Spire
 							getSink()->diagnose(compSym->Implementations.First()->SyntaxNode, Diagnostics::seePreviousDefinition);
 						}
 					}
-					if (compImpl->SyntaxNode->Parameters.Count())
+					if (compImpl->SyntaxNode->IsComponentFunction())
 					{
 						getSink()->diagnose(compImpl->SyntaxNode.Ptr(), Diagnostics::functionRedefinition, compImpl->SyntaxNode->Name.Content);
 						getSink()->diagnose(compSym->Implementations.Last()->SyntaxNode, Diagnostics::seePreviousDefinition);
 					}
 					symbolTable->CheckComponentImplementationConsistency(sink, compSym.Ptr(), compImpl.Ptr());
 				}
-				if (compImpl->SyntaxNode->Parameters.Count())
+				if (compImpl->SyntaxNode->IsComponentFunction())
 				{
 					auto list = funcComponents.TryGetValue(comp->Name.Content);
 					if (!list)
@@ -824,29 +822,44 @@ namespace Spire
 				for (auto & s : program->GetTypeDefs())
 					VisitTypeDefDecl(s.Ptr());
 				for (auto & s : program->GetStructs())
-					VisitStruct(s.Ptr());
-				for (auto & func : program->GetFunctions())
 				{
-					VisitFunctionDeclaration(func.Ptr());
-					if (funcNames.Contains(func->InternalName))
+					if (!s->SemanticallyChecked)
 					{
-						StringBuilder argList;
-						argList << "(";
-						for (auto & param : func->Parameters)
-						{
-							argList << param->Type->ToString();
-							if (param != func->Parameters.Last())
-								argList << ", ";
-						}
-						argList << ")";
-						getSink()->diagnose(func, Diagnostics::functionRedefinitionWithArgList, func->Name, argList.ProduceString());
+						VisitStruct(s.Ptr());
+						s->SemanticallyChecked = true;
 					}
-					else
-						funcNames.Add(func->InternalName);
 				}
 				for (auto & func : program->GetFunctions())
 				{
-					func->Accept(this);
+					if (!func->SemanticallyChecked)
+					{
+						VisitFunctionDeclaration(func.Ptr());
+						if (funcNames.Contains(func->InternalName))
+						{
+							StringBuilder argList;
+							argList << "(";
+							bool first = true;
+							for (auto & param : func->GetParameters())
+							{
+								if (!first)
+									argList << ", ";
+								argList << param->Type->ToString();
+								first = false;
+							}
+							argList << ")";
+							getSink()->diagnose(func, Diagnostics::functionRedefinitionWithArgList, func->Name, argList.ProduceString());
+						}
+						else
+							funcNames.Add(func->InternalName);
+					}
+				}
+				for (auto & func : program->GetFunctions())
+				{
+					if (!func->SemanticallyChecked)
+					{
+						func->Accept(this);
+						func->SemanticallyChecked = true;
+					}
 				}
 				for (auto & pipeline : program->GetPipelines())
 				{
@@ -854,22 +867,33 @@ namespace Spire
 				}
 				for (auto & interfaceNode : program->GetInterfaces())
 				{
-					VisitInterface(interfaceNode.Ptr());
+					if (!interfaceNode->SemanticallyChecked)
+					{
+						VisitInterface(interfaceNode.Ptr());
+						interfaceNode->SemanticallyChecked = true;
+					}
 				}
 				// build initial symbol table for shaders
 				for (auto & shader : program->GetShaders())
 				{
-					RefPtr<ShaderSymbol> shaderSym = new ShaderSymbol();
-					shaderSym->SyntaxNode = shader.Ptr();
-					if (symbolTable->Shaders.ContainsKey(shader->Name.Content))
+					if (!shader->SemanticallyChecked)
 					{
-						getSink()->diagnose(shader->Name, Diagnostics::shaderAlreadyDefined, shader->Name);
+						RefPtr<ShaderSymbol> shaderSym = new ShaderSymbol();
+						shaderSym->SyntaxNode = shader.Ptr();
+						if (symbolTable->Shaders.ContainsKey(shader->Name.Content))
+						{
+							getSink()->diagnose(shader->Name, Diagnostics::shaderAlreadyDefined, shader->Name);
+						}
+						symbolTable->Shaders[shader->Name.Content] = shaderSym;
 					}
-					symbolTable->Shaders[shader->Name.Content] = shaderSym;
 				}
 				for (auto & shader : program->GetShaders())
 				{
-					VisitShaderPass1(shader.Ptr());
+					if (!shader->SemanticallyChecked)
+					{
+						VisitShaderPass1(shader.Ptr());
+						shader->SemanticallyChecked = true;
+					}
 				}
 				if (sink->GetErrorCount() != 0)
 					return programNode;
@@ -934,14 +958,13 @@ namespace Spire
 				StringBuilder internalName;
 				internalName << functionNode->Name.Content;
 				HashSet<String> paraNames;
-				for (auto & para : functionNode->Parameters)
+				for (auto & para : functionNode->GetParameters())
 				{
 					if (paraNames.Contains(para->Name.Content))
 						getSink()->diagnose(para, Diagnostics::parameterAlreadyDefined, para->Name);
 					else
 						paraNames.Add(para->Name.Content);
 					para->Type = TranslateTypeNode(para->TypeNode);
-					functionNode->Scope->decls.AddIfNotExists(para->Name.Content, para.Ptr());
 					if (para->Type->Equals(ExpressionType::Void.Ptr()))
 						getSink()->diagnose(para, Diagnostics::parameterCannotBeVoid);
 					internalName << "@" << para->Type->ToString();
@@ -1070,9 +1093,6 @@ namespace Spire
 
 			virtual RefPtr<Variable> VisitDeclrVariable(Variable* varDecl)
 			{
-				if (varDecl->Scope->decls.ContainsKey(varDecl->Name.Content))
-					getSink()->diagnose(varDecl, Diagnostics::variableNameAlreadyDefined, varDecl->Name);
-
 				RefPtr<ExpressionType> type = TranslateTypeNode(varDecl->TypeNode);
 				if (type->IsTextureOrSampler() || type->AsGenericType())
 				{
@@ -1087,8 +1107,6 @@ namespace Spire
 					getSink()->diagnose(varDecl, Diagnostics::invalidTypeVoid);
 				if (varDecl->Type->IsArray() && varDecl->Type->AsArrayType()->ArrayLength <= 0)
 					getSink()->diagnose(varDecl, Diagnostics::invalidArraySize);
-
-				varDecl->Scope->decls.AddIfNotExists(varDecl->Name.Content, varDecl);
 				if (varDecl->Expr != NULL)
 				{
 					varDecl->Expr = varDecl->Expr->Accept(this).As<ExpressionSyntaxNode>();
@@ -1161,7 +1179,7 @@ namespace Spire
 					List<RefPtr<FunctionSymbol>> * operatorOverloads = symbolTable->FunctionOverloads.TryGetValue(GetOperatorFunctionName(expr->Operator));
 					auto overload = FindFunctionOverload(*operatorOverloads, [](RefPtr<FunctionSymbol> f)
 					{
-						return f->SyntaxNode->Parameters;
+						return f->SyntaxNode->GetParameters();
 					}, argTypes);
 					if (!overload)
 					{
@@ -1252,12 +1270,14 @@ namespace Spire
 			}
 			bool MatchArguments(FunctionSyntaxNode * functionNode, List <RefPtr<ExpressionSyntaxNode>> &args)
 			{
-				if (functionNode->Parameters.Count() != args.Count())
+				if (functionNode->GetParameters().Count() != args.Count())
 					return false;
-				for (int i = 0; i < functionNode->Parameters.Count(); i++)
+				int i = 0;
+				for (auto param : functionNode->GetParameters())
 				{
-					if (!functionNode->Parameters[i]->Type->Equals(args[i]->Type.Ptr()))
+					if (!param->Type->Equals(args[i]->Type.Ptr()))
 						return false;
+					i++;
 				}
 				return true;
 			}
@@ -1274,22 +1294,24 @@ namespace Spire
 					{
 						int conversions = 0;
 						bool match = true;
-						for (int i = 0; i < arguments.Count(); i++)
+						int i = 0;
+						for (auto param : params)
 						{
 							auto argType = arguments[i];
-							auto paramType = params[i]->Type;
+							auto paramType = param->Type;
 							if (argType->Equals(paramType.Ptr()))
-								continue;
+							{
+							}
 							else if (MatchType_ValueReceiver(paramType.Ptr(), argType.Ptr()))
 							{
 								conversions++;
-								continue;
 							}
 							else
 							{
 								match = false;
 								break;
 							}
+							i++;
 						}
 						if (match && conversions < bestMatchConversions)
 						{
@@ -1308,7 +1330,7 @@ namespace Spire
 				{
 					auto func = FindFunctionOverload(*list, [](RefPtr<ShaderComponentSymbol> & comp)
 					{
-						return comp->Implementations.First()->SyntaxNode->Parameters;
+						return comp->Implementations.First()->SyntaxNode->GetParameters();
 					}, args);
 					if (func)
 					{
@@ -1399,7 +1421,7 @@ namespace Spire
 						auto validOverloads = From(*impOpList).Where([&](RefPtr<ImportOperatorDefSyntaxNode> imp) { return imp->DestWorld.Content == currentCompNode->Rate->Worlds.First().World.Content; }).ToList();
 						auto func = FindFunctionOverload(validOverloads, [](RefPtr<ImportOperatorDefSyntaxNode> imp)
 						{
-							return imp->Parameters;
+							return imp->GetParameters();
 						}, From(arguments).Skip(1).Select([](RefPtr<ExpressionSyntaxNode> x) {return x->Type; }).ToList());
 						if (func)
 						{
@@ -1479,7 +1501,7 @@ namespace Spire
 					{
 						func = FindFunctionOverload(*functionOverloads, [](RefPtr<FunctionSymbol> f)
 						{
-							return f->SyntaxNode->Parameters;
+							return f->SyntaxNode->GetParameters();
 						}, From(arguments).Select([](RefPtr<ExpressionSyntaxNode> x) {return x->Type; }).ToList());
 						functionNameFound = true;
 					}
@@ -1563,14 +1585,17 @@ namespace Spire
 					// if this is still an invoke expression, test arguments passed to inout/out parameter are LValues
 					if (auto basicType = dynamic_cast<BasicExpressionType*>(invoke->FunctionExpr->Type.Ptr()))
 					{
+						List<RefPtr<ParameterSyntaxNode>> paramsStorage;
 						List<RefPtr<ParameterSyntaxNode>> * params = nullptr;
 						if (basicType->Func)
 						{
-							params = &basicType->Func->SyntaxNode->Parameters;
+							paramsStorage = basicType->Func->SyntaxNode->GetParameters().ToArray();
+							params = &paramsStorage;
 						}
 						else if (basicType->Component)
 						{
-							params = &basicType->Component->Implementations.First()->SyntaxNode->Parameters;
+							paramsStorage = basicType->Component->Implementations.First()->SyntaxNode->GetParameters().ToArray();
+							params = &paramsStorage;
 						}
 						if (params)
 						{
@@ -1667,7 +1692,7 @@ namespace Spire
 				List<RefPtr<FunctionSymbol>> * operatorOverloads = symbolTable->FunctionOverloads.TryGetValue(GetOperatorFunctionName(expr->Operator));
 				auto overload = FindFunctionOverload(*operatorOverloads, [](RefPtr<FunctionSymbol> f)
 				{
-					return f->SyntaxNode->Parameters;
+					return f->SyntaxNode->GetParameters();
 				}, argTypes);
 				if (!overload)
 				{

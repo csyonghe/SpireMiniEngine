@@ -1,6 +1,4 @@
-using "DefaultGeometry.shader";
-
-module MaterialPattern implements IMaterialPattern
+module HeroPattern implements IMaterialPattern
 {
     param Texture2D albedoMap;
     

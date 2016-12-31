@@ -15,9 +15,11 @@ namespace Spire
             Scope* scope = this;
             while (scope)
             {
-                Decl* decl = nullptr;
-                if (scope->decls.TryGetValue(name, decl))
-                    return decl;
+                for (auto m : scope->containerDecl->Members)
+                {
+                    if (m->Name.Content == name)
+                        return m.Ptr();
+                }
 
                 scope = scope->Parent.Ptr();
             }
@@ -64,8 +66,9 @@ namespace Spire
 
 		SpecializeModifier * Decl::FindSpecializeModifier()
 		{
-			for (auto m : GetModifiersOfType<SpecializeModifier>())
-				return m;
+			auto list = GetModifiersOfType<SpecializeModifier>();
+			if (list.begin() != list.end())
+				return *list.begin();
 			return nullptr;
 		}
 
@@ -233,15 +236,35 @@ namespace Spire
 		FunctionSyntaxNode * FunctionSyntaxNode::Clone(CloneContext & ctx)
 		{
 			auto rs = CloneSyntaxNodeFields(new FunctionSyntaxNode(*this), ctx);
-			rs->Parameters.Clear();
-			for (auto & param : Parameters)
+			for (auto & member : rs->Members)
 			{
-				rs->Parameters.Add(param->Clone(ctx));
+				member = member->Clone(ctx);
 			}
 			rs->ReturnTypeNode = ReturnTypeNode->Clone(ctx);
 			rs->Body = Body->Clone(ctx);
 			return rs;
 		}
+
+        //
+
+        RefPtr<SyntaxNode> ScopeDecl::Accept(SyntaxVisitor * visitor)
+        {
+            return visitor->VisitScopeDecl(this);
+        }
+
+        ScopeDecl* ScopeDecl::Clone(CloneContext & ctx)
+        {
+            auto rs = CloneSyntaxNodeFields(new ScopeDecl(*this), ctx);
+            for (auto & member : rs->Members)
+            {
+                member = member->Clone(ctx);
+            }
+            return rs;
+        }
+
+
+        //
+
 		RefPtr<SyntaxNode> BlockStatementSyntaxNode::Accept(SyntaxVisitor * visitor)
 		{
 			return visitor->VisitBlockStatement(this);
@@ -1012,6 +1035,25 @@ namespace Spire
 			rs->Members.Clear();
 			for (auto & comp : Members)
 				rs->Members.Add(comp->Clone(ctx));
+			return rs;
+		}
+		RefPtr<SyntaxNode> TemplateShaderSyntaxNode::Accept(SyntaxVisitor * visitor)
+		{
+			return visitor->VisitTemplateShader(this);
+		}
+		TemplateShaderSyntaxNode * TemplateShaderSyntaxNode::Clone(CloneContext & ctx)
+		{
+			auto rs = CloneSyntaxNodeFields(new TemplateShaderSyntaxNode(*this), ctx);
+			rs->Parameters.Clear();
+			for (auto & param : Parameters)
+				rs->Parameters.Add(param->Clone(ctx));
+			for (auto & member : Members)
+				rs->Members.Add(member->Clone(ctx));
+			return rs;
+		}
+		TemplateShaderParameterSyntaxNode * TemplateShaderParameterSyntaxNode::Clone(CloneContext & ctx)
+		{
+			auto rs = CloneSyntaxNodeFields(new TemplateShaderParameterSyntaxNode(*this), ctx);
 			return rs;
 		}
 }

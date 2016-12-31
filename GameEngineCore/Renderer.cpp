@@ -64,28 +64,23 @@ namespace GameEngine
 			virtual CoreLib::RefPtr<Drawable> CreateStaticDrawable(Mesh * mesh, Material * material, bool cacheMesh) override
 			{
 				RefPtr<Drawable> rs = CreateDrawableShared(mesh, material, cacheMesh);
+				if (!material->MaterialPatternModule)
+					renderer->sceneRes->RegisterMaterial(material);
 				rs->type = DrawableType::Static;
 				rs->transformModule = CreateTransformModuleInstance("NoAnimation", (int)(sizeof(Vec4) * 7));
-				rs->pipelineInstances.SetSize(renderer->worldRenderPasses.Count());
-				for (int i = 0; i < renderer->worldRenderPasses.Count(); i++)
-				{
-					rs->pipelineInstances[i] = renderer->worldRenderPasses[i]->CreatePipelineStateObject(renderer->sceneRes.Ptr(), material, mesh, rs->type);
-				}
+				rs->vertFormat = mesh->GetVertexFormat();
 				return rs;
 			}
 			virtual CoreLib::RefPtr<Drawable> CreateSkeletalDrawable(Mesh * mesh, Skeleton * skeleton, Material * material, bool cacheMesh) override
 			{
 				RefPtr<Drawable> rs = CreateDrawableShared(mesh, material, cacheMesh);
+				if (!material->MaterialPatternModule)
+					renderer->sceneRes->RegisterMaterial(material);
 				rs->type = DrawableType::Skeletal;
 				rs->skeleton = skeleton;
 				int poseMatrixSize = skeleton->Bones.Count() * (sizeof(Vec4) * 7);
 				rs->transformModule = CreateTransformModuleInstance("SkeletalAnimation", poseMatrixSize);
-				rs->pipelineInstances.SetSize(renderer->worldRenderPasses.Count());
-
-				for (int i = 0; i < renderer->worldRenderPasses.Count(); i++)
-				{
-					rs->pipelineInstances[i] = renderer->worldRenderPasses[i]->CreatePipelineStateObject(renderer->sceneRes.Ptr(), material, mesh, rs->type);
-				}
+				rs->vertFormat = mesh->GetVertexFormat();
 				return rs;
 			}
 		};
@@ -141,11 +136,12 @@ namespace GameEngine
 			uniformBufferAlignment = hardwareRenderer->UniformBufferAlignment();
 			storageBufferAlignment = hardwareRenderer->StorageBufferAlignment();
 			
+			renderProcedure = CreateStandardRenderProcedure();
+			renderProcedure->Init(this);
+			
 			sceneRes = new SceneResource(&sharedRes, sharedRes.spireContext);
 			renderService = new RendererServiceImpl(this);
 
-			renderProcedure = CreateStandardRenderProcedure();
-			renderProcedure->Init(this);
 		}
 		~RendererImpl()
 		{

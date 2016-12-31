@@ -5,46 +5,32 @@ namespace GameEngine
 {
 	using namespace CoreLib;
 
-	const char * shadowShaderSrc = R"(
-		shader ShadowPass : StandardPipeline
-		{
-			public using VertexAttributes;
-			public using SystemUniforms;
-			public using ANIMATION;
-			public using TangentSpaceTransform;
-			public using MaterialGeometry;
-			public using VertexTransform;
-			// public using MaterialPattern;
-		};
-	)";
 	class ShadowRenderPass : public WorldRenderPass
 	{
 	private:
-		CoreLib::String shaderSrc = R"(
-			shader ShadowPass targets StandardPipeline
+		const char * shaderSrc = R"(
+			template shader ShadowPass(passParams:ForwardBasePassParams, geometryModule:IMaterialGeometry, materialModule:IMaterialPattern, animationModule) targets StandardPipeline
 			{
 				public using VertexAttributes;
-				[Binding: "0"]
-				public using ForwardBasePassParams;
-				[Binding: "3"]
-				public using ANIMATION;
+				public using passParams;
+				public using animationModule;
 				public using TangentSpaceTransform;
-				public using MaterialGeometry;
+				public using geometryModule;
 				public using VertexTransform;
-				[Binding: "2"]
-				public using MaterialPattern;
+				public using materialModule;
 				out @Fragment vec3 ocolor = vec3(1.0);
 			};
 		)";
 	protected:
-		virtual void SetPipelineStates(PipelineBuilder * pb)
+		virtual void SetPipelineStates(FixedFunctionPipelineStates & states) override
 		{
-			pb->FixedFunctionStates.EnablePolygonOffset = true;
-			pb->FixedFunctionStates.PolygonOffsetUnits = 10.0f;
-			pb->FixedFunctionStates.PolygonOffsetFactor = 2.0f;
+			states.DepthCompareFunc = CompareFunc::Less;
+			states.EnablePolygonOffset = true;
+			states.PolygonOffsetUnits = 10.0f;
+			states.PolygonOffsetFactor = 2.0f;
 		}
 	public:
-		virtual CoreLib::String GetEntryPointShader()
+		virtual const char * GetShaderSource() override
 		{
 			return shaderSrc;
 		}
@@ -52,9 +38,9 @@ namespace GameEngine
 		{
 			return "ShadowPass";
 		}
-		virtual void Create() override
+		virtual RenderTargetLayout * CreateRenderTargetLayout() override
 		{
-			renderTargetLayout = hwRenderer->CreateRenderTargetLayout(MakeArrayView(TextureUsage::DepthAttachment));
+			return hwRenderer->CreateRenderTargetLayout(MakeArrayView(TextureUsage::DepthAttachment));
 		}
 	};
 

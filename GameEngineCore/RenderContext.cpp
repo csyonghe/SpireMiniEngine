@@ -5,7 +5,6 @@
 #include "TextureCompressor.h"
 #include "CoreLib/LibIO.h"
 #include "CoreLib/Graphics/TextureFile.h"
-#include "ShaderCompiler.h"
 #include <assert.h>
 
 namespace GameEngine
@@ -28,26 +27,33 @@ namespace GameEngine
 		if (material->ParameterDirty)
 		{
 			material->ParameterDirty = false;
-			unsigned char * ptr = material->MaterialModule->UniformPtr;
-			auto end = ptr + material->MaterialModule->BufferLength;
-			material->FillInstanceUniformBuffer([](const String&) {},
-				[&](auto & val)
+			auto update = [=](ModuleInstance * moduleInstance)
 			{
-				if (ptr + sizeof(val) > end)
-					throw InvalidOperationException("insufficient buffer.");
-				*((decltype(&val))ptr) = val;
-				ptr += sizeof(val);
-			},
-				[&](int alignment)
-			{
-				if (auto m = (int)((long long)(void*)ptr) % alignment)
+				if (moduleInstance->BufferLength)
 				{
-					ptr += (alignment - m);
+					unsigned char * ptr = moduleInstance->UniformPtr;
+					auto end = ptr + moduleInstance->BufferLength;
+					material->FillInstanceUniformBuffer([](const String&) {},
+						[&](auto & val)
+					{
+						if (ptr + sizeof(val) > end)
+							throw InvalidOperationException("insufficient buffer.");
+						*((decltype(&val))ptr) = val;
+						ptr += sizeof(val);
+					},
+						[&](int alignment)
+					{
+						if (auto m = (int)((long long)(void*)ptr) % alignment)
+						{
+							ptr += (alignment - m);
+						}
+					}
+					);
+					scene->instanceUniformMemory.Sync(moduleInstance->UniformPtr, moduleInstance->BufferLength);
 				}
-			}
-			);
-			if (material->MaterialModule->BufferLength)
-				scene->instanceUniformMemory.Sync(material->MaterialModule->UniformPtr, material->MaterialModule->BufferLength);
+			};
+			update(material->MaterialGeometryModule.Ptr());
+			update(material->MaterialPatternModule.Ptr());
 		}
 	}
 
@@ -109,7 +115,7 @@ namespace GameEngine
         RefPtr<DrawableMesh> result = new DrawableMesh(rendererResource);
         result->vertexBufferOffset = (int)((char*)rendererResource->vertexBufferMemory.Alloc(mesh->GetVertexCount() * mesh->GetVertexSize()) - (char*)rendererResource->vertexBufferMemory.BufferPtr());
         result->indexBufferOffset = (int)((char*)rendererResource->indexBufferMemory.Alloc(mesh->Indices.Count() * sizeof(mesh->Indices[0])) - (char*)rendererResource->indexBufferMemory.BufferPtr());
-        result->vertexFormat = LoadVertexFormat(mesh->GetVertexFormat());
+        result->vertexFormat = rendererResource->pipelineManager.LoadVertexFormat(mesh->GetVertexFormat());
         result->vertexCount = mesh->GetVertexCount();
         rendererResource->indexBufferMemory.GetBuffer()->SetData(result->indexBufferOffset, mesh->Indices.Buffer(), mesh->Indices.Count() * sizeof(mesh->Indices[0]));
         rendererResource->vertexBufferMemory.GetBuffer()->SetData(result->vertexBufferOffset, mesh->GetVertexBuffer(), mesh->GetVertexCount() * result->vertexFormat.Size());
@@ -238,18 +244,6 @@ namespace GameEngine
 			return LoadTexture2D("ERROR_TEXTURE", errTex);
 		}
 	}
-	Shader * SceneResource::LoadShader(const String & src, void * data, int size, ShaderType shaderType)
-	{
-		RefPtr<Shader> result;
-		if (shaders.TryGetValue(src, result))
-			return result.Ptr();
-
-		auto hw = rendererResource->hardwareRenderer.Ptr();
-
-		result = hw->CreateShader(shaderType, (char*)data, size);
-		shaders[src] = result;
-		return result.Ptr();
-	}
 
 	RefPtr<ModuleInstance> SceneResource::CreateMaterialModuleInstance(Material* material, const char * moduleName)
 	{
@@ -323,153 +317,43 @@ namespace GameEngine
 		if (shaderFile.Length())
 		{
 			SpireDiagnosticSink * spireSink = spCreateDiagnosticSink(spireContext);
-			spPushContext(spireContext);
 			spLoadModuleLibrary(spireContext, shaderFile.Buffer(), spireSink);
 			if (spDiagnosticSinkHasAnyErrors(spireSink))
 				Print("Invalid material(%S): cannot compile shader '%S'. Output message:\n%S", material->Name.ToWString(), shaderFile.ToWString(), GetSpireOutput(spireSink).ToWString());
 			else
 			{
-				material->MaterialModule = CreateMaterialModuleInstance(material, "MaterialPattern");
+				material->MaterialPatternModule = CreateMaterialModuleInstance(material, (Path::GetFileNameWithoutEXT(shaderFile) + "Pattern").Buffer());
+				auto geometryModuleName = Path::GetFileNameWithoutEXT(shaderFile) + "Geometry";
+				if (spFindModule(spireContext, geometryModuleName.Buffer()))
+					material->MaterialGeometryModule = CreateMaterialModuleInstance(material, geometryModuleName.Buffer());
 			}
-			spPopContext(spireContext);
 			spDestroyDiagnosticSink(spireSink);
 		}
 		// use default material if failed to load
-		if (!material->MaterialModule)
+		if (!material->MaterialPatternModule)
 		{
-			if (!defaultMaterialModule)
+			if (!defaultMaterialPatternModule)
 			{
-				SpireDiagnosticSink * spireSink = spCreateDiagnosticSink(spireContext);
-				spPushContext(spireContext);
-				spLoadModuleLibrary(spireContext, Engine::Instance()->FindFile("DefaultPattern.shader", ResourceType::Shader).Buffer(), spireSink);
-				if (spDiagnosticSinkHasAnyErrors(spireSink))
-					throw InvalidOperationException("cannot compile DefaultPattern.shader");
-				defaultMaterialModule = CreateMaterialModuleInstance(material, "MaterialPattern");
-				spPopContext(spireContext);
-				spDestroyDiagnosticSink(spireSink);
+				defaultMaterialPatternModule = CreateMaterialModuleInstance(material, "DefaultPattern");
 			}
-			material->MaterialModule = defaultMaterialModule;
+			material->MaterialPatternModule = defaultMaterialPatternModule;
 			material->Variables.Clear();
-			material->ShaderFile = "DefaultPattern.shader";
-			if (!material->MaterialModule)
+			if (!material->MaterialPatternModule)
+				throw InvalidOperationException("failed to load default material.");
+		}
+		// use default geometry if failed to load
+		if (!material->MaterialGeometryModule)
+		{
+			if (!defaultMaterialGeometryModule)
+			{
+				defaultMaterialGeometryModule = CreateMaterialModuleInstance(material, "DefaultGeometry");
+			}
+			material->MaterialGeometryModule = defaultMaterialGeometryModule;
+			material->Variables.Clear();
+			if (!material->MaterialGeometryModule)
 				throw InvalidOperationException("failed to load default material.");
 		}
 	}
-	VertexFormat SceneResource::LoadVertexFormat(MeshVertexFormat vertFormat)
-	{
-		VertexFormat rs;
-		auto vertTypeId = vertFormat.GetTypeId();
-		if (vertexFormats.TryGetValue(vertTypeId, rs))
-			return rs;
-		VertexFormat vertexFormat;
-		int location = 0;
-
-		const int UNNORMALIZED = 0;
-		const int NORMALIZED = 1;
-
-		// Always starts with vec3 pos
-		rs.Attributes.Add(VertexAttributeDesc(DataType::Float3, UNNORMALIZED, 0, location));
-		location++;
-
-		for (int i = 0; i < vertFormat.GetUVChannelCount(); i++)
-		{
-			rs.Attributes.Add(VertexAttributeDesc(DataType::Half2, UNNORMALIZED, vertFormat.GetUVOffset(i), location));
-			location++;
-		}
-		if (vertFormat.HasTangent())
-		{
-			rs.Attributes.Add(VertexAttributeDesc(DataType::UInt, UNNORMALIZED, vertFormat.GetTangentFrameOffset(), location));
-			location++;
-		}
-		for (int i = 0; i < vertFormat.GetColorChannelCount(); i++)
-		{
-			rs.Attributes.Add(VertexAttributeDesc(DataType::Byte4, NORMALIZED, vertFormat.GetColorOffset(i), location));
-			location++;
-		}
-		if (vertFormat.HasSkinning())
-		{
-			rs.Attributes.Add(VertexAttributeDesc(DataType::UInt, UNNORMALIZED, vertFormat.GetBoneIdsOffset(), location));
-			location++;
-			rs.Attributes.Add(VertexAttributeDesc(DataType::UInt, UNNORMALIZED, vertFormat.GetBoneWeightsOffset(), location));
-			location++;
-		}
-
-		vertexFormats[vertTypeId] = rs;
-		return rs;
-	}
-
-	RefPtr<PipelineClass> SceneResource::LoadMaterialPipeline(String identifier, Material * material, RenderTargetLayout * renderTargetLayout, MeshVertexFormat vertFormat, String entryPointShader, Procedure<PipelineBuilder*> setAdditionalArgs)
-	{
-		auto hw = rendererResource->hardwareRenderer;
-		if (!material->MaterialModule)
-			RegisterMaterial(material);
-
-		RefPtr<PipelineClass> pipelineClass;
-		if (pipelineClassCache.TryGetValue(identifier, pipelineClass))
-			return pipelineClass;
-
-		pipelineClass = new PipelineClass();
-
-		RefPtr<PipelineBuilder> pipelineBuilder = hw->CreatePipelineBuilder();
-
-		pipelineBuilder->FixedFunctionStates.DepthCompareFunc = CompareFunc::LessEqual;
-
-		// Set vertex layout
-		pipelineBuilder->SetVertexLayout(LoadVertexFormat(vertFormat));
-
-		// Compile shaders
-		ShaderCompilationResult rs;
-
-		if (!CompileShader(rs, spireContext, hw->GetSpireTarget(), material->ShaderFile, vertFormat.GetShaderDefinition() + entryPointShader))
-		{
-			ShaderCompilationResult rs2;
-			if (!CompileShader(rs2, spireContext, hw->GetSpireTarget(), "DefaultPattern.shader", vertFormat.GetShaderDefinition() + entryPointShader))
-				throw HardwareRendererException("Shader compilation failure");
-			rs = rs2;
-		}
-
-		for (auto& compiledShader : rs.Shaders)
-		{
-			Shader* shader;
-			if (compiledShader.Key == "vs")
-			{
-				shader = LoadShader(identifier + compiledShader.Key.Buffer(), compiledShader.Value.Buffer(), compiledShader.Value.Count(), ShaderType::VertexShader);
-			}
-			else if (compiledShader.Key == "fs")
-			{
-				shader = LoadShader(identifier + compiledShader.Key.Buffer(), compiledShader.Value.Buffer(), compiledShader.Value.Count(), ShaderType::FragmentShader);
-			}
-			else if (compiledShader.Key == "tcs")
-			{
-				shader = LoadShader(identifier + compiledShader.Key.Buffer(), compiledShader.Value.Buffer(), compiledShader.Value.Count(), ShaderType::HullShader);
-			}
-			else if (compiledShader.Key == "tes")
-			{
-				shader = LoadShader(identifier + compiledShader.Key.Buffer(), compiledShader.Value.Buffer(), compiledShader.Value.Count(), ShaderType::DomainShader);
-			}
-			pipelineClass->shaders.Add(shader);
-		}
-		pipelineBuilder->SetDebugName(identifier);
-		pipelineBuilder->SetShaders(pipelineClass->shaders.GetArrayView());
-		List<RefPtr<DescriptorSetLayout>> descSetLayouts;
-		for (auto & descSet : rs.BindingLayouts)
-		{
-			auto layout = hw->CreateDescriptorSetLayout(descSet.Value.Descriptors.GetArrayView());
-			if (descSet.Value.BindingPoint >= descSetLayouts.Count())
-				descSetLayouts.SetSize(descSet.Value.BindingPoint + 1);
-			descSetLayouts[descSet.Value.BindingPoint] = layout;
-
-		}
-		pipelineBuilder->SetBindingLayout(From(descSetLayouts).Select([](auto x) {return x.Ptr(); }).ToList().GetArrayView());
-
-		setAdditionalArgs(pipelineBuilder.Ptr());
-
-		pipelineClass->pipeline = pipelineBuilder->ToPipeline(renderTargetLayout);
-		pipelineClassCache[identifier] = pipelineClass;
-
-		return pipelineClass;
-	}
-	
 	
 	SceneResource::SceneResource(RendererSharedResource * resource, SpireCompilationContext * spireCtx)
 		: rendererResource(resource), spireContext(spireCtx)
@@ -477,14 +361,21 @@ namespace GameEngine
 		auto hwRenderer = resource->hardwareRenderer.Ptr();
 		instanceUniformMemory.Init(hwRenderer, BufferUsage::UniformBuffer, 24, hwRenderer->UniformBufferAlignment());
 		transformMemory.Init(hwRenderer, BufferUsage::UniformBuffer, 25, hwRenderer->UniformBufferAlignment());
+		spPushContext(spireContext);
+		Clear();
 	}
 	
 	void SceneResource::Clear()
 	{
 		meshes = CoreLib::EnumerableDictionary<Mesh*, RefPtr<DrawableMesh>>();
-		shaders = EnumerableDictionary<String, RefPtr<Shader>>();
-		pipelineClassCache = EnumerableDictionary<String, RefPtr<PipelineClass>>();
 		textures = EnumerableDictionary<String, RefPtr<Texture2D>>();
+		spPopContext(spireContext);
+		spPushContext(spireContext);
+		SpireDiagnosticSink * spireSink = spCreateDiagnosticSink(spireContext);
+		spLoadModuleLibrary(spireContext, Engine::Instance()->FindFile("Default.shader", ResourceType::Shader).Buffer(), spireSink);
+		if (spDiagnosticSinkHasAnyErrors(spireSink))
+			throw InvalidOperationException("cannot compile DefaultPattern.shader");
+		spDestroyDiagnosticSink(spireSink);
 	}
 	void RendererSharedResource::UpdateRenderResultFrameBuffer(RenderOutput * output)
 	{
@@ -658,7 +549,7 @@ namespace GameEngine
 
 	ModuleInstance * RendererSharedResource::CreateModuleInstance(SpireModule * shaderModule, DeviceMemory * uniformMemory, int uniformBufferSize)
 	{
-		ModuleInstance * rs = new ModuleInstance();
+		ModuleInstance * rs = new ModuleInstance(shaderModule);
 		rs->BindingName = spGetModuleName(shaderModule);
 		rs->BufferLength = Math::Max(spModuleGetParameterBufferSize(shaderModule), uniformBufferSize);
 		if (rs->BufferLength > 0)
@@ -667,6 +558,8 @@ namespace GameEngine
 			rs->UniformMemory = uniformMemory;
 			rs->BufferOffset = (int)(rs->UniformPtr - (unsigned char*)uniformMemory->BufferPtr());
 		}
+		else
+			rs->UniformMemory = nullptr;
 		int paramCount = spModuleGetParameterCount(shaderModule);
 		List<DescriptorLayout> descs;
 		descs.Add(DescriptorLayout(0, BindingType::UniformBuffer));
@@ -730,7 +623,6 @@ namespace GameEngine
 	void RendererSharedResource::Init(HardwareRenderer * phwRenderer)
 	{
 		hardwareRenderer = phwRenderer;
-
 		// Vertex buffer for VS bypass
 		const float fsTri[] =
 		{
@@ -760,6 +652,7 @@ namespace GameEngine
 
 		spireContext = spCreateCompilationContext("");
 		LoadShaderLibrary();
+		pipelineManager.Init(spireContext, hardwareRenderer.Ptr());
 
 		indexBufferMemory.Init(hardwareRenderer.Ptr(), BufferUsage::IndexBuffer, 26, 256);
 		vertexBufferMemory.Init(hardwareRenderer.Ptr(), BufferUsage::ArrayBuffer, 28, 256);
@@ -799,6 +692,86 @@ namespace GameEngine
 			renderRes->vertexBufferMemory.Free((char*)renderRes->vertexBufferMemory.BufferPtr() + vertexBufferOffset, vertexCount * vertexFormat.Size());
 		if (indexCount)
 			renderRes->indexBufferMemory.Free((char*)renderRes->indexBufferMemory.BufferPtr() + indexBufferOffset, indexCount * sizeof(int));
+	}
+	void RenderPassInstance::SetFixedOrderDrawContent(PipelineContext & pipelineManager, CullFrustum frustum, CoreLib::ArrayView<Drawable*> drawables)
+	{
+		renderOutput->GetSize(viewport.Width, viewport.Height);
+		commandBuffer->BeginRecording(renderOutput->GetFrameBuffer());
+		commandBuffer->SetViewport(viewport.X, viewport.Y, viewport.Width, viewport.Height);
+		commandBuffer->ClearAttachments(renderOutput->GetFrameBuffer());
+		DescriptorSetBindingArray bindings;
+		pipelineManager.GetBindings(bindings);
+		for (int i = 0; i < bindings.Count(); i++)
+			commandBuffer->BindDescriptorSet(i, bindings[i]);
+		numDrawCalls = 0;
+		for (auto obj : drawables)
+		{
+			if (!frustum.IsBoxInFrustum(obj->Bounds))
+				continue;
+			numDrawCalls++;
+			pipelineManager.PushModuleInstance(obj->GetMaterial()->MaterialGeometryModule.Ptr());
+			pipelineManager.PushModuleInstance(obj->GetMaterial()->MaterialPatternModule.Ptr());
+			pipelineManager.PushModuleInstance(obj->GetTransformModule());
+			if (auto pipelineInst = pipelineManager.GetPipeline(&obj->GetVertexFormat()))
+			{
+				auto mesh = obj->GetMesh();
+				commandBuffer->BindPipeline(pipelineInst->pipeline.Ptr());
+				commandBuffer->BindIndexBuffer(mesh->GetIndexBuffer(), mesh->indexBufferOffset);
+				commandBuffer->BindVertexBuffer(mesh->GetVertexBuffer(), mesh->vertexBufferOffset);
+				commandBuffer->BindDescriptorSet(bindings.Count(), obj->GetMaterial()->MaterialGeometryModule->Descriptors.Ptr());
+				commandBuffer->BindDescriptorSet(bindings.Count() + 1, obj->GetMaterial()->MaterialPatternModule->Descriptors.Ptr());
+				commandBuffer->BindDescriptorSet(bindings.Count() + 2, obj->GetTransformModule()->Descriptors.Ptr());
+				commandBuffer->DrawIndexed(0, mesh->indexCount);
+			}
+			pipelineManager.PopModuleInstance();
+			pipelineManager.PopModuleInstance();
+			pipelineManager.PopModuleInstance();
+		}
+		commandBuffer->EndRecording();
+	}
+	void RenderPassInstance::SetDrawContent(PipelineContext & pipelineManager, CoreLib::List<Drawable*>& reorderBuffer, CullFrustum frustum, CoreLib::ArrayView<Drawable*> drawables)
+	{
+		reorderBuffer.Clear();
+		for (auto obj : drawables)
+		{
+			obj->ReorderKey = nullptr;
+			if (!frustum.IsBoxInFrustum(obj->Bounds))
+				continue;
+			pipelineManager.PushModuleInstance(obj->GetMaterial()->MaterialGeometryModule.Ptr());
+			pipelineManager.PushModuleInstance(obj->GetMaterial()->MaterialPatternModule.Ptr());
+			pipelineManager.PushModuleInstance(obj->GetTransformModule());
+			obj->ReorderKey = pipelineManager.GetPipeline(&obj->GetVertexFormat());
+			pipelineManager.PopModuleInstance();
+			pipelineManager.PopModuleInstance();
+			pipelineManager.PopModuleInstance();
+			reorderBuffer.Add(obj);
+		}
+		reorderBuffer.Sort();
+		renderOutput->GetSize(viewport.Width, viewport.Height);
+		commandBuffer->BeginRecording(renderOutput->GetFrameBuffer());
+		commandBuffer->SetViewport(viewport.X, viewport.Y, viewport.Width, viewport.Height);
+		commandBuffer->ClearAttachments(renderOutput->GetFrameBuffer());
+		DescriptorSetBindingArray bindings;
+		pipelineManager.GetBindings(bindings);
+		for (int i = 0; i < bindings.Count(); i++)
+			commandBuffer->BindDescriptorSet(i, bindings[i]);
+		numDrawCalls = 0;
+		for (auto obj : reorderBuffer)
+		{
+			numDrawCalls++;
+			if (auto pipelineInst = (PipelineClass*)obj->ReorderKey)
+			{
+				auto mesh = obj->GetMesh();
+				commandBuffer->BindPipeline(pipelineInst->pipeline.Ptr());
+				commandBuffer->BindIndexBuffer(mesh->GetIndexBuffer(), mesh->indexBufferOffset);
+				commandBuffer->BindVertexBuffer(mesh->GetVertexBuffer(), mesh->vertexBufferOffset);
+				commandBuffer->BindDescriptorSet(bindings.Count(), obj->GetMaterial()->MaterialGeometryModule->Descriptors.Ptr());
+				commandBuffer->BindDescriptorSet(bindings.Count() + 1, obj->GetMaterial()->MaterialPatternModule->Descriptors.Ptr());
+				commandBuffer->BindDescriptorSet(bindings.Count() + 2, obj->GetTransformModule()->Descriptors.Ptr());
+				commandBuffer->DrawIndexed(0, mesh->indexCount);
+			}
+		}
+		commandBuffer->EndRecording();
 	}
 }
 

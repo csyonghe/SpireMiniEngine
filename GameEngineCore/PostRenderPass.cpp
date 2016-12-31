@@ -20,7 +20,7 @@ namespace GameEngine
 		renderTargetLayout = hwRenderer->CreateRenderTargetLayout(renderTargets.GetArrayView());
 		ShaderCompilationResult rs;
 		auto shaderFileName = GetShaderFileName();
-		if (!CompileShader(rs, sharedRes->spireContext, hwRenderer->GetSpireTarget(), shaderFileName, ""))
+		if (!CompileShader(rs, sharedRes->spireContext, hwRenderer->GetSpireTarget(), shaderFileName))
 			throw HardwareRendererException("Shader compilation failure");
 
 		for (auto& compiledShader : rs.Shaders)

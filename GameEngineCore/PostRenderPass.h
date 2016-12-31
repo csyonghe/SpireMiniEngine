@@ -12,6 +12,20 @@ namespace GameEngine
 		ModuleInstance * Lighting;
 	};
 
+	struct DescriptorSetBindings
+	{
+		struct Binding
+		{
+			int index;
+			DescriptorSet * descriptorSet;
+		};
+		CoreLib::Array<Binding, 16> bindings;
+		void Bind(int id, DescriptorSet * set)
+		{
+			bindings.Add(Binding{ id, set });
+		}
+	};
+
 	class PostRenderPass : public RenderPass
 	{
 	protected:

@@ -15,7 +15,7 @@ namespace GameEngine
 		CoreLib::String Name;
 		CoreLib::String ShaderFile;
 		bool ParameterDirty = true;
-		CoreLib::RefPtr<ModuleInstance> MaterialModule;
+		CoreLib::RefPtr<ModuleInstance> MaterialPatternModule, MaterialGeometryModule;
 		CoreLib::EnumerableDictionary<CoreLib::String, DynamicVariable> Variables;
 		void SetVariable(CoreLib::String name, DynamicVariable value);
 		void Parse(CoreLib::Text::TokenReader & parser);

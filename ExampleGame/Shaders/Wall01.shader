@@ -1,6 +1,4 @@
-using "DefaultGeometry.shader";
-
-module MaterialPattern implements IMaterialPattern
+module Wall01Pattern implements IMaterialPattern
 {
     param Texture2D maskTexture;
     param Texture2D dirtTexture;

@@ -555,6 +555,7 @@
     <ClInclude Include="Graphics\ObjModel.h" />
     <ClInclude Include="Graphics\TextureFile.h" />
     <ClInclude Include="Graphics\ViewFrustum.h" />
+    <ClInclude Include="Hash.h" />
     <ClInclude Include="Imaging\Bitmap.h" />
     <ClInclude Include="Imaging\lodepng.h" />
     <ClInclude Include="Imaging\stb_image.h" />

@@ -35,18 +35,19 @@ namespace GameEngine
 	class ShaderCompilationResult
 	{
 	public:
-		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::List<unsigned char>> Shaders;
+		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::List<char>> Shaders;
 		CoreLib::List<ShaderCompilationError> Diagnostics;
 		CoreLib::EnumerableDictionary<CoreLib::String, DescriptorSetInfo> BindingLayouts;
 		void LoadFromFile(CoreLib::String fileName);
 		void SaveToFile(CoreLib::String fileName, bool codeIsText);
 	};
 
+	void GetShaderCompilationResult(ShaderCompilationResult & src, SpireCompilationResult * compileResult, SpireDiagnosticSink * diagSink);
+
 	bool CompileShader(ShaderCompilationResult & src,
 		SpireCompilationContext * spireCtx,
 		int targetLang,
-		const CoreLib::String & filename,
-		const CoreLib::String & entryPoint);
+		const CoreLib::String & filename);
 }
 
 #endif

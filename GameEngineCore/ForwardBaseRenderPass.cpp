@@ -2,6 +2,7 @@
 #include "Material.h"
 #include "Mesh.h"
 #include "CoreLib/LibIO.h"
+#include "Spire/Spire.h"
 
 using namespace CoreLib;
 using namespace CoreLib::IO;
@@ -11,33 +12,29 @@ namespace GameEngine
 	class ForwardBaseRenderPass : public WorldRenderPass
 	{
 	private:
-		String shaderEntryPoint = R"(
-			shader ForwardBase targets StandardPipeline
+		const char * shaderSrc = R"(
+			template shader ForwardBase(passParams:ForwardBasePassParams, lightingModule, geometryModule:IMaterialGeometry, materialModule:IMaterialPattern, animationModule) targets StandardPipeline
 			{
 				public using VertexAttributes;
-				[Binding: "0"]
-				public using ForwardBasePassParams;
-				[Binding: "3"]
-				public using ANIMATION;
+				public using passParams;
+				public using animationModule;
 				public using TangentSpaceTransform;
-				public using MaterialGeometry;
+				public using geometryModule;
 				public using VertexTransform;
-				[Binding: "2"]
-				public using MaterialPattern;
+				public using materialModule;
 				vec3 lightParam = vec3(roughness, metallic, specular);
-				[Binding: "1"]
-				using lighting = Lighting(TangentSpaceToWorldSpace(vec3(normal.x, -normal.y, normal.z)));
+				using lighting = lightingModule(TangentSpaceToWorldSpace(vec3(normal.x, -normal.y, normal.z)));
 				public out @Fragment vec4 outputColor = vec4(lighting.result, 1.0);
 			};
 		)";
 	public:
-		virtual void Create() override
+		const char * GetShaderSource() override
 		{
-			renderTargetLayout = hwRenderer->CreateRenderTargetLayout(MakeArray(TextureUsage::ColorAttachment, TextureUsage::DepthAttachment).GetArrayView());
+			return shaderSrc;
 		}
-		virtual String GetEntryPointShader() override
+		RenderTargetLayout * CreateRenderTargetLayout() override
 		{
-			return shaderEntryPoint;
+			return hwRenderer->CreateRenderTargetLayout(MakeArray(TextureUsage::ColorAttachment, TextureUsage::DepthAttachment).GetArrayView());
 		}
 		virtual char * GetName() override
 		{

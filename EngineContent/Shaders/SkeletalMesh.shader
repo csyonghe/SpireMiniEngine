@@ -1,6 +1,4 @@
-using "DefaultGeometry.shader";
-
-module MaterialPattern
+module SkeletalMeshPattern implements IMaterialPattern
 {
     public vec3 normal = vec3(0.0, 0.0, 1.0);
     public float roughness = 0.7;

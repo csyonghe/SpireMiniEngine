@@ -7,20 +7,29 @@ namespace GameEngine
 {
 	class WorldRenderPass : public RenderPass
 	{
+	private:
+		FixedFunctionPipelineStates fixedFunctionStates;
+		SpireShader * shader = nullptr;
+
 	protected:
-		CoreLib::RefPtr<ModuleInstance> moduleInstance;
 		CoreLib::Array<CoreLib::RefPtr<CommandBuffer>, 32> commandBufferPool;
 		int poolAllocPtr = 0;
 		CommandBuffer * AllocCommandBuffer();
-		virtual CoreLib::String GetEntryPointShader() = 0;
-		virtual void SetPipelineStates(PipelineBuilder * /*pb*/) {}
+		virtual const char * GetShaderSource() = 0;
+		virtual RenderTargetLayout * CreateRenderTargetLayout() = 0;
+		virtual void SetPipelineStates(FixedFunctionPipelineStates & state)
+		{
+			state.BlendMode = BlendMode::Replace;
+			state.DepthCompareFunc = CompareFunc::Less;
+		}
+		virtual void Create() override;
 	public:
 		void ResetInstancePool()
 		{
 			poolAllocPtr = 0;
 		}
+		virtual void Bind();
 		RenderPassInstance CreateInstance(RenderOutput * output);
-		virtual CoreLib::RefPtr<PipelineClass> CreatePipelineStateObject(SceneResource * sceneRes, Material* material, Mesh* mesh, DrawableType drawableType);
 	};
 }
 

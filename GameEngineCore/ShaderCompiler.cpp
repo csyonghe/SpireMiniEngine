@@ -7,38 +7,8 @@ namespace GameEngine
 	using namespace CoreLib;
 	using namespace CoreLib::IO;
 
-	bool CompileShader(ShaderCompilationResult & src,
-		SpireCompilationContext * spireCtx,
-		int targetLang,
-		const String & filename,
-		const String & entryPoint)
+	void GetShaderCompilationResult(ShaderCompilationResult & src, SpireCompilationResult * compileResult, SpireDiagnosticSink * diagSink)
 	{
-		auto actualFilename = Engine::Instance()->FindFile(filename, ResourceType::Shader);
-		if (!actualFilename.Length())
-			return false;
-
-		auto cachePostfix = (targetLang == SPIRE_GLSL) ? "glsl.cse" : (targetLang == SPIRE_HLSL) ? "hlsl.cse" : "spv.cse";
-		// Check disk for shaders
-		auto cachedShaderFilename =
-			Path::Combine(Engine::Instance()->GetDirectory(false, ResourceType::ShaderCache),
-				Path::GetFileName(Path::ReplaceExt(actualFilename, cachePostfix)));
-
-		//if (!Engine::Instance()->RecompileShaders && CoreLib::IO::File::Exists(cachedShaderFilename))
-		//{
-		//	src.LoadFromFile(cachedShaderFilename);
-		//	return true;
-		//}
-
-		// Compile shader using Spire
-		auto diagSink = spCreateDiagnosticSink(spireCtx);
-		spSetCodeGenTarget(spireCtx, targetLang);
-
-		String shaderSrc;
-		SpireCompilationResult * compileResult;
-
-		shaderSrc = File::ReadAllText(actualFilename) + entryPoint;
-		compileResult = spCompileShaderFromSource(spireCtx, shaderSrc.Buffer(), actualFilename.Buffer(), diagSink);
-
 		int count = spGetDiagnosticCount(diagSink);
 		for (int i = 0; i < count; i++)
 		{
@@ -47,18 +17,8 @@ namespace GameEngine
 			src.Diagnostics.Add(ShaderCompilationError(diag));
 			Print("%S(%d): %S\n", String(diag.FileName).ToWString(), diag.Line, String(diag.Message).ToWString());
 		}
-
 		if (spDiagnosticSinkHasAnyErrors(diagSink))
-		{
-			auto outputFileName = Path::ReplaceExt(actualFilename, "spire");
-			Print("Spire source written to %S\n", outputFileName.ToWString());
-			File::WriteAllText(outputFileName, shaderSrc);
-			spDestroyDiagnosticSink(diagSink);
-			spDestroyCompilationResult(compileResult);
-			return false;
-		}
-
-		spDestroyDiagnosticSink(diagSink);
+			return;
 
 		int bufferSize = spGetCompiledShaderNames(compileResult, nullptr, 0);
 		List<char> shaderNameBuffer;
@@ -73,7 +33,7 @@ namespace GameEngine
 
 		for (auto stage : CoreLib::Text::Split(buffer.Buffer(), L'\n'))
 		{
-			List<unsigned char> codeBytes;
+			List<char> codeBytes;
 			int len = 0;
 			auto code = spGetShaderStageSource(compileResult, shaderNameBuffer.Buffer(), stage.Buffer(), &len);
 			codeBytes.SetSize(len);
@@ -116,6 +76,51 @@ namespace GameEngine
 			}
 			src.BindingLayouts.Add(String(setInfo.BindingName), _Move(setInfo));
 		}
+	}
+
+	bool CompileShader(ShaderCompilationResult & src,
+		SpireCompilationContext * spireCtx,
+		int targetLang,
+		const String & filename)
+	{
+		auto actualFilename = Engine::Instance()->FindFile(filename, ResourceType::Shader);
+		if (!actualFilename.Length())
+			return false;
+
+		auto cachePostfix = (targetLang == SPIRE_GLSL) ? "glsl.cse" : (targetLang == SPIRE_HLSL) ? "hlsl.cse" : "spv.cse";
+		// Check disk for shaders
+		auto cachedShaderFilename =
+			Path::Combine(Engine::Instance()->GetDirectory(false, ResourceType::ShaderCache),
+				Path::GetFileName(Path::ReplaceExt(actualFilename, cachePostfix)));
+
+		//if (!Engine::Instance()->RecompileShaders && CoreLib::IO::File::Exists(cachedShaderFilename))
+		//{
+		//	src.LoadFromFile(cachedShaderFilename);
+		//	return true;
+		//}
+
+		// Compile shader using Spire
+		auto diagSink = spCreateDiagnosticSink(spireCtx);
+		spSetCodeGenTarget(spireCtx, targetLang);
+		String shaderSrc;
+		SpireCompilationResult * compileResult;
+
+		shaderSrc = File::ReadAllText(actualFilename);
+		compileResult = spCompileShaderFromSource(spireCtx, shaderSrc.Buffer(), actualFilename.Buffer(), diagSink);
+
+		if (spDiagnosticSinkHasAnyErrors(diagSink))
+		{
+			auto outputFileName = Path::ReplaceExt(actualFilename, "spire");
+			Print("Spire source written to %S\n", outputFileName.ToWString());
+			File::WriteAllText(outputFileName, shaderSrc);
+			spDestroyDiagnosticSink(diagSink);
+			spDestroyCompilationResult(compileResult);
+
+			return false;
+		}
+
+		GetShaderCompilationResult(src, compileResult, diagSink);
+		spDestroyDiagnosticSink(diagSink);
 		spDestroyCompilationResult(compileResult);
 
 		src.SaveToFile(cachedShaderFilename, targetLang != SPIRE_SPIRV);
@@ -198,8 +203,8 @@ namespace GameEngine
 				while (!parser.LookAhead("}") && !parser.IsEnd())
 				{
 					auto val = parser.ReadUInt();
-					List<unsigned char> code;
-					code.AddRange((unsigned char*)&val, sizeof(unsigned int));
+					List<char> code;
+					code.AddRange((char*)&val, sizeof(unsigned int));
 					this->Shaders[stageName] = code;
 				}
 				parser.Read("}");
@@ -207,7 +212,7 @@ namespace GameEngine
 			if (parser.LookAhead("text"))
 			{
 				parser.ReadToken();
-				List<unsigned char> code;
+				List<char> code;
 				auto codeStr = getShaderSource();
 				int len = (int)strlen(codeStr.Buffer());
 				code.SetSize(len);

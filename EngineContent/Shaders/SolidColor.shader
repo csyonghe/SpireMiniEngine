@@ -1,6 +1,4 @@
-using "DefaultGeometry.shader";
-
-module MaterialPattern
+module SolidColorPattern implements IMaterialPattern
 {
     param vec3 solidColor;
     

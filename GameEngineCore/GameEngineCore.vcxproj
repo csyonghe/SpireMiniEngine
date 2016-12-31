@@ -180,12 +180,13 @@
     <ClCompile Include="MotionGraph.cpp" />
     <ClCompile Include="MotionGraphAnimationSynthesizer.cpp" />
     <ClCompile Include="MotionGraphMeshActor.cpp" />
+    <ClCompile Include="PipelineContext.cpp" />
     <ClCompile Include="PostRenderPass.cpp" />
     <ClCompile Include="RenderContext.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="RenderPass.cpp" />
     <ClCompile Include="RenderPassRegistry.h" />
-    <ClCompile Include="ShadeCompiler.cpp" />
+    <ClCompile Include="ShaderCompiler.cpp" />
     <ClCompile Include="ShadowRenderPass.cpp" />
     <ClCompile Include="SkeletalMeshActor.cpp" />
     <ClCompile Include="Skeleton.cpp" />

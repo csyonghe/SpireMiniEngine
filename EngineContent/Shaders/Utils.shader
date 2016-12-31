@@ -510,3 +510,9 @@ interface IMaterialPattern
         return 1.0;        
     }
 }
+
+interface IMaterialGeometry
+{
+    public vec3 fineVertPos;
+    public vec3 displacement;
+}
