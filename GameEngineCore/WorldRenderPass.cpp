@@ -38,7 +38,7 @@ namespace GameEngine
 
 	void WorldRenderPass::Create()
 	{
-		renderTargetLayout = hwRenderer->CreateRenderTargetLayout(MakeArray(TextureUsage::ColorAttachment, TextureUsage::DepthAttachment).GetArrayView());
+		renderTargetLayout = CreateRenderTargetLayout();
 		shader = spCreateShaderFromSource(sharedRes->spireContext, GetShaderSource());
 		SetPipelineStates(fixedFunctionStates);
 	}
