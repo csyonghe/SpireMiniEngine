@@ -446,23 +446,29 @@ module Atmosphere
     
 }
 
+module AtmospherePostPassParams
+{
+	public param vec3 worldSunDir;
+    public param vec4 atmosphereParams;
+    
+    public param Texture2D colorTex;
+	public param Texture2D depthTex;
+   
+    public param Texture2D transmittanceSampler;
+    public param Texture2D skyIrradianceSampler;
+    public param Texture3D inscatterSampler;
+
+    public param SamplerState linearSampler;
+	public param SamplerState nearestSampler;
+}
+
 shader AtmospherePostPass targets StandardPipeline
 {
 	public @MeshVertex vec2 vertPos;
 	public @MeshVertex vec2 vertUV;
 
-	param vec3 worldSunDir;
-    param vec4 atmosphereParams;
-    
-    param Texture2D colorTex;
-	param Texture2D depthTex;
-   
-    param Texture2D transmittanceSampler;
-    param Texture2D skyIrradianceSampler;
-    param Texture3D inscatterSampler;
-
-    param SamplerState linearSampler;
-	param SamplerState nearestSampler;
+    [Binding: "0"]
+    public using AtmospherePostPassParams;
     
     [Binding: "1"]
     public using ForwardBasePassParams;

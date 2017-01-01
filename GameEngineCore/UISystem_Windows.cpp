@@ -493,7 +493,7 @@ namespace GraphicsUI
 		GameEngine::HardwareRenderer * rendererApi;
 		int screenWidth, screenHeight;
 		Matrix4 orthoMatrix;
-        const char * uberSpireShader = R"(
+		const char * uberSpireShader = R"(
 			pipeline EnginePipeline
 			{
 				[Pinned]
@@ -544,11 +544,16 @@ namespace GraphicsUI
 				return (integral.z - integral.x) * (integral.w - integral.y);
 			}
 
+			module UberUIShaderParams
+			{
+				public param mat4 orthoMatrix;
+				public param StructuredBuffer<uvec4> uniformInput;
+				public param StructuredBuffer<uint> textContent;
+			}
 			shader UberUIShader
 			{
-				param mat4 orthoMatrix;
-				param StructuredBuffer<uvec4> uniformInput;
-				param StructuredBuffer<uint> textContent;
+				[Binding: "0"]
+				public using UberUIShaderParams;
 
 				@rootVert vec2 vert_pos;
 				@rootVert vec2 vert_uv;

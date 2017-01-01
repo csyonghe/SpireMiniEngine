@@ -1,10 +1,16 @@
-shader DeferredLighting targets StandardPipeline
+module DeferredLightingParams
 {
 	param Texture2D albedoTex;
 	param Texture2D pbrTex;
 	param Texture2D normalTex;
 	param Texture2D depthTex;
 	param SamplerState nearestSampler;
+}
+
+shader DeferredLighting targets StandardPipeline
+{
+	[Binding: "0"]
+	public using DeferredLightingParams;
 
 	[Binding: "1"]
 	public using ForwardBasePassParams;
@@ -27,6 +33,8 @@ shader DeferredLighting targets StandardPipeline
     float y = vertUV.y*2-1;
 	vec4 position = invViewProjTransform * vec4(x, y, z, 1.0f);
 	vec3 pos = position.xyz / position.w;
+	
+	[Binding: "2"]
 	using lighting = Lighting();
 
     public out @Fragment vec4 outputColor = vec4(lighting.result, 1.0);
