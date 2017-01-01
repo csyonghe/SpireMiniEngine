@@ -712,10 +712,10 @@ namespace GraphicsUI
 			pipeBuilder->FixedFunctionStates.BlendMode = BlendMode::AlphaBlend;
 			pipeBuilder->FixedFunctionStates.DepthCompareFunc = CompareFunc::Disabled;
 
-			uniformBuffer = rendererApi->CreateBuffer(BufferUsage::UniformBuffer);
-			primitiveBuffer = rendererApi->CreateBuffer(BufferUsage::StorageBuffer);
-			vertexBuffer = rendererApi->CreateBuffer(BufferUsage::ArrayBuffer);
-			indexBuffer = rendererApi->CreateBuffer(BufferUsage::ArrayBuffer);
+			uniformBuffer = rendererApi->CreateBuffer(BufferUsage::UniformBuffer, sizeof(orthoMatrix));
+			primitiveBuffer = rendererApi->CreateBuffer(BufferUsage::StorageBuffer, 1 << 22);
+			vertexBuffer = rendererApi->CreateBuffer(BufferUsage::ArrayBuffer, 1 << 22);
+			indexBuffer = rendererApi->CreateBuffer(BufferUsage::ArrayBuffer, 1 << 20);
 
 			Array<TextureUsage, 1> frameBufferLayout;
 			frameBufferLayout.Add(TextureUsage::ColorAttachment);
@@ -778,8 +778,10 @@ namespace GraphicsUI
 			cmdBuffer->SetViewport(0, 0, screenWidth, screenHeight);
 			cmdBuffer->DrawIndexed(0, indexStream.Count());
 			cmdBuffer->EndRecording();
+		}
+		void SubmitCommands()
+		{
 			rendererApi->ExecuteCommandBuffers(frameBuffer.Ptr(), MakeArrayView(cmdBuffer.Ptr()));
-			rendererApi->Wait();
 		}
 		void DrawLine(const Color & color, float x0, float y0, float x1, float y1)
 		{
@@ -1041,7 +1043,7 @@ namespace GraphicsUI
 		uiRenderer->SetScreenResolution(w, h);
 	}
 
-	void UIWindowsSystemInterface::ExecuteDrawCommands(Texture2D* baseTexture, CoreLib::List<DrawCommand>& commands)
+	void UIWindowsSystemInterface::TransferDrawComands(Texture2D* baseTexture, CoreLib::List<DrawCommand>& commands)
 	{
 		uiRenderer->BeginUIDrawing();
 		int ptr = 0;
@@ -1102,6 +1104,11 @@ namespace GraphicsUI
 		uiRenderer->EndUIDrawing(baseTexture);
 	}
 
+	void UIWindowsSystemInterface::ExecuteDrawCommands()
+	{
+		uiRenderer->SubmitCommands();
+	}
+
 	void UIWindowsSystemInterface::SwitchCursor(CursorType c)
 	{
 		LPTSTR cursorName;
@@ -1156,8 +1163,7 @@ namespace GraphicsUI
 		defaultFont = new WindowsFont(this, dpi, Font("Segoe UI", 13));
 		titleFont = new WindowsFont(this, dpi, Font("Segoe UI", 13, true, false, false));
 		symbolFont = new WindowsFont(this, dpi, Font("Webdings", 13));
-		textBufferObj = ctx->CreateMappedBuffer(BufferUsage::StorageBuffer);
-		textBufferObj->SetData(nullptr, TextBufferSize);
+		textBufferObj = ctx->CreateMappedBuffer(BufferUsage::StorageBuffer, TextBufferSize);
 		textBuffer = (unsigned char*)textBufferObj->Map();
 		textBufferPool.Init(textBuffer, 6, TextBufferSize >> 6);
 		uiRenderer = new GLUIRenderer(this, ctx);

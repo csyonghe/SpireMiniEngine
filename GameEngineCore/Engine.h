@@ -46,6 +46,7 @@ namespace GameEngine
 		TimingMode timingMode = TimingMode::Natural;
 		float fixedFrameDuration = 1.0f / 30.0f;
 		unsigned int frameCounter = 0;
+		bool inDataTransfer = false;
 		GraphicsSettings graphicsSettings;
 		CoreLib::String levelToLoad;
 	private:

@@ -33,7 +33,7 @@ namespace GameEngine
 		Read, Write, ReadWrite, ReadWritePersistent
 	};
 
-	enum class BufferStorageFlag
+	enum BufferStorageFlag
 	{
 		DynamicStorage = 0x1,
 		MapRead = 0x2,
@@ -397,6 +397,7 @@ namespace GameEngine
 	protected:
 		Buffer() {};
 	public:
+		virtual void SetDataAsync(int offset, void * data, int size) = 0;
 		virtual void SetData(int offset, void* data, int size) = 0;
 		virtual void SetData(void* data, int size) = 0;
 		//virtual void GetData(int offset, int size) = 0;
@@ -650,8 +651,8 @@ namespace GameEngine
 		virtual void Present(Texture2D* srcImage) = 0;
 		virtual void Blit(Texture2D* dstImage, Texture2D* srcImage) = 0;
 		virtual void Wait() = 0;
-		virtual Buffer* CreateBuffer(BufferUsage usage) = 0;
-		virtual Buffer* CreateMappedBuffer(BufferUsage usage) = 0;
+		virtual Buffer* CreateBuffer(BufferUsage usage, int sizeInBytes) = 0;
+		virtual Buffer* CreateMappedBuffer(BufferUsage usage, int sizeInBytes) = 0;
 		// Automatically builds mipmaps with supplied data
 		virtual Texture2D* CreateTexture2D(int width, int height, StorageFormat format, DataType type, void* data) = 0;
 		// Allocates resources for a texture with supplied parameters
@@ -671,6 +672,8 @@ namespace GameEngine
 		virtual int GetSpireTarget() = 0;
 		virtual int UniformBufferAlignment() = 0;
 		virtual int StorageBufferAlignment() = 0;
+		virtual void BeginDataTransfer() = 0;
+		virtual void EndDataTransfer() = 0;
 	};
 
 	// HardwareRenderer instance constructors

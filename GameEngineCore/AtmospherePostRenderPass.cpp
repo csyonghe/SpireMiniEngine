@@ -28,7 +28,7 @@ namespace GameEngine
 		virtual void Create() override
 		{
 			PostRenderPass::Create();
-			parameterBuffer = hwRenderer->CreateBuffer(BufferUsage::UniformBuffer);
+			parameterBuffer = hwRenderer->CreateBuffer(BufferUsage::UniformBuffer, sizeof(AtmosphereParameters));
 			String irradianceDataFile = Engine::Instance()->FindFile("Atmosphere/irradiance.raw", ResourceType::Material);
 			String inscatterDataFile = Engine::Instance()->FindFile("Atmosphere/inscatter.raw", ResourceType::Material);
 			String transmittanceDataFile = Engine::Instance()->FindFile("Atmosphere/transmittance.raw", ResourceType::Material);

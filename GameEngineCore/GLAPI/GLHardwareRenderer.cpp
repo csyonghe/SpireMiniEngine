@@ -1065,6 +1065,9 @@ namespace GLL
 	class BufferObject : public GL_Object, public GameEngine::Buffer
 	{
 	public:
+#ifdef _DEBUG
+		bool * isInTransfer = nullptr;
+#endif
 		bool persistentMapping = false;
 		GLuint BindTarget;
 		static float CheckBufferData(int bufferHandle)
@@ -1081,35 +1084,31 @@ namespace GLL
 		}
 		void SetData(void * data, int sizeInBytes)
 		{
-			GLenum usage = GL_STATIC_DRAW;
-			if (BindTarget == GL_UNIFORM_BUFFER)
-				usage = GL_DYNAMIC_DRAW;
-			else if (BindTarget == GL_ARRAY_BUFFER || BindTarget == GL_ELEMENT_ARRAY_BUFFER)
-				usage = GL_STREAM_DRAW;
-			if (sizeInBytes == 0)
-				return;
-			if (persistentMapping)
-			{
-				glDeleteBuffers(1, &Handle);
-				glGenBuffers(1, &Handle);
-				glBindBuffer(BindTarget, Handle);
-				glNamedBufferStorage(Handle, sizeInBytes, data, GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_COHERENT_BIT);
-				glBindBuffer(BindTarget, 0);
-			}
-			else
-			{
-				glBindBuffer(BindTarget, Handle);
-				glBufferData(BindTarget, sizeInBytes, data, usage);
-				glBindBuffer(BindTarget, 0);
-			}
+#ifdef _DEBUG
+			if (!*isInTransfer)
+				throw HardwareRendererException("Renderer not in data-transfer mode.");
+#endif
+			SetData(0, data, sizeInBytes);
+		}
+		void SetDataAsync(int offset, void * data, int size)
+		{
+#ifdef _DEBUG
+			if (!*isInTransfer)
+				throw HardwareRendererException("Renderer not in data-transfer mode.");
+#endif
+			glNamedBufferSubData(Handle, (GLintptr)offset, (GLsizeiptr)size, data);
 		}
 		void SetData(int offset, void * data, int size)
 		{
+#ifdef _DEBUG
+			if (!*isInTransfer)
+				throw HardwareRendererException("Renderer not in data-transfer mode.");
+#endif
 			glNamedBufferSubData(Handle, (GLintptr)offset, (GLsizeiptr)size, data);
 		}
-		void BufferStorage(int size, void * data, BufferStorageFlag storageFlags)
+		void BufferStorage(int size, void * data, int flags)
 		{
-			glNamedBufferStorage(Handle, (GLsizeiptr)size, data, TranslateBufferStorageFlags(storageFlags));
+			glNamedBufferStorage(Handle, (GLsizeiptr)size, data, flags);
 		}
 		void * Map(BufferAccess access, int offset, int len)
 		{
@@ -1959,6 +1958,7 @@ namespace GLL
 			}
 		}
 	public:
+		bool isInDataTransfer = false;
 		HardwareRenderer()
 		{
 			hwnd = 0;
@@ -2728,6 +2728,20 @@ namespace GLL
 			return rs;
 		}
 
+		virtual void BeginDataTransfer() override
+		{
+#ifdef _DEBUG
+			if (isInDataTransfer)
+				throw HardwareRendererException("Renderer is already in data transfer mode.");
+#endif
+			isInDataTransfer = true;
+		}
+
+		virtual void EndDataTransfer() override
+		{
+			isInDataTransfer = false;
+		}
+
 		Program CreateTransformFeedbackProgram(const Shader &vertexShader, const List<String> & varyings, FeedbackStorageMode format)
 		{
 			auto handle = glCreateProgram();
@@ -3094,9 +3108,12 @@ namespace GLL
 
 		}
 
-		BufferObject* CreateBuffer(BufferUsage usage)
+		BufferObject* CreateBuffer(BufferUsage usage, int bufferSize, int storageFlags)
 		{
 			auto rs = new BufferObject();
+#ifdef _DEBUG
+			rs->isInTransfer = &isInDataTransfer;
+#endif
 			rs->BindTarget = TranslateBufferUsage(usage);
 			if (glCreateBuffers)
 				glCreateBuffers(1, &rs->Handle);
@@ -3105,12 +3122,17 @@ namespace GLL
 				glGenBuffers(1, &rs->Handle);
 				glBindBuffer(rs->BindTarget, rs->Handle);
 			}
+			rs->BufferStorage(bufferSize, nullptr, storageFlags);
 			return rs;
 		}
 
-		BufferObject* CreateMappedBuffer(BufferUsage usage)
+		BufferObject* CreateBuffer(BufferUsage usage, int bufferSize)
 		{
-			auto result = CreateBuffer(usage);
+			return CreateBuffer(usage, bufferSize, GL_DYNAMIC_STORAGE_BIT);
+		}
+		BufferObject* CreateMappedBuffer(BufferUsage usage, int bufferSize)
+		{
+			auto result = CreateBuffer(usage, bufferSize, GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_COHERENT_BIT);
 			result->persistentMapping = true;
 			return result;
 		}

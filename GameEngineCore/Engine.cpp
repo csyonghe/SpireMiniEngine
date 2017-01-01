@@ -42,9 +42,15 @@ namespace GameEngine
 
 	void Engine::RefreshUI()
 	{
-		auto uiCommands = uiEntry->DrawUI();
-		uiSystemInterface->ExecuteDrawCommands(renderer->GetRenderedImage(), uiCommands);
-		renderer->GetHardwareRenderer()->Present(uiSystemInterface->GetRenderedImage());
+		if (!inDataTransfer)
+		{
+			renderer->GetHardwareRenderer()->BeginDataTransfer();
+			auto uiCommands = uiEntry->DrawUI();
+			uiSystemInterface->TransferDrawComands(renderer->GetRenderedImage(), uiCommands);
+			renderer->GetHardwareRenderer()->EndDataTransfer();
+			uiSystemInterface->ExecuteDrawCommands();
+			renderer->GetHardwareRenderer()->Present(uiSystemInterface->GetRenderedImage());
+		}
 	}
 
 	void Engine::InternalInit(const EngineInitArguments & args)
@@ -52,7 +58,6 @@ namespace GameEngine
 		try
 		{
 			RegisterEngineActorClasses(this);
-
 
 			startTime = lastGameLogicTime = lastRenderingTime = Diagnostics::PerformanceCounter::Start();
 
@@ -173,9 +178,18 @@ namespace GameEngine
 
 		auto thisRenderingTime = PerformanceCounter::Start();
 		renderingTimeDelta = PerformanceCounter::EndSeconds(lastRenderingTime);
-		renderer->TakeSnapshot();
-		renderer->RenderFrame();
 		lastRenderingTime = thisRenderingTime;
+
+		inDataTransfer = true;
+		renderer->GetHardwareRenderer()->BeginDataTransfer();
+		renderer->TakeSnapshot();
+		auto uiCommands = uiEntry->DrawUI();
+		uiSystemInterface->TransferDrawComands(renderer->GetRenderedImage(), uiCommands);
+		renderer->GetHardwareRenderer()->EndDataTransfer();
+		inDataTransfer = false;
+		renderer->RenderFrame();
+		uiSystemInterface->ExecuteDrawCommands();
+		renderer->GetHardwareRenderer()->Present(uiSystemInterface->GetRenderedImage());
 
 		frameCount++;
 		aggregateTime += renderingTimeDelta;
@@ -190,8 +204,6 @@ namespace GameEngine
 			frameCount = 0;
 		}
 
-		RefreshUI();
-		//renderer->GetHardwareRenderer()->Present(renderer->GetRenderedImage());
 		frameCounter++;
 	}
 
@@ -199,8 +211,10 @@ namespace GameEngine
 	{
 		if (renderer && w > 2 && h > 2)
 		{
+			renderer->GetHardwareRenderer()->BeginDataTransfer();
 			renderer->Resize(w, h);
 			uiSystemInterface->SetResolution(w, h);
+			renderer->GetHardwareRenderer()->EndDataTransfer();
 		}
 	}
 

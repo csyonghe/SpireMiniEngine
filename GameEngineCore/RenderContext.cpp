@@ -657,7 +657,7 @@ namespace GameEngine
 			1.0f, 1.0f, 1.0f, 1.0f,
 			-1.0f, 1.0f, 0.0f, 1.0f
 		};
-		fullScreenQuadVertBuffer = hardwareRenderer->CreateBuffer(BufferUsage::ArrayBuffer);
+		fullScreenQuadVertBuffer = hardwareRenderer->CreateBuffer(BufferUsage::ArrayBuffer, sizeof(fsTri));
 		fullScreenQuadVertBuffer->SetData((void*)&fsTri[0], sizeof(fsTri));
 
 		// Create common texture samplers

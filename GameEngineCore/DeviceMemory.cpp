@@ -6,8 +6,7 @@ namespace GameEngine
 {
 	void DeviceMemory::Init(HardwareRenderer * hwRenderer, BufferUsage usage, int log2BufferSize, int alignment)
 	{
-		buffer = hwRenderer->CreateBuffer(usage);
-		buffer->SetData(nullptr, 1 << log2BufferSize);
+		buffer = hwRenderer->CreateBuffer(usage, 1 << log2BufferSize);
 		bufferPtr = new unsigned char[(int)(1 << log2BufferSize)];
 		int logAlignment = CoreLib::Math::Log2Ceil(alignment);
 		memory.Init((unsigned char*)bufferPtr, logAlignment, (1 << (log2BufferSize - logAlignment)));

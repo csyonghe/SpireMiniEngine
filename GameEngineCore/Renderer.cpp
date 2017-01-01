@@ -129,7 +129,7 @@ namespace GameEngine
 			}
 
 			hardwareRenderer->BindWindow(window, 640, 480);
-
+			hardwareRenderer->BeginDataTransfer();
 			sharedRes.Init(hardwareRenderer);
 			
 			// Fetch uniform buffer alignment requirements
@@ -141,7 +141,7 @@ namespace GameEngine
 			
 			sceneRes = new SceneResource(&sharedRes, sharedRes.spireContext);
 			renderService = new RendererServiceImpl(this);
-
+			hardwareRenderer->EndDataTransfer();
 		}
 		~RendererImpl()
 		{
