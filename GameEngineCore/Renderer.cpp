@@ -196,11 +196,38 @@ namespace GameEngine
 		{
 			return renderStats;
 		}
+
+		struct DescriptorSetUpdate
+		{
+			DescriptorSet * descSet;
+			int index;
+			Buffer * buffer;
+			int offset;
+			int length;
+		};
+
+		List<DescriptorSetUpdate> descSetUpdates;
+
+		virtual void QueueDescriptorSetUpdate(DescriptorSet* set, int index, Buffer * buffer, int offset, int length) override
+		{
+			DescriptorSetUpdate update = { set, index, buffer, offset, length };
+			descSetUpdates.Add(update);
+		}
+
 		virtual void RenderFrame() override
 		{
 			if (!level) return;
 			renderStats.NumDrawCalls = 0;
 			renderStats.NumPasses = 0;
+
+			for (auto & update : descSetUpdates)
+			{
+				update.descSet->BeginUpdate();
+				update.descSet->Update(update.index, update.buffer, update.offset, update.length);
+				update.descSet->EndUpdate();
+			}
+			descSetUpdates.Clear();
+
 			for (auto & pass : renderPassInstances)
 			{
 				hardwareRenderer->ExecuteCommandBuffers(pass.renderOutput->GetFrameBuffer(), MakeArrayView(pass.commandBuffer));

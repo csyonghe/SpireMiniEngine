@@ -141,5 +141,22 @@ namespace GameEngine
 		return pipelineClass.Ptr();
 	}
 
+	void ModuleInstance::SetUniformData(void * data, int length)
+	{
+#ifdef _DEBUG
+		if (length > BufferLength)
+			throw HardwareRendererException("insufficient uniform buffer.");
+#endif
+		if (length && UniformPtr)
+		{
+			frameId = frameId % DynamicBufferLengthMultiplier;
+			int alternateBufferOffset = frameId * BufferLength;
+			memcpy(UniformPtr + alternateBufferOffset, data, length);
+			Engine::Instance()->GetRenderer()->QueueDescriptorSetUpdate(Descriptors.Ptr(), 0, UniformMemory->GetBuffer(), BufferOffset + alternateBufferOffset, BufferLength);
+			frameId++;
+		}
+		//UniformMemory->GetBuffer()->SetData(BufferOffset, data, CoreLib::Math::Min(length, BufferLength));
+	}
+
 }
 

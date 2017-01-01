@@ -18,31 +18,15 @@ namespace GameEngine
 	private:
 		SpireModule * module = nullptr;
 		CoreLib::String moduleName;
+		int frameId = 0;
 	public:
 		CoreLib::RefPtr<DescriptorSetLayout> DescriptorLayout;
 		CoreLib::RefPtr<DescriptorSet> Descriptors;
 		DeviceMemory * UniformMemory = nullptr;
 		int BufferOffset = 0, BufferLength = 0;
 		unsigned char * UniformPtr = nullptr;
-		bool DataChanged = true;
 		CoreLib::String BindingName;
-		void SetUniformData(void * data, int length)
-		{
-#ifdef _DEBUG
-			if (length > BufferLength)
-				throw HardwareRendererException("insufficient uniform buffer.");
-#endif
-			static int frameId = 0;
-			if (length && UniformPtr)
-			{
-				frameId = frameId % DynamicBufferLengthMultiplier;
-				int alternateBufferOffset = frameId * BufferLength;
-				memcpy(UniformPtr + alternateBufferOffset, data, length);
-				DataChanged = true;
-				frameId++;
-			}
-			//UniformMemory->GetBuffer()->SetData(BufferOffset, data, CoreLib::Math::Min(length, BufferLength));
-		}
+		void SetUniformData(void * data, int length);
 		ModuleInstance(SpireModule * m)
 		{
 			module = m;
@@ -51,7 +35,7 @@ namespace GameEngine
 		~ModuleInstance()
 		{
 			if (UniformMemory)
-				UniformMemory->Free(UniformPtr, BufferLength);
+				UniformMemory->Free(UniformPtr, BufferLength * DynamicBufferLengthMultiplier);
 		}
 		void GetKey(ShaderKeyBuilder & keyBuilder)
 		{

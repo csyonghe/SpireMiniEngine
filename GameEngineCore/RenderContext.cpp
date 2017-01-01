@@ -572,6 +572,15 @@ namespace GameEngine
 		}
 	}
 
+	int RoundUpToAlignment(int val, int alignment)
+	{
+		int r = val % alignment;
+		if (r == 0)
+			return val;
+		else
+			return val + alignment - r;
+	}
+
 	ModuleInstance * RendererSharedResource::CreateModuleInstance(SpireModule * shaderModule, DeviceMemory * uniformMemory, int uniformBufferSize)
 	{
 		ModuleInstance * rs = new ModuleInstance(shaderModule);
@@ -579,6 +588,7 @@ namespace GameEngine
 		rs->BufferLength = Math::Max(spModuleGetParameterBufferSize(shaderModule), uniformBufferSize);
 		if (rs->BufferLength > 0)
 		{
+			rs->BufferLength = RoundUpToAlignment(rs->BufferLength, hardwareRenderer->UniformBufferAlignment());;
 			rs->UniformPtr = (unsigned char *)uniformMemory->Alloc(rs->BufferLength * DynamicBufferLengthMultiplier);
 			rs->UniformMemory = uniformMemory;
 			rs->BufferOffset = (int)(rs->UniformPtr - (unsigned char*)uniformMemory->BufferPtr());

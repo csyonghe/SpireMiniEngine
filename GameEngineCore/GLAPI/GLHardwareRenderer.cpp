@@ -2735,7 +2735,7 @@ namespace GLL
 				throw HardwareRendererException("Renderer is already in data transfer mode.");
 #endif
 			isInDataTransfer = true;
-			glFinish();
+			//glFinish();
 		}
 
 		virtual void EndDataTransfer() override
