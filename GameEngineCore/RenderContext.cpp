@@ -595,7 +595,7 @@ namespace GameEngine
 			if (info.BindableResourceType != SPIRE_NON_BINDABLE)
 			{
 				DescriptorLayout layout;
-				layout.Location = i;
+				layout.Location = i+1;
 				switch (info.BindableResourceType)
 				{
 				case SPIRE_TEXTURE:
