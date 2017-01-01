@@ -559,7 +559,10 @@ namespace GameEngine
 			{
 				r.Value->Width = (int)(screenWidth * r.Value->ResolutionScale);
 				r.Value->Height = (int)(screenHeight * r.Value->ResolutionScale);
-				r.Value->Texture = hardwareRenderer->CreateTexture2D(TextureUsage::ColorAttachment, r.Value->Width, r.Value->Height, 1, r.Value->Format);
+				if(r.Value->Format == StorageFormat::Depth24Stencil8 || r.Value->Format == StorageFormat::Depth32)
+					r.Value->Texture = hardwareRenderer->CreateTexture2D(TextureUsage::DepthAttachment, r.Value->Width, r.Value->Height, 1, r.Value->Format);
+				else
+					r.Value->Texture = hardwareRenderer->CreateTexture2D(TextureUsage::ColorAttachment, r.Value->Width, r.Value->Height, 1, r.Value->Format);
 			}
 		}
 		for (auto & output : renderOutputs)
@@ -592,6 +595,7 @@ namespace GameEngine
 			if (info.BindableResourceType != SPIRE_NON_BINDABLE)
 			{
 				DescriptorLayout layout;
+				layout.Location = i;
 				switch (info.BindableResourceType)
 				{
 				case SPIRE_TEXTURE:
