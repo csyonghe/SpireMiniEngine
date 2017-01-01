@@ -579,7 +579,7 @@ namespace GameEngine
 		rs->BufferLength = Math::Max(spModuleGetParameterBufferSize(shaderModule), uniformBufferSize);
 		if (rs->BufferLength > 0)
 		{
-			rs->UniformPtr = (unsigned char *)uniformMemory->Alloc(rs->BufferLength);
+			rs->UniformPtr = (unsigned char *)uniformMemory->Alloc(rs->BufferLength * DynamicBufferLengthMultiplier);
 			rs->UniformMemory = uniformMemory;
 			rs->BufferOffset = (int)(rs->UniformPtr - (unsigned char*)uniformMemory->BufferPtr());
 		}

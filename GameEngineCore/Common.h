@@ -10,6 +10,7 @@ namespace GameEngine
 	const int MaxShadowCascades = 8;
 	const int MaxViewUniformSize = 4096;
 	const int MaxLightBufferSize = 16384;
+	const int DynamicBufferLengthMultiplier = 3; // triple buffering for dynamic uniforms
 }
 
 #endif
