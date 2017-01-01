@@ -152,6 +152,8 @@ namespace GameEngine
 			return value.Ptr();
 		StorageFormat format;
 		DataType dataType = DataType::Byte4;
+		char * textureData = (char*)data.GetData(0).Buffer();
+		CoreLib::List<char> translatedData;
 		switch (data.GetFormat())
 		{
 		case CoreLib::Graphics::TextureStorageFormat::R8:
@@ -163,8 +165,10 @@ namespace GameEngine
 			dataType = DataType::Byte2;
 			break;
 		case CoreLib::Graphics::TextureStorageFormat::RGB8:
-			format = StorageFormat::RGB_I8;
-			dataType = DataType::Byte3;
+			format = StorageFormat::RGBA_I8;
+			dataType = DataType::Byte4;
+			translatedData = Graphics::TranslateThreeChannelTextureFormat(textureData, data.GetWidth()*data.GetHeight(), 1);
+			textureData = translatedData.Buffer();
 			break;
 		case CoreLib::Graphics::TextureStorageFormat::RGBA8:
 			format = StorageFormat::RGBA_8;
@@ -179,8 +183,10 @@ namespace GameEngine
 			dataType = DataType::Float2;
 			break;
 		case CoreLib::Graphics::TextureStorageFormat::RGB_F32:
-			format = StorageFormat::RGB_F32;
-			dataType = DataType::Float3;
+			format = StorageFormat::RGBA_F32;
+			dataType = DataType::Float4;
+			translatedData = Graphics::TranslateThreeChannelTextureFormat(textureData, data.GetWidth() * data.GetHeight(), 4);
+			textureData = translatedData.Buffer();
 			break;
 		case CoreLib::Graphics::TextureStorageFormat::RGBA_F32:
 			format = StorageFormat::RGBA_F32;
@@ -207,7 +213,7 @@ namespace GameEngine
 			rs = hw->CreateTexture2D(TextureUsage::Sampled, data.GetWidth(), data.GetHeight(), data.GetMipLevels(), format, dataType, mipData.GetArrayView());
 		}
 		else
-			rs = hw->CreateTexture2D(data.GetWidth(), data.GetHeight(), format, dataType, data.GetData(0).Buffer());
+			rs = hw->CreateTexture2D(data.GetWidth(), data.GetHeight(), format, dataType, textureData);
 		textures[name] = rs;
 		return rs;
 	}
