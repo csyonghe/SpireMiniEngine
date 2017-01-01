@@ -27,6 +27,7 @@ namespace GameEngine
 		{
 			return bufferPtr;
 		}
+		void SetData(int offset, void * data, int length);
 	};
 }
 

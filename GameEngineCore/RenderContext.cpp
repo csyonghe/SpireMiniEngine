@@ -130,8 +130,8 @@ namespace GameEngine
         result->indexBufferOffset = (int)((char*)rendererResource->indexBufferMemory.Alloc(mesh->Indices.Count() * sizeof(mesh->Indices[0])) - (char*)rendererResource->indexBufferMemory.BufferPtr());
         result->vertexFormat = rendererResource->pipelineManager.LoadVertexFormat(mesh->GetVertexFormat());
         result->vertexCount = mesh->GetVertexCount();
-        rendererResource->indexBufferMemory.GetBuffer()->SetData(result->indexBufferOffset, mesh->Indices.Buffer(), mesh->Indices.Count() * sizeof(mesh->Indices[0]));
-        rendererResource->vertexBufferMemory.GetBuffer()->SetData(result->vertexBufferOffset, mesh->GetVertexBuffer(), mesh->GetVertexCount() * result->vertexFormat.Size());
+        rendererResource->indexBufferMemory.SetData(result->indexBufferOffset, mesh->Indices.Buffer(), mesh->Indices.Count() * sizeof(mesh->Indices[0]));
+        rendererResource->vertexBufferMemory.SetData(result->vertexBufferOffset, mesh->GetVertexBuffer(), mesh->GetVertexCount() * result->vertexFormat.Size());
         result->indexCount = mesh->Indices.Count();
         return result;
     }

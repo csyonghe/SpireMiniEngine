@@ -30,7 +30,8 @@ namespace GameEngine
 			if (length > BufferLength)
 				throw HardwareRendererException("insufficient uniform buffer.");
 #endif
-			UniformMemory->GetBuffer()->SetData(BufferOffset, data, CoreLib::Math::Min(length, BufferLength));
+			memcpy(UniformPtr, data, length);
+			//UniformMemory->GetBuffer()->SetData(BufferOffset, data, CoreLib::Math::Min(length, BufferLength));
 		}
 		ModuleInstance(SpireModule * m)
 		{
