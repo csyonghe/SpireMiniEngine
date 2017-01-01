@@ -120,6 +120,8 @@ namespace CoreLib
 				return pixels;
 			}
 		};
+
+		CoreLib::List<char> TranslateThreeChannelTextureFormat(char * buffer, int pixelCount, int channelSize);
 	}
 }
 

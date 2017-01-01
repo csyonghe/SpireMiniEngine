@@ -3,6 +3,7 @@
 #include "Engine.h"
 #include "CoreLib/LibIO.h"
 #include "Atmosphere.h"
+#include "CoreLib/Graphics/TextureFile.h"
 #include <assert.h>
 
 using namespace CoreLib;
@@ -45,8 +46,9 @@ namespace GameEngine
 					List<float> irradianceData;
 					irradianceData.SetSize(16 * 64 * 3);
 					reader.Read(irradianceData.Buffer(), irradianceData.Count());
-					irradianceTex = hwRenderer->CreateTexture2D(TextureUsage::Sampled, 64, 16, 1, StorageFormat::RGB_F16);
-					irradianceTex->SetData(64, 16, 1, DataType::Float3, irradianceData.Buffer());
+					irradianceTex = hwRenderer->CreateTexture2D(TextureUsage::Sampled, 64, 16, 1, StorageFormat::RGBA_F16);
+					List<char> irradianceData4 = Graphics::TranslateThreeChannelTextureFormat((char*)irradianceData.Buffer(), 16 * 64, sizeof(float));
+					irradianceTex->SetData(64, 16, 1, DataType::Float4, irradianceData4.Buffer());
 				}
 				{
 					BinaryReader reader(new FileStream(inscatterDataFile));
@@ -66,8 +68,9 @@ namespace GameEngine
 					List<float> transmittanceData;
 					transmittanceData.SetSize(256 * 64 * 3);
 					reader.Read(transmittanceData.Buffer(), transmittanceData.Count());
-					transmittanceTex = hwRenderer->CreateTexture2D(TextureUsage::Sampled, 256, 64, 1, StorageFormat::RGB_F16);
-					transmittanceTex->SetData(0, 256, 64, 1, DataType::Float3, transmittanceData.Buffer());
+					transmittanceTex = hwRenderer->CreateTexture2D(TextureUsage::Sampled, 256, 64, 1, StorageFormat::RGBA_F16);
+					List<char> irradianceData4 = Graphics::TranslateThreeChannelTextureFormat((char*)transmittanceData.Buffer(), 256 * 64, sizeof(float));
+					transmittanceTex->SetData(0, 256, 64, 1, DataType::Float4, irradianceData4.Buffer());
 				}
 			}
 

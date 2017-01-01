@@ -114,5 +114,21 @@ namespace CoreLib
 			FileStream stream(fileName, FileMode::Create);
 			SaveToStream(&stream);
 		}
+
+		CoreLib::List<char> TranslateThreeChannelTextureFormat(char * buffer, int pixelCount, int channelSize)
+		{
+			CoreLib::List<char> result;
+			result.SetSize(pixelCount * channelSize * 4);
+			char * dest = result.Buffer();
+			char * src = buffer;
+			for (int i = 0; i < pixelCount; i++)
+			{
+				for (int j = 0; j < channelSize * 3; j++)
+					dest[i*channelSize * 4 + j] = src[i*channelSize * 3 + j];
+				for (int j = 0; j < channelSize; j++)
+					dest[(i * 4 + 3)*channelSize + j] = 0;
+			}
+			return _Move(result);
+		}
 	}
 }
