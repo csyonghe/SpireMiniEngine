@@ -81,7 +81,7 @@ namespace GraphicsUI
 		~TextRasterizer();
 		bool MultiLine = false;
 		void SetFont(const Font & Font, int dpi);
-		TextRasterizationResult RasterizeText(UIWindowsSystemInterface * system, const CoreLib::String & text);
+		TextRasterizationResult RasterizeText(UIWindowsSystemInterface * system, const CoreLib::String & text, unsigned char * existingBuffer, int existingBufferSize);
 		TextSize GetTextSize(const CoreLib::String & text);
 		TextSize GetTextSize(const CoreLib::List<unsigned int> & text);
 
@@ -127,7 +127,7 @@ namespace GraphicsUI
 		}
 		virtual Rect MeasureString(const CoreLib::String & text) override;
 		virtual Rect MeasureString(const CoreLib::List<unsigned int> & text) override;
-		virtual IBakedText * BakeString(const CoreLib::String & text) override;
+		virtual IBakedText * BakeString(const CoreLib::String & text, IBakedText * previous) override;
 
 	};
 
@@ -142,6 +142,7 @@ namespace GraphicsUI
 		CoreLib::MemoryPool textBufferPool;
 		VectorMath::Vec4 ColorToVec(GraphicsUI::Color c);
 		CoreLib::RefPtr<WindowsFont> defaultFont, titleFont, symbolFont;
+		GameEngine::Fence* textBufferFence = nullptr;
 		CoreLib::WinForm::Timer tmrHover, tmrTick;
 		UIEntry * entry = nullptr;
 		int GetCurrentDpi();
@@ -158,10 +159,8 @@ namespace GraphicsUI
 	public:
 		UIWindowsSystemInterface(GameEngine::HardwareRenderer * ctx);
 		~UIWindowsSystemInterface();
-		unsigned char * AllocTextBuffer(int size)
-		{
-			return textBufferPool.Alloc(size);
-		}
+		void WaitForDrawFence();
+		unsigned char * AllocTextBuffer(int size);
 		void FreeTextBuffer(unsigned char * buffer, int size)
 		{
 			textBufferPool.Free(buffer, size);

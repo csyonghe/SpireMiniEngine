@@ -934,7 +934,7 @@ namespace GraphicsUI
 		}
 		if (FChanged || !text)
 		{
-			text = font->BakeString(FCaption);
+			text = font->BakeString(FCaption, text.Ptr());
 			FChanged = false;
 		}
 		if (VertAlignment == VerticalAlignment::Top)
@@ -993,7 +993,7 @@ namespace GraphicsUI
 			font = entry->System->LoadDefaultFont();
 		if (FChanged || !text)
 		{
-			text = font->BakeString(FCaption);
+			text = font->BakeString(FCaption, text.Ptr());
 		}
 		int tx,ty;
 		tx = (Width - TextWidth)/2;
@@ -3258,7 +3258,7 @@ namespace GraphicsUI
 		}
 		if (Changed)
 		{
-			text = font->BakeString(FText);
+			text = font->BakeString(FText, text.Ptr());
 			Changed = false;
 		}
 		auto & graphics = entry->DrawCommands;

@@ -31,6 +31,7 @@ using namespace GameEngine;
 const int TextBufferSize = 4 * 1024 * 1024;
 const int TextPixelBits = 4;
 const int Log2TextPixelsPerByte = Math::Log2Floor(8 / TextPixelBits);
+const int Log2TextBufferBlockSize = 6;
 
 namespace GraphicsUI
 {
@@ -1115,6 +1116,7 @@ namespace GraphicsUI
 
 	void UIWindowsSystemInterface::ExecuteDrawCommands(GameEngine::Fence* fence)
 	{
+		textBufferFence = fence;
 		uiRenderer->SubmitCommands(fence);
 	}
 
@@ -1174,7 +1176,7 @@ namespace GraphicsUI
 		symbolFont = new WindowsFont(this, dpi, Font("Webdings", 13));
 		textBufferObj = ctx->CreateMappedBuffer(BufferUsage::StorageBuffer, TextBufferSize);
 		textBuffer = (unsigned char*)textBufferObj->Map();
-		textBufferPool.Init(textBuffer, 6, TextBufferSize >> 6);
+		textBufferPool.Init(textBuffer, Log2TextBufferBlockSize, TextBufferSize >> Log2TextBufferBlockSize);
 		uiRenderer = new GLUIRenderer(this, ctx);
 		tmrHover.Interval = Global::HoverTimeThreshold;
 		tmrHover.OnTick.Bind(this, &UIWindowsSystemInterface::HoverTimerTick);
@@ -1188,6 +1190,17 @@ namespace GraphicsUI
 		tmrTick.StopTimer();
 		textBufferObj->Unmap();
 		delete uiRenderer;
+	}
+
+	void UIWindowsSystemInterface::WaitForDrawFence()
+	{
+		if (textBufferFence)
+			textBufferFence->Wait();
+	}
+
+	unsigned char * UIWindowsSystemInterface::AllocTextBuffer(int size)
+	{
+		return textBufferPool.Alloc(size);
 	}
 
 	GameEngine::Texture2D * UIWindowsSystemInterface::GetRenderedImage()
@@ -1227,15 +1240,21 @@ namespace GraphicsUI
 		return rs;
 	}
 
-	IBakedText * WindowsFont::BakeString(const CoreLib::String & text)
+	IBakedText * WindowsFont::BakeString(const CoreLib::String & text, IBakedText * previous)
 	{
-		BakedText * result = new BakedText();
-		auto imageData = rasterizer->RasterizeText(system, text);
+		BakedText * prev = (BakedText*)previous;
+		auto prevBuffer = (prev ? prev->textBuffer : nullptr);
+		system->WaitForDrawFence();
+		auto imageData = rasterizer->RasterizeText(system, text, prevBuffer, (prev?prev->BufferSize:0));
+		BakedText * result = prev;
+		if (!prevBuffer || imageData.ImageData != prevBuffer)
+			result = new BakedText();
 		result->system = system;
 		result->Width = imageData.Size.x;
 		result->Height = imageData.Size.y;
 		result->textBuffer = imageData.ImageData;
 		result->BufferSize = imageData.BufferSize;
+
 		return result;
 	}
 
@@ -1254,7 +1273,15 @@ namespace GraphicsUI
 		Bit->canvas->ChangeFont(Font, dpi);
 	}
 
-	TextRasterizationResult TextRasterizer::RasterizeText(UIWindowsSystemInterface * system, const CoreLib::String & text) // Set the text that is going to be displayed.
+	int RoundUpToAlignment(int val, int alignment)
+	{
+		int r = val % alignment;
+		if (r == 0)
+			return val;
+		return val + (alignment - r);
+	}
+
+	TextRasterizationResult TextRasterizer::RasterizeText(UIWindowsSystemInterface * system, const CoreLib::String & text, unsigned char * existingBuffer, int existingBufferSize) // Set the text that is going to be displayed.
 	{
 		int TextWidth, TextHeight;
 		List<unsigned char> pic;
@@ -1272,7 +1299,8 @@ namespace GraphicsUI
 		int textPixelMask = (1 << TextPixelBits) - 1;
 		if (pixelCount & ((1 << Log2TextPixelsPerByte) - 1))
 			bytes++;
-		auto buffer = system->AllocTextBuffer(bytes);
+		bytes = RoundUpToAlignment(bytes, 1 << Log2TextBufferBlockSize);
+		auto buffer = bytes > existingBufferSize ? system->AllocTextBuffer(bytes) : existingBuffer;
 		if (buffer)
 		{
 			const float valScale = ((1 << TextPixelBits) - 1) / 255.0f;
@@ -1294,7 +1322,7 @@ namespace GraphicsUI
 		result.ImageData = buffer;
 		result.Size.x = TextWidth;
 		result.Size.y = TextHeight;
-		result.BufferSize = bytes;
+		result.BufferSize = bytes > existingBufferSize ? bytes : existingBufferSize;
 		return result;
 	}
 

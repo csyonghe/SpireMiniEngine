@@ -231,11 +231,15 @@ namespace CoreLib
 			UpdateWindow(mainFormHandle);
 			while (!terminate)
 			{
-				int HasMsg = (NonBlocking?PeekMessage(&msg, NULL,0,0,TRUE):GetMessage(&msg, NULL, 0,0));
-				if (HasMsg)
+				int HasMsg = 0;
+				do
 				{
-					ProcessMessage(msg);
-				}
+					HasMsg = (NonBlocking ? PeekMessage(&msg, NULL, 0, 0, TRUE) : GetMessage(&msg, NULL, 0, 0));
+					if (HasMsg)
+					{
+						ProcessMessage(msg);
+					}
+				} while (!terminate && HasMsg);
 				if (msg.message == WM_QUIT)
 					terminate = true;
 				if (onMainLoop)
