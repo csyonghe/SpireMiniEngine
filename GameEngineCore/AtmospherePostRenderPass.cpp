@@ -97,7 +97,7 @@ namespace GameEngine
 			if (!colorBuffer->Texture)
 				return;
 			binding.Bind(0, atmosphereDesc.Ptr());
-			binding.Bind(1, sharedModules.View->Descriptors.Ptr());
+			binding.Bind(1, sharedModules.View->GetCurrentDescriptorSet());
 
 			atmosphereDesc->BeginUpdate();
 			atmosphereDesc->Update(0, parameterBuffer.Ptr());

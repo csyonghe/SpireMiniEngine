@@ -36,8 +36,8 @@ namespace GameEngine
 			if (!litColorBuffer->Texture)
 				return;
 			binding.Bind(0, deferredDescSet.Ptr());
-			binding.Bind(1, sharedModules.View->Descriptors.Ptr());
-			binding.Bind(2, sharedModules.Lighting->Descriptors.Ptr());
+			binding.Bind(1, sharedModules.View->GetCurrentDescriptorSet());
+			binding.Bind(2, sharedModules.Lighting->GetCurrentDescriptorSet());
 
 			deferredDescSet->BeginUpdate();
 			deferredDescSet->Update(1, baseColorBuffer->Texture.Ptr());

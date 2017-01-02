@@ -126,14 +126,19 @@ namespace GameEngine
 			// initialize forwardBasePassModule and lightingModule
 			renderPassUniformMemory.Init(sharedRes->hardwareRenderer.Ptr(), BufferUsage::UniformBuffer, true, 22, sharedRes->hardwareRenderer->UniformBufferAlignment());
 			forwardBasePassParams = sharedRes->CreateModuleInstance(spFindModule(sharedRes->spireContext, "ForwardBasePassParams"), &renderPassUniformMemory);
-			forwardBasePassParams->Descriptors->BeginUpdate();
-			forwardBasePassParams->Descriptors->Update(1, sharedRes->textureSampler.Ptr());
-			forwardBasePassParams->Descriptors->EndUpdate();
 			lightingParams = sharedRes->CreateModuleInstance(spFindModule(sharedRes->spireContext, "Lighting"), &renderPassUniformMemory);
-			lightingParams->Descriptors->BeginUpdate();
-			lightingParams->Descriptors->Update(1, sharedRes->shadowMapResources.shadowMapArray.Ptr());
-			lightingParams->Descriptors->Update(2, sharedRes->shadowSampler.Ptr());
-			lightingParams->Descriptors->EndUpdate();
+			for (int i = 0; i < DynamicBufferLengthMultiplier; i++)
+			{
+				auto descSet = forwardBasePassParams->UpdateDescriptorSet();
+				descSet->BeginUpdate();
+				descSet->Update(1, sharedRes->textureSampler.Ptr());
+				descSet->EndUpdate();
+				descSet = lightingParams->UpdateDescriptorSet();
+				descSet->BeginUpdate();
+				descSet->Update(1, sharedRes->shadowMapResources.shadowMapArray.Ptr());
+				descSet->Update(2, sharedRes->shadowSampler.Ptr());
+				descSet->EndUpdate();
+			}
 			sharedModules.View = forwardBasePassParams.Ptr();
 			sharedModules.Lighting = lightingParams.Ptr();
 		}
@@ -315,13 +320,16 @@ namespace GameEngine
 									shadowViewInstances.Add(sharedRes->CreateModuleInstance(spFindModule(sharedRes->spireContext, "ForwardBasePassParams"), &renderPassUniformMemory));
 									shadowMapViewInstancePtr = shadowViewInstances.Count();
 									shadowMapPassModuleInstance = shadowViewInstances.Last().Ptr();
-									shadowMapPassModuleInstance->Descriptors->BeginUpdate();
-									shadowMapPassModuleInstance->Descriptors->Update(1, sharedRes->textureSampler.Ptr());
-									shadowMapPassModuleInstance->Descriptors->EndUpdate();
-
+									for (int i = 0; i < DynamicBufferLengthMultiplier; i++)
+									{
+										auto descSet = shadowMapPassModuleInstance->UpdateDescriptorSet();
+										descSet->BeginUpdate();
+										descSet->Update(1, sharedRes->textureSampler.Ptr());
+										descSet->EndUpdate();
+									}
 								}
-								sharedRes->pipelineManager.PushModuleInstance(shadowMapPassModuleInstance);
 								shadowMapPassModuleInstance->SetUniformData(&shadowMapView, sizeof(shadowMapView));
+								sharedRes->pipelineManager.PushModuleInstance(shadowMapPassModuleInstance);
 								pass.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, CullFrustum(shadowMapView.InvViewProjTransform), sink.GetDrawables());
 								sharedRes->pipelineManager.PopModuleInstance();
 								renderPasses.Add(pass);

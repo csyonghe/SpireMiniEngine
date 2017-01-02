@@ -281,23 +281,28 @@ namespace GameEngine
 				RefPtr<ModuleInstance> result = rendererResource->CreateModuleInstance(module, &instanceUniformMemory);
 				if (result)
 				{
-					result->Descriptors->BeginUpdate();
-					for (auto binding : bindingLocs)
+					// update all versions of descriptor set with material texture binding
+					for (int i = 0; i < DynamicBufferLengthMultiplier; i++)
 					{
-						DynamicVariable val;
-						if (material->Variables.TryGetValue(binding.Key, val))
+						auto descSet = result->UpdateDescriptorSet();
+						descSet->BeginUpdate();
+						for (auto binding : bindingLocs)
 						{
-							auto tex = LoadTexture(val.StringValue);
-							if (tex)
-								result->Descriptors->Update(binding.Value, tex);
+							DynamicVariable val;
+							if (material->Variables.TryGetValue(binding.Key, val))
+							{
+								auto tex = LoadTexture(val.StringValue);
+								if (tex)
+									descSet->Update(binding.Value, tex);
+							}
+							else
+							{
+								Print("Invalid material(%S): shader parameter '%S' is not provided in material file.\n", material->Name.ToWString(), binding.Key.ToWString());
+								descSet->Update(binding.Value, LoadTexture("error.texture"));
+							}
 						}
-						else
-						{
-							Print("Invalid material(%S): shader parameter '%S' is not provided in material file.\n", material->Name.ToWString(), binding.Key.ToWString());
-							result->Descriptors->Update(binding.Value, LoadTexture("error.texture"));
-						}
+						descSet->EndUpdate();
 					}
-					result->Descriptors->EndUpdate();
 				}
 				if (isPatternModule)
 					for (auto& v : vars)
@@ -605,12 +610,15 @@ namespace GameEngine
 				rs->SpecializeParamOffsets.Add(info.Offset);
 			}
 		}
-		rs->DescriptorLayout = hardwareRenderer->CreateDescriptorSetLayout(descs.GetArrayView());
-		rs->Descriptors = hardwareRenderer->CreateDescriptorSet(rs->DescriptorLayout.Ptr());
-		rs->Descriptors->BeginUpdate();
-		if (rs->UniformMemory)
-			rs->Descriptors->Update(0, rs->UniformMemory->GetBuffer(), rs->BufferOffset, rs->BufferLength);
-		rs->Descriptors->EndUpdate();
+		rs->SetDescriptorSetLayout(hardwareRenderer.Ptr(), hardwareRenderer->CreateDescriptorSetLayout(descs.GetArrayView()));
+		for (int i = 0; i < DynamicBufferLengthMultiplier; i++)
+		{
+			auto descSet = rs->UpdateDescriptorSet();
+			descSet->BeginUpdate();
+			if (rs->UniformMemory)
+				descSet->Update(0, rs->UniformMemory->GetBuffer(), rs->BufferOffset, rs->BufferLength);
+			descSet->EndUpdate();
+		}
 		return rs;
 	}
 
@@ -736,9 +744,9 @@ namespace GameEngine
 				commandBuffer->BindPipeline(pipelineInst->pipeline.Ptr());
 				commandBuffer->BindIndexBuffer(mesh->GetIndexBuffer(), mesh->indexBufferOffset);
 				commandBuffer->BindVertexBuffer(mesh->GetVertexBuffer(), mesh->vertexBufferOffset);
-				commandBuffer->BindDescriptorSet(bindings.Count(), obj->GetMaterial()->MaterialGeometryModule->Descriptors.Ptr());
-				commandBuffer->BindDescriptorSet(bindings.Count() + 1, obj->GetMaterial()->MaterialPatternModule->Descriptors.Ptr());
-				commandBuffer->BindDescriptorSet(bindings.Count() + 2, obj->GetTransformModule()->Descriptors.Ptr());
+				commandBuffer->BindDescriptorSet(bindings.Count(), obj->GetMaterial()->MaterialGeometryModule->GetCurrentDescriptorSet());
+				commandBuffer->BindDescriptorSet(bindings.Count() + 1, obj->GetMaterial()->MaterialPatternModule->GetCurrentDescriptorSet());
+				commandBuffer->BindDescriptorSet(bindings.Count() + 2, obj->GetTransformModule()->GetCurrentDescriptorSet());
 				commandBuffer->DrawIndexed(0, mesh->indexCount);
 			}
 			pipelineManager.PopModuleInstance();
@@ -783,9 +791,9 @@ namespace GameEngine
 				commandBuffer->BindPipeline(pipelineInst->pipeline.Ptr());
 				commandBuffer->BindIndexBuffer(mesh->GetIndexBuffer(), mesh->indexBufferOffset);
 				commandBuffer->BindVertexBuffer(mesh->GetVertexBuffer(), mesh->vertexBufferOffset);
-				commandBuffer->BindDescriptorSet(bindings.Count(), obj->GetMaterial()->MaterialGeometryModule->Descriptors.Ptr());
-				commandBuffer->BindDescriptorSet(bindings.Count() + 1, obj->GetMaterial()->MaterialPatternModule->Descriptors.Ptr());
-				commandBuffer->BindDescriptorSet(bindings.Count() + 2, obj->GetTransformModule()->Descriptors.Ptr());
+				commandBuffer->BindDescriptorSet(bindings.Count(), obj->GetMaterial()->MaterialGeometryModule->GetCurrentDescriptorSet());
+				commandBuffer->BindDescriptorSet(bindings.Count() + 1, obj->GetMaterial()->MaterialPatternModule->GetCurrentDescriptorSet());
+				commandBuffer->BindDescriptorSet(bindings.Count() + 2, obj->GetTransformModule()->GetCurrentDescriptorSet());
 				commandBuffer->DrawIndexed(0, mesh->indexCount);
 			}
 		}

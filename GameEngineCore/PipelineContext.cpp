@@ -4,6 +4,7 @@
 #include "CoreLib/LibIO.h"
 #include "ShaderCompiler.h"
 #include "EngineLimits.h"
+#include "Renderer.h"
 
 using namespace CoreLib;
 using namespace CoreLib::IO;
@@ -153,7 +154,11 @@ namespace GameEngine
 			frameId = frameId % DynamicBufferLengthMultiplier;
 			int alternateBufferOffset = frameId * BufferLength;
 			memcpy(UniformPtr + alternateBufferOffset, data, length);
-			Engine::Instance()->GetRenderer()->QueueDescriptorSetUpdate(Descriptors.Ptr(), 0, UniformMemory->GetBuffer(), BufferOffset + alternateBufferOffset, BufferLength);
+			auto desc = UpdateDescriptorSet();
+			desc->BeginUpdate();
+			desc->Update(0, UniformMemory->GetBuffer(), BufferOffset + alternateBufferOffset, BufferLength);
+			desc->EndUpdate();
+			currentDescriptor = frameId;
 			frameId++;
 		}
 		bool keyChanged = false;
@@ -185,6 +190,14 @@ namespace GameEngine
 	{
 		if (UniformMemory)
 			UniformMemory->Free(UniformPtr, BufferLength * DynamicBufferLengthMultiplier);
+	}
+
+	void ModuleInstance::SetDescriptorSetLayout(HardwareRenderer * hw, DescriptorSetLayout * layout)
+	{
+		this->DescriptorLayout = layout;
+		descriptors.Clear();
+		for (int i = 0; i < descriptors.GetCapacity(); i++)
+			descriptors.Add(hw->CreateDescriptorSet(layout));
 	}
 
 }

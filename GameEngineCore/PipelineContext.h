@@ -4,6 +4,7 @@
 #include "Spire/Spire.h"
 #include "HardwareRenderer.h"
 #include "DeviceMemory.h"
+#include "EngineLimits.h"
 
 namespace GameEngine
 {
@@ -19,10 +20,11 @@ namespace GameEngine
 		SpireModule * module = nullptr;
 		SpireModule * specializedModule = nullptr;
 		CoreLib::List<int> currentSpecializationKey;
+		CoreLib::Array<CoreLib::RefPtr<DescriptorSet>, DynamicBufferLengthMultiplier> descriptors;
+		int currentDescriptor = 0;
 		int frameId = 0;
 	public:
 		CoreLib::RefPtr<DescriptorSetLayout> DescriptorLayout;
-		CoreLib::RefPtr<DescriptorSet> Descriptors;
 		CoreLib::List<int> SpecializeParamOffsets;
 		DeviceMemory * UniformMemory = nullptr;
 		int BufferOffset = 0, BufferLength = 0;
@@ -36,6 +38,17 @@ namespace GameEngine
 			specializedModule = module;
 		}
 		~ModuleInstance();
+		void SetDescriptorSetLayout(HardwareRenderer * hw, DescriptorSetLayout * layout);
+		DescriptorSet * UpdateDescriptorSet()
+		{
+			currentDescriptor++;
+			currentDescriptor %= DynamicBufferLengthMultiplier;
+			return descriptors[currentDescriptor].Ptr();
+		}
+		DescriptorSet * GetCurrentDescriptorSet()
+		{
+			return descriptors[currentDescriptor].Ptr();
+		}
 		void GetKey(ShaderKeyBuilder & keyBuilder)
 		{
 			keyBuilder.Append(spGetModuleName(specializedModule));
@@ -92,7 +105,7 @@ namespace GameEngine
 		{
 			bindings.Clear();
 			for (auto m : modules)
-				bindings.Add(m->Descriptors.Ptr());
+				bindings.Add(m->GetCurrentDescriptorSet());
 		}
 		PipelineClass* GetPipeline(MeshVertexFormat * vertFormat);
 	};
