@@ -1,7 +1,6 @@
 #ifndef RENDER_PASS_H
 #define RENDER_PASS_H
 
-#include "Common.h"
 #include "RenderContext.h"
 
 namespace GameEngine

@@ -1,8 +1,8 @@
 #ifndef GAME_ENGINE_RENDERER_H
 #define GAME_ENGINE_RENDERER_H
 
-#include "Common.h"
 #include "Level.h"
+#include "OS.h"
 
 namespace GameEngine
 {

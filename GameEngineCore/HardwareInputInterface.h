@@ -2,7 +2,7 @@
 #define GAME_ENGINE_HARDWARE_INPUT_INTERFACE
 
 #include "CoreLib/Basic.h"
-#include "Common.h"
+#include "OS.h"
 
 namespace GameEngine
 {

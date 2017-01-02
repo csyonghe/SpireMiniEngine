@@ -3,6 +3,7 @@
 #include "FreeRoamCameraController.h"
 #include "CoreLib/LibIO.h"
 #include "CoreLib/Tokenizer.h"
+#include "EngineLimits.h"
 
 #ifndef DWORD
 typedef unsigned long DWORD;
@@ -48,7 +49,7 @@ namespace GameEngine
 			auto uiCommands = uiEntry->DrawUI();
 			uiSystemInterface->TransferDrawComands(renderer->GetRenderedImage(), uiCommands);
 			renderer->GetHardwareRenderer()->EndDataTransfer();
-			uiSystemInterface->ExecuteDrawCommands();
+			uiSystemInterface->ExecuteDrawCommands(nullptr);
 			renderer->GetHardwareRenderer()->Present(uiSystemInterface->GetRenderedImage());
 		}
 	}
@@ -60,7 +61,7 @@ namespace GameEngine
 			RegisterEngineActorClasses(this);
 
 			startTime = lastGameLogicTime = lastRenderingTime = Diagnostics::PerformanceCounter::Start();
-
+			
 			GpuId = args.GpuId;
 			RecompileShaders = args.RecompileShaders;
 
@@ -111,7 +112,8 @@ namespace GameEngine
 						levelToLoad = defaultLevelName;
 				}
 			}
-			
+			for (int i = 0; i < DynamicBufferLengthMultiplier; i++)
+				syncFences.Add(renderer->GetHardwareRenderer()->CreateFence());
 		}
 		catch (const Exception & e)
 		{
@@ -181,14 +183,16 @@ namespace GameEngine
 		lastRenderingTime = thisRenderingTime;
 
 		inDataTransfer = true;
+		syncFences[frameCount % DynamicBufferLengthMultiplier]->Wait();
 		renderer->GetHardwareRenderer()->BeginDataTransfer();
 		renderer->TakeSnapshot();
 		auto uiCommands = uiEntry->DrawUI();
 		uiSystemInterface->TransferDrawComands(renderer->GetRenderedImage(), uiCommands);
 		renderer->GetHardwareRenderer()->EndDataTransfer();
 		inDataTransfer = false;
+
 		renderer->RenderFrame();
-		uiSystemInterface->ExecuteDrawCommands();
+		uiSystemInterface->ExecuteDrawCommands(syncFences[frameCount % DynamicBufferLengthMultiplier].Ptr());
 		renderer->GetHardwareRenderer()->Present(uiSystemInterface->GetRenderedImage());
 
 		frameCount++;

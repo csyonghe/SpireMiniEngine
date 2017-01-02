@@ -145,7 +145,6 @@
     </ClInclude>
     <ClInclude Include="InputDispatcher.h" />
     <ClInclude Include="HardwareInputInterface.h" />
-    <ClInclude Include="Common.h" />
     <ClInclude Include="TextureCompressor.h" />
     <ClInclude Include="TextureTool\LibSquish.h" />
     <ClInclude Include="UISystem_Windows.h" />
@@ -229,6 +228,8 @@
     <ClInclude Include="ShaderCompiler.h">
       <Filter>Renderer</Filter>
     </ClInclude>
+    <ClInclude Include="OS.h" />
+    <ClInclude Include="EngineLimits.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Spire">

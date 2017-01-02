@@ -9,9 +9,9 @@
 #include "Skeleton.h"
 #include "DeviceMemory.h"
 #include "Mesh.h"
-#include "Common.h"
 #include "FrustumCulling.h"
 #include "PipelineContext.h"
+#include "EngineLimits.h"
 
 namespace GameEngine
 {

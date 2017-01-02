@@ -12,6 +12,7 @@
 #include "CoreLib/WinForm/Debug.h"
 #include "GraphicsSettings.h"
 #include "DrawCallStatForm.h"
+#include "OS.h"
 
 namespace GameEngine
 {
@@ -49,6 +50,7 @@ namespace GameEngine
 		bool inDataTransfer = false;
 		GraphicsSettings graphicsSettings;
 		CoreLib::String levelToLoad;
+		CoreLib::List<RefPtr<Fence>> syncFences;
 	private:
 		bool enableInput = true;
 		CoreLib::Diagnostics::TimePoint startTime, lastGameLogicTime, lastRenderingTime;

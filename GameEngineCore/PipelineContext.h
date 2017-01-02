@@ -4,7 +4,6 @@
 #include "Spire/Spire.h"
 #include "HardwareRenderer.h"
 #include "DeviceMemory.h"
-#include "Common.h"
 
 namespace GameEngine
 {
@@ -36,11 +35,7 @@ namespace GameEngine
 			module = m;
 			specializedModule = module;
 		}
-		~ModuleInstance()
-		{
-			if (UniformMemory)
-				UniformMemory->Free(UniformPtr, BufferLength * DynamicBufferLengthMultiplier);
-		}
+		~ModuleInstance();
 		void GetKey(ShaderKeyBuilder & keyBuilder)
 		{
 			keyBuilder.Append(spGetModuleName(specializedModule));

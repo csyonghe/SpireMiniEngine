@@ -5,7 +5,8 @@
 #include "HardwareRenderer.h"
 #include "CoreLib/WinForm/Debug.h"
 #include "Spire/Spire.h"
-#include "Common.h"
+#include "OS.h"
+#include "EngineLimits.h"
 
 //#define WINDOWS_10_SCALING
 
@@ -781,7 +782,7 @@ namespace GraphicsUI
 			cmdBuffer->DrawIndexed(0, indexStream.Count());
 			cmdBuffer->EndRecording();
 		}
-		void SubmitCommands()
+		void SubmitCommands(GameEngine::Fence * fence)
 		{
 			descSet->BeginUpdate();
 			descSet->Update(0, uniformBuffer.Ptr());
@@ -789,7 +790,7 @@ namespace GraphicsUI
 			descSet->Update(2, system->GetTextBufferObject());
 			descSet->EndUpdate();
 			frameId++;
-			rendererApi->ExecuteCommandBuffers(frameBuffer.Ptr(), MakeArrayView(cmdBuffer.Ptr()), nullptr);
+			rendererApi->ExecuteCommandBuffers(frameBuffer.Ptr(), MakeArrayView(cmdBuffer.Ptr()), fence);
 		}
 		void DrawLine(const Color & color, float x0, float y0, float x1, float y1)
 		{
@@ -1112,9 +1113,9 @@ namespace GraphicsUI
 		uiRenderer->EndUIDrawing(baseTexture);
 	}
 
-	void UIWindowsSystemInterface::ExecuteDrawCommands()
+	void UIWindowsSystemInterface::ExecuteDrawCommands(GameEngine::Fence* fence)
 	{
-		uiRenderer->SubmitCommands();
+		uiRenderer->SubmitCommands(fence);
 	}
 
 	void UIWindowsSystemInterface::SwitchCursor(CursorType c)

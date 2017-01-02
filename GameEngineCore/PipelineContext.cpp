@@ -3,6 +3,7 @@
 #include "Engine.h"
 #include "CoreLib/LibIO.h"
 #include "ShaderCompiler.h"
+#include "EngineLimits.h"
 
 using namespace CoreLib;
 using namespace CoreLib::IO;
@@ -178,6 +179,12 @@ namespace GameEngine
 			specializedModule = spSpecializeModule(spireContext, module, currentSpecializationKey.Buffer(), currentSpecializationKey.Count(), nullptr);
 		}
 		//UniformMemory->GetBuffer()->SetData(BufferOffset, data, CoreLib::Math::Min(length, BufferLength));
+	}
+
+	ModuleInstance::~ModuleInstance()
+	{
+		if (UniformMemory)
+			UniformMemory->Free(UniformPtr, BufferLength * DynamicBufferLengthMultiplier);
 	}
 
 }

@@ -1,15 +1,11 @@
-#ifndef GAME_ENGINE_COMMON_H
-#define GAME_ENGINE_COMMON_H
+#ifndef GAME_ENGINE_LIMITS_H
+#define GAME_ENGINE_LIMITS_H
 
 namespace GameEngine
 {
-	typedef void* WindowHandle;
 	const int MaxWorldRenderPasses = 8;
 	const int MaxPostRenderPasses = 32;
-	const int MaxTextureBindings = 32;
 	const int MaxShadowCascades = 8;
-	const int MaxViewUniformSize = 4096;
-	const int MaxLightBufferSize = 16384;
 	const int DynamicBufferLengthMultiplier = 2; // double buffering for dynamic uniforms
 }
 

@@ -2,6 +2,7 @@
 #include "Material.h"
 #include "Mesh.h"
 #include "Engine.h"
+#include "EngineLimits.h"
 #include "TextureCompressor.h"
 #include "CoreLib/LibIO.h"
 #include "CoreLib/Graphics/TextureFile.h"

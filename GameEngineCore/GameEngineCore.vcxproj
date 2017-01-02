@@ -216,7 +216,7 @@
     <ClInclude Include="AtmosphereActor.h" />
     <ClInclude Include="CameraActor.h" />
     <ClInclude Include="CatmullSpline.h" />
-    <ClInclude Include="Common.h" />
+    <ClInclude Include="EngineLimits.h" />
     <ClInclude Include="DeviceMemory.h" />
     <ClInclude Include="DirectionalLightActor.h" />
     <ClInclude Include="DrawCallStatForm.h" />
@@ -236,6 +236,7 @@
     <ClInclude Include="MotionGraph.h" />
     <ClInclude Include="MotionGraphAnimationSynthesizer.h" />
     <ClInclude Include="MotionGraphMeshActor.h" />
+    <ClInclude Include="OS.h" />
     <ClInclude Include="PipelineContext.h" />
     <ClInclude Include="PostRenderPass.h" />
     <ClInclude Include="RenderContext.h" />
