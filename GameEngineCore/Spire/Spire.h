@@ -162,6 +162,7 @@ extern "C"
 		int Size;                  /**< The size (in bytes) of the component. For opaque types (e.g. sampler and texture), this value is 0.*/
 		int Alignment;             /**< The alignment (in bytes) of the component. For opaque types (e.g. sampler and texture), this value is 0.*/
 		int Offset;				   /**< The offset (in bytes) of the component. For opaque types (e.g. sampler and texture), this value is 0.*/
+		bool Specialize;		   /**< Indicating whether this is a specialization parameter.*/
 	};
 
 	/*!

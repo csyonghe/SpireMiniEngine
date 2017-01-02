@@ -789,7 +789,7 @@ namespace GraphicsUI
 			descSet->Update(2, system->GetTextBufferObject());
 			descSet->EndUpdate();
 			frameId++;
-			rendererApi->ExecuteCommandBuffers(frameBuffer.Ptr(), MakeArrayView(cmdBuffer.Ptr()));
+			rendererApi->ExecuteCommandBuffers(frameBuffer.Ptr(), MakeArrayView(cmdBuffer.Ptr()), nullptr);
 		}
 		void DrawLine(const Color & color, float x0, float y0, float x1, float y1)
 		{

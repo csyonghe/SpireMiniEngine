@@ -468,6 +468,15 @@ namespace GameEngine
 		FrameBuffer() {};
 	};
 
+	class Fence : public CoreLib::RefObject 
+	{
+	protected:
+		Fence() {}
+	public:
+		virtual void Reset() = 0;
+		virtual void Wait() = 0;
+	};
+
 	class RenderAttachments
 	{
 	public:
@@ -647,10 +656,11 @@ namespace GameEngine
 		virtual void * GetWindowHandle() = 0;
 		virtual void Resize(int width, int height) = 0;
 		virtual void ClearTexture(GameEngine::Texture2D* texture) = 0;
-		virtual void ExecuteCommandBuffers(FrameBuffer* frameBuffer, CoreLib::ArrayView<CommandBuffer*> commands) = 0;
+		virtual void ExecuteCommandBuffers(FrameBuffer* frameBuffer, CoreLib::ArrayView<CommandBuffer*> commands, Fence* fence) = 0;
 		virtual void Present(Texture2D* srcImage) = 0;
 		virtual void Blit(Texture2D* dstImage, Texture2D* srcImage) = 0;
 		virtual void Wait() = 0;
+		virtual Fence* CreateFence() = 0;
 		virtual Buffer* CreateBuffer(BufferUsage usage, int sizeInBytes) = 0;
 		virtual Buffer* CreateMappedBuffer(BufferUsage usage, int sizeInBytes) = 0;
 		// Automatically builds mipmaps with supplied data

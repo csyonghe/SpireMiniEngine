@@ -230,7 +230,7 @@ namespace GameEngine
 
 			for (auto & pass : renderPassInstances)
 			{
-				hardwareRenderer->ExecuteCommandBuffers(pass.renderOutput->GetFrameBuffer(), MakeArrayView(pass.commandBuffer));
+				hardwareRenderer->ExecuteCommandBuffers(pass.renderOutput->GetFrameBuffer(), MakeArrayView(pass.commandBuffer), nullptr);
 				renderStats.NumPasses++;
 				renderStats.NumDrawCalls += pass.numDrawCalls;
 			}

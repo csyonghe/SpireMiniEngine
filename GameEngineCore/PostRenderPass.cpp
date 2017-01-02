@@ -56,7 +56,7 @@ namespace GameEngine
 
 	void PostRenderPass::Execute()
 	{
-		hwRenderer->ExecuteCommandBuffers(frameBuffer.Ptr(), MakeArrayView(commandBuffer.Ptr()));
+		hwRenderer->ExecuteCommandBuffers(frameBuffer.Ptr(), MakeArrayView(commandBuffer.Ptr()), nullptr);
 	}
 
 	void PostRenderPass::RecordCommandBuffer(SharedModuleInstances sharedModules, int screenWidth, int screenHeight)

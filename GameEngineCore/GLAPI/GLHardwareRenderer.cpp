@@ -9,7 +9,7 @@
 #include "../Spire/Spire.h"
 #include "../WinForm/Debug.h"
 #include "../GameEngineCore/HardwareRenderer.h"
-
+#include "../Common.h"
 #include <assert.h>
 #pragma comment(lib, "opengl32.lib")
 
@@ -617,7 +617,6 @@ namespace GLL
 				glGetTexImage(GL_TEXTURE_2D, level, format, TranslateDataTypeToInputType(outputType), data);
 			glBindTexture(GL_TEXTURE_2D, 0);
 		}
-		void DebugDump(String fileName);
 		void BuildMipmaps()
 		{
 			glBindTexture(GL_TEXTURE_2D, Handle);
@@ -2099,7 +2098,12 @@ namespace GLL
 			}
 		}
 
-		virtual void ExecuteCommandBuffers(GameEngine::FrameBuffer* frameBuffer, CoreLib::ArrayView<GameEngine::CommandBuffer*> commands) override
+		virtual Fence* CreateFence() override
+		{
+			return nullptr;
+		}
+
+		virtual void ExecuteCommandBuffers(GameEngine::FrameBuffer* frameBuffer, CoreLib::ArrayView<GameEngine::CommandBuffer*> commands, Fence * fence) override
 		{
 			glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
 			auto fb = (GLL::FrameBufferDescriptor*)(frameBuffer);
@@ -2376,6 +2380,10 @@ namespace GLL
 			SetReadFrameBuffer(srcFrameBuffer);
 			SetWriteFrameBuffer(GLL::FrameBuffer());
 			CopyFrameBuffer(0, 0, width, height, 0, 0, width, height, true, false, false);
+
+			LockBuffer(frameId%GameEngine::DynamicBufferLengthMultiplier);
+			frameId++;
+
 			SwapBuffers();
 
 			switch (reinterpret_cast<GLL::Texture2D*>(srcImage)->format)
@@ -2727,7 +2735,31 @@ namespace GLL
 			rs->stage = type;
 			return rs;
 		}
+		GLsync syncObj[3] = { nullptr, nullptr, nullptr };
+		void LockBuffer(int id)
+		{
+			if (syncObj[id])
+				glDeleteSync(syncObj[id]);
 
+			syncObj[id] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+		}
+		int waitCounter = 0;
+		void WaitBuffer(int id)
+		{
+			//waitCounter = 0;
+			if (syncObj[id])
+			{
+				while (1)
+				{
+					GLenum waitReturn = glClientWaitSync(syncObj[id], GL_SYNC_FLUSH_COMMANDS_BIT, 1);
+					if (waitReturn == GL_ALREADY_SIGNALED || waitReturn == GL_CONDITION_SATISFIED)
+						return;
+
+					waitCounter++;
+				}
+			}
+		}
+		int frameId = 0;
 		virtual void BeginDataTransfer() override
 		{
 #ifdef _DEBUG
@@ -2735,12 +2767,20 @@ namespace GLL
 				throw HardwareRendererException("Renderer is already in data transfer mode.");
 #endif
 			isInDataTransfer = true;
+			WaitBuffer(frameId%GameEngine::DynamicBufferLengthMultiplier);
 			//glFinish();
 		}
 
 		virtual void EndDataTransfer() override
 		{
 			isInDataTransfer = false;
+			
+			if (frameId == 1000)
+			{
+				frameId = 0;
+				CoreLib::Diagnostics::Debug::WriteLine("waitcycles: " + String(waitCounter));
+			}
+			//glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
 		}
 
 		Program CreateTransformFeedbackProgram(const Shader &vertexShader, const List<String> & varyings, FeedbackStorageMode format)

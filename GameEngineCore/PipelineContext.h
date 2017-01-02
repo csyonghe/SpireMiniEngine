@@ -16,21 +16,25 @@ namespace GameEngine
 	{
 		friend class PipelineContext;
 	private:
+		SpireCompilationContext * spireContext = nullptr;
 		SpireModule * module = nullptr;
-		CoreLib::String moduleName;
+		SpireModule * specializedModule = nullptr;
+		CoreLib::List<int> currentSpecializationKey;
 		int frameId = 0;
 	public:
 		CoreLib::RefPtr<DescriptorSetLayout> DescriptorLayout;
 		CoreLib::RefPtr<DescriptorSet> Descriptors;
+		CoreLib::List<int> SpecializeParamOffsets;
 		DeviceMemory * UniformMemory = nullptr;
 		int BufferOffset = 0, BufferLength = 0;
 		unsigned char * UniformPtr = nullptr;
 		CoreLib::String BindingName;
 		void SetUniformData(void * data, int length);
-		ModuleInstance(SpireModule * m)
+		ModuleInstance(SpireCompilationContext * ctx, SpireModule * m)
 		{
+			spireContext = ctx;
 			module = m;
-			moduleName = spGetModuleName(m);
+			specializedModule = module;
 		}
 		~ModuleInstance()
 		{
@@ -39,7 +43,7 @@ namespace GameEngine
 		}
 		void GetKey(ShaderKeyBuilder & keyBuilder)
 		{
-			keyBuilder.Append(moduleName);
+			keyBuilder.Append(spGetModuleName(specializedModule));
 		}
 	};
 

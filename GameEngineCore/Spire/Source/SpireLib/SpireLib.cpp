@@ -525,8 +525,11 @@ namespace SpireLib
 				if (param.IsSpecialize)
 				{
 					int id = -1;
-					for (int i = 0; i<numParams; i++)
+					for (int i = 0; i < numParams; i++)
+					{
 						moduleKeyBuilder.Append(params[id]);
+						moduleKeyBuilder.Append('_');
+					}
 				}
 			}
 			if (auto smodule = states.Last().modules.TryGetValue(moduleKeyBuilder.Buffer()))
@@ -549,8 +552,9 @@ namespace SpireLib
 						{
 							return nullptr;
 						}
-						member->modifiers.first = nullptr;
-						member->modifiers.flags = ModifierFlag::Public;
+						auto newParam = param->Clone(cloneCtx);
+						newParam->modifiers.first = nullptr;
+						newParam->modifiers.flags = ModifierFlag::Public;
 						param->BlockStatement = nullptr;
 						auto expr = new ConstantExpressionSyntaxNode();
 						if (param->Type->Equals(ExpressionType::Bool))
@@ -558,7 +562,9 @@ namespace SpireLib
 						else
 							expr->ConstType = ConstantExpressionSyntaxNode::ConstantType::Int;
 						expr->IntValue = params[id];
-						param->Expression = expr;
+						newParam->Expression = expr;
+						newModule->Members.Add(newParam);
+						param->Name.Content = param->Name.Content + "placeholder";
 						id++;
 					}
 				}
@@ -929,6 +935,7 @@ int spModuleGetParameter(SpireModule * module, int index, SpireComponentInfo * r
 	result->Alignment = param.Alignment;
 	result->Name = param.Name.Buffer();
 	result->BindableResourceType = (int)param.Type->GetBindableResourceType();
+	result->Specialize = param.IsSpecialize;
 	return 0;
 }
 

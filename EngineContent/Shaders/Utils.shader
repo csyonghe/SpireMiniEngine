@@ -94,7 +94,7 @@ struct SkinningResult
 module SkeletalAnimation
 {
     require vec3 vertPos;
-    require vec3 vertNormal;
+    require vec3 vertBinormal;
     require vec3 vertTangent;
     require uint boneIds;
     require uint boneWeights;
@@ -116,7 +116,7 @@ module SkeletalAnimation
             float boneWeight = float((boneWeights >> (i*8)) & 255) * (1.0/255.0);
             vec3 tp = (boneTransforms[boneId] * vec4(vertPos, 1.0)).xyz;
             result.pos += tp * boneWeight;
-            tp = mat3(boneTransforms[boneId]) * vertNormal;
+            tp = mat3(boneTransforms[boneId]) * vertBinormal;
             result.binormal += tp * boneWeight;
             tp = mat3(boneTransforms[boneId]) * vertTangent;
             result.tangent += tp * boneWeight;
