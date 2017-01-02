@@ -5,6 +5,7 @@
 #include "HardwareRenderer.h"
 #include "CoreLib/WinForm/Debug.h"
 #include "Spire/Spire.h"
+#include "Common.h"
 
 //#define WINDOWS_10_SCALING
 
@@ -646,6 +647,9 @@ namespace GraphicsUI
 		RefPtr<Pipeline> pipeline;
 		CoreLib::RefPtr<Texture2D> uiOverlayTexture;
 		RefPtr<Buffer> vertexBuffer, indexBuffer, primitiveBuffer, uniformBuffer;
+		const int primitiveBufferSize = 1 << 22;
+		const int indexBufferSize = 1 << 17;
+		const int vertexBufferSize = 1 << 21;
 		RefPtr<TextureSampler> linearSampler;
 		RefPtr<RenderTargetLayout> renderTargetLayout;
 		RefPtr<DescriptorSet> descSet;
@@ -657,6 +661,7 @@ namespace GraphicsUI
 		int primCounter;
 		UIWindowsSystemInterface * system;
 		Vec4 clipRect;
+		int frameId = 0;
 	public:
 		GLUIRenderer(UIWindowsSystemInterface * pSystem, GameEngine::HardwareRenderer * hw)
 		{
@@ -713,9 +718,9 @@ namespace GraphicsUI
 			pipeBuilder->FixedFunctionStates.DepthCompareFunc = CompareFunc::Disabled;
 
 			uniformBuffer = rendererApi->CreateBuffer(BufferUsage::UniformBuffer, sizeof(orthoMatrix));
-			primitiveBuffer = rendererApi->CreateBuffer(BufferUsage::StorageBuffer, 1 << 22);
-			vertexBuffer = rendererApi->CreateBuffer(BufferUsage::ArrayBuffer, 1 << 22);
-			indexBuffer = rendererApi->CreateBuffer(BufferUsage::ArrayBuffer, 1 << 20);
+			primitiveBuffer = rendererApi->CreateBuffer(BufferUsage::StorageBuffer, primitiveBufferSize * DynamicBufferLengthMultiplier);
+			vertexBuffer = rendererApi->CreateBuffer(BufferUsage::ArrayBuffer, vertexBufferSize * DynamicBufferLengthMultiplier);
+			indexBuffer = rendererApi->CreateBuffer(BufferUsage::ArrayBuffer, indexBufferSize * DynamicBufferLengthMultiplier);
 
 			Array<TextureUsage, 1> frameBufferLayout;
 			frameBufferLayout.Add(TextureUsage::ColorAttachment);
@@ -733,11 +738,7 @@ namespace GraphicsUI
 			frameBuffer = renderTargetLayout->CreateFrameBuffer(MakeArrayView(uiOverlayTexture.Ptr()));
 
 			descSet = rendererApi->CreateDescriptorSet(descLayout.Ptr());
-			descSet->BeginUpdate();
-			descSet->Update(0, uniformBuffer.Ptr());
-			descSet->Update(1, primitiveBuffer.Ptr());
-			descSet->Update(2, system->GetTextBufferObject());
-			descSet->EndUpdate();
+			
 		}
 		~GLUIRenderer()
 		{
@@ -766,14 +767,15 @@ namespace GraphicsUI
 		}
 		void EndUIDrawing(Texture2D * baseTexture)
 		{
-			indexBuffer->SetData(indexStream.Buffer(), sizeof(int) * indexStream.Count());
-			vertexBuffer->SetData(vertexStream.Buffer(), sizeof(UberVertex) * vertexStream.Count());
-			primitiveBuffer->SetData(uniformFields.Buffer(), sizeof(UniformField) * uniformFields.Count());
+			frameId = frameId % DynamicBufferLengthMultiplier;
+			indexBuffer->SetData(frameId * indexBufferSize, indexStream.Buffer(), sizeof(int) * indexStream.Count());
+			vertexBuffer->SetData(frameId * vertexBufferSize, vertexStream.Buffer(), sizeof(UberVertex) * vertexStream.Count());
+			primitiveBuffer->SetData(frameId * primitiveBufferSize, uniformFields.Buffer(), sizeof(UniformField) * uniformFields.Count());
 			cmdBuffer->BeginRecording(frameBuffer.Ptr());
 			cmdBuffer->Blit(uiOverlayTexture.Ptr(), baseTexture);
 			cmdBuffer->BindPipeline(pipeline.Ptr());
-			cmdBuffer->BindVertexBuffer(vertexBuffer.Ptr(), 0);
-			cmdBuffer->BindIndexBuffer(indexBuffer.Ptr(), 0);
+			cmdBuffer->BindVertexBuffer(vertexBuffer.Ptr(), frameId * vertexBufferSize);
+			cmdBuffer->BindIndexBuffer(indexBuffer.Ptr(), frameId * indexBufferSize);
 			cmdBuffer->BindDescriptorSet(0, descSet.Ptr());
 			cmdBuffer->SetViewport(0, 0, screenWidth, screenHeight);
 			cmdBuffer->DrawIndexed(0, indexStream.Count());
@@ -781,6 +783,12 @@ namespace GraphicsUI
 		}
 		void SubmitCommands()
 		{
+			descSet->BeginUpdate();
+			descSet->Update(0, uniformBuffer.Ptr());
+			descSet->Update(1, primitiveBuffer.Ptr(), frameId * primitiveBufferSize, primitiveBufferSize);
+			descSet->Update(2, system->GetTextBufferObject());
+			descSet->EndUpdate();
+			frameId++;
 			rendererApi->ExecuteCommandBuffers(frameBuffer.Ptr(), MakeArrayView(cmdBuffer.Ptr()));
 		}
 		void DrawLine(const Color & color, float x0, float y0, float x1, float y1)

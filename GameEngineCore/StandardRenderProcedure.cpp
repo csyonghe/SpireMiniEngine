@@ -124,7 +124,7 @@ namespace GameEngine
 			renderer->RegisterPostRenderPass(atmospherePass);
 
 			// initialize forwardBasePassModule and lightingModule
-			renderPassUniformMemory.Init(sharedRes->hardwareRenderer.Ptr(), BufferUsage::UniformBuffer, 22, sharedRes->hardwareRenderer->UniformBufferAlignment());
+			renderPassUniformMemory.Init(sharedRes->hardwareRenderer.Ptr(), BufferUsage::UniformBuffer, true, 22, sharedRes->hardwareRenderer->UniformBufferAlignment());
 			forwardBasePassParams = sharedRes->CreateModuleInstance(spFindModule(sharedRes->spireContext, "ForwardBasePassParams"), &renderPassUniformMemory);
 			forwardBasePassParams->Descriptors->BeginUpdate();
 			forwardBasePassParams->Descriptors->Update(1, sharedRes->textureSampler.Ptr());

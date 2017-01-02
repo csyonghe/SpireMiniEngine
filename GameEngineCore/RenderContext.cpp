@@ -76,19 +76,7 @@ namespace GameEngine
 			throw InvalidOperationException("cannot update non-static drawable with static transform data.");
 		if (!transformModule->UniformPtr)
 			throw InvalidOperationException("invalid buffer.");
-
-		Vec4 * bufferPtr = (Vec4*)transformModule->UniformPtr;
-		*((Matrix4*)bufferPtr) = localTransform; // write(localTransform)
-		bufferPtr += 4;
-
-		Matrix4 normMat;
-		localTransform.Inverse(normMat);
-		normMat.Transpose();
-		*(bufferPtr++) = *((Vec4*)(normMat.values));
-		*(bufferPtr++) = *((Vec4*)(normMat.values + 4));
-		*(bufferPtr++) = *((Vec4*)(normMat.values + 8));
-		if (transformModule->BufferLength)
-			scene->transformMemory.Sync(transformModule->UniformPtr, transformModule->BufferLength);
+		transformModule->SetUniformData((void*)&localTransform, sizeof(Matrix4));	
 	}
 
 	void Drawable::UpdateTransformUniform(const VectorMath::Matrix4 & localTransform, const Pose & pose)
@@ -98,30 +86,18 @@ namespace GameEngine
 		if (!transformModule->UniformPtr)
 			throw InvalidOperationException("invalid buffer.");
 
-		const int poseMatrixSize = skeleton->Bones.Count() * (sizeof(Vec4) * 7);
+		const int poseMatrixSize = skeleton->Bones.Count() * sizeof(Matrix4);
 
 		// ensure allocated transform buffer is sufficient
 		_ASSERT(transformModule->BufferLength >= poseMatrixSize);
 
 		List<Matrix4> matrices;
 		pose.GetMatrices(skeleton, matrices);
-		
-		Vec4 * bufferPtr = (Vec4*)transformModule->UniformPtr;
-
 		for (int i = 0; i < matrices.Count(); i++)
 		{
 			Matrix4::Multiply(matrices[i], localTransform, matrices[i]);
-			*((Matrix4*)bufferPtr) = matrices[i]; // write(matrices[i])
-			bufferPtr += 4;
-			Matrix4 normMat;
-			matrices[i].Inverse(normMat);
-			normMat.Transpose();
-			*(bufferPtr++) = *((Vec4*)(normMat.values));
-			*(bufferPtr++) = *((Vec4*)(normMat.values + 4));
-			*(bufferPtr++) = *((Vec4*)(normMat.values + 8));
 		}
-		if (transformModule->BufferLength)
-			scene->transformMemory.Sync(transformModule->UniformPtr, transformModule->BufferLength);
+		transformModule->SetUniformData((void*)matrices.Buffer(), sizeof(Matrix4) * matrices.Count());
 	}
     RefPtr<DrawableMesh> SceneResource::CreateDrawableMesh(Mesh * mesh)
     {
@@ -130,8 +106,8 @@ namespace GameEngine
         result->indexBufferOffset = (int)((char*)rendererResource->indexBufferMemory.Alloc(mesh->Indices.Count() * sizeof(mesh->Indices[0])) - (char*)rendererResource->indexBufferMemory.BufferPtr());
         result->vertexFormat = rendererResource->pipelineManager.LoadVertexFormat(mesh->GetVertexFormat());
         result->vertexCount = mesh->GetVertexCount();
-        rendererResource->indexBufferMemory.SetData(result->indexBufferOffset, mesh->Indices.Buffer(), mesh->Indices.Count() * sizeof(mesh->Indices[0]));
-        rendererResource->vertexBufferMemory.SetData(result->vertexBufferOffset, mesh->GetVertexBuffer(), mesh->GetVertexCount() * result->vertexFormat.Size());
+        rendererResource->indexBufferMemory.SetDataAsync(result->indexBufferOffset, mesh->Indices.Buffer(), mesh->Indices.Count() * sizeof(mesh->Indices[0]));
+        rendererResource->vertexBufferMemory.SetDataAsync(result->vertexBufferOffset, mesh->GetVertexBuffer(), mesh->GetVertexCount() * result->vertexFormat.Size());
         result->indexCount = mesh->Indices.Count();
         return result;
     }
@@ -381,8 +357,8 @@ namespace GameEngine
 		: rendererResource(resource), spireContext(spireCtx)
 	{
 		auto hwRenderer = resource->hardwareRenderer.Ptr();
-		instanceUniformMemory.Init(hwRenderer, BufferUsage::UniformBuffer, 24, hwRenderer->UniformBufferAlignment());
-		transformMemory.Init(hwRenderer, BufferUsage::UniformBuffer, 25, hwRenderer->UniformBufferAlignment());
+		instanceUniformMemory.Init(hwRenderer, BufferUsage::UniformBuffer, true, 24, hwRenderer->UniformBufferAlignment());
+		transformMemory.Init(hwRenderer, BufferUsage::UniformBuffer, true, 25, hwRenderer->UniformBufferAlignment());
 		spPushContext(spireContext);
 		Clear();
 	}
@@ -690,8 +666,8 @@ namespace GameEngine
 		LoadShaderLibrary();
 		pipelineManager.Init(spireContext, hardwareRenderer.Ptr());
 
-		indexBufferMemory.Init(hardwareRenderer.Ptr(), BufferUsage::IndexBuffer, 26, 256);
-		vertexBufferMemory.Init(hardwareRenderer.Ptr(), BufferUsage::ArrayBuffer, 28, 256);
+		indexBufferMemory.Init(hardwareRenderer.Ptr(), BufferUsage::IndexBuffer, false, 26, 256);
+		vertexBufferMemory.Init(hardwareRenderer.Ptr(), BufferUsage::ArrayBuffer, false, 28, 256);
 	}
 	void RendererSharedResource::Destroy()
 	{

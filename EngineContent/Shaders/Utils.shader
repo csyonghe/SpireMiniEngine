@@ -33,12 +33,11 @@ vec3 desaturate(vec3 color, float factor)
 module TangentSpaceTransform
 {
     require vec3 coarseVertTangent;
-    require vec3 coarseVertNormal;
-    require vec3 worldTransformNormal(vec3 pos);
+    require vec3 coarseVertBinormal;
     require vec3 worldTransformTangent(vec3 pos);
-    public vec3 vNormal = worldTransformNormal(coarseVertNormal).xyz;
     public vec3 vTangent = worldTransformTangent(coarseVertTangent);
-    public vec3 vBiTangent = cross(vTangent, vNormal);
+    public vec3 vBiTangent = worldTransformTangent(coarseVertBinormal);
+    public vec3 vNormal = cross(coarseVertBinormal, coarseVertTangent);
     
     public vec3 WorldSpaceToTangentSpace(vec3 v)
     {
@@ -61,25 +60,20 @@ module VertexTransform
     public vec4 projCoord = viewProjectionTransform * vec4(pos, 1);
 }
 
-struct BoneTransform
-{
-    mat4 transformMatrix;
-    mat3 normalMatrix;
-}
-
 module NoAnimation
 {
-    param mat4 modelMatrix; 
-    param mat3 normalMatrix; 
+    param mat4 modelMatrix;
 
     require vec3 vertPos;
     require vec3 vertNormal;
     require vec3 vertTangent;
+    require vec3 vertBinormal;
     
     public @CoarseVertex vec3 coarseVertPos = vertPos;
     public @CoarseVertex vec3 coarseVertNormal = vertNormal;
     public @CoarseVertex vec3 coarseVertTangent = vertTangent;
-    
+    public @CoarseVertex vec3 coarseVertBinormal = vertBinormal;
+
     public vec3 worldTransformPos(vec3 pos)
     {
         return (modelMatrix * vec4(pos, 1)).xyz;
@@ -88,17 +82,13 @@ module NoAnimation
     {
         return normalize(mat3(modelMatrix) * tangent);
     }
-    public vec3 worldTransformNormal(vec3 norm)
-    {
-        return normalize((normalMatrix * norm).xyz);
-    }
 }
 
 struct SkinningResult
 {
     vec3 pos;
-    vec3 normal;
     vec3 tangent;
+    vec3 binormal;
 }
 
 module SkeletalAnimation
@@ -111,36 +101,34 @@ module SkeletalAnimation
 
     require mat4 viewProjectionTransform;
 
-    param BoneTransform[128] boneTransforms;
+    param mat4[128] boneTransforms;
     
     public SkinningResult skinning
     {
         SkinningResult result;
         result.pos = vec3(0.0);
-        result.normal = vec3(0.0);
+        result.binormal = vec3(0.0);
         result.tangent = vec3(0.0);
         for (int i = 0; i < 4; i++)
         {
             uint boneId = (boneIds >> (i*8)) & 255;
             if (boneId == 255) continue;
             float boneWeight = float((boneWeights >> (i*8)) & 255) * (1.0/255.0);
-            vec3 tp = (boneTransforms[boneId].transformMatrix * vec4(vertPos, 1.0)).xyz;
+            vec3 tp = (boneTransforms[boneId] * vec4(vertPos, 1.0)).xyz;
             result.pos += tp * boneWeight;
-            //result.pos = tp;
-            tp = boneTransforms[boneId].normalMatrix * vertNormal;
-            result.normal += tp * boneWeight;
-            //result.normal = tp;
-            tp = (boneTransforms[boneId].transformMatrix * vec4(vertTangent, 0.0)).xyz;
+            tp = mat3(boneTransforms[boneId]) * vertNormal;
+            result.binormal += tp * boneWeight;
+            tp = mat3(boneTransforms[boneId]) * vertTangent;
             result.tangent += tp * boneWeight;
-            //result.tangent = tp;
         }
-        result.normal = normalize(result.normal);
+        result.binormal = normalize(result.binormal);
         result.tangent = normalize(result.tangent);
         return result;
     }
-    public vec3 coarseVertPos = skinning.pos;
-    public vec3 coarseVertNormal = skinning.normal;
-    public vec3 coarseVertTangent = skinning.tangent;
+    public @CoarseVertex vec3 coarseVertPos = skinning.pos;
+    public @CoarseVertex vec3 coarseVertBinormal = skinning.binormal;
+    public @CoarseVertex vec3 coarseVertTangent = skinning.tangent;
+    public @CoarseVertex vec3 coarseVertNormal = normalize(cross(coarseVertBinormal, coarseVertTangent));
 
 	public vec3 worldTransformPos(vec3 pos)
     {
@@ -149,10 +137,6 @@ module SkeletalAnimation
     public vec3 worldTransformTangent(vec3 tangent)
     {
         return tangent;
-    }
-    public vec3 worldTransformNormal(vec3 norm)
-    {
-        return norm;
     }
 }
 
