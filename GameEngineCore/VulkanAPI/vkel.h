@@ -28,39 +28,9 @@
 //     Version: 2.0.11
 //
 // Revision History
-//     Revision 14, 2016/05/16
-//       - Updated support for Vulkan 1.0.14
-//
-//     Revision 13, 2016/05/15
-//       - Updated support for Vulkan 1.0.13
-//
 //     Revision 12, 2016/05/02
 //       - Fixed "for loop initial declarations are only
 //         allowed in C99 mode".
-//
-//     Revision 11, 2016/05/01
-//       - Updated support for Vulkan 1.0.12
-//
-//     Revision 10, 2016/04/22
-//       - Updated support for Vulkan 1.0.11
-//
-//     Revision 9, 2016/04/18
-//       - Updated support for Vulkan 1.0.10
-//
-//     Revision 8, 2016/04/08
-//       - Updated support for Vulkan 1.0.9
-//
-//     Revision 7, 2016/04/03
-//       - Updated support for Vulkan 1.0.8
-//
-//     Revision 6, 2016/03/26
-//       - Updated support for Vulkan 1.0.7
-//
-//     Revision 5, 2016/03/12
-//       - Updated support for Vulkan 1.0.6
-//
-//     Revision 4, 2016/03/06
-//       - Updated support for Vulkan 1.0.5
 //
 //     Revision 3, 2016/02/26
 //       - Rewrote vkel_gen.py, now it parses and directly
@@ -71,7 +41,6 @@
 //         and device related calls.
 //       - Removed the need for having the vukan.h and
 //         vk_platform.h headers.
-//       - Updated support for Vulkan 1.0.4
 //
 //     Revision 2, 2016/02/24
 //       - Created a Python script for automatically generating
@@ -180,13 +149,13 @@ extern "C" {
 #define VKAPI_ATTR
 #define VKAPI_CALL __stdcall
 #define VKAPI_PTR  VKAPI_CALL
-#elif defined(__ANDROID__) && defined(__ARM_EABI__) && !defined(__ARM_ARCH_7A__)
-		// Android does not support Vulkan in native code using the "armeabi" ABI.
-#error "Vulkan requires the 'armeabi-v7a' or 'armeabi-v7a-hard' ABI on 32-bit ARM CPUs"
-#elif defined(__ANDROID__) && defined(__ARM_ARCH_7A__)
-		// On Android/ARMv7a, Vulkan functions use the armeabi-v7a-hard calling
-		// convention, even if the application's native code is compiled with the
-		// armeabi-v7a calling convention.
+#elif defined(__ANDROID__) && defined(__ARM_ARCH) && __ARM_ARCH < 7
+#error "Vulkan isn't supported for the 'armeabi' NDK ABI"
+#elif defined(__ANDROID__) && defined(__ARM_ARCH) && __ARM_ARCH >= 7 && defined(__ARM_32BIT_STATE)
+		// On Android 32-bit ARM targets, Vulkan functions use the "hardfloat"
+		// calling convention, i.e. float parameters are passed in registers. This
+		// is true even if the rest of the application passes floats on the stack,
+		// as it does by default when compiling for the armeabi-v7a NDK ABI.
 #define VKAPI_ATTR __attribute__((pcs("aapcs-vfp")))
 #define VKAPI_CALL
 #define VKAPI_PTR  VKAPI_ATTR
@@ -248,16 +217,18 @@ extern "C" {
 #define VK_VERSION_MAJOR(version) ((uint32_t)(version) >> 22)
 #define VK_VERSION_MINOR(version) (((uint32_t)(version) >> 12) & 0x3ff)
 #define VK_VERSION_PATCH(version) ((uint32_t)(version) & 0xfff)
-#define VK_HEADER_VERSION 16
+#define VK_HEADER_VERSION 38
 
 #define VK_NULL_HANDLE 0
 
 #define VK_DEFINE_HANDLE(object) typedef struct object##_T* object;
 
-#if defined(__LP64__) || defined(_WIN64) || defined(__x86_64__) || defined(_M_X64) || defined(__ia64) || defined (_M_IA64) || defined(__aarch64__) || defined(__powerpc64__)
+#if !defined(VK_DEFINE_NON_DISPATCHABLE_HANDLE)
+#if defined(__LP64__) || defined(_WIN64) || (defined(__x86_64__) && !defined(__ILP32__) ) || defined(_M_X64) || defined(__ia64) || defined (_M_IA64) || defined(__aarch64__) || defined(__powerpc64__)
 #define VK_DEFINE_NON_DISPATCHABLE_HANDLE(object) typedef struct object##_T *object;
 #else
 #define VK_DEFINE_NON_DISPATCHABLE_HANDLE(object) typedef uint64_t object;
+#endif
 #endif
 
 		typedef uint32_t VkFlags;
@@ -333,6 +304,7 @@ extern "C" {
 		VK_ERROR_INCOMPATIBLE_DRIVER = -9,
 		VK_ERROR_TOO_MANY_OBJECTS = -10,
 		VK_ERROR_FORMAT_NOT_SUPPORTED = -11,
+		VK_ERROR_FRAGMENTED_POOL = -12,
 		VK_ERROR_SURFACE_LOST_KHR = -1000000000,
 		VK_ERROR_NATIVE_WINDOW_IN_USE_KHR = -1000000001,
 		VK_SUBOPTIMAL_KHR = 1000001003,
@@ -340,9 +312,9 @@ extern "C" {
 		VK_ERROR_INCOMPATIBLE_DISPLAY_KHR = -1000003001,
 		VK_ERROR_VALIDATION_FAILED_EXT = -1000011001,
 		VK_ERROR_INVALID_SHADER_NV = -1000012000,
-		VK_RESULT_BEGIN_RANGE = VK_ERROR_FORMAT_NOT_SUPPORTED,
+		VK_RESULT_BEGIN_RANGE = VK_ERROR_FRAGMENTED_POOL,
 		VK_RESULT_END_RANGE = VK_INCOMPLETE,
-		VK_RESULT_RANGE_SIZE = (VK_INCOMPLETE - VK_ERROR_FORMAT_NOT_SUPPORTED + 1),
+		VK_RESULT_RANGE_SIZE = (VK_INCOMPLETE - VK_ERROR_FRAGMENTED_POOL + 1),
 		VK_RESULT_MAX_ENUM = 0x7FFFFFFF
 	} VkResult;
 
@@ -412,6 +384,21 @@ extern "C" {
 		VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT = 1000022000,
 		VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_TAG_INFO_EXT = 1000022001,
 		VK_STRUCTURE_TYPE_DEBUG_MARKER_MARKER_INFO_EXT = 1000022002,
+		VK_STRUCTURE_TYPE_DEDICATED_ALLOCATION_IMAGE_CREATE_INFO_NV = 1000026000,
+		VK_STRUCTURE_TYPE_DEDICATED_ALLOCATION_BUFFER_CREATE_INFO_NV = 1000026001,
+		VK_STRUCTURE_TYPE_DEDICATED_ALLOCATION_MEMORY_ALLOCATE_INFO_NV = 1000026002,
+		VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO_NV = 1000056000,
+		VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_NV = 1000056001,
+		VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_NV = 1000057000,
+		VK_STRUCTURE_TYPE_EXPORT_MEMORY_WIN32_HANDLE_INFO_NV = 1000057001,
+		VK_STRUCTURE_TYPE_WIN32_KEYED_MUTEX_ACQUIRE_RELEASE_INFO_NV = 1000058000,
+		VK_STRUCTURE_TYPE_VALIDATION_FLAGS_EXT = 1000061000,
+		VK_STRUCTURE_TYPE_OBJECT_TABLE_CREATE_INFO_NVX = 1000086000,
+		VK_STRUCTURE_TYPE_INDIRECT_COMMANDS_LAYOUT_CREATE_INFO_NVX = 1000086001,
+		VK_STRUCTURE_TYPE_CMD_PROCESS_COMMANDS_INFO_NVX = 1000086002,
+		VK_STRUCTURE_TYPE_CMD_RESERVE_SPACE_FOR_COMMANDS_INFO_NVX = 1000086003,
+		VK_STRUCTURE_TYPE_DEVICE_GENERATED_COMMANDS_LIMITS_NVX = 1000086004,
+		VK_STRUCTURE_TYPE_DEVICE_GENERATED_COMMANDS_FEATURES_NVX = 1000086005,
 		VK_STRUCTURE_TYPE_BEGIN_RANGE = VK_STRUCTURE_TYPE_APPLICATION_INFO,
 		VK_STRUCTURE_TYPE_END_RANGE = VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO,
 		VK_STRUCTURE_TYPE_RANGE_SIZE = (VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO - VK_STRUCTURE_TYPE_APPLICATION_INFO + 1),
@@ -624,6 +611,14 @@ extern "C" {
 		VK_FORMAT_ASTC_12x10_SRGB_BLOCK = 182,
 		VK_FORMAT_ASTC_12x12_UNORM_BLOCK = 183,
 		VK_FORMAT_ASTC_12x12_SRGB_BLOCK = 184,
+		VK_FORMAT_PVRTC1_2BPP_UNORM_BLOCK_IMG = 1000054000,
+		VK_FORMAT_PVRTC1_4BPP_UNORM_BLOCK_IMG = 1000054001,
+		VK_FORMAT_PVRTC2_2BPP_UNORM_BLOCK_IMG = 1000054002,
+		VK_FORMAT_PVRTC2_4BPP_UNORM_BLOCK_IMG = 1000054003,
+		VK_FORMAT_PVRTC1_2BPP_SRGB_BLOCK_IMG = 1000054004,
+		VK_FORMAT_PVRTC1_4BPP_SRGB_BLOCK_IMG = 1000054005,
+		VK_FORMAT_PVRTC2_2BPP_SRGB_BLOCK_IMG = 1000054006,
+		VK_FORMAT_PVRTC2_4BPP_SRGB_BLOCK_IMG = 1000054007,
 		VK_FORMAT_BEGIN_RANGE = VK_FORMAT_UNDEFINED,
 		VK_FORMAT_END_RANGE = VK_FORMAT_ASTC_12x12_SRGB_BLOCK,
 		VK_FORMAT_RANGE_SIZE = (VK_FORMAT_ASTC_12x12_SRGB_BLOCK - VK_FORMAT_UNDEFINED + 1),
@@ -1096,6 +1091,7 @@ extern "C" {
 		VK_PIPELINE_STAGE_HOST_BIT = 0x00004000,
 		VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT = 0x00008000,
 		VK_PIPELINE_STAGE_ALL_COMMANDS_BIT = 0x00010000,
+		VK_PIPELINE_STAGE_COMMAND_PROCESS_BIT_NVX = 0x00020000,
 		VK_PIPELINE_STAGE_FLAG_BITS_MAX_ENUM = 0x7FFFFFFF
 	} VkPipelineStageFlagBits;
 	typedef VkFlags VkPipelineStageFlags;
@@ -1270,6 +1266,8 @@ extern "C" {
 		VK_ACCESS_HOST_WRITE_BIT = 0x00004000,
 		VK_ACCESS_MEMORY_READ_BIT = 0x00008000,
 		VK_ACCESS_MEMORY_WRITE_BIT = 0x00010000,
+		VK_ACCESS_COMMAND_PROCESS_READ_BIT_NVX = 0x00020000,
+		VK_ACCESS_COMMAND_PROCESS_WRITE_BIT_NVX = 0x00040000,
 		VK_ACCESS_FLAG_BITS_MAX_ENUM = 0x7FFFFFFF
 	} VkAccessFlagBits;
 	typedef VkFlags VkAccessFlags;
@@ -2544,7 +2542,7 @@ extern "C" {
 	typedef void (VKAPI_PTR *PFN_vkCmdBlitImage)(VkCommandBuffer commandBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkImageBlit* pRegions, VkFilter filter);
 	typedef void (VKAPI_PTR *PFN_vkCmdCopyBufferToImage)(VkCommandBuffer commandBuffer, VkBuffer srcBuffer, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkBufferImageCopy* pRegions);
 	typedef void (VKAPI_PTR *PFN_vkCmdCopyImageToBuffer)(VkCommandBuffer commandBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkBuffer dstBuffer, uint32_t regionCount, const VkBufferImageCopy* pRegions);
-	typedef void (VKAPI_PTR *PFN_vkCmdUpdateBuffer)(VkCommandBuffer commandBuffer, VkBuffer dstBuffer, VkDeviceSize dstOffset, VkDeviceSize dataSize, const uint32_t* pData);
+	typedef void (VKAPI_PTR *PFN_vkCmdUpdateBuffer)(VkCommandBuffer commandBuffer, VkBuffer dstBuffer, VkDeviceSize dstOffset, VkDeviceSize dataSize, const void* pData);
 	typedef void (VKAPI_PTR *PFN_vkCmdFillBuffer)(VkCommandBuffer commandBuffer, VkBuffer dstBuffer, VkDeviceSize dstOffset, VkDeviceSize size, uint32_t data);
 	typedef void (VKAPI_PTR *PFN_vkCmdClearColorImage)(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout imageLayout, const VkClearColorValue* pColor, uint32_t rangeCount, const VkImageSubresourceRange* pRanges);
 	typedef void (VKAPI_PTR *PFN_vkCmdClearDepthStencilImage)(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout imageLayout, const VkClearDepthStencilValue* pDepthStencil, uint32_t rangeCount, const VkImageSubresourceRange* pRanges);
@@ -2918,7 +2916,7 @@ extern "C" {
 #define VK_EXT_debug_report 1
 	VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkDebugReportCallbackEXT)
 
-#define VK_EXT_DEBUG_REPORT_SPEC_VERSION  2
+#define VK_EXT_DEBUG_REPORT_SPEC_VERSION  4
 #define VK_EXT_DEBUG_REPORT_EXTENSION_NAME "VK_EXT_debug_report"
 #define VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT
 
@@ -2952,9 +2950,13 @@ extern "C" {
 		VK_DEBUG_REPORT_OBJECT_TYPE_SURFACE_KHR_EXT = 26,
 		VK_DEBUG_REPORT_OBJECT_TYPE_SWAPCHAIN_KHR_EXT = 27,
 		VK_DEBUG_REPORT_OBJECT_TYPE_DEBUG_REPORT_EXT = 28,
+		VK_DEBUG_REPORT_OBJECT_TYPE_DISPLAY_KHR_EXT = 29,
+		VK_DEBUG_REPORT_OBJECT_TYPE_DISPLAY_MODE_KHR_EXT = 30,
+		VK_DEBUG_REPORT_OBJECT_TYPE_OBJECT_TABLE_NVX_EXT = 31,
+		VK_DEBUG_REPORT_OBJECT_TYPE_INDIRECT_COMMANDS_LAYOUT_NVX_EXT = 32,
 		VK_DEBUG_REPORT_OBJECT_TYPE_BEGIN_RANGE_EXT = VK_DEBUG_REPORT_OBJECT_TYPE_UNKNOWN_EXT,
-		VK_DEBUG_REPORT_OBJECT_TYPE_END_RANGE_EXT = VK_DEBUG_REPORT_OBJECT_TYPE_DEBUG_REPORT_EXT,
-		VK_DEBUG_REPORT_OBJECT_TYPE_RANGE_SIZE_EXT = (VK_DEBUG_REPORT_OBJECT_TYPE_DEBUG_REPORT_EXT - VK_DEBUG_REPORT_OBJECT_TYPE_UNKNOWN_EXT + 1),
+		VK_DEBUG_REPORT_OBJECT_TYPE_END_RANGE_EXT = VK_DEBUG_REPORT_OBJECT_TYPE_INDIRECT_COMMANDS_LAYOUT_NVX_EXT,
+		VK_DEBUG_REPORT_OBJECT_TYPE_RANGE_SIZE_EXT = (VK_DEBUG_REPORT_OBJECT_TYPE_INDIRECT_COMMANDS_LAYOUT_NVX_EXT - VK_DEBUG_REPORT_OBJECT_TYPE_UNKNOWN_EXT + 1),
 		VK_DEBUG_REPORT_OBJECT_TYPE_MAX_ENUM_EXT = 0x7FFFFFFF
 	} VkDebugReportObjectTypeEXT;
 
@@ -3073,6 +3075,331 @@ extern "C" {
 #define VK_AMD_GCN_SHADER_SPEC_VERSION    1
 #define VK_AMD_GCN_SHADER_EXTENSION_NAME  "VK_AMD_gcn_shader"
 
+#define VK_NV_dedicated_allocation 1
+#define VK_NV_DEDICATED_ALLOCATION_SPEC_VERSION 1
+#define VK_NV_DEDICATED_ALLOCATION_EXTENSION_NAME "VK_NV_dedicated_allocation"
+
+	typedef struct VkDedicatedAllocationImageCreateInfoNV {
+		VkStructureType    sType;
+		const void*        pNext;
+		VkBool32           dedicatedAllocation;
+	} VkDedicatedAllocationImageCreateInfoNV;
+
+	typedef struct VkDedicatedAllocationBufferCreateInfoNV {
+		VkStructureType    sType;
+		const void*        pNext;
+		VkBool32           dedicatedAllocation;
+	} VkDedicatedAllocationBufferCreateInfoNV;
+
+	typedef struct VkDedicatedAllocationMemoryAllocateInfoNV {
+		VkStructureType    sType;
+		const void*        pNext;
+		VkImage            image;
+		VkBuffer           buffer;
+	} VkDedicatedAllocationMemoryAllocateInfoNV;
+
+#define VK_AMD_draw_indirect_count 1
+#define VK_AMD_DRAW_INDIRECT_COUNT_SPEC_VERSION 1
+#define VK_AMD_DRAW_INDIRECT_COUNT_EXTENSION_NAME "VK_AMD_draw_indirect_count"
+
+	typedef void (VKAPI_PTR *PFN_vkCmdDrawIndirectCountAMD)(VkCommandBuffer commandBuffer, VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride);
+	typedef void (VKAPI_PTR *PFN_vkCmdDrawIndexedIndirectCountAMD)(VkCommandBuffer commandBuffer, VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride);
+
+#define VK_AMD_negative_viewport_height 1
+#define VK_AMD_NEGATIVE_VIEWPORT_HEIGHT_SPEC_VERSION 1
+#define VK_AMD_NEGATIVE_VIEWPORT_HEIGHT_EXTENSION_NAME "VK_AMD_negative_viewport_height"
+
+#define VK_AMD_gpu_shader_half_float 1
+#define VK_AMD_GPU_SHADER_HALF_FLOAT_SPEC_VERSION 1
+#define VK_AMD_GPU_SHADER_HALF_FLOAT_EXTENSION_NAME "VK_AMD_gpu_shader_half_float"
+
+#define VK_AMD_shader_ballot 1
+#define VK_AMD_SHADER_BALLOT_SPEC_VERSION 1
+#define VK_AMD_SHADER_BALLOT_EXTENSION_NAME "VK_AMD_shader_ballot"
+
+#define VK_IMG_format_pvrtc 1
+#define VK_IMG_FORMAT_PVRTC_SPEC_VERSION  1
+#define VK_IMG_FORMAT_PVRTC_EXTENSION_NAME "VK_IMG_format_pvrtc"
+
+#define VK_NV_external_memory_capabilities 1
+#define VK_NV_EXTERNAL_MEMORY_CAPABILITIES_SPEC_VERSION 1
+#define VK_NV_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME "VK_NV_external_memory_capabilities"
+
+	typedef enum VkExternalMemoryHandleTypeFlagBitsNV {
+		VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_NV = 0x00000001,
+		VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT_NV = 0x00000002,
+		VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_IMAGE_BIT_NV = 0x00000004,
+		VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_IMAGE_KMT_BIT_NV = 0x00000008,
+		VK_EXTERNAL_MEMORY_HANDLE_TYPE_FLAG_BITS_MAX_ENUM_NV = 0x7FFFFFFF
+	} VkExternalMemoryHandleTypeFlagBitsNV;
+	typedef VkFlags VkExternalMemoryHandleTypeFlagsNV;
+
+	typedef enum VkExternalMemoryFeatureFlagBitsNV {
+		VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT_NV = 0x00000001,
+		VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT_NV = 0x00000002,
+		VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT_NV = 0x00000004,
+		VK_EXTERNAL_MEMORY_FEATURE_FLAG_BITS_MAX_ENUM_NV = 0x7FFFFFFF
+	} VkExternalMemoryFeatureFlagBitsNV;
+	typedef VkFlags VkExternalMemoryFeatureFlagsNV;
+
+	typedef struct VkExternalImageFormatPropertiesNV {
+		VkImageFormatProperties              imageFormatProperties;
+		VkExternalMemoryFeatureFlagsNV       externalMemoryFeatures;
+		VkExternalMemoryHandleTypeFlagsNV    exportFromImportedHandleTypes;
+		VkExternalMemoryHandleTypeFlagsNV    compatibleHandleTypes;
+	} VkExternalImageFormatPropertiesNV;
+
+	typedef VkResult(VKAPI_PTR *PFN_vkGetPhysicalDeviceExternalImageFormatPropertiesNV)(VkPhysicalDevice physicalDevice, VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkExternalMemoryHandleTypeFlagsNV externalHandleType, VkExternalImageFormatPropertiesNV* pExternalImageFormatProperties);
+
+#define VK_NV_external_memory 1
+#define VK_NV_EXTERNAL_MEMORY_SPEC_VERSION 1
+#define VK_NV_EXTERNAL_MEMORY_EXTENSION_NAME "VK_NV_external_memory"
+
+	typedef struct VkExternalMemoryImageCreateInfoNV {
+		VkStructureType                      sType;
+		const void*                          pNext;
+		VkExternalMemoryHandleTypeFlagsNV    handleTypes;
+	} VkExternalMemoryImageCreateInfoNV;
+
+	typedef struct VkExportMemoryAllocateInfoNV {
+		VkStructureType                      sType;
+		const void*                          pNext;
+		VkExternalMemoryHandleTypeFlagsNV    handleTypes;
+	} VkExportMemoryAllocateInfoNV;
+
+#ifdef VK_USE_PLATFORM_WIN32_KHR
+#define VK_NV_external_memory_win32 1
+#define VK_NV_EXTERNAL_MEMORY_WIN32_SPEC_VERSION 1
+#define VK_NV_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME "VK_NV_external_memory_win32"
+
+	typedef struct VkImportMemoryWin32HandleInfoNV {
+		VkStructureType                      sType;
+		const void*                          pNext;
+		VkExternalMemoryHandleTypeFlagsNV    handleType;
+		HANDLE                               handle;
+	} VkImportMemoryWin32HandleInfoNV;
+
+	typedef struct VkExportMemoryWin32HandleInfoNV {
+		VkStructureType               sType;
+		const void*                   pNext;
+		const SECURITY_ATTRIBUTES*    pAttributes;
+		DWORD                         dwAccess;
+	} VkExportMemoryWin32HandleInfoNV;
+
+	typedef VkResult(VKAPI_PTR *PFN_vkGetMemoryWin32HandleNV)(VkDevice device, VkDeviceMemory memory, VkExternalMemoryHandleTypeFlagsNV handleType, HANDLE* pHandle);
+
+#endif 
+
+#ifdef VK_USE_PLATFORM_WIN32_KHR
+#define VK_NV_win32_keyed_mutex 1
+#define VK_NV_WIN32_KEYED_MUTEX_SPEC_VERSION 1
+#define VK_NV_WIN32_KEYED_MUTEX_EXTENSION_NAME "VK_NV_win32_keyed_mutex"
+
+	typedef struct VkWin32KeyedMutexAcquireReleaseInfoNV {
+		VkStructureType          sType;
+		const void*              pNext;
+		uint32_t                 acquireCount;
+		const VkDeviceMemory*    pAcquireSyncs;
+		const uint64_t*          pAcquireKeys;
+		const uint32_t*          pAcquireTimeoutMilliseconds;
+		uint32_t                 releaseCount;
+		const VkDeviceMemory*    pReleaseSyncs;
+		const uint64_t*          pReleaseKeys;
+	} VkWin32KeyedMutexAcquireReleaseInfoNV;
+
+#endif 
+
+#define VK_EXT_validation_flags 1
+#define VK_EXT_VALIDATION_FLAGS_SPEC_VERSION 1
+#define VK_EXT_VALIDATION_FLAGS_EXTENSION_NAME "VK_EXT_validation_flags"
+
+	typedef enum VkValidationCheckEXT {
+		VK_VALIDATION_CHECK_ALL_EXT = 0,
+		VK_VALIDATION_CHECK_BEGIN_RANGE_EXT = VK_VALIDATION_CHECK_ALL_EXT,
+		VK_VALIDATION_CHECK_END_RANGE_EXT = VK_VALIDATION_CHECK_ALL_EXT,
+		VK_VALIDATION_CHECK_RANGE_SIZE_EXT = (VK_VALIDATION_CHECK_ALL_EXT - VK_VALIDATION_CHECK_ALL_EXT + 1),
+		VK_VALIDATION_CHECK_MAX_ENUM_EXT = 0x7FFFFFFF
+	} VkValidationCheckEXT;
+
+	typedef struct VkValidationFlagsEXT {
+		VkStructureType          sType;
+		const void*              pNext;
+		uint32_t                 disabledValidationCheckCount;
+		VkValidationCheckEXT*    pDisabledValidationChecks;
+	} VkValidationFlagsEXT;
+
+#define VK_NVX_device_generated_commands 1
+	VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkObjectTableNVX)
+		VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkIndirectCommandsLayoutNVX)
+
+#define VK_NVX_DEVICE_GENERATED_COMMANDS_SPEC_VERSION 1
+#define VK_NVX_DEVICE_GENERATED_COMMANDS_EXTENSION_NAME "VK_NVX_device_generated_commands"
+
+		typedef enum VkIndirectCommandsTokenTypeNVX {
+		VK_INDIRECT_COMMANDS_TOKEN_PIPELINE_NVX = 0,
+		VK_INDIRECT_COMMANDS_TOKEN_DESCRIPTOR_SET_NVX = 1,
+		VK_INDIRECT_COMMANDS_TOKEN_INDEX_BUFFER_NVX = 2,
+		VK_INDIRECT_COMMANDS_TOKEN_VERTEX_BUFFER_NVX = 3,
+		VK_INDIRECT_COMMANDS_TOKEN_PUSH_CONSTANT_NVX = 4,
+		VK_INDIRECT_COMMANDS_TOKEN_DRAW_INDEXED_NVX = 5,
+		VK_INDIRECT_COMMANDS_TOKEN_DRAW_NVX = 6,
+		VK_INDIRECT_COMMANDS_TOKEN_DISPATCH_NVX = 7,
+		VK_INDIRECT_COMMANDS_TOKEN_TYPE_BEGIN_RANGE_NVX = VK_INDIRECT_COMMANDS_TOKEN_PIPELINE_NVX,
+		VK_INDIRECT_COMMANDS_TOKEN_TYPE_END_RANGE_NVX = VK_INDIRECT_COMMANDS_TOKEN_DISPATCH_NVX,
+		VK_INDIRECT_COMMANDS_TOKEN_TYPE_RANGE_SIZE_NVX = (VK_INDIRECT_COMMANDS_TOKEN_DISPATCH_NVX - VK_INDIRECT_COMMANDS_TOKEN_PIPELINE_NVX + 1),
+		VK_INDIRECT_COMMANDS_TOKEN_TYPE_MAX_ENUM_NVX = 0x7FFFFFFF
+	} VkIndirectCommandsTokenTypeNVX;
+
+	typedef enum VkObjectEntryTypeNVX {
+		VK_OBJECT_ENTRY_DESCRIPTOR_SET_NVX = 0,
+		VK_OBJECT_ENTRY_PIPELINE_NVX = 1,
+		VK_OBJECT_ENTRY_INDEX_BUFFER_NVX = 2,
+		VK_OBJECT_ENTRY_VERTEX_BUFFER_NVX = 3,
+		VK_OBJECT_ENTRY_PUSH_CONSTANT_NVX = 4,
+		VK_OBJECT_ENTRY_TYPE_BEGIN_RANGE_NVX = VK_OBJECT_ENTRY_DESCRIPTOR_SET_NVX,
+		VK_OBJECT_ENTRY_TYPE_END_RANGE_NVX = VK_OBJECT_ENTRY_PUSH_CONSTANT_NVX,
+		VK_OBJECT_ENTRY_TYPE_RANGE_SIZE_NVX = (VK_OBJECT_ENTRY_PUSH_CONSTANT_NVX - VK_OBJECT_ENTRY_DESCRIPTOR_SET_NVX + 1),
+		VK_OBJECT_ENTRY_TYPE_MAX_ENUM_NVX = 0x7FFFFFFF
+	} VkObjectEntryTypeNVX;
+
+	typedef enum VkIndirectCommandsLayoutUsageFlagBitsNVX {
+		VK_INDIRECT_COMMANDS_LAYOUT_USAGE_UNORDERED_SEQUENCES_BIT_NVX = 0x00000001,
+		VK_INDIRECT_COMMANDS_LAYOUT_USAGE_SPARSE_SEQUENCES_BIT_NVX = 0x00000002,
+		VK_INDIRECT_COMMANDS_LAYOUT_USAGE_EMPTY_EXECUTIONS_BIT_NVX = 0x00000004,
+		VK_INDIRECT_COMMANDS_LAYOUT_USAGE_INDEXED_SEQUENCES_BIT_NVX = 0x00000008,
+		VK_INDIRECT_COMMANDS_LAYOUT_USAGE_FLAG_BITS_MAX_ENUM_NVX = 0x7FFFFFFF
+	} VkIndirectCommandsLayoutUsageFlagBitsNVX;
+	typedef VkFlags VkIndirectCommandsLayoutUsageFlagsNVX;
+
+	typedef enum VkObjectEntryUsageFlagBitsNVX {
+		VK_OBJECT_ENTRY_USAGE_GRAPHICS_BIT_NVX = 0x00000001,
+		VK_OBJECT_ENTRY_USAGE_COMPUTE_BIT_NVX = 0x00000002,
+		VK_OBJECT_ENTRY_USAGE_FLAG_BITS_MAX_ENUM_NVX = 0x7FFFFFFF
+	} VkObjectEntryUsageFlagBitsNVX;
+	typedef VkFlags VkObjectEntryUsageFlagsNVX;
+
+	typedef struct VkDeviceGeneratedCommandsFeaturesNVX {
+		VkStructureType    sType;
+		const void*        pNext;
+		VkBool32           computeBindingPointSupport;
+	} VkDeviceGeneratedCommandsFeaturesNVX;
+
+	typedef struct VkDeviceGeneratedCommandsLimitsNVX {
+		VkStructureType    sType;
+		const void*        pNext;
+		uint32_t           maxIndirectCommandsLayoutTokenCount;
+		uint32_t           maxObjectEntryCounts;
+		uint32_t           minSequenceCountBufferOffsetAlignment;
+		uint32_t           minSequenceIndexBufferOffsetAlignment;
+		uint32_t           minCommandsTokenBufferOffsetAlignment;
+	} VkDeviceGeneratedCommandsLimitsNVX;
+
+	typedef struct VkIndirectCommandsTokenNVX {
+		VkIndirectCommandsTokenTypeNVX    tokenType;
+		VkBuffer                          buffer;
+		VkDeviceSize                      offset;
+	} VkIndirectCommandsTokenNVX;
+
+	typedef struct VkIndirectCommandsLayoutTokenNVX {
+		VkIndirectCommandsTokenTypeNVX    tokenType;
+		uint32_t                          bindingUnit;
+		uint32_t                          dynamicCount;
+		uint32_t                          divisor;
+	} VkIndirectCommandsLayoutTokenNVX;
+
+	typedef struct VkIndirectCommandsLayoutCreateInfoNVX {
+		VkStructureType                            sType;
+		const void*                                pNext;
+		VkPipelineBindPoint                        pipelineBindPoint;
+		VkIndirectCommandsLayoutUsageFlagsNVX      flags;
+		uint32_t                                   tokenCount;
+		const VkIndirectCommandsLayoutTokenNVX*    pTokens;
+	} VkIndirectCommandsLayoutCreateInfoNVX;
+
+	typedef struct VkCmdProcessCommandsInfoNVX {
+		VkStructureType                      sType;
+		const void*                          pNext;
+		VkObjectTableNVX                     objectTable;
+		VkIndirectCommandsLayoutNVX          indirectCommandsLayout;
+		uint32_t                             indirectCommandsTokenCount;
+		const VkIndirectCommandsTokenNVX*    pIndirectCommandsTokens;
+		uint32_t                             maxSequencesCount;
+		VkCommandBuffer                      targetCommandBuffer;
+		VkBuffer                             sequencesCountBuffer;
+		VkDeviceSize                         sequencesCountOffset;
+		VkBuffer                             sequencesIndexBuffer;
+		VkDeviceSize                         sequencesIndexOffset;
+	} VkCmdProcessCommandsInfoNVX;
+
+	typedef struct VkCmdReserveSpaceForCommandsInfoNVX {
+		VkStructureType                sType;
+		const void*                    pNext;
+		VkObjectTableNVX               objectTable;
+		VkIndirectCommandsLayoutNVX    indirectCommandsLayout;
+		uint32_t                       maxSequencesCount;
+	} VkCmdReserveSpaceForCommandsInfoNVX;
+
+	typedef struct VkObjectTableCreateInfoNVX {
+		VkStructureType                      sType;
+		const void*                          pNext;
+		uint32_t                             objectCount;
+		const VkObjectEntryTypeNVX*          pObjectEntryTypes;
+		const uint32_t*                      pObjectEntryCounts;
+		const VkObjectEntryUsageFlagsNVX*    pObjectEntryUsageFlags;
+		uint32_t                             maxUniformBuffersPerDescriptor;
+		uint32_t                             maxStorageBuffersPerDescriptor;
+		uint32_t                             maxStorageImagesPerDescriptor;
+		uint32_t                             maxSampledImagesPerDescriptor;
+		uint32_t                             maxPipelineLayouts;
+	} VkObjectTableCreateInfoNVX;
+
+	typedef struct VkObjectTableEntryNVX {
+		VkObjectEntryTypeNVX          type;
+		VkObjectEntryUsageFlagsNVX    flags;
+	} VkObjectTableEntryNVX;
+
+	typedef struct VkObjectTablePipelineEntryNVX {
+		VkObjectEntryTypeNVX          type;
+		VkObjectEntryUsageFlagsNVX    flags;
+		VkPipeline                    pipeline;
+	} VkObjectTablePipelineEntryNVX;
+
+	typedef struct VkObjectTableDescriptorSetEntryNVX {
+		VkObjectEntryTypeNVX          type;
+		VkObjectEntryUsageFlagsNVX    flags;
+		VkPipelineLayout              pipelineLayout;
+		VkDescriptorSet               descriptorSet;
+	} VkObjectTableDescriptorSetEntryNVX;
+
+	typedef struct VkObjectTableVertexBufferEntryNVX {
+		VkObjectEntryTypeNVX          type;
+		VkObjectEntryUsageFlagsNVX    flags;
+		VkBuffer                      buffer;
+	} VkObjectTableVertexBufferEntryNVX;
+
+	typedef struct VkObjectTableIndexBufferEntryNVX {
+		VkObjectEntryTypeNVX          type;
+		VkObjectEntryUsageFlagsNVX    flags;
+		VkBuffer                      buffer;
+	} VkObjectTableIndexBufferEntryNVX;
+
+	typedef struct VkObjectTablePushConstantEntryNVX {
+		VkObjectEntryTypeNVX          type;
+		VkObjectEntryUsageFlagsNVX    flags;
+		VkPipelineLayout              pipelineLayout;
+		VkShaderStageFlags            stageFlags;
+	} VkObjectTablePushConstantEntryNVX;
+
+	typedef void (VKAPI_PTR *PFN_vkCmdProcessCommandsNVX)(VkCommandBuffer commandBuffer, const VkCmdProcessCommandsInfoNVX* pProcessCommandsInfo);
+	typedef void (VKAPI_PTR *PFN_vkCmdReserveSpaceForCommandsNVX)(VkCommandBuffer commandBuffer, const VkCmdReserveSpaceForCommandsInfoNVX* pReserveSpaceInfo);
+	typedef VkResult(VKAPI_PTR *PFN_vkCreateIndirectCommandsLayoutNVX)(VkDevice device, const VkIndirectCommandsLayoutCreateInfoNVX* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkIndirectCommandsLayoutNVX* pIndirectCommandsLayout);
+	typedef void (VKAPI_PTR *PFN_vkDestroyIndirectCommandsLayoutNVX)(VkDevice device, VkIndirectCommandsLayoutNVX indirectCommandsLayout, const VkAllocationCallbacks* pAllocator);
+	typedef VkResult(VKAPI_PTR *PFN_vkCreateObjectTableNVX)(VkDevice device, const VkObjectTableCreateInfoNVX* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkObjectTableNVX* pObjectTable);
+	typedef void (VKAPI_PTR *PFN_vkDestroyObjectTableNVX)(VkDevice device, VkObjectTableNVX objectTable, const VkAllocationCallbacks* pAllocator);
+	typedef VkResult(VKAPI_PTR *PFN_vkRegisterObjectsNVX)(VkDevice device, VkObjectTableNVX objectTable, uint32_t objectCount, const VkObjectTableEntryNVX* const*    ppObjectTableEntries, const uint32_t* pObjectIndices);
+	typedef VkResult(VKAPI_PTR *PFN_vkUnregisterObjectsNVX)(VkDevice device, VkObjectTableNVX objectTable, uint32_t objectCount, const VkObjectEntryTypeNVX* pObjectEntryTypes, const uint32_t* pObjectIndices);
+	typedef void (VKAPI_PTR *PFN_vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX)(VkPhysicalDevice physicalDevice, VkDeviceGeneratedCommandsFeaturesNVX* pFeatures, VkDeviceGeneratedCommandsLimitsNVX* pLimits);
+
 #endif
 
 
@@ -3083,46 +3410,9 @@ extern "C" {
 
 	extern VkBool32 vkelInit(void);
 	extern VkBool32 vkelInstanceInit(VkInstance instance);
-	extern VkBool32 vkelDeviceInit(VkDevice device);
+	extern VkBool32 vkelDeviceInit(VkPhysicalDevice physicalDevice, VkDevice device);
 
 	extern void vkelUninit(void);
-
-
-	// Instance and device extension names
-	extern VkBool32 VKEL_AMD_gcn_shader;
-	extern VkBool32 VKEL_AMD_rasterization_order;
-	extern VkBool32 VKEL_AMD_shader_explicit_vertex_parameter;
-	extern VkBool32 VKEL_AMD_shader_trinary_minmax;
-	extern VkBool32 VKEL_EXT_debug_marker;
-	extern VkBool32 VKEL_EXT_debug_report;
-	extern VkBool32 VKEL_IMG_filter_cubic;
-	extern VkBool32 VKEL_KHR_android_surface;
-	extern VkBool32 VKEL_KHR_display;
-	extern VkBool32 VKEL_KHR_display_swapchain;
-	extern VkBool32 VKEL_KHR_mir_surface;
-	extern VkBool32 VKEL_KHR_sampler_mirror_clamp_to_edge;
-	extern VkBool32 VKEL_KHR_surface;
-	extern VkBool32 VKEL_KHR_swapchain;
-	extern VkBool32 VKEL_KHR_wayland_surface;
-	extern VkBool32 VKEL_KHR_win32_surface;
-	extern VkBool32 VKEL_KHR_xcb_surface;
-	extern VkBool32 VKEL_KHR_xlib_surface;
-	extern VkBool32 VKEL_NV_glsl_shader;
-
-	// Instance and device layer names
-	extern VkBool32 VKEL_LAYER_GOOGLE_unique_objects;
-	extern VkBool32 VKEL_LAYER_LUNARG_api_dump;
-	extern VkBool32 VKEL_LAYER_LUNARG_device_limits;
-	extern VkBool32 VKEL_LAYER_LUNARG_draw_state;
-	extern VkBool32 VKEL_LAYER_LUNARG_image;
-	extern VkBool32 VKEL_LAYER_LUNARG_mem_tracker;
-	extern VkBool32 VKEL_LAYER_LUNARG_object_tracker;
-	extern VkBool32 VKEL_LAYER_LUNARG_param_checker;
-	extern VkBool32 VKEL_LAYER_LUNARG_screenshot;
-	extern VkBool32 VKEL_LAYER_LUNARG_swapchain;
-	extern VkBool32 VKEL_LAYER_LUNARG_threading;
-	extern VkBool32 VKEL_LAYER_LUNARG_vktrace;
-
 
 	// Functions
 	extern PFN_vkAcquireNextImageKHR __vkAcquireNextImageKHR;
@@ -3156,14 +3446,18 @@ extern "C" {
 	extern PFN_vkCmdDraw __vkCmdDraw;
 	extern PFN_vkCmdDrawIndexed __vkCmdDrawIndexed;
 	extern PFN_vkCmdDrawIndexedIndirect __vkCmdDrawIndexedIndirect;
+	extern PFN_vkCmdDrawIndexedIndirectCountAMD __vkCmdDrawIndexedIndirectCountAMD;
 	extern PFN_vkCmdDrawIndirect __vkCmdDrawIndirect;
+	extern PFN_vkCmdDrawIndirectCountAMD __vkCmdDrawIndirectCountAMD;
 	extern PFN_vkCmdEndQuery __vkCmdEndQuery;
 	extern PFN_vkCmdEndRenderPass __vkCmdEndRenderPass;
 	extern PFN_vkCmdExecuteCommands __vkCmdExecuteCommands;
 	extern PFN_vkCmdFillBuffer __vkCmdFillBuffer;
 	extern PFN_vkCmdNextSubpass __vkCmdNextSubpass;
 	extern PFN_vkCmdPipelineBarrier __vkCmdPipelineBarrier;
+	extern PFN_vkCmdProcessCommandsNVX __vkCmdProcessCommandsNVX;
 	extern PFN_vkCmdPushConstants __vkCmdPushConstants;
+	extern PFN_vkCmdReserveSpaceForCommandsNVX __vkCmdReserveSpaceForCommandsNVX;
 	extern PFN_vkCmdResetEvent __vkCmdResetEvent;
 	extern PFN_vkCmdResetQueryPool __vkCmdResetQueryPool;
 	extern PFN_vkCmdResolveImage __vkCmdResolveImage;
@@ -3196,7 +3490,9 @@ extern "C" {
 	extern PFN_vkCreateGraphicsPipelines __vkCreateGraphicsPipelines;
 	extern PFN_vkCreateImage __vkCreateImage;
 	extern PFN_vkCreateImageView __vkCreateImageView;
+	extern PFN_vkCreateIndirectCommandsLayoutNVX __vkCreateIndirectCommandsLayoutNVX;
 	extern PFN_vkCreateInstance __vkCreateInstance;
+	extern PFN_vkCreateObjectTableNVX __vkCreateObjectTableNVX;
 	extern PFN_vkCreatePipelineCache __vkCreatePipelineCache;
 	extern PFN_vkCreatePipelineLayout __vkCreatePipelineLayout;
 	extern PFN_vkCreateQueryPool __vkCreateQueryPool;
@@ -3222,7 +3518,9 @@ extern "C" {
 	extern PFN_vkDestroyFramebuffer __vkDestroyFramebuffer;
 	extern PFN_vkDestroyImage __vkDestroyImage;
 	extern PFN_vkDestroyImageView __vkDestroyImageView;
+	extern PFN_vkDestroyIndirectCommandsLayoutNVX __vkDestroyIndirectCommandsLayoutNVX;
 	extern PFN_vkDestroyInstance __vkDestroyInstance;
+	extern PFN_vkDestroyObjectTableNVX __vkDestroyObjectTableNVX;
 	extern PFN_vkDestroyPipeline __vkDestroyPipeline;
 	extern PFN_vkDestroyPipelineCache __vkDestroyPipelineCache;
 	extern PFN_vkDestroyPipelineLayout __vkDestroyPipelineLayout;
@@ -3260,8 +3558,10 @@ extern "C" {
 	extern PFN_vkGetInstanceProcAddr __vkGetInstanceProcAddr;
 	extern PFN_vkGetPhysicalDeviceDisplayPlanePropertiesKHR __vkGetPhysicalDeviceDisplayPlanePropertiesKHR;
 	extern PFN_vkGetPhysicalDeviceDisplayPropertiesKHR __vkGetPhysicalDeviceDisplayPropertiesKHR;
+	extern PFN_vkGetPhysicalDeviceExternalImageFormatPropertiesNV __vkGetPhysicalDeviceExternalImageFormatPropertiesNV;
 	extern PFN_vkGetPhysicalDeviceFeatures __vkGetPhysicalDeviceFeatures;
 	extern PFN_vkGetPhysicalDeviceFormatProperties __vkGetPhysicalDeviceFormatProperties;
+	extern PFN_vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX __vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX;
 	extern PFN_vkGetPhysicalDeviceImageFormatProperties __vkGetPhysicalDeviceImageFormatProperties;
 	extern PFN_vkGetPhysicalDeviceMemoryProperties __vkGetPhysicalDeviceMemoryProperties;
 	extern PFN_vkGetPhysicalDeviceProperties __vkGetPhysicalDeviceProperties;
@@ -3285,6 +3585,7 @@ extern "C" {
 	extern PFN_vkQueueSubmit __vkQueueSubmit;
 	extern PFN_vkQueueWaitIdle __vkQueueWaitIdle;
 	extern PFN_vkReallocationFunction __vkReallocationFunction;
+	extern PFN_vkRegisterObjectsNVX __vkRegisterObjectsNVX;
 	extern PFN_vkResetCommandBuffer __vkResetCommandBuffer;
 	extern PFN_vkResetCommandPool __vkResetCommandPool;
 	extern PFN_vkResetDescriptorPool __vkResetDescriptorPool;
@@ -3292,6 +3593,7 @@ extern "C" {
 	extern PFN_vkResetFences __vkResetFences;
 	extern PFN_vkSetEvent __vkSetEvent;
 	extern PFN_vkUnmapMemory __vkUnmapMemory;
+	extern PFN_vkUnregisterObjectsNVX __vkUnregisterObjectsNVX;
 	extern PFN_vkUpdateDescriptorSets __vkUpdateDescriptorSets;
 	extern PFN_vkVoidFunction __vkVoidFunction;
 	extern PFN_vkWaitForFences __vkWaitForFences;
@@ -3312,6 +3614,7 @@ extern "C" {
 
 #ifdef VK_USE_PLATFORM_WIN32_KHR
 	extern PFN_vkCreateWin32SurfaceKHR __vkCreateWin32SurfaceKHR;
+	extern PFN_vkGetMemoryWin32HandleNV __vkGetMemoryWin32HandleNV;
 	extern PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR __vkGetPhysicalDeviceWin32PresentationSupportKHR;
 #endif /* VK_USE_PLATFORM_WIN32_KHR */
 
@@ -3356,14 +3659,18 @@ extern "C" {
 #define vkCmdDraw __vkCmdDraw
 #define vkCmdDrawIndexed __vkCmdDrawIndexed
 #define vkCmdDrawIndexedIndirect __vkCmdDrawIndexedIndirect
+#define vkCmdDrawIndexedIndirectCountAMD __vkCmdDrawIndexedIndirectCountAMD
 #define vkCmdDrawIndirect __vkCmdDrawIndirect
+#define vkCmdDrawIndirectCountAMD __vkCmdDrawIndirectCountAMD
 #define vkCmdEndQuery __vkCmdEndQuery
 #define vkCmdEndRenderPass __vkCmdEndRenderPass
 #define vkCmdExecuteCommands __vkCmdExecuteCommands
 #define vkCmdFillBuffer __vkCmdFillBuffer
 #define vkCmdNextSubpass __vkCmdNextSubpass
 #define vkCmdPipelineBarrier __vkCmdPipelineBarrier
+#define vkCmdProcessCommandsNVX __vkCmdProcessCommandsNVX
 #define vkCmdPushConstants __vkCmdPushConstants
+#define vkCmdReserveSpaceForCommandsNVX __vkCmdReserveSpaceForCommandsNVX
 #define vkCmdResetEvent __vkCmdResetEvent
 #define vkCmdResetQueryPool __vkCmdResetQueryPool
 #define vkCmdResolveImage __vkCmdResolveImage
@@ -3396,7 +3703,9 @@ extern "C" {
 #define vkCreateGraphicsPipelines __vkCreateGraphicsPipelines
 #define vkCreateImage __vkCreateImage
 #define vkCreateImageView __vkCreateImageView
+#define vkCreateIndirectCommandsLayoutNVX __vkCreateIndirectCommandsLayoutNVX
 #define vkCreateInstance __vkCreateInstance
+#define vkCreateObjectTableNVX __vkCreateObjectTableNVX
 #define vkCreatePipelineCache __vkCreatePipelineCache
 #define vkCreatePipelineLayout __vkCreatePipelineLayout
 #define vkCreateQueryPool __vkCreateQueryPool
@@ -3422,7 +3731,9 @@ extern "C" {
 #define vkDestroyFramebuffer __vkDestroyFramebuffer
 #define vkDestroyImage __vkDestroyImage
 #define vkDestroyImageView __vkDestroyImageView
+#define vkDestroyIndirectCommandsLayoutNVX __vkDestroyIndirectCommandsLayoutNVX
 #define vkDestroyInstance __vkDestroyInstance
+#define vkDestroyObjectTableNVX __vkDestroyObjectTableNVX
 #define vkDestroyPipeline __vkDestroyPipeline
 #define vkDestroyPipelineCache __vkDestroyPipelineCache
 #define vkDestroyPipelineLayout __vkDestroyPipelineLayout
@@ -3460,8 +3771,10 @@ extern "C" {
 #define vkGetInstanceProcAddr __vkGetInstanceProcAddr
 #define vkGetPhysicalDeviceDisplayPlanePropertiesKHR __vkGetPhysicalDeviceDisplayPlanePropertiesKHR
 #define vkGetPhysicalDeviceDisplayPropertiesKHR __vkGetPhysicalDeviceDisplayPropertiesKHR
+#define vkGetPhysicalDeviceExternalImageFormatPropertiesNV __vkGetPhysicalDeviceExternalImageFormatPropertiesNV
 #define vkGetPhysicalDeviceFeatures __vkGetPhysicalDeviceFeatures
 #define vkGetPhysicalDeviceFormatProperties __vkGetPhysicalDeviceFormatProperties
+#define vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX __vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX
 #define vkGetPhysicalDeviceImageFormatProperties __vkGetPhysicalDeviceImageFormatProperties
 #define vkGetPhysicalDeviceMemoryProperties __vkGetPhysicalDeviceMemoryProperties
 #define vkGetPhysicalDeviceProperties __vkGetPhysicalDeviceProperties
@@ -3485,6 +3798,7 @@ extern "C" {
 #define vkQueueSubmit __vkQueueSubmit
 #define vkQueueWaitIdle __vkQueueWaitIdle
 #define vkReallocationFunction __vkReallocationFunction
+#define vkRegisterObjectsNVX __vkRegisterObjectsNVX
 #define vkResetCommandBuffer __vkResetCommandBuffer
 #define vkResetCommandPool __vkResetCommandPool
 #define vkResetDescriptorPool __vkResetDescriptorPool
@@ -3492,6 +3806,7 @@ extern "C" {
 #define vkResetFences __vkResetFences
 #define vkSetEvent __vkSetEvent
 #define vkUnmapMemory __vkUnmapMemory
+#define vkUnregisterObjectsNVX __vkUnregisterObjectsNVX
 #define vkUpdateDescriptorSets __vkUpdateDescriptorSets
 #define vkVoidFunction __vkVoidFunction
 #define vkWaitForFences __vkWaitForFences
@@ -3508,6 +3823,7 @@ extern "C" {
 
 	// VK_USE_PLATFORM_WIN32_KHR
 #define vkCreateWin32SurfaceKHR NULL
+#define vkGetMemoryWin32HandleNV NULL
 #define vkGetPhysicalDeviceWin32PresentationSupportKHR NULL
 
 	// VK_USE_PLATFORM_XCB_KHR
@@ -3539,8 +3855,10 @@ extern "C" {
 
 #ifdef VK_USE_PLATFORM_WIN32_KHR
 #undef vkCreateWin32SurfaceKHR
+#undef vkGetMemoryWin32HandleNV
 #undef vkGetPhysicalDeviceWin32PresentationSupportKHR
 #define vkCreateWin32SurfaceKHR __vkCreateWin32SurfaceKHR
+#define vkGetMemoryWin32HandleNV __vkGetMemoryWin32HandleNV
 #define vkGetPhysicalDeviceWin32PresentationSupportKHR __vkGetPhysicalDeviceWin32PresentationSupportKHR
 #endif /* VK_USE_PLATFORM_WIN32_KHR */
 

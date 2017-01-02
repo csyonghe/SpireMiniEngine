@@ -1,13 +1,12 @@
 #include "../GameEngineCore/HardwareRenderer.h"
 
-#if(0)
 #include "vkel.h"
-//#define VK_CPP_NO_EXCEPTIONS
-#include "vk_cpp.hpp"
+#include "vulkan.hpp"
 
 #include "CoreLib/WinForm/Debug.h"
 #include "CoreLib/VectorMath.h"
 #include "CoreLib/PerformanceCounter.h"
+#include "../Spire/Spire.h"
 
 // Only execute actions of DEBUG_ONLY in DEBUG mode
 #if _DEBUG
@@ -207,7 +206,7 @@ namespace VK
 				nullptr // userdata
 			);
 
-			State().callback = State().instance.createDebugReportCallbackEXT(callbackCreateInfo).value;
+			State().callback = State().instance.createDebugReportCallbackEXT(callbackCreateInfo);
 		}
 
 		static void CreateInstance()
@@ -223,7 +222,7 @@ namespace VK
 			CoreLib::List<const char*> enabledInstanceLayers;
 #ifdef _DEBUG
 			bool hasValidationLayer = false;
-			auto supportedLayers = vk::enumerateInstanceLayerProperties().value;
+			auto supportedLayers = vk::enumerateInstanceLayerProperties();
 			for (auto & l : supportedLayers)
 				if (strcmp(l.layerName, "VK_LAYER_LUNARG_standard_validation") == 0)
 				{
@@ -252,7 +251,7 @@ namespace VK
 				.setPpEnabledExtensionNames(enabledInstanceExtensions.Buffer());
 
 			// Create the instance
-			State().instance = vk::createInstance(instInfo).value;
+			State().instance = vk::createInstance(instInfo);
 
 			// Load instance level function pointers
 			vkelInstanceInit((VkInstance)(State().instance));
@@ -263,7 +262,7 @@ namespace VK
 
 		static void SelectPhysicalDevice()
 		{
-			std::vector<vk::PhysicalDevice> physicalDevices = State().instance.enumeratePhysicalDevices().value;
+			std::vector<vk::PhysicalDevice> physicalDevices = State().instance.enumeratePhysicalDevices();
 			DEBUG_ONLY(VkDebug::PrintDeviceInfo(physicalDevices));
 			if (GpuId >= physicalDevices.size())
 				GpuId = 0;
@@ -273,7 +272,7 @@ namespace VK
 
 		static void SelectPhysicalDevice(vk::SurfaceKHR surface)
 		{
-			std::vector<vk::PhysicalDevice> physicalDevices = State().instance.enumeratePhysicalDevices().value;
+			std::vector<vk::PhysicalDevice> physicalDevices = State().instance.enumeratePhysicalDevices();
 			DEBUG_ONLY(VkDebug::PrintDeviceInfo(physicalDevices));
 
 			int k = 0;
@@ -281,7 +280,7 @@ namespace VK
 			{
 				for (size_t i = 0; i < physDevice.getQueueFamilyProperties().size(); i++)
 				{
-					if (physDevice.getSurfaceSupportKHR((uint32_t)i, surface).value)
+					if (physDevice.getSurfaceSupportKHR((uint32_t)i, surface))
 					{
 						State().physicalDevice = physDevice;
 						GpuId = k;
@@ -332,7 +331,7 @@ namespace VK
 			// Lambda to check if layer is present and then add it
 			auto AddLayer = [](CoreLib::List<const char*>& enabledDeviceLayers, const char* layerName)
 			{
-				for (auto layer : State().physicalDevice.enumerateDeviceLayerProperties().value)
+				for (auto layer : State().physicalDevice.enumerateDeviceLayerProperties())
 				{
 					if (!strcmp(layerName, layer.layerName))
 					{
@@ -349,7 +348,7 @@ namespace VK
 			// Lambda to check if extension is present and then add it
 			auto AddExtension = [](CoreLib::List<const char*>& enabledDeviceExtensions, const char* extensionName)
 			{
-				for (auto extension : State().physicalDevice.enumerateDeviceExtensionProperties().value)
+				for (auto extension : State().physicalDevice.enumerateDeviceExtensionProperties())
 				{
 					if (!strcmp(extensionName, extension.extensionName))
 					{
@@ -376,10 +375,10 @@ namespace VK
 				.setPpEnabledExtensionNames(enabledDeviceExtensions.Buffer())
 				.setPEnabledFeatures(&enabledDeviceFeatures);
 
-			State().device = State().physicalDevice.createDevice(deviceInfo).value;
+			State().device = State().physicalDevice.createDevice(deviceInfo);
 
 			// Load device level function pointers
-			vkelDeviceInit((VkDevice)(State().device));
+			vkelDeviceInit((VkPhysicalDevice)(State().physicalDevice), (VkDevice)(State().device));
 
 			State().renderQueue = State().device.getQueue(renderQueueFamilyIndex, 0);
 			State().transferQueue = State().device.getQueue(transferQueueFamilyIndex, renderQueuePriorities.Count() - 1);//TODO: Change the index if changing family
@@ -391,20 +390,20 @@ namespace VK
 				.setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
 				.setQueueFamilyIndex(State().renderQueueIndex);
 
-			State().swapchainCommandPool = State().device.createCommandPool(commandPoolCreateInfo).value;
+			State().swapchainCommandPool = State().device.createCommandPool(commandPoolCreateInfo);
 
 			vk::CommandPoolCreateInfo setupCommandPoolCreateInfo = vk::CommandPoolCreateInfo()
 				.setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
 				.setQueueFamilyIndex(State().transferQueueIndex);
 
-			State().transferCommandPool = State().device.createCommandPool(setupCommandPoolCreateInfo).value;
+			State().transferCommandPool = State().device.createCommandPool(setupCommandPoolCreateInfo);
 
 			//TODO: multiple pools for multiple threads
 			vk::CommandPoolCreateInfo renderCommandPoolCreateInfo = vk::CommandPoolCreateInfo()
 				.setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
 				.setQueueFamilyIndex(State().renderQueueIndex);
 
-			State().renderCommandPool = State().device.createCommandPool(renderCommandPoolCreateInfo).value;
+			State().renderCommandPool = State().device.createCommandPool(renderCommandPoolCreateInfo);
 
 			// Create primary command buffers
 			State().primaryFences = new CoreLib::List<vk::Fence>();
@@ -413,7 +412,7 @@ namespace VK
 			for (int k = 0; k < numCommandBuffers; k++)
 			{
 				// Initially all fences are signaled
-				State().primaryFences->Add(Device().createFence(vk::FenceCreateInfo(vk::FenceCreateFlagBits::eSignaled)).value);
+				State().primaryFences->Add(Device().createFence(vk::FenceCreateInfo(vk::FenceCreateFlagBits::eSignaled)));
 				State().primaryBuffers->Add(CreateCommandBuffer(RenderCommandPool()));
 			}
 		}
@@ -584,31 +583,43 @@ namespace VK
 			return State().descriptorPoolChain->Last()->pool;
 		}
 
-		static std::pair<vk::DescriptorPool, vk::DescriptorSet> AllocateDescriptorSet(CoreLib::List<vk::DescriptorSetLayout> layouts)
+		static std::pair<vk::DescriptorPool, vk::DescriptorSet> AllocateDescriptorSet(vk::DescriptorSetLayout layout)
 		{
-			std::pair<vk::DescriptorPool, vk::DescriptorSet> res;
-			res.first = State().DescriptorPool();
-
-			// Create Descriptor Set
-			vk::DescriptorSetAllocateInfo descriptorSetAllocateInfo = vk::DescriptorSetAllocateInfo()
-				.setDescriptorPool(res.first)
-				.setDescriptorSetCount(layouts.Count())
-				.setPSetLayouts(layouts.Buffer());
-
-			vk::ResultValue<std::vector<vk::DescriptorSet>> descriptorSets = RendererState::Device().allocateDescriptorSets(descriptorSetAllocateInfo);
-			vk::Result err = descriptorSets.result;
-			res.second = descriptorSets.value[0];
-
-			// As of 1.0.25, assume that any error effectively means failure due to fragmented pool
-			if (err != vk::Result::eSuccess)
-			{
-				State().descriptorPoolChain->Add(new DescriptorPoolObject());
-				return AllocateDescriptorSet(layouts);
-			}
-
 			//TODO: add counter mechanism to DescriptorPoolObject so we know when to destruct
+			int numTries = 2;
+			while (true)
+			{
+				try
+				{
+					std::pair<vk::DescriptorPool, vk::DescriptorSet> res;
+					res.first = State().DescriptorPool();
 
-			return res;
+					// Create Descriptor Set
+					vk::DescriptorSetAllocateInfo descriptorSetAllocateInfo = vk::DescriptorSetAllocateInfo()
+						.setDescriptorPool(res.first)
+						.setDescriptorSetCount(1)
+						.setPSetLayouts(&layout);
+
+					std::vector<vk::DescriptorSet> descriptorSets = RendererState::Device().allocateDescriptorSets(descriptorSetAllocateInfo);
+					res.second = descriptorSets[0];
+
+					return res;
+				}
+				catch (std::system_error& e)
+				{
+					vk::Result err = static_cast<vk::Result>(e.code().value());
+					if (err == vk::Result::eErrorOutOfDeviceMemory)
+					{
+						RendererState::
+						State().descriptorPoolChain->Add(new DescriptorPoolObject());
+						return AllocateDescriptorSet(layout);
+					}
+					else
+						throw e;
+
+					if (--numTries <= 0) throw e;
+				}
+			}
 		}
 
 		// Bookkeeping for multiple instances of HardwareRenderer
@@ -644,19 +655,19 @@ namespace VK
 				.setHwnd((HWND)windowHandle)
 				.setHinstance(GetModuleHandle(NULL));
 
-			surface = State().instance.createWin32SurfaceKHR(surfaceCreateInfo).value;
+			surface = State().instance.createWin32SurfaceKHR(surfaceCreateInfo);
 #elif __ANDROID__
 			vk::AndroidSurfaceCreateInfoKHR surfaceCreateInfo = vk::AndroidSurfaceCreaetInfoKHR()
 				.setWindow((ANativeWindow*)window);
 
-			surface = isntance.createAndroidSurfaceKHR(surfaceCreateInfo).value;
+			surface = isntance.createAndroidSurfaceKHR(surfaceCreateInfo);
 #endif
 
 			// Check to see if the current physical device supports the surface
 			bool supported = false;
 			for (unsigned int i = 0; i < State().physicalDevice.getQueueFamilyProperties().size(); i++)
 			{
-				if (State().physicalDevice.getSurfaceSupportKHR(i, surface).value)
+				if (State().physicalDevice.getSurfaceSupportKHR(i, surface))
 				{
 					supported = true;
 					break;
@@ -687,7 +698,7 @@ namespace VK
 			vk::CommandBuffer commandBuffer;
 
 			//TODO: lock mutex on commandPool or allocate commandPool per thread
-			commandBuffer = State().device.allocateCommandBuffers(commandBufferAllocateInfo).value.front();
+			commandBuffer = State().device.allocateCommandBuffers(commandBufferAllocateInfo).front();
 			//TODO: unlock mutex on commandPool
 
 			return commandBuffer;
@@ -714,7 +725,7 @@ namespace VK
 			.setPoolSizeCount(poolSizes.Count())
 			.setPPoolSizes(poolSizes.Buffer());
 
-		pool = RendererState::Device().createDescriptorPool(poolCreateInfo).value;
+		pool = RendererState::Device().createDescriptorPool(poolCreateInfo);
 	}
 	DescriptorPoolObject::~DescriptorPoolObject()
 	{
@@ -755,7 +766,7 @@ namespace VK
 		case StorageFormat::RGB10_A2: return vk::Format::eA2R10G10B10UnormPack32;//
 		case StorageFormat::Depth32: return vk::Format::eD32Sfloat;
 		case StorageFormat::Depth24Stencil8: return vk::Format::eD24UnormS8Uint;
-		default: throw CoreLib::NotImplementedException();
+		default: throw CoreLib::NotImplementedException("TranslateStorageFormat");
 		}
 	};
 
@@ -767,7 +778,7 @@ namespace VK
 		case BufferUsage::IndexBuffer: return vk::BufferUsageFlagBits::eIndexBuffer;
 		case BufferUsage::StorageBuffer: return vk::BufferUsageFlagBits::eStorageBuffer;
 		case BufferUsage::UniformBuffer: return vk::BufferUsageFlagBits::eUniformBuffer;
-		default: throw CoreLib::NotImplementedException();
+		default: throw CoreLib::NotImplementedException("TranslateUsageFlags");
 		}
 	}
 
@@ -844,11 +855,12 @@ namespace VK
 	{
 		switch (bindType)
 		{
-		case BindingType::Texture: return vk::DescriptorType::eCombinedImageSampler;
+		case BindingType::Texture: return vk::DescriptorType::eSampledImage;
+		case BindingType::Sampler: return vk::DescriptorType::eSampler;
 		case BindingType::UniformBuffer: return vk::DescriptorType::eUniformBuffer; //TODO: dynamic?
 		case BindingType::StorageBuffer: return vk::DescriptorType::eStorageBuffer; //TODO: ^
 		case BindingType::Unused: throw HardwareRendererException("Attempting to use unused binding");
-		default: throw CoreLib::NotImplementedException();
+		default: throw CoreLib::NotImplementedException("TranslateBindingType");
 		}
 	}
 
@@ -864,7 +876,7 @@ namespace VK
 		case TextureUsage::SampledDepthAttachment:
 			return vk::ImageLayout::eDepthStencilAttachmentOptimal;
 		case TextureUsage::Sampled: return vk::ImageLayout::eShaderReadOnlyOptimal;
-		default: throw CoreLib::NotImplementedException();
+		default: throw CoreLib::NotImplementedException("LayoutFromUsage");
 		}
 	}
 
@@ -881,11 +893,9 @@ namespace VK
 		case CompareFunc::NotEqual: return vk::CompareOp::eNotEqual;
 		case CompareFunc::Always: return vk::CompareOp::eAlways;
 		case CompareFunc::Never: return vk::CompareOp::eNever;
-		default: throw CoreLib::NotImplementedException();
+		default: throw CoreLib::NotImplementedException("TranslateCompareFunc");
 		}
 	}
-
-
 
 	vk::StencilOp TranslateStencilOp(StencilOp stencilOp)
 	{
@@ -899,7 +909,42 @@ namespace VK
 		case StencilOp::Decrement: return vk::StencilOp::eDecrementAndClamp;
 		case StencilOp::DecrementWrap: return vk::StencilOp::eDecrementAndWrap;
 		case StencilOp::Invert: return vk::StencilOp::eInvert;
-		default: throw CoreLib::NotImplementedException();
+		default: throw CoreLib::NotImplementedException("TranslateStencilOp");
+		}
+	}
+
+	vk::PrimitiveTopology TranslatePrimitiveTopology(PrimitiveType ptype)
+	{
+		switch (ptype)
+		{
+		case PrimitiveType::Triangles: return vk::PrimitiveTopology::eTriangleList;
+		case PrimitiveType::TriangleFans: return vk::PrimitiveTopology::eTriangleFan;
+		case PrimitiveType::Points: return vk::PrimitiveTopology::ePointList;
+		case PrimitiveType::Lines: return vk::PrimitiveTopology::eLineList;
+		case PrimitiveType::TriangleStrips: return vk::PrimitiveTopology::eTriangleStrip;
+		case PrimitiveType::LineStrips: return vk::PrimitiveTopology::eLineStrip;
+		default: throw CoreLib::NotImplementedException("TranslatePrimitiveTopology");
+		}
+	}
+
+	vk::AttachmentLoadOp TranslateLoadOp(LoadOp op)
+	{
+		switch (op)
+		{
+		case LoadOp::Load: return vk::AttachmentLoadOp::eLoad;
+		case LoadOp::Clear: return vk::AttachmentLoadOp::eClear;
+		case LoadOp::DontCare: return vk::AttachmentLoadOp::eDontCare;
+		default: throw CoreLib::NotImplementedException("TranslateLoadOp");
+		}
+	}
+
+	vk::AttachmentStoreOp TranslateStoreOp(StoreOp op)
+	{
+		switch (op)
+		{
+		case StoreOp::Store: return vk::AttachmentStoreOp::eStore;
+		case StoreOp::DontCare: return vk::AttachmentStoreOp::eDontCare;
+		default: throw CoreLib::NotImplementedException("TranslateStoreOp");
 		}
 	}
 
@@ -930,8 +975,8 @@ namespace VK
 			return vk::AccessFlagBits::eHostWrite;
 		case vk::ImageLayout::ePresentSrcKHR:
 			return vk::AccessFlags();
-		default: // This is not a valid image layout
-			exit(-1);
+		default:
+			throw HardwareRendererException("Invalid ImageLayout");
 		}
 	}
 
@@ -969,7 +1014,7 @@ namespace VK
 		case ShaderType::VertexShader: return vk::ShaderStageFlagBits::eVertex;
 		case ShaderType::FragmentShader: return vk::ShaderStageFlagBits::eFragment;
 		case ShaderType::ComputeShader: return vk::ShaderStageFlagBits::eCompute;
-		default: throw CoreLib::NotImplementedException();
+		default: throw CoreLib::NotImplementedException("ShaderStageFlagBits");
 		}
 	}
 
@@ -1014,9 +1059,9 @@ namespace VK
 
 			vk::ImageCreateInfo imageCreateInfo = vk::ImageCreateInfo()
 				.setFlags(vk::ImageCreateFlags())
-				.setImageType(vk::ImageType::e2D)
+				.setImageType(depth == 1 ? vk::ImageType::e2D : vk::ImageType::e3D)
 				.setFormat(TranslateStorageFormat(format))
-				.setExtent(vk::Extent3D(width, height, 1))
+				.setExtent(vk::Extent3D(width, height, depth))
 				.setMipLevels(mipLevels)
 				.setArrayLayers(arrayLayers)
 				.setSamples(SampleCount(numSamples))
@@ -1027,7 +1072,7 @@ namespace VK
 				.setPQueueFamilyIndices(nullptr)
 				.setInitialLayout(vk::ImageLayout::eUndefined);
 
-			image = RendererState::Device().createImage(imageCreateInfo).value;
+			image = RendererState::Device().createImage(imageCreateInfo);
 
 			vk::MemoryRequirements imageMemoryRequirements = RendererState::Device().getImageMemoryRequirements(image);
 
@@ -1035,7 +1080,7 @@ namespace VK
 				.setAllocationSize(imageMemoryRequirements.size)
 				.setMemoryTypeIndex(GetMemoryType(imageMemoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal));
 
-			memory = RendererState::Device().allocateMemory(imageAllocateInfo).value;
+			memory = RendererState::Device().allocateMemory(imageAllocateInfo);
 			RendererState::Device().bindImageMemory(image, memory, 0);
 
 			vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
@@ -1053,7 +1098,7 @@ namespace VK
 				.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA))//
 				.setSubresourceRange(imageSubresourceRange);
 
-			view = RendererState::Device().createImageView(imageViewCreateInfo).value;
+			view = RendererState::Device().createImageView(imageViewCreateInfo);
 		}
 		~Texture()
 		{
@@ -1196,7 +1241,7 @@ namespace VK
 						.setPQueueFamilyIndices(nullptr)
 						.setInitialLayout(vk::ImageLayout::ePreinitialized);
 
-					vk::Image stagingImage = RendererState::Device().createImage(stagingImageCreateInfo).value;
+					vk::Image stagingImage = RendererState::Device().createImage(stagingImageCreateInfo);
 
 					vk::MemoryRequirements stagingImageMemoryRequirements = RendererState::Device().getImageMemoryRequirements(image);
 
@@ -1204,7 +1249,7 @@ namespace VK
 						.setAllocationSize(stagingImageMemoryRequirements.size)
 						.setMemoryTypeIndex(GetMemoryType(stagingImageMemoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible));
 
-					vk::DeviceMemory stagingMemory = RendererState::Device().allocateMemory(imageAllocateInfo).value;
+					vk::DeviceMemory stagingMemory = RendererState::Device().allocateMemory(imageAllocateInfo);
 
 					RendererState::Device().bindImageMemory(stagingImage, stagingMemory, 0);
 
@@ -1216,7 +1261,7 @@ namespace VK
 					vk::SubresourceLayout stagingSubresourceLayout = RendererState::Device().getImageSubresourceLayout(stagingImage, stagingImageSubresource);
 
 					// Copy data to staging image
-					void* stagingMappedMemory = RendererState::Device().mapMemory(stagingMemory, 0, VK_WHOLE_SIZE, vk::MemoryMapFlags()).value;
+					void* stagingMappedMemory = RendererState::Device().mapMemory(stagingMemory, 0, VK_WHOLE_SIZE, vk::MemoryMapFlags());
 
 					if (format == StorageFormat::BC1 || format == StorageFormat::BC5)
 					{
@@ -1343,7 +1388,7 @@ namespace VK
 						.setQueueFamilyIndexCount(0)
 						.setPQueueFamilyIndices(nullptr);
 
-					vk::Buffer stagingBuffer = RendererState::Device().createBuffer(stagingBufferCreateInfo).value;
+					vk::Buffer stagingBuffer = RendererState::Device().createBuffer(stagingBufferCreateInfo);
 
 					vk::MemoryRequirements stagingBufferMemoryRequirements = RendererState::Device().getBufferMemoryRequirements(stagingBuffer);
 
@@ -1351,11 +1396,11 @@ namespace VK
 						.setAllocationSize(stagingBufferMemoryRequirements.size)
 						.setMemoryTypeIndex(GetMemoryType(stagingBufferMemoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible));
 
-					vk::DeviceMemory stagingMemory = RendererState::Device().allocateMemory(bufferAllocateInfo).value;
+					vk::DeviceMemory stagingMemory = RendererState::Device().allocateMemory(bufferAllocateInfo);
 
 					RendererState::Device().bindBufferMemory(stagingBuffer, stagingMemory, 0);
 
-					void* stagingMappedMemory = RendererState::Device().mapMemory(stagingMemory, 0, VK_WHOLE_SIZE, vk::MemoryMapFlags()).value;
+					void* stagingMappedMemory = RendererState::Device().mapMemory(stagingMemory, 0, VK_WHOLE_SIZE, vk::MemoryMapFlags());
 					memcpy(stagingMappedMemory, data, bufferSize);
 
 					//TODO: flush?
@@ -1488,7 +1533,7 @@ namespace VK
 					.setPQueueFamilyIndices(nullptr)
 					.setInitialLayout(vk::ImageLayout::eUndefined);
 
-				image = RendererState::Device().createImage(imageCreateInfo).value;
+				image = RendererState::Device().createImage(imageCreateInfo);
 
 				vk::MemoryRequirements imageMemoryRequirements = RendererState::Device().getImageMemoryRequirements(image);
 
@@ -1496,7 +1541,7 @@ namespace VK
 					.setAllocationSize(imageMemoryRequirements.size)
 					.setMemoryTypeIndex(GetMemoryType(imageMemoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal));
 
-				memory = RendererState::Device().allocateMemory(imageAllocateInfo).value;
+				memory = RendererState::Device().allocateMemory(imageAllocateInfo);
 
 				RendererState::Device().bindImageMemory(image, memory, 0);
 
@@ -1515,23 +1560,23 @@ namespace VK
 					.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA))//
 					.setSubresourceRange(imageSubresourceRange);
 
-				view = RendererState::Device().createImageView(imageViewCreateInfo).value;
+				view = RendererState::Device().createImageView(imageViewCreateInfo);
 
 				// Create blit copy regions
-				std::vector<vk::ImageBlit> stagingBlitRegions(1);
-				std::vector<vk::ImageBlit> blitRegions(mipLevels - 1);
-				stagingBlitRegions[0] = vk::ImageBlit()
+				CoreLib::List<vk::ImageBlit> stagingBlitRegions;
+				CoreLib::List<vk::ImageBlit> blitRegions;
+				stagingBlitRegions.Add(vk::ImageBlit()
 					.setSrcSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(0).setBaseArrayLayer(0).setLayerCount(1))
 					.setSrcOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(width, height, 1)})
 					.setDstSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(0).setBaseArrayLayer(0).setLayerCount(1))
-					.setDstOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(width, height, 1)});
+					.setDstOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(width, height, 1)}));
 				for (int l = 1; l < mipLevels; l++)
 				{
-					blitRegions[l - 1] = vk::ImageBlit()
+					blitRegions.Add(vk::ImageBlit()
 						.setSrcSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(l - 1).setBaseArrayLayer(0).setLayerCount(1))
 						.setSrcOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(max(1, width >> (l - 1)), max(1, height >> (l - 1)), 1)})
 						.setDstSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(l).setBaseArrayLayer(0).setLayerCount(1))
-						.setDstOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(max(1, width >> l), max(1, height >> l), 1)});
+						.setDstOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(max(1, width >> l), max(1, height >> l), 1)}));
 				}
 
 				// Create command buffer
@@ -1585,14 +1630,14 @@ namespace VK
 				transferCommandBuffer.blitImage(
 					oldImage, currentLayout,
 					image, vk::ImageLayout::eGeneral,
-					stagingBlitRegions,
+					vk::ArrayProxy<const vk::ImageBlit>(stagingBlitRegions.Count(), stagingBlitRegions.Buffer()),
 					vk::Filter::eNearest
 				);
 				// Blit texture to each mip level
 				transferCommandBuffer.blitImage(
 					image, vk::ImageLayout::eGeneral,
 					image, vk::ImageLayout::eGeneral,
-					blitRegions,
+					vk::ArrayProxy<const vk::ImageBlit>(blitRegions.Count(), blitRegions.Buffer()),
 					vk::Filter::eLinear
 				);
 				transferCommandBuffer.pipelineBarrier(
@@ -1629,14 +1674,14 @@ namespace VK
 			else
 			{
 				// Create blit copy regions
-				std::vector<vk::ImageBlit> blitRegions(mipLevels - 1);
+				CoreLib::List<vk::ImageBlit> blitRegions;
 				for (int l = 1; l < mipLevels; l++)
 				{
-					blitRegions[l - 1] = vk::ImageBlit()
+					blitRegions.Add(vk::ImageBlit()
 						.setSrcSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(l - 1).setBaseArrayLayer(0).setLayerCount(1))
 						.setSrcOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(max(1, width >> (l - 1)), max(1, height >> (l - 1)), 1)})
 						.setDstSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(l).setBaseArrayLayer(0).setLayerCount(1))
-						.setDstOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(max(1, width >> l), max(1, height >> l), 1)});
+						.setDstOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(max(1, width >> l), max(1, height >> l), 1)}));
 				}
 
 				// Create command buffer
@@ -1688,7 +1733,7 @@ namespace VK
 				transferCommandBuffer.blitImage(
 					image, vk::ImageLayout::eGeneral,
 					image, vk::ImageLayout::eGeneral,
-					blitRegions,
+					vk::ArrayProxy<const vk::ImageBlit>(blitRegions.Count(), blitRegions.Buffer()),
 					vk::Filter::eLinear
 				);
 				transferCommandBuffer.pipelineBarrier(
@@ -1743,7 +1788,7 @@ namespace VK
 				.setQueueFamilyIndexCount(0)
 				.setPQueueFamilyIndices(nullptr);
 
-			vk::Buffer stagingBuffer = RendererState::Device().createBuffer(stagingBufferCreateInfo).value;
+			vk::Buffer stagingBuffer = RendererState::Device().createBuffer(stagingBufferCreateInfo);
 
 			vk::MemoryRequirements stagingBufferMemoryRequirements = RendererState::Device().getBufferMemoryRequirements(stagingBuffer);
 
@@ -1751,7 +1796,7 @@ namespace VK
 				.setAllocationSize(stagingBufferMemoryRequirements.size)
 				.setMemoryTypeIndex(GetMemoryType(stagingBufferMemoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible));
 
-			vk::DeviceMemory stagingMemory = RendererState::Device().allocateMemory(bufferAllocateInfo).value;
+			vk::DeviceMemory stagingMemory = RendererState::Device().allocateMemory(bufferAllocateInfo);
 
 			RendererState::Device().bindBufferMemory(stagingBuffer, stagingMemory, 0);
 
@@ -1855,7 +1900,7 @@ namespace VK
 
 			// Map memory and copy
 			assert(bufSize >= bufferSize);
-			float* stagingMappedMemory = (float*)RendererState::Device().mapMemory(stagingMemory, 0, bufferSize, vk::MemoryMapFlags()).value;
+			float* stagingMappedMemory = (float*)RendererState::Device().mapMemory(stagingMemory, 0, bufferSize, vk::MemoryMapFlags());
 			memcpy(data, stagingMappedMemory, bufferSize);
 			RendererState::Device().unmapMemory(stagingMemory);
 
@@ -1867,7 +1912,7 @@ namespace VK
 
 	class Texture2DArray : public VK::Texture, public GameEngine::Texture2DArray
 	{
-	private:
+	public:
 		int width;
 		int height;
 		int arrayLayers;
@@ -1876,6 +1921,9 @@ namespace VK
 			: VK::Texture(usage, width, height, 1, mipLevels, arrayLayers, 1, newFormat)
 		{
 			this->format = newFormat;
+			this->width = width;
+			this->height = height;
+			this->arrayLayers = arrayLayers;
 		};
 
 		virtual void GetSize(int& pwidth, int& pheight, int& players) override
@@ -1890,6 +1938,31 @@ namespace VK
 		}
 
 		virtual void BuildMipmaps() override
+		{
+		}
+	};
+
+	class Texture3D : public VK::Texture, public GameEngine::Texture3D
+	{
+	private:
+		int width;
+		int height;
+		int depth;
+	public:
+		Texture3D(TextureUsage usage, int width, int height, int depth, int mipLevels, StorageFormat newFormat)
+			: VK::Texture(usage, width, height, depth, mipLevels, 1, 1, newFormat)
+		{
+			this->format = newFormat;
+		};
+
+		virtual void GetSize(int& pwidth, int& pheight, int& pdepth) override
+		{
+			pwidth = this->width;
+			pheight = this->height;
+			pdepth = this->depth;
+		}
+
+		virtual void SetData(int mipLevel, int xOffset, int yOffset, int zOffset, int pwidth, int pheight, int pdepth, DataType inputType, void * data) override
 		{
 		}
 	};
@@ -1987,7 +2060,7 @@ namespace VK
 				break;
 			}
 
-			sampler = RendererState::Device().createSampler(samplerCreateInfo).value;
+			sampler = RendererState::Device().createSampler(samplerCreateInfo);
 		}
 		void DestroySampler()
 		{
@@ -2082,86 +2155,75 @@ namespace VK
 		int mapOffset = 0;
 		int mapSize = -1;
 		int size = 0;
-		int backingSize = 0;
 
-		void CreateBuffer(int psize)
-		{
-			vk::BufferCreateInfo bufferCreateInfo = vk::BufferCreateInfo()
-				.setFlags(vk::BufferCreateFlags())
-				.setSize(psize)
-				.setUsage(usage)
-				.setSharingMode(vk::SharingMode::eExclusive)
-				.setQueueFamilyIndexCount(0)
-				.setPQueueFamilyIndices(nullptr);
-
-			this->buffer = RendererState::Device().createBuffer(bufferCreateInfo).value;
-
-			vk::MemoryRequirements memoryRequirements = RendererState::Device().getBufferMemoryRequirements(this->buffer);
-			this->backingSize = (int)memoryRequirements.size;
-
-			this->size = this->backingSize;
-
-			vk::BufferCreateInfo fullsizeBufferCreateInfo = vk::BufferCreateInfo()
-				.setFlags(vk::BufferCreateFlags())
-				.setSize(this->backingSize)
-				.setUsage(usage)
-				.setSharingMode(vk::SharingMode::eExclusive)
-				.setQueueFamilyIndexCount(0)
-				.setPQueueFamilyIndices(nullptr);
-
-			RendererState::Device().destroyBuffer(this->buffer);
-			this->buffer = RendererState::Device().createBuffer(fullsizeBufferCreateInfo).value;
-
-			vk::MemoryRequirements fullsizeMemoryRequirements = RendererState::Device().getBufferMemoryRequirements(this->buffer);
-
-			vk::MemoryAllocateInfo fullsizeMemoryAllocateInfo = vk::MemoryAllocateInfo()
-				.setAllocationSize(fullsizeMemoryRequirements.size)
-				.setMemoryTypeIndex(GetMemoryType(fullsizeMemoryRequirements.memoryTypeBits, location));
-
-			this->memory = RendererState::Device().allocateMemory(fullsizeMemoryAllocateInfo).value;
-			RendererState::Device().bindBufferMemory(this->buffer, this->memory, 0);
-		}
-		void DestroyBuffer()
-		{
-			if (this->buffer) RendererState::Device().destroyBuffer(this->buffer);
-			if (this->memory) RendererState::Device().freeMemory(this->memory);
-		}
-		void Resize(int psize)
-		{
-			this->size = psize;
-
-			if (size <= backingSize)
-				return;
-
-			DestroyBuffer();
-			CreateBuffer(psize);
-		}
 	public:
-		BufferObject(vk::BufferUsageFlags usage, vk::MemoryPropertyFlags location)
+		BufferObject(vk::BufferUsageFlags usage, int psize, vk::MemoryPropertyFlags location)
 		{
 			//TODO: Should pass as input a requiredLocation and an optimalLocation?
 			this->location = location;
 			this->usage = usage;
+			this->size = psize;
+
+			// If we can't map the buffer, we need to specify it will be a transfer dest
+			if (!(this->location & vk::MemoryPropertyFlagBits::eHostVisible))
+				this->usage |= vk::BufferUsageFlagBits::eTransferDst;
+
+			// Create a buffer with the requested size
+			vk::BufferCreateInfo bufferCreateInfo = vk::BufferCreateInfo()
+				.setFlags(vk::BufferCreateFlags())
+				.setSize(this->size)
+				.setUsage(this->usage)
+				.setSharingMode(vk::SharingMode::eExclusive)
+				.setQueueFamilyIndexCount(0)
+				.setPQueueFamilyIndices(nullptr);
+
+			this->buffer = RendererState::Device().createBuffer(bufferCreateInfo);
+
+			// Check to see how much memory we actually require
+			vk::MemoryRequirements memoryRequirements = RendererState::Device().getBufferMemoryRequirements(this->buffer);
+			int backingSize = (int)memoryRequirements.size;
+
+			// If we allocate more memory than requested, recreate buffer to backing size
+			if (this->size != backingSize)
+			{
+				this->size = backingSize;
+
+				vk::BufferCreateInfo fullsizeBufferCreateInfo = vk::BufferCreateInfo()
+					.setFlags(vk::BufferCreateFlags())
+					.setSize(this->size)
+					.setUsage(this->usage)
+					.setSharingMode(vk::SharingMode::eExclusive)
+					.setQueueFamilyIndexCount(0)
+					.setPQueueFamilyIndices(nullptr);
+
+				RendererState::Device().destroyBuffer(this->buffer);
+				this->buffer = RendererState::Device().createBuffer(fullsizeBufferCreateInfo);
+			}
+
+			// Allocate memory for the buffer
+			vk::MemoryRequirements fullsizeMemoryRequirements = RendererState::Device().getBufferMemoryRequirements(this->buffer);
+
+			vk::MemoryAllocateInfo fullsizeMemoryAllocateInfo = vk::MemoryAllocateInfo()
+				.setAllocationSize(fullsizeMemoryRequirements.size)
+				.setMemoryTypeIndex(GetMemoryType(fullsizeMemoryRequirements.memoryTypeBits, this->location));
+
+			this->memory = RendererState::Device().allocateMemory(fullsizeMemoryAllocateInfo);
+			RendererState::Device().bindBufferMemory(this->buffer, this->memory, 0);
 		}
 		~BufferObject()
 		{
-			DestroyBuffer();
+			if (this->buffer) RendererState::Device().destroyBuffer(this->buffer);
+			if (this->memory) RendererState::Device().freeMemory(this->memory);
 		}
-		const vk::Buffer& Buffer()
+		void SetDataAsync(int offset, void* data, int psize)
 		{
-			return this->buffer;
+			//TODO: implement
+			SetData(offset, data, psize);
 		}
 		void SetData(int offset, void* data, int psize)
 		{
-			// If we can't map the buffer, we need to specify it will be a transfer dest
-			if (!(location & vk::MemoryPropertyFlagBits::eHostVisible))
-				this->usage |= vk::BufferUsageFlagBits::eTransferDst;
-
-			Resize(offset + psize);
-
-			if (data == nullptr) return;
-
-			//auto transferBegin = CoreLib::Diagnostics::PerformanceCounter::Start();
+			if (data == nullptr)
+				throw HardwareRendererException("Initialize buffer with size preferred.");
 
 			// If the buffer is mappable, map and memcpy
 			if (location & vk::MemoryPropertyFlagBits::eHostVisible)
@@ -2192,7 +2254,7 @@ namespace VK
 						.setQueueFamilyIndexCount(0)
 						.setPQueueFamilyIndices(nullptr);
 
-					vk::Buffer stagingBuffer = RendererState::Device().createBuffer(stagingCreateInfo).value;
+					vk::Buffer stagingBuffer = RendererState::Device().createBuffer(stagingCreateInfo);
 
 					vk::MemoryRequirements stagingMemoryRequirements = RendererState::Device().getBufferMemoryRequirements(stagingBuffer);
 
@@ -2200,11 +2262,11 @@ namespace VK
 						.setAllocationSize(stagingMemoryRequirements.size)
 						.setMemoryTypeIndex(GetMemoryType(stagingMemoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible));
 
-					vk::DeviceMemory stagingMemory = RendererState::Device().allocateMemory(stagingMemoryAllocateInfo).value;
+					vk::DeviceMemory stagingMemory = RendererState::Device().allocateMemory(stagingMemoryAllocateInfo);
 					RendererState::Device().bindBufferMemory(stagingBuffer, stagingMemory, 0);
 
 					// Copy data to staging buffer
-					void* stagingMappedMemory = RendererState::Device().mapMemory(stagingMemory, 0, VK_WHOLE_SIZE, vk::MemoryMapFlags()).value;
+					void* stagingMappedMemory = RendererState::Device().mapMemory(stagingMemory, 0, VK_WHOLE_SIZE, vk::MemoryMapFlags());
 					memcpy(stagingMappedMemory, data, psize);
 					RendererState::Device().unmapMemory(stagingMemory);
 
@@ -2233,6 +2295,7 @@ namespace VK
 						.setSignalSemaphoreCount(0)
 						.setPSignalSemaphores(nullptr);
 
+					RendererState::TransferQueue().waitIdle(); //TODO: Remove
 					RendererState::TransferQueue().submit(transferSubmitInfo, vk::Fence());
 					RendererState::TransferQueue().waitIdle(); //TODO: Remove
 					RendererState::DestroyCommandBuffer(RendererState::TransferCommandPool(), transferCommandBuffer);
@@ -2243,25 +2306,25 @@ namespace VK
 				}
 				else
 				{
-					//TEMP
 					assert(psize % 4 == 0);
 					assert(offset % 4 == 0);
-					//ENDTEMP
 
 					// Record command buffer
 					vk::CommandBufferBeginInfo transferBeginInfo = vk::CommandBufferBeginInfo()
 						.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit)
 						.setPInheritanceInfo(nullptr);
 
+					// Transfer the data in chunks of <= 65536 bytes
 					transferCommandBuffer.begin(transferBeginInfo);
 					int remainingSize = psize;
+					int dataOffset = 0;
 					while (remainingSize > 65536)
 					{
-						transferCommandBuffer.updateBuffer(this->buffer, offset, 65536, (uint32_t*)((char*)data + offset));
+						transferCommandBuffer.updateBuffer(this->buffer, offset + dataOffset, 65536, static_cast<char*>(data) + dataOffset);
 						remainingSize -= 65536;
-						offset += 65536;
+						dataOffset += 65536;
 					}
-					transferCommandBuffer.updateBuffer(this->buffer, offset, remainingSize, (uint32_t*)((char*)data + offset));
+					transferCommandBuffer.updateBuffer(this->buffer, offset + dataOffset, remainingSize, static_cast<char*>(data) + dataOffset);
 					transferCommandBuffer.end();
 
 					// Submit to queue
@@ -2274,37 +2337,12 @@ namespace VK
 						.setSignalSemaphoreCount(0)
 						.setPSignalSemaphores(nullptr);
 
+					RendererState::TransferQueue().waitIdle(); //TODO: Remove
 					RendererState::TransferQueue().submit(transferSubmitInfo, vk::Fence());
 					RendererState::TransferQueue().waitIdle(); //TODO: Remove
 					RendererState::DestroyCommandBuffer(RendererState::TransferCommandPool(), transferCommandBuffer);
 				}
 			}
-
-			//auto transferEnd = CoreLib::Diagnostics::PerformanceCounter::End(transferBegin);
-			//double elapsedTime = CoreLib::Diagnostics::PerformanceCounter::ToSeconds(transferEnd);
-
-			//#if _DEBUG
-			//			// Print information about transfer rate
-			//			CoreLib::Array<CoreLib::String, 4> granularity;
-			//			granularity.Add(L"B");
-			//			granularity.Add(L"KB");
-			//			granularity.Add(L"MB");
-			//			granularity.Add(L"GB");
-			//
-			//			int count = 0;
-			//			float dataSize = (float)size;
-			//			while (dataSize > 1024.0f) {
-			//				dataSize /= 1024.0f;
-			//				count++;
-			//				if (count == 3) break;
-			//			}
-			//
-			//			CoreLib::Diagnostics::Debug::Write(L"Transfer time (");
-			//			if(count == 0) CoreLib::Diagnostics::Debug::Write(CoreLib::String(size) + L" " + granularity[count] + L"): ");
-			//			else CoreLib::Diagnostics::Debug::Write(CoreLib::String(dataSize, L"%.2f") + L" " + granularity[count] + L"): ");
-			//			CoreLib::Diagnostics::Debug::Write(CoreLib::String(elapsedTime*1000.0f, L"%.2f") + L"ms");
-			//			CoreLib::Diagnostics::Debug::WriteLine(L" (" + CoreLib::String((float)size / elapsedTime / 1024.0f / 1024.0f / 1024.0f, L"%.2f") + L" GB/s)");
-			//#endif
 		}
 		void SetData(void* data, int psize)
 		{
@@ -2340,7 +2378,7 @@ namespace VK
 			this->mapOffset = offset;
 			this->mapSize = psize;
 
-			return RendererState::Device().mapMemory(memory, offset, psize, vk::MemoryMapFlags()).value;
+			return RendererState::Device().mapMemory(memory, offset, psize, vk::MemoryMapFlags());
 		}
 		void* Map()
 		{
@@ -2409,7 +2447,7 @@ namespace VK
 				.setCodeSize(size)
 				.setPCode((uint32_t*)data);
 
-			this->module = RendererState::Device().createShaderModule(shaderModuleCreateInfo).value;
+			this->module = RendererState::Device().createShaderModule(shaderModuleCreateInfo);
 		}
 
 		void Destroy()
@@ -2435,27 +2473,6 @@ namespace VK
 			if (framebuffer) RendererState::Device().destroyFramebuffer(framebuffer);
 		}
 	};
-
-	vk::AttachmentLoadOp TranslateLoadOp(LoadOp op)
-	{
-		switch (op)
-		{
-		case LoadOp::Load: return vk::AttachmentLoadOp::eLoad;
-		case LoadOp::Clear: return vk::AttachmentLoadOp::eClear;
-		case LoadOp::DontCare: return vk::AttachmentLoadOp::eDontCare;
-		default: throw CoreLib::NotImplementedException();
-		}
-	}
-
-	vk::AttachmentStoreOp TranslateStoreOp(StoreOp op)
-	{
-		switch (op)
-		{
-		case StoreOp::Store: return vk::AttachmentStoreOp::eStore;
-		case StoreOp::DontCare: return vk::AttachmentStoreOp::eDontCare;
-		default: throw CoreLib::NotImplementedException();
-		}
-	}
 
 	class RenderTargetLayout : public GameEngine::RenderTargetLayout
 	{
@@ -2486,10 +2503,10 @@ namespace VK
 				.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)//
 				.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare);//
 
-																	 //if (samples > 1)
-																	 //{
-																	 //	//TODO: need to resolve?
-																	 //}
+				//if (samples > 1)
+				//{
+				//	//TODO: need to resolve?
+				//}
 		}
 
 		void SetDepthAttachment(int binding, LoadOp loadOp = LoadOp::Load, StoreOp storeOp = StoreOp::Store)
@@ -2511,6 +2528,7 @@ namespace VK
 				.setStencilStoreOp(TranslateStoreOp(storeOp));
 		}
 	public:
+		RenderTargetLayout() {};
 		RenderTargetLayout(CoreLib::ArrayView<TextureUsage> bindings)
 		{
 			depthReference.attachment = VK_ATTACHMENT_UNUSED;
@@ -2574,7 +2592,7 @@ namespace VK
 				.setDependencyCount(0)
 				.setPDependencies(nullptr);
 
-			this->renderPass = RendererState::Device().createRenderPass(renderPassCreateInfo).value;
+			this->renderPass = RendererState::Device().createRenderPass(renderPassCreateInfo);
 		}
 		~RenderTargetLayout()
 		{
@@ -2591,10 +2609,7 @@ namespace VK
 				if (renderAttachments.attachments[colorReference.attachment].handle.tex2D)
 					usage = dynamic_cast<Texture2D*>(renderAttachments.attachments[colorReference.attachment].handle.tex2D)->usage;
 				else if (renderAttachments.attachments[colorReference.attachment].handle.tex2DArray)
-				{
-					//throw CoreLib::NotImplementedException();
 					usage = dynamic_cast<Texture2DArray*>(renderAttachments.attachments[colorReference.attachment].handle.tex2DArray)->usage;
-				}
 
 				if (!(usage & TextureUsage::ColorAttachment))
 					throw HardwareRendererException("Incompatible RenderTargetLayout and RenderAttachments");
@@ -2605,22 +2620,19 @@ namespace VK
 				if (renderAttachments.attachments[depthReference.attachment].handle.tex2D)
 					usage = dynamic_cast<Texture2D*>(renderAttachments.attachments[depthReference.attachment].handle.tex2D)->usage;
 				else if (renderAttachments.attachments[depthReference.attachment].handle.tex2DArray)
-				{
-					//throw CoreLib::NotImplementedException();
 					usage = dynamic_cast<Texture2DArray*>(renderAttachments.attachments[depthReference.attachment].handle.tex2DArray)->usage;
-				}
+
 				if (!(usage & TextureUsage::DepthAttachment))
 					throw HardwareRendererException("Incompatible RenderTargetLayout and RenderAttachments");
 			}
 #endif
 			FrameBuffer* result = new FrameBuffer();
-			result->renderTargetLayout = this;
+			result->renderTargetLayout = new RenderTargetLayout;
+			*result->renderTargetLayout = *this;
 			result->renderAttachments = renderAttachments;
 			CoreLib::List<vk::ImageView> framebufferAttachmentViews;
 			for (auto attachment : renderAttachments.attachments)
 			{
-				//if (attachment.handle.tex2DArray)
-				//throw CoreLib::NotImplementedException();
 				if (attachment.handle.tex2D)
 					framebufferAttachmentViews.Add(dynamic_cast<Texture2D*>(attachment.handle.tex2D)->view);
 				else if (attachment.handle.tex2DArray)
@@ -2636,7 +2648,7 @@ namespace VK
 				.setHeight(renderAttachments.height)
 				.setLayers(1);
 
-			result->framebuffer = RendererState::Device().createFramebuffer(framebufferCreateInfo).value;
+			result->framebuffer = RendererState::Device().createFramebuffer(framebufferCreateInfo);
 			result->width = renderAttachments.width;
 			result->height = renderAttachments.height;
 
@@ -2644,107 +2656,181 @@ namespace VK
 		}
 	};
 
-	class PipelineBuilder;
-	class Pipeline;
-
-	class PipelineInstance : public GameEngine::PipelineInstance
+	class DescriptorSetLayout : public GameEngine::DescriptorSetLayout
 	{
 	public:
-		vk::PipelineLayout& pipelineLayout;//TODO:
-		vk::Pipeline& pipeline;//TODO:
-		PipelineBinding pipelineBindings;
+		vk::DescriptorSetLayout layout;
+
+		DescriptorSetLayout(CoreLib::ArrayView<GameEngine::DescriptorLayout> descriptors)
+		{
+#if _DEBUG
+			CoreLib::Array<int, 32> usedDescriptors;
+			usedDescriptors.SetSize(32);
+			for (auto& desc : usedDescriptors)
+				desc = false;
+#endif
+			CoreLib::List<vk::DescriptorSetLayoutBinding> layoutBindings;
+
+			for (auto& desc : descriptors)
+			{
+#if _DEBUG
+				if (usedDescriptors[desc.Location] != false)
+					throw HardwareRendererException("Descriptor location already in use.");
+				usedDescriptors[desc.Location] = true;
+#endif
+				layoutBindings.Add(
+					vk::DescriptorSetLayoutBinding()
+					.setBinding(desc.Location)
+					.setDescriptorType(TranslateBindingType(desc.Type))
+					.setDescriptorCount(1)
+					.setStageFlags(vk::ShaderStageFlagBits::eAllGraphics)//TODO: improve
+					.setPImmutableSamplers(nullptr)
+				);
+			}
+
+			vk::DescriptorSetLayoutCreateInfo createInfo = vk::DescriptorSetLayoutCreateInfo()
+				.setFlags(vk::DescriptorSetLayoutCreateFlags())
+				.setBindingCount(layoutBindings.Count())
+				.setPBindings(layoutBindings.Buffer());
+
+			layout = RendererState::Device().createDescriptorSetLayout(createInfo);
+		}
+		~DescriptorSetLayout()
+		{
+			RendererState::Device().destroyDescriptorSetLayout(layout);
+		}
+	};
+
+	class DescriptorSet : public GameEngine::DescriptorSet
+	{
+	public:
+		//TODO: previous implementation in PipelineInstance would keep track of
+		// previously bound descriptors and then create new imageInfo/bufferInfo
+		// and swap them with the old one, as well as only updating the descriptors
+		// that had changed. Should this do that too?
+		CoreLib::RefPtr<DescriptorSetLayout> descriptorSetLayout;
+		CoreLib::List<vk::DescriptorImageInfo> imageInfo;
+		CoreLib::List<vk::DescriptorBufferInfo> bufferInfo;
+		CoreLib::List<vk::WriteDescriptorSet> writeDescriptorSets;
 		vk::DescriptorPool descriptorPool;
 		vk::DescriptorSet descriptorSet;
-		CoreLib::List<vk::DescriptorBufferInfo> boundBufferInfo;
 	public:
-		PipelineInstance(Pipeline* pipeline, const PipelineBinding& pipelineBinding);
-		~PipelineInstance()
+		DescriptorSet() {}
+		DescriptorSet(DescriptorSetLayout* layout)
+		{
+			// We need to keep a ref pointer to the layout because we need to have
+			// the layout available when we call vkUpdateDescriptorSets (2.3.1)
+			descriptorSetLayout = layout;
+
+			std::pair<vk::DescriptorPool, vk::DescriptorSet> res = RendererState::AllocateDescriptorSet(layout->layout);
+			descriptorPool = res.first;
+			descriptorSet = res.second;
+		}
+		~DescriptorSet()
 		{
 			if (descriptorSet) RendererState::Device().freeDescriptorSets(descriptorPool, descriptorSet);
 		}
 
-		void Update()
+		virtual void BeginUpdate() override
 		{
-			if (boundBufferInfo.Count() <= 0) return;
+			imageInfo.Clear();
+			bufferInfo.Clear();
+			writeDescriptorSets.Clear();
+		}
 
-			// Update Descriptor Set
-			CoreLib::List<vk::DescriptorBufferInfo> bufferDescriptorInfo;
-			CoreLib::List<int> bindingLocations;
-			CoreLib::List<BindingType> bindingTypes;
-			for (auto binding : pipelineBindings.GetBindings())
-			{
-				switch (binding.type)
-				{
-				case BindingType::StorageBuffer:
-				{
-					int range = binding.buf.range;
-					if (range == 0) range = dynamic_cast<VK::BufferObject*>(binding.buf.buffer)->backingSize;
+		virtual void Update(int location, GameEngine::Texture* texture) override
+		{
+			VK::Texture* internalTexture = dynamic_cast<VK::Texture*>(texture);
 
-					bufferDescriptorInfo.Add(
-						vk::DescriptorBufferInfo()
-						.setBuffer(dynamic_cast<VK::BufferObject*>(binding.buf.buffer)->buffer)
-						.setOffset(binding.buf.offset)
-						.setRange(range)
-					);
-					bindingLocations.Add(binding.location);
-					bindingTypes.Add(BindingType::StorageBuffer);
-					break;
-				}
-				case BindingType::UniformBuffer:
-				{
-					int range = binding.buf.range;
-					if (range == 0) range = dynamic_cast<VK::BufferObject*>(binding.buf.buffer)->backingSize;
+			imageInfo.Add(
+				vk::DescriptorImageInfo()
+				.setSampler(vk::Sampler())
+				.setImageView(internalTexture->view)
+				.setImageLayout(vk::ImageLayout::eGeneral)//TODO: specify?
+			);
 
-					bufferDescriptorInfo.Add(
-						vk::DescriptorBufferInfo()
-						.setBuffer(dynamic_cast<VK::BufferObject*>(binding.buf.buffer)->buffer)
-						.setOffset(binding.buf.offset)
-						.setRange(range)
-					);
-					bindingLocations.Add(binding.location);
-					bindingTypes.Add(BindingType::UniformBuffer);
-					break;
-				}
-				case BindingType::Texture:
-				case BindingType::Unused:
-					break;
-				default:
-					throw HardwareRendererException("Invalid binding type");
-				}
-			}
+			writeDescriptorSets.Add(
+				vk::WriteDescriptorSet()
+				.setDstSet(this->descriptorSet)
+				.setDstBinding(location)
+				.setDstArrayElement(0)
+				.setDescriptorCount(1)
+				.setDescriptorType(vk::DescriptorType::eSampledImage)
+				.setPImageInfo(&imageInfo.Last())
+				.setPBufferInfo(nullptr)
+				.setPTexelBufferView(nullptr)
+			);
+		}
 
-			std::vector<vk::WriteDescriptorSet> writeDescriptorSets;
-			for (int k = 0; k < bufferDescriptorInfo.Count(); k++) {
-				if (bufferDescriptorInfo[k].buffer != boundBufferInfo[k].buffer)
-				{
-					//TODO: We can't bind a VK_NULL_HANDLE
-					if (!bufferDescriptorInfo[k].buffer) break;
+		virtual void Update(int location, GameEngine::TextureSampler* sampler) override
+		{
+			VK::TextureSampler* internalSampler = reinterpret_cast<VK::TextureSampler*>(sampler);
+			
+			imageInfo.Add(
+				vk::DescriptorImageInfo()
+				.setSampler(internalSampler->sampler)
+				.setImageView(vk::ImageView())
+				.setImageLayout(vk::ImageLayout::eUndefined)
+			);
 
-					writeDescriptorSets.push_back(
-						vk::WriteDescriptorSet()
-						.setDstSet(this->descriptorSet)
-						.setDstBinding(bindingLocations[k])
-						.setDstArrayElement(0)
-						.setDescriptorCount(1)
-						.setDescriptorType(TranslateBindingType(bindingTypes[k]))
-						.setPImageInfo(nullptr)
-						.setPBufferInfo(&bufferDescriptorInfo[k])
-						.setPTexelBufferView(nullptr)
-					);
-				}
-			}
+			writeDescriptorSets.Add(
+				vk::WriteDescriptorSet()
+				.setDstSet(this->descriptorSet)
+				.setDstBinding(location)
+				.setDstArrayElement(0)
+				.setDescriptorCount(1)
+				.setDescriptorType(vk::DescriptorType::eSampler)
+				.setPImageInfo(&imageInfo.Last())
+				.setPBufferInfo(nullptr)
+				.setPTexelBufferView(nullptr)
+			);
+		}
 
-			boundBufferInfo.SwapWith(bufferDescriptorInfo);
-			if (writeDescriptorSets.size() > 0)
-				RendererState::Device().updateDescriptorSets(writeDescriptorSets, nullptr);
+		virtual void Update(int location, GameEngine::Buffer* buffer, int offset = 0, int length = -1) override
+		{
+			VK::BufferObject* internalBuffer = reinterpret_cast<VK::BufferObject*>(buffer);
+
+			vk::DescriptorType descriptorType;
+			if (internalBuffer->usage & vk::BufferUsageFlagBits::eUniformBuffer)
+				descriptorType = vk::DescriptorType::eUniformBuffer;
+			else
+				descriptorType = vk::DescriptorType::eStorageBuffer;
+
+			int range = (length == -1) ? internalBuffer->size : length;
+			bufferInfo.Add(
+				vk::DescriptorBufferInfo()
+				.setBuffer(internalBuffer->buffer)
+				.setOffset(offset)
+				.setRange(range)
+			);
+
+			writeDescriptorSets.Add(
+				vk::WriteDescriptorSet()
+				.setDstSet(this->descriptorSet)
+				.setDstBinding(location)
+				.setDstArrayElement(0)
+				.setDescriptorCount(1)
+				.setDescriptorType(descriptorType)
+				.setPImageInfo(nullptr)
+				.setPBufferInfo(&bufferInfo.Last())
+				.setPTexelBufferView(nullptr)
+			);
+		}
+
+		virtual void EndUpdate() override
+		{
+			if (writeDescriptorSets.Count() > 0)
+				RendererState::Device().updateDescriptorSets(
+					vk::ArrayProxy<const vk::WriteDescriptorSet>(writeDescriptorSets.Count(), writeDescriptorSets.Buffer()), 
+					nullptr);
 		}
 	};
+
+	class PipelineBuilder;
 
 	class Pipeline : public GameEngine::Pipeline
 	{
 	public:
-		CoreLib::List<vk::DescriptorSetLayout> descriptorSetLayouts;
-		CoreLib::List<vk::DescriptorPoolSize> descriptorPoolSizes;
 		vk::PipelineLayout pipelineLayout;
 		vk::Pipeline pipeline;
 	public:
@@ -2753,20 +2839,14 @@ namespace VK
 		{
 			if (pipeline) RendererState::Device().destroyPipeline(pipeline);
 			if (pipelineLayout) RendererState::Device().destroyPipelineLayout(pipelineLayout);
-			for (auto descriptorSetLayout : descriptorSetLayouts)
-				RendererState::Device().destroyDescriptorSetLayout(descriptorSetLayout);
-		}
-
-		virtual PipelineInstance* CreateInstance(const PipelineBinding& pipelineBinding) override
-		{
-			return new PipelineInstance(this, pipelineBinding);
 		}
 	};
 
 	class PipelineBuilder : public GameEngine::PipelineBuilder
 	{
 	public:
-		CoreLib::List<vk::DescriptorSetLayoutBinding> layoutBindings;
+		CoreLib::String debugName;
+		CoreLib::List<vk::DescriptorSetLayout> setLayouts;
 		CoreLib::List<vk::PushConstantRange> pushConstantRanges;//TODO:
 		CoreLib::List<vk::PipelineShaderStageCreateInfo> shaderStages;
 		CoreLib::List<vk::VertexInputBindingDescription> vertexBindingDescriptions;
@@ -2875,18 +2955,17 @@ namespace VK
 				);
 			}
 		}
-		virtual void SetBindingLayout(int bindingId, BindingType bindType) override
+		virtual void SetBindingLayout(CoreLib::ArrayView<GameEngine::DescriptorSetLayout*> descriptorSets) override
 		{
-			if (bindType == BindingType::Unused) return;//TODO: Should do something else?
-
-			layoutBindings.Add(
-				vk::DescriptorSetLayoutBinding()
-				.setBinding(bindingId)
-				.setDescriptorType(TranslateBindingType(bindType))
-				.setDescriptorCount(1)
-				.setStageFlags(vk::ShaderStageFlagBits::eAllGraphics)//TODO: improve
-				.setPImmutableSamplers(nullptr)
-			);
+			for (auto& set : descriptorSets)
+			{
+				if (set) //TODO: ?
+					setLayouts.Add(reinterpret_cast<VK::DescriptorSetLayout*>(set)->layout);
+			}
+		}
+		virtual void SetDebugName(CoreLib::String name) override
+		{
+			debugName = name;
 		}
 		virtual Pipeline* ToPipeline(GameEngine::RenderTargetLayout* renderTargetLayout) override
 		{
@@ -2894,42 +2973,17 @@ namespace VK
 		}
 	};
 
-	vk::PrimitiveTopology TranslatePrimitiveTopology(PrimitiveType ptype)
-	{
-		switch (ptype)
-		{
-		case PrimitiveType::Triangles: return vk::PrimitiveTopology::eTriangleList;
-		case PrimitiveType::TriangleFans: return vk::PrimitiveTopology::eTriangleFan;
-		case PrimitiveType::Points: return vk::PrimitiveTopology::ePointList;
-		case PrimitiveType::Lines: return vk::PrimitiveTopology::eLineList;
-		case PrimitiveType::TriangleStrips: return vk::PrimitiveTopology::eTriangleStrip;
-		case PrimitiveType::LineStrips: return vk::PrimitiveTopology::eLineStrip;
-		default: throw CoreLib::NotImplementedException();
-		}
-	}
-
 	Pipeline::Pipeline(RenderTargetLayout* renderTargetLayout, PipelineBuilder* pipelineBuilder)
 	{
-		// Prepare to create Descriptor Set
-		vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo = vk::DescriptorSetLayoutCreateInfo()
-			.setFlags(vk::DescriptorSetLayoutCreateFlags())
-			.setBindingCount(pipelineBuilder->layoutBindings.Count())
-			.setPBindings(pipelineBuilder->layoutBindings.Buffer());
-
-		this->descriptorSetLayouts.Add(RendererState::Device().createDescriptorSetLayout(descriptorSetLayoutCreateInfo).value);
-
-		for (auto setLayout : pipelineBuilder->layoutBindings)
-			this->descriptorPoolSizes.Add(vk::DescriptorPoolSize(setLayout.descriptorType, setLayout.descriptorCount));
-
 		// Create Pipeline Layout
 		vk::PipelineLayoutCreateInfo layoutCreateInfo = vk::PipelineLayoutCreateInfo()
 			.setFlags(vk::PipelineLayoutCreateFlags())
-			.setSetLayoutCount(descriptorSetLayouts.Count())
-			.setPSetLayouts(descriptorSetLayouts.Buffer())
+			.setSetLayoutCount(pipelineBuilder->setLayouts.Count())
+			.setPSetLayouts(pipelineBuilder->setLayouts.Buffer())
 			.setPushConstantRangeCount(pipelineBuilder->pushConstantRanges.Count())
 			.setPPushConstantRanges(pipelineBuilder->pushConstantRanges.Buffer());
 
-		this->pipelineLayout = RendererState::Device().createPipelineLayout(layoutCreateInfo).value;
+		this->pipelineLayout = RendererState::Device().createPipelineLayout(layoutCreateInfo);
 
 		// Vertex Input Description
 		vk::PipelineVertexInputStateCreateInfo vertexInputCreateInfo = vk::PipelineVertexInputStateCreateInfo()
@@ -2960,7 +3014,7 @@ namespace VK
 			.setDepthClampEnable(VK_FALSE)
 			.setRasterizerDiscardEnable(VK_FALSE)
 			.setPolygonMode(vk::PolygonMode::eFill)
-			.setCullMode(vk::CullModeFlagBits::eNone)
+			.setCullMode(vk::CullModeFlagBits::eBack)
 			.setFrontFace(vk::FrontFace::eClockwise)
 			.setDepthBiasEnable(VK_FALSE)
 			.setDepthBiasConstantFactor(0.0f)
@@ -3060,116 +3114,48 @@ namespace VK
 			.setBasePipelineHandle(vk::Pipeline())
 			.setBasePipelineIndex(-1);
 
-		this->pipeline = RendererState::Device().createGraphicsPipelines(vk::PipelineCache(), pipelineCreateInfo).value[0];
+		this->pipeline = RendererState::Device().createGraphicsPipelines(vk::PipelineCache(), pipelineCreateInfo)[0];
+
+//#if _DEBUG
+//		vk::DebugMarkerObjectNameInfoEXT nameInfo = vk::DebugMarkerObjectNameInfoEXT()
+//			.setObjectType(vk::DebugReportObjectTypeEXT::ePipeline)
+//			.setObject(pipeline.operator VkPipeline)
+//			.setPObjectName(pipelineBuilder->debugName.Buffer());
+//
+//		RendererState::Device().debugMarkerSetObjectNameEXT(&nameInfo);
+//#endif
 	}
 
-	PipelineInstance::PipelineInstance(Pipeline* pipeline, const PipelineBinding& pipelineBinding) :
-		pipeline(pipeline->pipeline),
-		pipelineLayout(pipeline->pipelineLayout),
-		pipelineBindings(pipelineBinding)
+	class Fence : public GameEngine::Fence
 	{
-		if (pipeline->descriptorPoolSizes.Count() > 0)
+	public:
+		vk::Fence fence;
+	public:
+		Fence()
 		{
-			std::pair<vk::DescriptorPool, vk::DescriptorSet> res = RendererState::AllocateDescriptorSet(pipeline->descriptorSetLayouts);
-			this->descriptorPool = res.first;
-			this->descriptorSet = res.second;
+			vk::FenceCreateInfo fenceCreateInfo = vk::FenceCreateInfo()
+				.setFlags(vk::FenceCreateFlagBits::eSignaled);
 
-			// Update Descriptor Set
-			std::vector<vk::WriteDescriptorSet> writeDescriptorSets;
-			CoreLib::List<vk::DescriptorBufferInfo> bufferDescriptorInfo;
-			CoreLib::List<vk::DescriptorImageInfo> textureDescriptorInfo;
-
-			for (auto binding : pipelineBinding.GetBindings())
-			{
-				switch (binding.type)
-				{
-				case BindingType::StorageBuffer:
-				{
-					int range = binding.buf.range;
-					if (range == 0) range = dynamic_cast<VK::BufferObject*>(binding.buf.buffer)->backingSize;
-
-					bufferDescriptorInfo.Add(
-						vk::DescriptorBufferInfo()
-						.setBuffer(dynamic_cast<VK::BufferObject*>(binding.buf.buffer)->buffer)
-						.setOffset(binding.buf.offset)
-						.setRange(range)
-					);
-
-					//TODO: We can't bind a VK_NULL_HANDLE
-					if (!dynamic_cast<VK::BufferObject*>(binding.buf.buffer)->buffer) break;
-
-					writeDescriptorSets.push_back(
-						vk::WriteDescriptorSet()
-						.setDstSet(this->descriptorSet)
-						.setDstBinding(binding.location)
-						.setDstArrayElement(0)
-						.setDescriptorCount(1)
-						.setDescriptorType(vk::DescriptorType::eStorageBuffer)
-						.setPImageInfo(nullptr)
-						.setPBufferInfo(&bufferDescriptorInfo.Last())
-						.setPTexelBufferView(nullptr)
-					);
-					break;
-				}
-				case BindingType::UniformBuffer:
-				{
-					int range = binding.buf.range;
-					if (range == 0) range = dynamic_cast<VK::BufferObject*>(binding.buf.buffer)->backingSize;
-
-					bufferDescriptorInfo.Add(
-						vk::DescriptorBufferInfo()
-						.setBuffer(dynamic_cast<VK::BufferObject*>(binding.buf.buffer)->buffer)
-						.setOffset(binding.buf.offset)
-						.setRange(range)
-					);
-
-					//TODO: We can't bind a VK_NULL_HANDLE
-					if (!dynamic_cast<VK::BufferObject*>(binding.buf.buffer)->buffer) break;
-
-					writeDescriptorSets.push_back(
-						vk::WriteDescriptorSet()
-						.setDstSet(this->descriptorSet)
-						.setDstBinding(binding.location)
-						.setDstArrayElement(0)
-						.setDescriptorCount(1)
-						.setDescriptorType(vk::DescriptorType::eUniformBuffer)
-						.setPImageInfo(nullptr)
-						.setPBufferInfo(&bufferDescriptorInfo.Last())
-						.setPTexelBufferView(nullptr)
-					);
-					break;
-				}
-				case BindingType::Texture:
-					textureDescriptorInfo.Add(
-						vk::DescriptorImageInfo()
-						.setImageLayout(vk::ImageLayout::eGeneral)
-						.setImageView(dynamic_cast<VK::Texture*>(binding.tex.texture)->view)
-						.setSampler(dynamic_cast<VK::TextureSampler*>(binding.tex.sampler)->sampler)
-					);
-
-					writeDescriptorSets.push_back(
-						vk::WriteDescriptorSet()
-						.setDstSet(this->descriptorSet)
-						.setDstBinding(binding.location)
-						.setDstArrayElement(0)
-						.setDescriptorCount(1)
-						.setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
-						.setPImageInfo(&textureDescriptorInfo.Last())
-						.setPBufferInfo(nullptr)
-						.setPTexelBufferView(nullptr)
-					);
-				case BindingType::Unused:
-					break;
-				default:
-					throw HardwareRendererException("Invalid binding type");
-				}
-			}
-
-			boundBufferInfo.SwapWith(bufferDescriptorInfo);
-			RendererState::Device().updateDescriptorSets(writeDescriptorSets, nullptr);
+			fence = RendererState::Device().createFence(fenceCreateInfo);
 		}
-	}
+		~Fence()
+		{
+			if (fence) RendererState::Device().destroyFence(fence);
+		}
+		virtual void Reset() override
+		{
+			//RendererState::Device().resetFences(fence);
+		}
+		virtual void Wait() override
+		{
+			//RendererState::Device().waitForFences(fence, true, UINT64_MAX);
+		}
+	};
 
+// Toggles between a shared event for all command buffers vs a single event for 
+// each command buffer for syncrhonization. Shared event will wait for all
+// command buffers in a group to be submitted before recording any, while 
+// individual event would wait for any individual command buffer.
 #define SHARED_EVENT false
 #if SHARED_EVENT
 	class TestEvent
@@ -3179,7 +3165,7 @@ namespace VK
 
 		TestEvent()
 		{
-			internalEvent = RendererState::Device().createEvent(vk::EventCreateInfo()).value;
+			internalEvent = RendererState::Device().createEvent(vk::EventCreateInfo());
 		}
 		~TestEvent()
 		{
@@ -3193,6 +3179,9 @@ namespace VK
 	public:
 		const vk::CommandPool& pool;
 		vk::CommandBuffer buffer;
+		Pipeline* curPipeline;
+		CoreLib::Array<uint32_t, 32> pendingOffsets;
+		CoreLib::Array<vk::DescriptorSet, 32> pendingDescSets;
 #if SHARED_EVENT
 		CoreLib::RefPtr<TestEvent> submitEvent;
 #else
@@ -3206,7 +3195,7 @@ namespace VK
 			submitEvent = new TestEvent;
 			RendererState::Device().setEvent(submitEvent->internalEvent);
 #else
-			submitEvent = RendererState::Device().createEvent(vk::EventCreateInfo()).value;
+			submitEvent = RendererState::Device().createEvent(vk::EventCreateInfo());
 			RendererState::Device().setEvent(submitEvent);
 #endif
 		}
@@ -3233,6 +3222,10 @@ namespace VK
 					break;
 #endif
 			}
+
+			curPipeline = nullptr;
+			pendingOffsets.Clear();
+			pendingDescSets.Clear();
 
 			vk::CommandBufferInheritanceInfo inheritanceInfo = vk::CommandBufferInheritanceInfo()
 				.setRenderPass(dynamic_cast<VK::RenderTargetLayout*>(renderTargetLayout)->renderPass)
@@ -3264,23 +3257,44 @@ namespace VK
 			buffer.end();
 		}
 
-		virtual void BindVertexBuffer(Buffer* vertexBuffer) override
+		virtual void BindVertexBuffer(Buffer* vertexBuffer, int byteOffset) override
 		{
-			buffer.bindVertexBuffers(0, dynamic_cast<VK::BufferObject*>(vertexBuffer)->Buffer(), { 0 });
+			buffer.bindVertexBuffers(0, dynamic_cast<VK::BufferObject*>(vertexBuffer)->buffer, { (vk::DeviceSize)byteOffset });
 		}
-		virtual void BindIndexBuffer(Buffer* indexBuffer) override
+		virtual void BindIndexBuffer(Buffer* indexBuffer, int byteOffset) override
 		{
 			//TODO: Can make index buffer use 16 bit ints if possible?
-			buffer.bindIndexBuffer(dynamic_cast<VK::BufferObject*>(indexBuffer)->Buffer(), { 0 }, vk::IndexType::eUint32);
+			buffer.bindIndexBuffer(dynamic_cast<VK::BufferObject*>(indexBuffer)->buffer, { (vk::DeviceSize)byteOffset }, vk::IndexType::eUint32);
 		}
-		virtual void BindPipeline(GameEngine::PipelineInstance* pipelineInstance) override
+		virtual void BindDescriptorSet(int binding, GameEngine::DescriptorSet* descSet) override
 		{
-			dynamic_cast<VK::PipelineInstance*>(pipelineInstance)->Update();
+			VK::DescriptorSet* internalDescriptorSet = reinterpret_cast<VK::DescriptorSet*>(descSet);
 
-			if (dynamic_cast<VK::PipelineInstance*>(pipelineInstance)->descriptorSet)
-				buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, dynamic_cast<VK::PipelineInstance*>(pipelineInstance)->pipelineLayout, 0, dynamic_cast<VK::PipelineInstance*>(pipelineInstance)->descriptorSet, nullptr);//TODO: offsets
-
-			buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, dynamic_cast<VK::PipelineInstance*>(pipelineInstance)->pipeline);
+			if (internalDescriptorSet->descriptorSet)
+			{
+				if (curPipeline == nullptr)
+				{
+					pendingDescSets.Add(internalDescriptorSet->descriptorSet);
+					pendingOffsets.Add(binding);
+				}
+				else
+					buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, curPipeline->pipelineLayout, binding, internalDescriptorSet->descriptorSet, nullptr);
+			}
+		}
+		virtual void BindPipeline(GameEngine::Pipeline* pipeline) override
+		{
+			if (curPipeline == nullptr)
+			{
+				curPipeline = reinterpret_cast<VK::Pipeline*>(pipeline);
+				for(int k = 0; k < pendingDescSets.Count(); k++)
+					buffer.bindDescriptorSets(
+						vk::PipelineBindPoint::eGraphics,
+						curPipeline->pipelineLayout,
+						pendingOffsets[k],
+						pendingDescSets[k],
+						nullptr);
+			}
+			buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, dynamic_cast<VK::Pipeline*>(pipeline)->pipeline);
 		}
 
 		virtual void Draw(int firstVertex, int vertexCount) override
@@ -3423,26 +3437,39 @@ namespace VK
 		}
 		virtual void ClearAttachments(GameEngine::FrameBuffer * frameBuffer) override
 		{
-			CoreLib::Array<TextureUsage, 16> usages;
 			auto & renderAttachments = ((VK::FrameBuffer*)frameBuffer)->renderAttachments;
-			for (auto & attach : renderAttachments.attachments)
-				if (attach.handle.tex2D)
-					usages.Add(dynamic_cast<VK::Texture2D*>(attach.handle.tex2D)->usage);
-				else if (attach.handle.tex2DArray)
-					throw CoreLib::NotImplementedException();
 
-			ClearAttachments(usages.GetArrayView(), renderAttachments.width, renderAttachments.height);
-		}
-		virtual void ClearAttachments(CoreLib::ArrayView<TextureUsage> renderAttachments, int w, int h) override
-		{
 			CoreLib::List<vk::ClearAttachment> attachments;
 			CoreLib::List<vk::ClearRect> rects;
 
-			for (int k = 0; k < renderAttachments.Count(); k++)
+			for (int k = 0; k < renderAttachments.attachments.Count(); k++)
 			{
 				vk::ImageAspectFlags aspectMask;
 				bool isDepth = false;
-				switch (renderAttachments[k])
+
+				auto& attach = renderAttachments.attachments[k];
+
+				int w, h;
+				int layers;
+				TextureUsage usage;
+				if (attach.handle.tex2D)
+				{
+					auto internalHandle = dynamic_cast<VK::Texture2D*>(attach.handle.tex2D);
+					usage = internalHandle->usage;
+					w = internalHandle->width;
+					h = internalHandle->height;
+					layers = 1;
+				}
+				else if (attach.handle.tex2DArray)
+				{
+					auto internalHandle = dynamic_cast<VK::Texture2DArray*>(attach.handle.tex2DArray);
+					usage = internalHandle->usage;
+					w = internalHandle->width;
+					h = internalHandle->height;
+					layers = internalHandle->arrayLayers;
+				}
+
+				switch (usage)
 				{
 				case GameEngine::TextureUsage::ColorAttachment:
 				case GameEngine::TextureUsage::SampledColorAttachment:
@@ -3459,7 +3486,7 @@ namespace VK
 					attachments.Add(
 						vk::ClearAttachment()
 						.setAspectMask(aspectMask)
-						.setColorAttachment(k)
+						.setColorAttachment(VK_ATTACHMENT_UNUSED)
 						.setClearValue(vk::ClearDepthStencilValue(1.0f, 0)));
 				else
 					attachments.Add(
@@ -3472,7 +3499,7 @@ namespace VK
 				rects.Add(
 					vk::ClearRect()
 					.setBaseArrayLayer(0)
-					.setLayerCount(1)
+					.setLayerCount(layers)
 					.setRect(vk::Rect2D(vk::Offset2D(0, 0), vk::Extent2D(w, h)))
 				);
 			}
@@ -3480,7 +3507,6 @@ namespace VK
 				vk::ArrayProxy<const vk::ClearAttachment>(attachments.Count(), attachments.Buffer()),
 				vk::ArrayProxy<const vk::ClearRect>(rects.Count(), rects.Buffer())
 			);
-
 		}
 	};
 
@@ -3494,14 +3520,14 @@ namespace VK
 		vk::SurfaceKHR surface;
 		vk::SwapchainKHR swapchain;
 
-		std::vector<vk::Image> images; //alternatively could call getSwapchainImages each time
-		std::vector<vk::CommandBuffer> commandBuffers;
+		CoreLib::List<vk::Image> images; //alternatively could call getSwapchainImages each time
+		CoreLib::List<vk::CommandBuffer> commandBuffers;
 		vk::Semaphore imageAvailableSemaphore;
 		vk::Semaphore renderingFinishedSemaphore;
 
 		void CreateSwapchain()
 		{
-			std::vector<vk::SurfaceFormatKHR> surfaceFormats = RendererState::PhysicalDevice().getSurfaceFormatsKHR(surface).value;
+			std::vector<vk::SurfaceFormatKHR> surfaceFormats = RendererState::PhysicalDevice().getSurfaceFormatsKHR(surface);
 			vk::Format format;
 			vk::ColorSpaceKHR colorSpace = surfaceFormats.at(0).colorSpace;
 			if ((surfaceFormats.size() == 1) && (surfaceFormats.at(0).format == vk::Format::eUndefined))
@@ -3511,7 +3537,7 @@ namespace VK
 
 			// Select presentation mode
 			vk::PresentModeKHR presentMode = vk::PresentModeKHR::eFifo; // Fifo presentation mode is guaranteed
-			for (auto & mode : RendererState::PhysicalDevice().getSurfacePresentModesKHR(surface).value)
+			for (auto & mode : RendererState::PhysicalDevice().getSurfacePresentModesKHR(surface))
 			{
 				// If we can use mailbox, use it.
 				if (mode == vk::PresentModeKHR::eMailbox)
@@ -3521,7 +3547,7 @@ namespace VK
 				}
 			}
 
-			vk::SurfaceCapabilitiesKHR surfaceCapabilities = RendererState::PhysicalDevice().getSurfaceCapabilitiesKHR(surface).value;
+			vk::SurfaceCapabilitiesKHR surfaceCapabilities = RendererState::PhysicalDevice().getSurfaceCapabilitiesKHR(surface);
 
 			unsigned int desiredSwapchainImages = 3;
 			if (desiredSwapchainImages < surfaceCapabilities.minImageCount) {
@@ -3567,15 +3593,21 @@ namespace VK
 				.setClipped(VK_TRUE)
 				.setOldSwapchain(oldSwapchain);
 
-			swapchain = RendererState::Device().createSwapchainKHR(swapchainCreateInfo).value;
+			swapchain = RendererState::Device().createSwapchainKHR(swapchainCreateInfo);
 			DestroySwapchain(oldSwapchain);
 
-			images = RendererState::Device().getSwapchainImagesKHR(swapchain).value;
+			unsigned int swapchainImageCount = 0;
+			vk::Result result = vk::Device().getSwapchainImagesKHR(swapchain, &swapchainImageCount, nullptr);
+			if (result == vk::Result::eSuccess && swapchainImageCount)
+				images.Reserve(swapchainImageCount);
+			else
+				throw HardwareRendererException("Failed to create swapchain");
+			RendererState::Device().getSwapchainImagesKHR(swapchain, &swapchainImageCount, images.Buffer());
 		}
 
-		virtual CoreLib::String GetSpireBackendName() override
+		virtual int GetSpireTarget() override
 		{
-			return "spirv";
+			return SPIRE_GLSL_VULKAN;
 		}
 
 		void CreateCommandBuffers()
@@ -3585,9 +3617,10 @@ namespace VK
 			vk::CommandBufferAllocateInfo commandBufferAllocateInfo = vk::CommandBufferAllocateInfo()
 				.setCommandPool(RendererState::SwapchainCommandPool())
 				.setLevel(vk::CommandBufferLevel::ePrimary)
-				.setCommandBufferCount((uint32_t)images.size());
+				.setCommandBufferCount((uint32_t)images.Count());
 
-			commandBuffers = RendererState::Device().allocateCommandBuffers(commandBufferAllocateInfo).value;
+			commandBuffers.Reserve(commandBufferAllocateInfo.commandBufferCount);
+			RendererState::Device().allocateCommandBuffers(&commandBufferAllocateInfo, commandBuffers.Buffer());
 		}
 
 		void CreateSemaphores()
@@ -3595,8 +3628,8 @@ namespace VK
 			DestroySemaphores();
 
 			vk::SemaphoreCreateInfo semaphoreCreateInfo;
-			imageAvailableSemaphore = RendererState::Device().createSemaphore(semaphoreCreateInfo).value;
-			renderingFinishedSemaphore = RendererState::Device().createSemaphore(semaphoreCreateInfo).value;
+			imageAvailableSemaphore = RendererState::Device().createSemaphore(semaphoreCreateInfo);
+			renderingFinishedSemaphore = RendererState::Device().createSemaphore(semaphoreCreateInfo);
 		}
 
 		void DestroySemaphores()
@@ -3634,7 +3667,7 @@ namespace VK
 
 		void Clear()
 		{
-			for (size_t image = 0; image < images.size(); image++)
+			for (size_t image = 0; image < images.Count(); image++)
 			{
 				//TODO: see if following line is beneficial
 				commandBuffers[image].reset(vk::CommandBufferResetFlags()); // implicitly done by begin
@@ -3732,13 +3765,13 @@ namespace VK
 			this->width = pwidth;
 			this->height = pheight;
 
-			size_t oldImageCount = images.size();
+			size_t oldImageCount = images.Count();
 
 			CreateSwapchain();
-			if (images.size() != oldImageCount) CreateCommandBuffers();
+			if (images.Count() != oldImageCount) CreateCommandBuffers();
 			//CreateSemaphores(); //TODO: Can the semaphores get stuck?
 
-			Clear(); //TODO: Should be "re-record" with old commands and new size?
+			Clear();
 		}
 
 		virtual void ClearTexture(GameEngine::Texture2D* texture) override
@@ -3791,7 +3824,7 @@ namespace VK
 			RendererState::RenderQueue().submit(submitInfo, primaryFence);
 		}
 
-		virtual void ExecuteCommandBuffers(GameEngine::FrameBuffer* frameBuffer, CoreLib::ArrayView<GameEngine::CommandBuffer*> commands) override
+		virtual void ExecuteCommandBuffers(GameEngine::FrameBuffer* frameBuffer, CoreLib::ArrayView<GameEngine::CommandBuffer*> commands, GameEngine::Fence* fence) override
 		{
 			// Create command buffer begin info
 			vk::CommandBufferBeginInfo primaryBeginInfo = vk::CommandBufferBeginInfo()
@@ -4001,7 +4034,8 @@ namespace VK
 		}
 		virtual void Present(GameEngine::Texture2D* srcImage) override
 		{
-			auto nextImage = RendererState::Device().acquireNextImageKHR(swapchain, UINT64_MAX, imageAvailableSemaphore, vk::Fence()).value;
+			if (images.Count() == 0) return;
+			uint32_t nextImage = RendererState::Device().acquireNextImageKHR(swapchain, UINT64_MAX, imageAvailableSemaphore, vk::Fence()).value;
 
 			//TODO: see if following line is beneficial
 			commandBuffers[nextImage].reset(vk::CommandBufferResetFlags()); // implicitly done by begin
@@ -4164,19 +4198,33 @@ namespace VK
 			RendererState::RenderQueue().presentKHR(presentInfo);
 		}
 
-		BufferObject* CreateBuffer(BufferUsage usage)
+		virtual BufferObject* CreateBuffer(BufferUsage usage, int size) override
 		{
-			return new BufferObject(TranslateUsageFlags(usage), vk::MemoryPropertyFlagBits::eDeviceLocal);
+			return new BufferObject(TranslateUsageFlags(usage), size, vk::MemoryPropertyFlagBits::eDeviceLocal);
 		}
 
-
-		virtual BufferObject* CreateMappedBuffer(BufferUsage usage) override
+		virtual BufferObject* CreateMappedBuffer(BufferUsage usage, int size) override
 		{
-			return new BufferObject(TranslateUsageFlags(usage), vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+			return new BufferObject(TranslateUsageFlags(usage), size, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+		}
+
+		Texture2D* CreateTexture2D(int width, int height, StorageFormat format, DataType dataType, void* data)
+		{
+			//TODO: implement
+			if (format == StorageFormat::Depth24Stencil8 || format == StorageFormat::Depth32)
+				return new Texture2D(TextureUsage::SampledDepthAttachment, width, height, 1, format);
+			else
+				return new Texture2D(TextureUsage::SampledColorAttachment, width, height, 1, format);
 		}
 
 		Texture2D* CreateTexture2D(TextureUsage usage, int width, int height, int mipLevelCount, StorageFormat format)
 		{
+			return new Texture2D(usage, width, height, mipLevelCount, format);
+		}
+
+		Texture2D* CreateTexture2D(TextureUsage usage, int width, int height, int mipLevelCount, StorageFormat format, DataType dataType, CoreLib::ArrayView<void*> mipLevelData)
+		{
+			//TODO: implement
 			return new Texture2D(usage, width, height, mipLevelCount, format);
 		}
 
@@ -4185,9 +4233,9 @@ namespace VK
 			return new Texture2DArray(usage, w, h, mipLevelCount, layers, format);
 		}
 
-		Texture3D * CreateTexture3D(TextureUsage /*usage*/, int /*w*/, int /*h*/, int /*layers*/, int /*mipLevelCount*/, StorageFormat /*format*/)
+		Texture3D * CreateTexture3D(TextureUsage usage, int w, int h, int d, int mipLevelCount, StorageFormat format)
 		{
-			throw CoreLib::NotImplementedException();
+			return new Texture3D(usage, w, h, d, mipLevelCount, format);
 		}
 
 		TextureSampler* CreateTextureSampler()
@@ -4212,6 +4260,26 @@ namespace VK
 			return new PipelineBuilder();
 		}
 
+		virtual DescriptorSetLayout* CreateDescriptorSetLayout(CoreLib::ArrayView<DescriptorLayout> descriptors) override
+		{
+			return new DescriptorSetLayout(descriptors);
+		}
+
+		virtual DescriptorSet * CreateDescriptorSet(GameEngine::DescriptorSetLayout* layout) override
+		{
+			return new DescriptorSet(reinterpret_cast<VK::DescriptorSetLayout*>(layout));
+		}
+
+		virtual int GetDescriptorPoolCount() override
+		{
+			throw CoreLib::NotImplementedException("GetDescriptorPoolCount");
+		}
+
+		Fence* CreateFence()
+		{
+			return new Fence();
+		}
+
 		CommandBuffer* CreateCommandBuffer()
 		{
 			return new CommandBuffer();
@@ -4226,6 +4294,16 @@ namespace VK
 			return (int)RendererState::PhysicalDevice().getProperties().limits.minStorageBufferOffsetAlignment;
 		}
 
+		virtual void BeginDataTransfer() override
+		{
+			//TODO: implement
+		}
+
+		virtual void EndDataTransfer() override
+		{
+			//TODO: implement
+		}
+
 		virtual void * GetWindowHandle() override
 		{
 			return handle;
@@ -4237,13 +4315,4 @@ HardwareRenderer* GameEngine::CreateVulkanHardwareRenderer(int gpuId)
 {
 	VK::GpuId = gpuId;
 	return new VK::HardwareRenderer();
-}
-#endif
-
-namespace GameEngine
-{
-	HardwareRenderer* GameEngine::CreateVulkanHardwareRenderer(int /*gpuId*/)
-	{
-		return nullptr;
-	}
 }

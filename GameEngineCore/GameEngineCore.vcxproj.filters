@@ -125,9 +125,6 @@
     <ClInclude Include="Material.h" />
     <ClInclude Include="DynamicVariable.h" />
     <ClInclude Include="Engine.h" />
-    <ClInclude Include="VulkanAPI\vk_cpp.hpp">
-      <Filter>Renderer\RenderAPI\Vulkan API</Filter>
-    </ClInclude>
     <ClInclude Include="VulkanAPI\vkel.h">
       <Filter>Renderer\RenderAPI\Vulkan API</Filter>
     </ClInclude>
@@ -217,6 +214,12 @@
     </ClInclude>
     <ClInclude Include="DeviceMemory.h">
       <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleInstance.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="VulkanAPI\vulkan.hpp">
+      <Filter>Renderer\RenderAPI\Vulkan API</Filter>
     </ClInclude>
     <ClInclude Include="FrustumCulling.h">
       <Filter>Renderer</Filter>
