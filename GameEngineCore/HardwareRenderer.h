@@ -68,45 +68,6 @@ namespace GameEngine
 		Unused, UniformBuffer, StorageBuffer, Texture, Sampler
 	};
 
-	struct DescriptorLayout
-	{
-		int Location; //> location in the descritpor set
-		BindingType Type; //< type of the resource binding this descriptor is about
-		// LegacyBindingPoint is used by OpenGL renderer so that it knows what actual binding point this descriptor maps to.
-		// This information is provided by the shader compiler.
-		CoreLib::List<int> LegacyBindingPoints;
-		DescriptorLayout() = default;
-		DescriptorLayout(int loc, BindingType type, int legacyBinding = -1)
-		{
-			Location = loc;
-			Type = type;
-			if (legacyBinding != -1)
-				LegacyBindingPoints.Add(legacyBinding);
-		}
-	};
-
-	class DescriptorSetLayout : public CoreLib::RefObject
-	{
-	protected:
-		DescriptorSetLayout() {}
-	};
-
-	class Texture;
-	class TextureSampler;
-	class Buffer;
-
-	class DescriptorSet : public CoreLib::RefObject
-	{
-	protected:
-		DescriptorSet() {}
-	public:
-		virtual void BeginUpdate() = 0;
-		virtual void Update(int location, Texture* texture) = 0;
-		virtual void Update(int location, TextureSampler* sampler) = 0;
-		virtual void Update(int location, Buffer* buffer, int offset = 0, int length = -1) = 0;
-		virtual void EndUpdate() = 0;
-	};
-
 	enum class DataType
 	{
 		Byte = 0x10, Byte2 = 0x11, Byte3 = 0x12, Byte4 = 0x13,
@@ -410,7 +371,11 @@ namespace GameEngine
 		virtual void Unmap() = 0;
 	};
 
-	class Texture : public CoreLib::RefObject {};
+	class Texture : public CoreLib::RefObject
+	{
+	protected:
+		Texture() {};
+	};
 
 	class Texture2D : public Texture
 	{
@@ -586,6 +551,43 @@ namespace GameEngine
 		int range;
 	};
 
+	struct DescriptorLayout
+	{
+		int Location; //> location in the descritpor set
+		BindingType Type; //< type of the resource binding this descriptor is about
+						  // LegacyBindingPoint is used by OpenGL renderer so that it knows what actual binding point this descriptor maps to.
+						  // This information is provided by the shader compiler.
+		CoreLib::List<int> LegacyBindingPoints;
+		DescriptorLayout() = default;
+		DescriptorLayout(int loc, BindingType type, int legacyBinding = -1)
+		{
+			Location = loc;
+			Type = type;
+			if (legacyBinding != -1)
+				LegacyBindingPoints.Add(legacyBinding);
+		}
+	};
+
+	// API specific class that holds internal representation of DescriptorSetLayout
+	class DescriptorSetLayout : public CoreLib::RefObject
+	{
+	protected:
+		DescriptorSetLayout() {}
+	};
+
+	class DescriptorSet : public CoreLib::RefObject
+	{
+	protected:
+		DescriptorSet() {}
+	public:
+		virtual void BeginUpdate() = 0;
+		virtual void Update(int location, Texture* texture) = 0;
+		virtual void Update(int location, TextureSampler* sampler) = 0;
+		virtual void Update(int location, Buffer* buffer, int offset = 0, int length = -1) = 0;
+		virtual void EndUpdate() = 0;
+	};
+
+	// API specific class that holds the pipeline representation
 	class Pipeline : public CoreLib::RefObject
 	{
 	protected:
@@ -643,7 +645,6 @@ namespace GameEngine
 		virtual void DrawIndexed(int firstIndex, int indexCount) = 0;
 		virtual void DrawIndexedInstanced(int numInstances, int firstIndex, int indexCount) = 0;
 		virtual void Blit(Texture2D* dstImage, Texture2D* srcImage) = 0;
-		virtual void ClearAttachments(CoreLib::ArrayView<TextureUsage> renderAttachments, int w, int h) = 0;
 		virtual void ClearAttachments(FrameBuffer * frameBuffer) = 0;
 	};
 
@@ -671,12 +672,12 @@ namespace GameEngine
 		virtual Texture2D* CreateTexture2D(TextureUsage usage, int width, int height, int mipLevelCount, StorageFormat format, DataType type, CoreLib::ArrayView<void*> mipLevelData) = 0;
 		virtual Texture2DArray* CreateTexture2DArray(TextureUsage usage, int width, int height, int layers, int mipLevelCount, StorageFormat format) = 0;
 		virtual Texture3D* CreateTexture3D(TextureUsage usage, int width, int height, int depth, int mipLevelCount, StorageFormat format) = 0;
-		virtual TextureSampler * CreateTextureSampler() = 0;
+		virtual TextureSampler* CreateTextureSampler() = 0;
 		virtual Shader* CreateShader(ShaderType stage, const char* data, int size) = 0;
 		virtual RenderTargetLayout* CreateRenderTargetLayout(CoreLib::ArrayView<TextureUsage> bindings) = 0;
 		virtual PipelineBuilder* CreatePipelineBuilder() = 0;
 		virtual DescriptorSetLayout* CreateDescriptorSetLayout(CoreLib::ArrayView<DescriptorLayout> descriptors) = 0;
-		virtual DescriptorSet * CreateDescriptorSet(DescriptorSetLayout* layout) = 0;
+		virtual DescriptorSet* CreateDescriptorSet(DescriptorSetLayout* layout) = 0;
 		virtual int GetDescriptorPoolCount() = 0;
 		virtual CommandBuffer* CreateCommandBuffer() = 0;
 		virtual int GetSpireTarget() = 0;

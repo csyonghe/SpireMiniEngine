@@ -252,7 +252,7 @@
     <ClInclude Include="TextureTool\LibSquish.h" />
     <ClInclude Include="UISystem_Windows.h" />
     <ClInclude Include="VulkanAPI\vkel.h" />
-    <ClInclude Include="VulkanAPI\vk_cpp.hpp" />
+    <ClInclude Include="VulkanAPI\vulkan.hpp" />
     <ClInclude Include="WorldRenderPass.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
