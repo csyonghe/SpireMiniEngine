@@ -89,6 +89,10 @@ namespace GameEngine
 			Global::Colors = CreateDarkColorTable();
 			uiEntry = new UIEntry(args.Width, args.Height, uiSystemInterface.Ptr());
 			uiSystemInterface->SetEntry(uiEntry.Ptr());
+			renderer->GetHardwareRenderer()->BeginDataTransfer();
+			//uiSystemInterface->SetResolution(args.Width, args.Height);
+			renderer->GetHardwareRenderer()->EndDataTransfer();
+
 			uiCommandForm = new CommandForm(uiEntry.Ptr());
 			uiCommandForm->OnCommand.Bind(this, &Engine::OnCommand);
             if (!args.NoConsole)
@@ -215,10 +219,10 @@ namespace GameEngine
 	{
 		if (renderer && w > 2 && h > 2)
 		{
-			renderer->GetHardwareRenderer()->BeginDataTransfer();
-			renderer->Resize(w, h);
-			uiSystemInterface->SetResolution(w, h);
-			renderer->GetHardwareRenderer()->EndDataTransfer();
+			//renderer->GetHardwareRenderer()->BeginDataTransfer();
+			//renderer->Resize(w, h);
+			//uiSystemInterface->SetResolution(w, h);
+			//renderer->GetHardwareRenderer()->EndDataTransfer();
 		}
 	}
 

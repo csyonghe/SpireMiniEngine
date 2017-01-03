@@ -108,7 +108,7 @@ namespace VK
 			}
 		}
 
-		inline VKAPI_ATTR VkBool32 VKAPI_CALL VkDebug::DebugCallback(
+		VKAPI_ATTR VkBool32 VKAPI_CALL VkDebug::DebugCallback(
 			VkDebugReportFlagsEXT      flags,
 			VkDebugReportObjectTypeEXT objectType,
 			uint64_t                   object,
@@ -1106,10 +1106,6 @@ namespace VK
 			if (memory) RendererState::Device().freeMemory(memory);
 			if (view) RendererState::Device().destroyImageView(view);
 			if (image) RendererState::Device().destroyImage(image);
-		}
-
-		void SetData(int mipLevel, int width, int height, int depth, int layerOffset, int numLayers) {
-
 		}
 	};
 
@@ -3449,9 +3445,9 @@ namespace VK
 
 				auto& attach = renderAttachments.attachments[k];
 
-				int w, h;
-				int layers;
-				TextureUsage usage;
+				int w = 0, h = 0;
+				int layers = 0;
+				TextureUsage usage = TextureUsage::SampledColorAttachment;
 				if (attach.handle.tex2D)
 				{
 					auto internalHandle = dynamic_cast<VK::Texture2D*>(attach.handle.tex2D);
@@ -3667,7 +3663,7 @@ namespace VK
 
 		void Clear()
 		{
-			for (size_t image = 0; image < images.Count(); image++)
+			for (int image = 0; image < images.Count(); image++)
 			{
 				//TODO: see if following line is beneficial
 				commandBuffers[image].reset(vk::CommandBufferResetFlags()); // implicitly done by begin
@@ -3855,7 +3851,7 @@ namespace VK
 #if SHARED_EVENT
 				((VK::CommandBuffer*)(buffer))->submitEvent = curEvent;
 #else
-				RendererState::Device().resetEvent(((VK::CommandBuffer*)(buffer))->submitEvent);
+				//RendererState::Device().resetEvent(((VK::CommandBuffer*)(buffer))->submitEvent);
 #endif
 			}
 
@@ -3873,8 +3869,8 @@ namespace VK
 #if SHARED_EVENT
 			primaryBuffer.setEvent(curEvent->internalEvent, vk::PipelineStageFlagBits::eBottomOfPipe);
 #else
-			for (auto& buffer : commands)
-				primaryBuffer.setEvent(((VK::CommandBuffer*)(buffer))->submitEvent, vk::PipelineStageFlagBits::eBottomOfPipe);
+			//for (auto& buffer : commands)
+			//	primaryBuffer.setEvent(((VK::CommandBuffer*)(buffer))->submitEvent, vk::PipelineStageFlagBits::eBottomOfPipe);
 #endif
 
 			primaryBuffer.end();
@@ -4200,7 +4196,8 @@ namespace VK
 
 		virtual BufferObject* CreateBuffer(BufferUsage usage, int size) override
 		{
-			return new BufferObject(TranslateUsageFlags(usage), size, vk::MemoryPropertyFlagBits::eDeviceLocal);
+			return CreateMappedBuffer(usage, size);
+			//return new BufferObject(TranslateUsageFlags(usage), size, vk::MemoryPropertyFlagBits::eDeviceLocal);
 		}
 
 		virtual BufferObject* CreateMappedBuffer(BufferUsage usage, int size) override
@@ -4208,24 +4205,24 @@ namespace VK
 			return new BufferObject(TranslateUsageFlags(usage), size, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
 		}
 
-		Texture2D* CreateTexture2D(int width, int height, StorageFormat format, DataType dataType, void* data)
+		Texture2D* CreateTexture2D(int pwidth, int pheight, StorageFormat format, DataType dataType, void* data)
 		{
 			//TODO: implement
 			if (format == StorageFormat::Depth24Stencil8 || format == StorageFormat::Depth32)
-				return new Texture2D(TextureUsage::SampledDepthAttachment, width, height, 1, format);
+				return new Texture2D(TextureUsage::SampledDepthAttachment, pwidth, pheight, 1, format);
 			else
-				return new Texture2D(TextureUsage::SampledColorAttachment, width, height, 1, format);
+				return new Texture2D(TextureUsage::SampledColorAttachment, pwidth, pheight, 1, format);
 		}
 
-		Texture2D* CreateTexture2D(TextureUsage usage, int width, int height, int mipLevelCount, StorageFormat format)
+		Texture2D* CreateTexture2D(TextureUsage usage, int pwidth, int pheight, int mipLevelCount, StorageFormat format)
 		{
-			return new Texture2D(usage, width, height, mipLevelCount, format);
+			return new Texture2D(usage, pwidth, pheight, mipLevelCount, format);
 		}
 
-		Texture2D* CreateTexture2D(TextureUsage usage, int width, int height, int mipLevelCount, StorageFormat format, DataType dataType, CoreLib::ArrayView<void*> mipLevelData)
+		Texture2D* CreateTexture2D(TextureUsage usage, int pwidth, int pheight, int mipLevelCount, StorageFormat format, DataType dataType, CoreLib::ArrayView<void*> mipLevelData)
 		{
 			//TODO: implement
-			return new Texture2D(usage, width, height, mipLevelCount, format);
+			return new Texture2D(usage, pwidth, pheight, mipLevelCount, format);
 		}
 
 		Texture2DArray * CreateTexture2DArray(TextureUsage usage, int w, int h, int layers, int mipLevelCount, StorageFormat format)
