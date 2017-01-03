@@ -1092,7 +1092,7 @@ namespace VK
 				.setAspectMask(aspectFlags)
 				.setBaseMipLevel(0)
 				.setLevelCount(mipLevels)
-				.setBaseArrayLayer(1)
+				.setBaseArrayLayer(0)
 				.setLayerCount(arrayLayers);
 
 			vk::ImageViewCreateInfo imageViewCreateInfo = vk::ImageViewCreateInfo()
