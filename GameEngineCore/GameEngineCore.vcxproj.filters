@@ -215,9 +215,6 @@
     <ClInclude Include="DeviceMemory.h">
       <Filter>Renderer</Filter>
     </ClInclude>
-    <ClInclude Include="ModuleInstance.h">
-      <Filter>Renderer</Filter>
-    </ClInclude>
     <ClInclude Include="VulkanAPI\vulkan.hpp">
       <Filter>Renderer\RenderAPI\Vulkan API</Filter>
     </ClInclude>
