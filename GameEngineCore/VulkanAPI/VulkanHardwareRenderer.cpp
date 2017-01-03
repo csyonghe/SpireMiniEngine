@@ -2481,21 +2481,8 @@ namespace VK
 			CloseHandle(procInfo.hThread);
 			if (compiledFileName.Length())
 			{
-				BinaryReader reader(new FileStream(compiledFileName));
-				List<unsigned int> code;
-				bool done = false;
-				while (!done)
-				{
-					try
-					{
-						code.Add(reader.ReadInt32());
-					}
-					catch (Exception)
-					{
-						done = true;
-					}
-				}
-				vk::ShaderModuleCreateInfo createInfo(vk::ShaderModuleCreateFlags(), code.Count() * sizeof(int), code.Buffer());
+				auto code = File::ReadAllBytes(compiledFileName);
+				vk::ShaderModuleCreateInfo createInfo(vk::ShaderModuleCreateFlags(), code.Count(), (unsigned int *)code.Buffer());
 				this->module = RendererState::Device().createShaderModule(createInfo);
 
 			}
