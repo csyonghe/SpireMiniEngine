@@ -31,14 +31,17 @@ namespace GameEngine
 			pipelineBuilder->SetDebugName("deferred_lighting");
 			deferredDescSet = hwRenderer->CreateDescriptorSet(descLayouts[0].Ptr());
 		}
-		virtual void UpdatePipelineBinding(SharedModuleInstances sharedModules, DescriptorSetBindings & binding, RenderAttachments & attachments) override
+		virtual void UpdateDescriptorSetBinding(SharedModuleInstances sharedModules, DescriptorSetBindings & binding) override
 		{
-			if (!litColorBuffer->Texture)
-				return;
 			binding.Bind(0, deferredDescSet.Ptr());
 			binding.Bind(1, sharedModules.View->GetCurrentDescriptorSet());
 			binding.Bind(2, sharedModules.Lighting->GetCurrentDescriptorSet());
-
+		}
+		virtual void UpdateRenderAttachments(RenderAttachments & attachments) override
+		{
+			if (!litColorBuffer->Texture)
+				return;
+			
 			deferredDescSet->BeginUpdate();
 			deferredDescSet->Update(1, baseColorBuffer->Texture.Ptr());
 			deferredDescSet->Update(2, pbrBuffer->Texture.Ptr());

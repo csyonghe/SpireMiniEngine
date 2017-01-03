@@ -189,12 +189,27 @@ namespace GameEngine
 		RendererService * rendererService;
 	};
 
+	class SharedModuleInstances
+	{
+	public:
+		ModuleInstance * View;
+		ModuleInstance * Lighting;
+	};
+
+	struct FrameRenderTask
+	{
+		CoreLib::List<RenderPassInstance> renderPasses;
+		CoreLib::List<PostRenderPass*> postPasses;
+		SharedModuleInstances sharedModuleInstances;
+		void Clear();
+	};
+
 	class IRenderProcedure : public CoreLib::RefObject
 	{
 	public:
 		virtual void Init(Renderer * renderer) = 0;
 		virtual void ResizeFrame(int width, int height) = 0;
-		virtual void Run(CoreLib::List<RenderPassInstance> & renderPasses, CoreLib::List<PostRenderPass*> & postPasses, const RenderProcedureParameters & params) = 0;
+		virtual void Run(FrameRenderTask & task, const RenderProcedureParameters & params) = 0;
 		virtual RenderTarget* GetOutput() = 0;
 	};
 
