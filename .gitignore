@@ -260,3 +260,5 @@ paket-files/
 /codeonlyexcludelist.txt
 /updateSpireLib.bat
 [Cc]ache/[Ss]haders/
+/ExampleGame/Cache/Shaders/temp.vert
+/ExampleGame/Cache/Shaders/temp.frag

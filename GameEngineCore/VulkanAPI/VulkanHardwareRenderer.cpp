@@ -719,7 +719,8 @@ namespace VK
 
 	DescriptorPoolObject::DescriptorPoolObject() {
 		CoreLib::List<vk::DescriptorPoolSize> poolSizes;
-		poolSizes.Add(vk::DescriptorPoolSize(vk::DescriptorType::eCombinedImageSampler, 20000));
+		poolSizes.Add(vk::DescriptorPoolSize(vk::DescriptorType::eSampler, 200));
+		poolSizes.Add(vk::DescriptorPoolSize(vk::DescriptorType::eSampledImage, 20000));
 		poolSizes.Add(vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, 5000));
 		poolSizes.Add(vk::DescriptorPoolSize(vk::DescriptorType::eStorageBuffer, 2500));
 
@@ -1091,13 +1092,13 @@ namespace VK
 				.setAspectMask(aspectFlags)
 				.setBaseMipLevel(0)
 				.setLevelCount(mipLevels)
-				.setBaseArrayLayer(0)
+				.setBaseArrayLayer(1)
 				.setLayerCount(arrayLayers);
 
 			vk::ImageViewCreateInfo imageViewCreateInfo = vk::ImageViewCreateInfo()
 				.setFlags(vk::ImageViewCreateFlags())
 				.setImage(image)
-				.setViewType(vk::ImageViewType::e2D)
+				.setViewType(depth == 1 ? (arrayLayers == 1 ? vk::ImageViewType::e2D : vk::ImageViewType::e2DArray) : vk::ImageViewType::e3D)
 				.setFormat(imageCreateInfo.format)
 				.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA))//
 				.setSubresourceRange(imageSubresourceRange);
