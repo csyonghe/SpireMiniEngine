@@ -2,22 +2,26 @@
 
 #include "vkel.h"
 #include "vulkan.hpp"
-
 #include "CoreLib/WinForm/Debug.h"
 #include "CoreLib/VectorMath.h"
 #include "CoreLib/PerformanceCounter.h"
 #include "../Spire/Spire.h"
 
+//using glslang lib for now to generate spirv
+#include "../Engine.h"
+#include "CoreLib/LibIO.h"
+
 // Only execute actions of DEBUG_ONLY in DEBUG mode
 #if _DEBUG
 #define DEBUG_ONLY(x) do { x; } while(0)
-//#define USE_VALIDATION_LAYER 1
+#define USE_VALIDATION_LAYER 1
 #else
 #define DEBUG_ONLY(x) do {    } while(0)
 #endif
 
 
 using namespace GameEngine;
+using namespace CoreLib::IO;
 
 namespace VK
 {
@@ -2437,13 +2441,64 @@ namespace VK
 			Destroy();
 
 			this->stage = pstage;
+			const char * postfix = "vert";
+			switch (pstage)
+			{
+			case ShaderType::VertexShader:
+				postfix = "vert";
+				break;
+			case ShaderType::FragmentShader:
+				postfix = "frag";
+				break;
+			case ShaderType::HullShader:
+				postfix = "tesc";
+				break;
+			case ShaderType::DomainShader:
+				postfix = "tese";
+				break;
+			}
+			auto tempFileName = Path::Combine(Engine::Instance()->GetDirectory(false, ResourceType::ShaderCache), "temp." + String(postfix));
+			tempFileName = tempFileName.ReplaceAll("/", "\\");
+			File::WriteAllText(tempFileName, data);
+			auto glslc = Engine::Instance()->FindFile("glslangValidator.exe", ResourceType::ExtTools);
+			if (!glslc.Length())
+				throw HardwareRendererException("glslc not found.");
+			auto compiledFileName = Path::Combine(Engine::Instance()->GetDirectory(false, ResourceType::ShaderCache), String(postfix) + ".spv");
+			DeleteFileW(compiledFileName.ToWString());
+			STARTUPINFO startupInfo;
+			PROCESS_INFORMATION procInfo;
+			memset(&startupInfo, 0, sizeof(STARTUPINFO));
+			memset(&procInfo, 0, sizeof(PROCESS_INFORMATION));
+			startupInfo.cb = sizeof(STARTUPINFO);
+			int succ = CreateProcessW(nullptr, (LPWSTR)(glslc + " -V \"" + tempFileName + "\"").ToWString(),
+				nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr,
+				Path::GetDirectoryName(tempFileName).ToWString(), &startupInfo, &procInfo);
+			WaitForSingleObject(procInfo.hProcess, INFINITE);
+			DWORD exitCode;
+			GetExitCodeProcess(procInfo.hProcess, &exitCode);
 
-			vk::ShaderModuleCreateInfo shaderModuleCreateInfo = vk::ShaderModuleCreateInfo()
-				.setFlags(vk::ShaderModuleCreateFlags())
-				.setCodeSize(size)
-				.setPCode((uint32_t*)data);
+			CloseHandle(procInfo.hProcess);
+			CloseHandle(procInfo.hThread);
+			if (compiledFileName.Length())
+			{
+				BinaryReader reader(new FileStream(compiledFileName));
+				List<unsigned int> code;
+				bool done = false;
+				while (!done)
+				{
+					try
+					{
+						code.Add(reader.ReadInt32());
+					}
+					catch (Exception)
+					{
+						done = true;
+					}
+				}
+				vk::ShaderModuleCreateInfo createInfo(vk::ShaderModuleCreateFlags(), code.Count() * sizeof(int), code.Buffer());
+				this->module = RendererState::Device().createShaderModule(createInfo);
 
-			this->module = RendererState::Device().createShaderModule(shaderModuleCreateInfo);
+			}
 		}
 
 		void Destroy()
@@ -3591,11 +3646,11 @@ namespace VK
 
 			swapchain = RendererState::Device().createSwapchainKHR(swapchainCreateInfo);
 			DestroySwapchain(oldSwapchain);
-
+			images.SetSize(200);
 			unsigned int swapchainImageCount = 0;
-			vk::Result result = vk::Device().getSwapchainImagesKHR(swapchain, &swapchainImageCount, nullptr);
+			vk::Result result = RendererState::Device().getSwapchainImagesKHR(swapchain, &swapchainImageCount, nullptr);
 			if (result == vk::Result::eSuccess && swapchainImageCount)
-				images.Reserve(swapchainImageCount);
+				images.SetSize(swapchainImageCount);
 			else
 				throw HardwareRendererException("Failed to create swapchain");
 			RendererState::Device().getSwapchainImagesKHR(swapchain, &swapchainImageCount, images.Buffer());
@@ -3615,7 +3670,7 @@ namespace VK
 				.setLevel(vk::CommandBufferLevel::ePrimary)
 				.setCommandBufferCount((uint32_t)images.Count());
 
-			commandBuffers.Reserve(commandBufferAllocateInfo.commandBufferCount);
+			commandBuffers.SetSize(commandBufferAllocateInfo.commandBufferCount);
 			RendererState::Device().allocateCommandBuffers(&commandBufferAllocateInfo, commandBuffers.Buffer());
 		}
 
@@ -3851,7 +3906,7 @@ namespace VK
 #if SHARED_EVENT
 				((VK::CommandBuffer*)(buffer))->submitEvent = curEvent;
 #else
-				//RendererState::Device().resetEvent(((VK::CommandBuffer*)(buffer))->submitEvent);
+				RendererState::Device().resetEvent(((VK::CommandBuffer*)(buffer))->submitEvent);
 #endif
 			}
 
@@ -3869,8 +3924,8 @@ namespace VK
 #if SHARED_EVENT
 			primaryBuffer.setEvent(curEvent->internalEvent, vk::PipelineStageFlagBits::eBottomOfPipe);
 #else
-			//for (auto& buffer : commands)
-			//	primaryBuffer.setEvent(((VK::CommandBuffer*)(buffer))->submitEvent, vk::PipelineStageFlagBits::eBottomOfPipe);
+			for (auto& buffer : commands)
+				primaryBuffer.setEvent(((VK::CommandBuffer*)(buffer))->submitEvent, vk::PipelineStageFlagBits::eBottomOfPipe);
 #endif
 
 			primaryBuffer.end();

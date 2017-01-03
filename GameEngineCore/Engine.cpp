@@ -350,6 +350,9 @@ namespace GameEngine
 		case ResourceType::ShaderCache:
 			subDirName = "Cache/Shaders";
 			break;
+		case ResourceType::ExtTools:
+			subDirName = "ExtTools";
+			break;
 		}
 		if (useEngineDir)
 			return Path::Combine(engineDir, subDirName);
