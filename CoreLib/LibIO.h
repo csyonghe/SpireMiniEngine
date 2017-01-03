@@ -15,6 +15,7 @@ namespace CoreLib
 		public:
 			static bool Exists(const CoreLib::Basic::String & fileName);
 			static CoreLib::Basic::String ReadAllText(const CoreLib::Basic::String & fileName);
+			static CoreLib::Basic::List<unsigned char> ReadAllBytes(const CoreLib::Basic::String & fileName);
 			static void WriteAllText(const CoreLib::Basic::String & fileName, const CoreLib::Basic::String & text);
 		};
 

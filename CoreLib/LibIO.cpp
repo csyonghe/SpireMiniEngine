@@ -120,6 +120,22 @@ namespace CoreLib
 			return reader.ReadToEnd();
 		}
 
+		CoreLib::Basic::List<unsigned char> File::ReadAllBytes(const CoreLib::Basic::String & fileName)
+		{
+			RefPtr<FileStream> fs = new FileStream(fileName, FileMode::Open, FileAccess::Read, FileShare::ReadWrite);
+			List<unsigned char> buffer;
+			while (!fs->IsEnd())
+			{
+				unsigned char ch;
+				int read = fs->Read(&ch, 1);
+				if (read)
+					buffer.Add(ch);
+				else
+					break;
+			}
+			return _Move(buffer);
+		}
+
 		void File::WriteAllText(const CoreLib::Basic::String & fileName, const CoreLib::Basic::String & text)
 		{
 			StreamWriter writer(new FileStream(fileName, FileMode::Create));
