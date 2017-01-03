@@ -259,3 +259,4 @@ paket-files/
 *.spv
 /codeonlyexcludelist.txt
 /updateSpireLib.bat
+[Cc]ache/[Ss]haders/
