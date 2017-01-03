@@ -45,12 +45,12 @@ namespace GameEngine
 	{
 		if (!inDataTransfer)
 		{
-			renderer->GetHardwareRenderer()->BeginDataTransfer();
+			/*renderer->GetHardwareRenderer()->BeginDataTransfer();
 			auto uiCommands = uiEntry->DrawUI();
 			uiSystemInterface->TransferDrawComands(renderer->GetRenderedImage(), uiCommands);
 			renderer->GetHardwareRenderer()->EndDataTransfer();
 			uiSystemInterface->ExecuteDrawCommands(nullptr);
-			renderer->GetHardwareRenderer()->Present(uiSystemInterface->GetRenderedImage());
+			renderer->GetHardwareRenderer()->Present(uiSystemInterface->GetRenderedImage());*/
 		}
 	}
 
