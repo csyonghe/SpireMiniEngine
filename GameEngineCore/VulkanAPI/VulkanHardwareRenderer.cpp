@@ -2471,7 +2471,7 @@ namespace VK
 			memset(&startupInfo, 0, sizeof(STARTUPINFO));
 			memset(&procInfo, 0, sizeof(PROCESS_INFORMATION));
 			startupInfo.cb = sizeof(STARTUPINFO);
-			int succ = CreateProcessW(nullptr, (LPWSTR)(glslc + " -V \"" + tempFileName + "\"").ToWString(),
+			int succ = CreateProcessW(nullptr, (LPWSTR)("\"" + glslc + "\" -V \"" + Path::GetFileExt(tempFileName) + "\"").ToWString(),
 				nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr,
 				Path::GetDirectoryName(tempFileName).ToWString(), &startupInfo, &procInfo);
 			WaitForSingleObject(procInfo.hProcess, INFINITE);
