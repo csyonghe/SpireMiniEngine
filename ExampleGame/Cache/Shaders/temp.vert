@@ -1,42 +1,32 @@
 #version 440
-struct SkinningResult
+layout(std140, set = 0, binding = 0) uniform bufUberUIShaderParams
 {
-vec3 pos;
-vec3 tangent;
-vec3 binormal;
+mat4 orthoMatrix;
+} UberUIShaderParams;
+layout(std430, set = 0, binding = 1) buffer bufUberUIShaderParams_uniformInput
+{
+uvec4 UberUIShaderParams_uniformInput[];
 };
-layout(set = 0, binding = 1) uniform sampler2D DeferredLightingParams_albedoTex;
-layout(set = 0, binding = 2) uniform sampler2D DeferredLightingParams_pbrTex;
-layout(set = 0, binding = 3) uniform sampler2D DeferredLightingParams_normalTex;
-layout(set = 0, binding = 4) uniform sampler2D DeferredLightingParams_depthTex;
-layout(std140, set = 1, binding = 0) uniform bufForwardBasePassParams
+layout(std430, set = 0, binding = 2) buffer bufUberUIShaderParams_textContent
 {
-mat4 viewTransform;
-mat4 viewProjectionTransform;
-mat4 invViewTransform;
-mat4 invViewProjTransform;
-vec3 cameraPos;
-float time;
-} ForwardBasePassParams;
-layout(std140, set = 2, binding = 0) uniform bufLighting
-{
-vec3 lightDir;
-vec3 lightColor;
-int shadowMapId;
-int numCascades;
-mat4[8] lightMatrix;
-vec4[2] zPlanes;
-} Lighting;
-layout(set = 2, binding = 1) uniform sampler2DArrayShadow Lighting_shadowMapArray;
-layout(location = 0) in vec2 vertPos_MeshVertex;
-layout(location = 1) in vec2 vertUV_MeshVertex;
-out vec2 vertUV_CoarseVertex;
+uint UberUIShaderParams_textContent[];
+};
+in vec2 vert_pos_rootVert;
+in vec2 vert_uv_rootVert;
+in int vert_primId_rootVert;
+flat out int vert_primId_vs;
+out vec2 vert_pos_vs;
+out vec2 vert_uv_vs;
 void main()
 {
-vec2 vertPos;
-vec2 vertUV;
-vertPos = vertPos_MeshVertex;
-vertUV = vertUV_MeshVertex;
-vertUV_CoarseVertex = vertUV;
-gl_Position = vec4(vertPos.xy, 0.000000000000e+00, 1.000000000000e+00);
+vec2 vert_pos;
+int vert_primId = 0;
+vec2 vert_uv;
+vert_pos = vert_pos_rootVert;
+vert_pos_vs = vert_pos;
+vert_primId = vert_primId_rootVert;
+vert_primId_vs = vert_primId;
+vert_uv = vert_uv_rootVert;
+vert_uv_vs = vert_uv;
+gl_Position = (UberUIShaderParams.orthoMatrix * vec4(vert_pos, 0.000000000000e+00, 1.000000000000e+00));
 }

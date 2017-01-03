@@ -580,6 +580,7 @@ namespace GameEngine
 		int paramCount = spModuleGetParameterCount(shaderModule);
 		List<DescriptorLayout> descs;
 		descs.Add(DescriptorLayout(0, BindingType::UniformBuffer));
+		int bindLoc = 1;
 		for (int i = 0; i < paramCount; i++)
 		{
 			SpireComponentInfo info;
@@ -587,7 +588,7 @@ namespace GameEngine
 			if (info.BindableResourceType != SPIRE_NON_BINDABLE)
 			{
 				DescriptorLayout layout;
-				layout.Location = i+1;
+				layout.Location = bindLoc++;
 				switch (info.BindableResourceType)
 				{
 				case SPIRE_TEXTURE:
