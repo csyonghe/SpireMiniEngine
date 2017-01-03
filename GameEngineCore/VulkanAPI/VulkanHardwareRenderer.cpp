@@ -11,7 +11,7 @@
 // Only execute actions of DEBUG_ONLY in DEBUG mode
 #if _DEBUG
 #define DEBUG_ONLY(x) do { x; } while(0)
-//#define USE_VALIDATION_LAYER 1
+#define USE_VALIDATION_LAYER 1
 #else
 #define DEBUG_ONLY(x) do {    } while(0)
 #endif
