@@ -284,7 +284,7 @@ namespace GameEngine
 					// update all versions of descriptor set with material texture binding
 					for (int i = 0; i < DynamicBufferLengthMultiplier; i++)
 					{
-						auto descSet = result->UpdateDescriptorSet();
+						auto descSet = result->GetDescriptorSet(i);
 						descSet->BeginUpdate();
 						for (auto binding : bindingLocs)
 						{
@@ -613,10 +613,10 @@ namespace GameEngine
 		rs->SetDescriptorSetLayout(hardwareRenderer.Ptr(), hardwareRenderer->CreateDescriptorSetLayout(descs.GetArrayView()));
 		for (int i = 0; i < DynamicBufferLengthMultiplier; i++)
 		{
-			auto descSet = rs->UpdateDescriptorSet();
+			auto descSet = rs->GetDescriptorSet(i);
 			descSet->BeginUpdate();
 			if (rs->UniformMemory)
-				descSet->Update(0, rs->UniformMemory->GetBuffer(), rs->BufferOffset, rs->BufferLength);
+				descSet->Update(0, rs->UniformMemory->GetBuffer(), rs->BufferOffset + rs->BufferLength * i, rs->BufferLength);
 			descSet->EndUpdate();
 		}
 		return rs;

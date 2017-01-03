@@ -75,7 +75,7 @@ namespace GameEngine
 		// Compile shaders
 		Array<SpireModule*, 32> spireModules;
 		for (auto m : modules)
-			spireModules.Add(m->module);
+			spireModules.Add(m->specializedModule);
 		SpireDiagnosticSink * sink = spCreateDiagnosticSink(spireContext);
 		auto compileRs = spCompileShader(spireContext, shader, spireModules.Buffer(), spireModules.Count(), vertFormat->GetShaderDefinition().Buffer(), sink);
 
@@ -154,10 +154,6 @@ namespace GameEngine
 			frameId = frameId % DynamicBufferLengthMultiplier;
 			int alternateBufferOffset = frameId * BufferLength;
 			memcpy(UniformPtr + alternateBufferOffset, data, length);
-			auto desc = UpdateDescriptorSet();
-			desc->BeginUpdate();
-			desc->Update(0, UniformMemory->GetBuffer(), BufferOffset + alternateBufferOffset, BufferLength);
-			desc->EndUpdate();
 			currentDescriptor = frameId;
 			frameId++;
 		}

@@ -39,11 +39,9 @@ namespace GameEngine
 		}
 		~ModuleInstance();
 		void SetDescriptorSetLayout(HardwareRenderer * hw, DescriptorSetLayout * layout);
-		DescriptorSet * UpdateDescriptorSet()
+		DescriptorSet * GetDescriptorSet(int i)
 		{
-			currentDescriptor++;
-			currentDescriptor %= DynamicBufferLengthMultiplier;
-			return descriptors[currentDescriptor].Ptr();
+			return descriptors[i].Ptr();
 		}
 		DescriptorSet * GetCurrentDescriptorSet()
 		{
