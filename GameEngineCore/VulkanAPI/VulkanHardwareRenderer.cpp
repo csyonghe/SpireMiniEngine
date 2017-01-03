@@ -558,7 +558,7 @@ namespace VK
 			// Wait for any fence to be signaled
 			Device().waitForFences(
 				vk::ArrayProxy<const vk::Fence>(State().primaryFences->Count(), State().primaryFences->Buffer()),
-				vk::Bool32(false),
+				VK_FALSE,
 				UINT64_MAX
 			);
 
@@ -3144,7 +3144,7 @@ namespace VK
 		}
 		virtual void Wait() override
 		{
-			//RendererState::Device().waitForFences(fence, true, UINT64_MAX);
+			//RendererState::Device().waitForFences(fence, VK_TRUE, UINT64_MAX);
 		}
 	};
 
@@ -3593,7 +3593,7 @@ namespace VK
 			DestroySwapchain(oldSwapchain);
 
 			unsigned int swapchainImageCount = 0;
-			vk::Result result = vk::Device().getSwapchainImagesKHR(swapchain, &swapchainImageCount, nullptr);
+			vk::Result result = RendererState::Device().getSwapchainImagesKHR(swapchain, &swapchainImageCount, nullptr);
 			if (result == vk::Result::eSuccess && swapchainImageCount)
 				images.Reserve(swapchainImageCount);
 			else
