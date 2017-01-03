@@ -2484,7 +2484,6 @@ namespace VK
 				auto code = File::ReadAllBytes(compiledFileName);
 				vk::ShaderModuleCreateInfo createInfo(vk::ShaderModuleCreateFlags(), code.Count(), (unsigned int *)code.Buffer());
 				this->module = RendererState::Device().createShaderModule(createInfo);
-
 			}
 		}
 
