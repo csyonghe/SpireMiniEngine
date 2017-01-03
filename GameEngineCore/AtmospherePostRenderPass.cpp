@@ -92,12 +92,15 @@ namespace GameEngine
 
 			atmosphereDesc = hwRenderer->CreateDescriptorSet(descLayouts[0].Ptr());
 		}
-		virtual void UpdatePipelineBinding(SharedModuleInstances sharedModules, DescriptorSetBindings & binding, RenderAttachments & attachments) override
+		virtual void UpdateDescriptorSetBinding(SharedModuleInstances sharedModules, DescriptorSetBindings & binding) override
+		{
+			binding.Bind(0, atmosphereDesc.Ptr());
+			binding.Bind(1, sharedModules.View->GetCurrentDescriptorSet());
+		}
+		virtual void UpdateRenderAttachments(RenderAttachments & attachments) override
 		{
 			if (!colorBuffer->Texture)
 				return;
-			binding.Bind(0, atmosphereDesc.Ptr());
-			binding.Bind(1, sharedModules.View->GetCurrentDescriptorSet());
 
 			atmosphereDesc->BeginUpdate();
 			atmosphereDesc->Update(0, parameterBuffer.Ptr());

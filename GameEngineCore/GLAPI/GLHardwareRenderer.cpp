@@ -1592,17 +1592,17 @@ namespace GLL
 	{
 		Program program;
 		VertexFormat format;
-		bool primitiveRestart;
-		PrimitiveType primitiveType;
-		int patchSize;
-		CompareFunc DepthCompareFunc;
-		CompareFunc StencilCompareFunc;
-		StencilOp StencilFailOp, StencilDepthFailOp, StencilDepthPassOp;
-		BlendMode BlendMode;
-		unsigned int StencilMask, StencilReference;
-		CullMode CullMode;
-		bool enablePolygonOffset;
-		float polygonOffsetFactor, polygonOffsetUnits;
+		bool primitiveRestart = false;
+		PrimitiveType primitiveType = PrimitiveType::Triangles;
+		int patchSize = 0;
+		CompareFunc DepthCompareFunc = CompareFunc::Disabled;
+		CompareFunc StencilCompareFunc = CompareFunc::Disabled;
+		StencilOp StencilFailOp = StencilOp::Replace, StencilDepthFailOp = StencilOp::Replace, StencilDepthPassOp = StencilOp::Replace;
+		BlendMode BlendMode = BlendMode::Replace;
+		unsigned int StencilMask = 255, StencilReference = 0;
+		CullMode CullMode = CullMode::Disabled;
+		bool enablePolygonOffset = false;
+		float polygonOffsetFactor = 0.0f, polygonOffsetUnits = 0.0f;
 		List<List<BindingLayout>> bindingLayout; // indexed by bindingLayout[setid][location]
 	};
 
@@ -1970,6 +1970,7 @@ namespace GLL
 		BufferBindState bufferBindState[4][64];
 		GLuint textureBindState[160];
 		GLuint samplerBindState[160];
+		PipelineSettings currentFixedFuncState;
 	private:
 		void FindExtensionSubstitutes()
 		{
@@ -2092,6 +2093,7 @@ namespace GLL
 			dstFrameBuffer = CreateFrameBuffer();
 			currentVAO = CreateVertexArray();
 			wglSwapIntervalEXT(0);
+			glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
 		}
 
 		virtual void Resize(int pwidth, int pheight) override
@@ -2136,7 +2138,6 @@ namespace GLL
 
 		virtual void ExecuteCommandBuffers(GameEngine::FrameBuffer* frameBuffer, CoreLib::ArrayView<GameEngine::CommandBuffer*> commands, GameEngine::Fence * fence) override
 		{
-			glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
 			auto fb = (GLL::FrameBufferDescriptor*)(frameBuffer);
 			auto setupFrameBuffer = [&]()
 			{
@@ -2175,9 +2176,10 @@ namespace GLL
 
 			// Prepare framebuffer
 			SetWriteFrameBuffer(srcFrameBuffer);
-			SetViewport(0, 0, width, height);
-			SetZTestMode(CompareFunc::Disabled);
-			SetStencilMode(StencilMode());
+			//SetViewport(0, 0, width, height);
+			//SetZTestMode(CompareFunc::Disabled);
+			//SetStencilMode(StencilMode());
+			//currentFixedFuncState.DepthCompareFunc = CompareFunc::Disabled;
 			// Execute command buffer
 			
 			Pipeline * currentPipeline = nullptr;
@@ -2270,37 +2272,60 @@ namespace GLL
 						{
 							currentPipeline = command.pipelineData.pipeline;
 							auto & pipelineSettings = command.pipelineData.pipeline->settings;
-							pipelineSettings.program.Use();
+							if (pipelineSettings.program.Handle != currentFixedFuncState.program.Handle)
+								pipelineSettings.program.Use();
+							if (pipelineSettings.primitiveRestart != currentFixedFuncState.primitiveRestart)
+							{
+								if (pipelineSettings.primitiveRestart)
+								{
+									glEnable(GL_PRIMITIVE_RESTART);
+									glPrimitiveRestartIndex(0xFFFFFFFF);
+								}
+								else
+								{
+									glDisable(GL_PRIMITIVE_RESTART);
+								}
+							}
+							if (pipelineSettings.primitiveType != currentFixedFuncState.primitiveType)
+							{
+								if (pipelineSettings.primitiveType == PrimitiveType::Patches)
+									glPatchParameteri(GL_PATCH_VERTICES, pipelineSettings.patchSize);
+							}
+							if (pipelineSettings.enablePolygonOffset != currentFixedFuncState.enablePolygonOffset)
+							{
+								if (pipelineSettings.enablePolygonOffset)
+								{
+									glEnable(GL_POLYGON_OFFSET_FILL);
+									glPolygonOffset(pipelineSettings.polygonOffsetFactor, pipelineSettings.polygonOffsetUnits);
+								}
+								else
+									glDisable(GL_POLYGON_OFFSET_FILL);
+							}
+							if (pipelineSettings.DepthCompareFunc != currentFixedFuncState.DepthCompareFunc)
+								SetZTestMode(pipelineSettings.DepthCompareFunc);
+							if (pipelineSettings.BlendMode != currentFixedFuncState.BlendMode)
+								SetBlendMode(pipelineSettings.BlendMode);
+							if (pipelineSettings.StencilCompareFunc != currentFixedFuncState.StencilCompareFunc ||
+								pipelineSettings.StencilDepthFailOp != currentFixedFuncState.StencilDepthFailOp ||
+								pipelineSettings.StencilDepthPassOp != currentFixedFuncState.StencilDepthPassOp ||
+								pipelineSettings.StencilFailOp != currentFixedFuncState.StencilFailOp ||
+								pipelineSettings.StencilMask != currentFixedFuncState.StencilMask ||
+								pipelineSettings.StencilReference != currentFixedFuncState.StencilReference)
+							{
+								StencilMode smode;
+								smode.DepthFail = pipelineSettings.StencilDepthFailOp;
+								smode.DepthPass = pipelineSettings.StencilDepthPassOp;
+								smode.Fail = pipelineSettings.StencilFailOp;
+								smode.StencilFunc = pipelineSettings.StencilCompareFunc;
+								smode.StencilMask = pipelineSettings.StencilMask;
+								smode.StencilReference = pipelineSettings.StencilReference;
+								SetStencilMode(smode);
+							}
+							if (pipelineSettings.CullMode != currentFixedFuncState.CullMode)
+								SetCullMode(pipelineSettings.CullMode);
+
+							currentFixedFuncState = pipelineSettings;
 							primType = pipelineSettings.primitiveType;
-							if (pipelineSettings.primitiveRestart)
-							{
-								glEnable(GL_PRIMITIVE_RESTART);
-								glPrimitiveRestartIndex(0xFFFFFFFF);
-							}
-							else
-							{
-								glDisable(GL_PRIMITIVE_RESTART);
-							}
-							if (pipelineSettings.primitiveType == PrimitiveType::Patches)
-								glPatchParameteri(GL_PATCH_VERTICES, pipelineSettings.patchSize);
-							if (pipelineSettings.enablePolygonOffset)
-							{
-								glEnable(GL_POLYGON_OFFSET_FILL);
-								glPolygonOffset(pipelineSettings.polygonOffsetFactor, pipelineSettings.polygonOffsetUnits);
-							}
-							else
-								glDisable(GL_POLYGON_OFFSET_FILL);
-							SetZTestMode(pipelineSettings.DepthCompareFunc);
-							SetBlendMode(pipelineSettings.BlendMode);
-							StencilMode smode;
-							smode.DepthFail = pipelineSettings.StencilDepthFailOp;
-							smode.DepthPass = pipelineSettings.StencilDepthPassOp;
-							smode.Fail = pipelineSettings.StencilFailOp;
-							smode.StencilFunc = pipelineSettings.StencilCompareFunc;
-							smode.StencilMask = pipelineSettings.StencilMask;
-							smode.StencilReference = pipelineSettings.StencilReference;
-							SetStencilMode(smode);
-							SetCullMode(pipelineSettings.CullMode);
 						}
 						break;
 					}

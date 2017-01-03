@@ -799,6 +799,11 @@ namespace GameEngine
 		}
 		commandBuffer->EndRecording();
 	}
+	void FrameRenderTask::Clear()
+	{
+		renderPasses.Clear();
+		postPasses.Clear();
+	}
 }
 
 

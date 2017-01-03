@@ -54,29 +54,32 @@ namespace GameEngine
 		AcquireRenderTargets();
 	}
 
-	void PostRenderPass::Execute()
+	void PostRenderPass::Execute(SharedModuleInstances sharedModules)
 	{
-		hwRenderer->ExecuteCommandBuffers(frameBuffer.Ptr(), MakeArrayView(commandBuffer.Ptr()), nullptr);
-	}
-
-	void PostRenderPass::RecordCommandBuffer(SharedModuleInstances sharedModules, int screenWidth, int screenHeight)
-	{
-		DescriptorSetBindings descBindings;
-		RenderAttachments renderAttachments;
-		UpdatePipelineBinding(sharedModules, descBindings, renderAttachments);
-
-		frameBuffer = renderTargetLayout->CreateFrameBuffer(renderAttachments);
 		commandBuffer->BeginRecording(frameBuffer.Ptr());
 		if (clearFrameBuffer)
 			commandBuffer->ClearAttachments(frameBuffer.Ptr());
 
-		commandBuffer->SetViewport(0, 0, screenWidth, screenHeight);
+		DescriptorSetBindings descBindings;
+		UpdateDescriptorSetBinding(sharedModules, descBindings);
+
+		commandBuffer->SetViewport(0, 0, width, height);
 		commandBuffer->BindPipeline(pipeline.Ptr());
 		commandBuffer->BindVertexBuffer(sharedRes->fullScreenQuadVertBuffer.Ptr(), 0);
 		for (auto & binding : descBindings.bindings)
 			commandBuffer->BindDescriptorSet(binding.index, binding.descriptorSet);
 		commandBuffer->Draw(0, 4);
 		commandBuffer->EndRecording();
+		hwRenderer->ExecuteCommandBuffers(frameBuffer.Ptr(), MakeArrayView(commandBuffer.Ptr()), nullptr);
+	}
+
+	void PostRenderPass::Resize(int screenWidth, int screenHeight)
+	{
+		width = screenWidth;
+		height = screenHeight;
+		RenderAttachments renderAttachments;
+		UpdateRenderAttachments(renderAttachments);
+		frameBuffer = renderTargetLayout->CreateFrameBuffer(renderAttachments);
 	}
 }
 

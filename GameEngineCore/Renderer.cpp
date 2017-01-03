@@ -96,7 +96,7 @@ namespace GameEngine
 		HardwareRenderer * hardwareRenderer = nullptr;
 		RenderStat renderStats;
 		Level* level = nullptr;
-
+		FrameRenderTask frameTask;
 		int uniformBufferAlignment = 256;
 		int storageBufferAlignment = 32;
 	private:
@@ -112,7 +112,8 @@ namespace GameEngine
 			params.renderer = this;
             params.cameras = cameras.GetArrayView();
 			params.rendererService = renderService.Ptr();
-			renderProcedure->Run(renderPassInstances, postPassInstances, params);
+			frameTask.Clear();
+			renderProcedure->Run(frameTask, params);
 		}
 	public:
 		RendererImpl(WindowHandle window, RenderAPI api)
@@ -212,15 +213,15 @@ namespace GameEngine
 			renderStats.NumDrawCalls = 0;
 			renderStats.NumPasses = 0;
 
-			for (auto & pass : renderPassInstances)
+			for (auto & pass : frameTask.renderPasses)
 			{
 				hardwareRenderer->ExecuteCommandBuffers(pass.renderOutput->GetFrameBuffer(), MakeArrayView(pass.commandBuffer), nullptr);
 				renderStats.NumPasses++;
 				renderStats.NumDrawCalls += pass.numDrawCalls;
 			}
 
-			for (auto pass : postPassInstances)
-				pass->Execute();
+			for (auto pass : frameTask.postPasses)
+				pass->Execute(frameTask.sharedModuleInstances);
 		}
 		virtual RendererSharedResource * GetSharedResource() override
 		{

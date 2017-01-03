@@ -5,13 +5,6 @@
 
 namespace GameEngine
 {
-	class SharedModuleInstances
-	{
-	public:
-		ModuleInstance * View;
-		ModuleInstance * Lighting;
-	};
-
 	struct DescriptorSetBindings
 	{
 		struct Binding
@@ -28,6 +21,8 @@ namespace GameEngine
 
 	class PostRenderPass : public RenderPass
 	{
+	private:
+		int width, height;
 	protected:
 		bool clearFrameBuffer = false;
 		CoreLib::RefPtr<RenderOutput> renderOutput;
@@ -37,13 +32,14 @@ namespace GameEngine
 		CoreLib::List<CoreLib::RefPtr<Shader>> shaders;
 		CoreLib::List<CoreLib::RefPtr<DescriptorSetLayout>> descLayouts;
 		virtual void SetupPipelineBindingLayout(PipelineBuilder * pipelineBuilder, CoreLib::List<TextureUsage> & renderTargets) = 0;
-		virtual void UpdatePipelineBinding(SharedModuleInstances sharedModules, DescriptorSetBindings & bindings, RenderAttachments & attachments) = 0;
+		virtual void UpdateDescriptorSetBinding(SharedModuleInstances sharedModules, DescriptorSetBindings & binding) = 0;
+		virtual void UpdateRenderAttachments(RenderAttachments & attachments) = 0;
 		virtual CoreLib::String GetShaderFileName() = 0;
 		virtual void Create() override;
 		virtual void AcquireRenderTargets() = 0;
 	public:
-		void Execute();
-		virtual void RecordCommandBuffer(SharedModuleInstances sharedModules, int screenWidth, int screenHeight);
+		void Execute(SharedModuleInstances sharedModules);
+		virtual void Resize(int screenWidth, int screenHeight);
 		virtual void SetParameters(void * data, int count) = 0;
 	};
 }
