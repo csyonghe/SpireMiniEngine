@@ -416,7 +416,7 @@ namespace VK
 			// Create primary command buffers
 			State().primaryFences = new CoreLib::List<vk::Fence>();
 			State().primaryBuffers = new CoreLib::List<vk::CommandBuffer>();
-			const int numCommandBuffers = 3;
+			const int numCommandBuffers = 128;
 			for (int k = 0; k < numCommandBuffers; k++)
 			{
 				// Initially all fences are signaled
