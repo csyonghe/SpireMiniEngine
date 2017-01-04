@@ -118,6 +118,7 @@
     <ClCompile Include="ShaderCompiler.cpp">
       <Filter>Renderer</Filter>
     </ClCompile>
+    <ClCompile Include="AsyncCommandBuffer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
@@ -230,6 +231,9 @@
     </ClInclude>
     <ClInclude Include="OS.h" />
     <ClInclude Include="EngineLimits.h" />
+    <ClInclude Include="AsyncCommandBuffer.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Spire">

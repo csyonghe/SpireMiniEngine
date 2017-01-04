@@ -27,11 +27,11 @@ namespace GameEngine
 		return rs;
 	}
 
-	CommandBuffer * WorldRenderPass::AllocCommandBuffer()
+	AsyncCommandBuffer * WorldRenderPass::AllocCommandBuffer()
 	{
 		if (poolAllocPtr == commandBufferPool.Count())
 		{
-			commandBufferPool.Add(hwRenderer->CreateCommandBuffer());
+			commandBufferPool.Add(new AsyncCommandBuffer(hwRenderer));
 		}
 		return commandBufferPool[poolAllocPtr++].Ptr();
 	}

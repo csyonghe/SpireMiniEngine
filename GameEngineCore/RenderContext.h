@@ -11,6 +11,7 @@
 #include "Mesh.h"
 #include "FrustumCulling.h"
 #include "PipelineContext.h"
+#include "AsyncCommandBuffer.h"
 #include "EngineLimits.h"
 
 namespace GameEngine
@@ -171,7 +172,7 @@ namespace GameEngine
 		int renderPassId = -1;
 		int numDrawCalls = 0;
 		Viewport viewport;
-		CommandBuffer * commandBuffer = nullptr;
+		AsyncCommandBuffer * commandBuffer = nullptr;
 		RenderOutput * renderOutput = nullptr;
 		FixedFunctionPipelineStates * fixedFunctionStates = nullptr;
 	public:
