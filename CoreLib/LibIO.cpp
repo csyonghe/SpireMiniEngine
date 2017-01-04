@@ -127,7 +127,7 @@ namespace CoreLib
 			while (!fs->IsEnd())
 			{
 				unsigned char ch;
-				int read = fs->Read(&ch, 1);
+				int read = (int)fs->Read(&ch, 1);
 				if (read)
 					buffer.Add(ch);
 				else

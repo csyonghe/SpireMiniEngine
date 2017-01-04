@@ -3339,6 +3339,10 @@ namespace VK
 			buffer.begin(commandBufferBeginInfo);
 		}
 
+		virtual void BeginRecording() override
+		{
+		}
+
 		virtual void BeginRecording(GameEngine::FrameBuffer* frameBuffer) override
 		{
 			BeginRecording(((VK::FrameBuffer*)frameBuffer)->renderTargetLayout.Ptr(), ((VK::FrameBuffer*)frameBuffer)->framebuffer);
