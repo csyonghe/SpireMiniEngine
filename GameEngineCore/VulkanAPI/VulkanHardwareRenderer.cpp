@@ -2667,7 +2667,7 @@ namespace VK
 			if (renderPass) RendererState::Device().destroyRenderPass(renderPass);
 		}
 
-		virtual FrameBuffer* CreateFrameBuffer(const RenderAttachments& renderAttachments) override;
+		virtual GameEngine::FrameBuffer* CreateFrameBuffer(const RenderAttachments& renderAttachments) override;
 	};
 
 
