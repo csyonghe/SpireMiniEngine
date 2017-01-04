@@ -1043,25 +1043,25 @@ namespace VK
 			// Create texture resources
 			vk::ImageAspectFlags aspectFlags = vk::ImageAspectFlagBits::eColor;
 			vk::ImageUsageFlags usageFlags;
-			if (!!(usage & TextureUsage::ColorAttachment))
+			if (!!(this->usage & TextureUsage::ColorAttachment))
 			{
 				aspectFlags = vk::ImageAspectFlagBits::eColor;
 				usageFlags = vk::ImageUsageFlagBits::eColorAttachment;
 			}
-			else if (!!(usage & TextureUsage::DepthAttachment))
+			else if (!!(this->usage & TextureUsage::DepthAttachment))
 			{
-				if (format == StorageFormat::Depth32)
+				if (this->format == StorageFormat::Depth32)
 				{
 					aspectFlags = vk::ImageAspectFlagBits::eDepth;
-					usageFlags = vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled;
+					usageFlags = vk::ImageUsageFlagBits::eDepthStencilAttachment;
 				}
-				else if (format == StorageFormat::Depth24Stencil8)
+				else if (this->format == StorageFormat::Depth24Stencil8)
 				{
 					aspectFlags = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
 					usageFlags = vk::ImageUsageFlagBits::eDepthStencilAttachment;
 				}
 			}
-			if (!!(usage & TextureUsage::Sampled))
+			if (!!(this->usage & TextureUsage::Sampled))
 			{
 				usageFlags |= vk::ImageUsageFlagBits::eSampled;
 			}
@@ -1069,7 +1069,7 @@ namespace VK
 			vk::ImageCreateInfo imageCreateInfo = vk::ImageCreateInfo()
 				.setFlags(vk::ImageCreateFlags())
 				.setImageType(depth == 1 ? vk::ImageType::e2D : vk::ImageType::e3D)
-				.setFormat(TranslateStorageFormat(format))
+				.setFormat(TranslateStorageFormat(this->format))
 				.setExtent(vk::Extent3D(width, height, depth))
 				.setMipLevels(mipLevels)
 				.setArrayLayers(arrayLayers)
