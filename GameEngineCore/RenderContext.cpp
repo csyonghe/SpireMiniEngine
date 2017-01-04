@@ -429,13 +429,13 @@ namespace GameEngine
 	{
 		auto & graphicsSettings = Engine::Instance()->GetGraphicsSettings();
 
-		shadowMapArray = hwRenderer->CreateTexture2DArray(TextureUsage::DepthAttachment, graphicsSettings.ShadowMapResolution, graphicsSettings.ShadowMapResolution,
+		shadowMapArray = hwRenderer->CreateTexture2DArray(TextureUsage::SampledDepthAttachment, graphicsSettings.ShadowMapResolution, graphicsSettings.ShadowMapResolution,
 			graphicsSettings.ShadowMapArraySize, 1, StorageFormat::Depth32);
 		shadowMapArrayFreeBits.SetMax(graphicsSettings.ShadowMapArraySize);
 		shadowMapArrayFreeBits.Clear();
 		shadowMapArraySize = graphicsSettings.ShadowMapArraySize;
 
-		shadowMapRenderTargetLayout = hwRenderer->CreateRenderTargetLayout(MakeArrayView(AttachmentLayout(TextureUsage::DepthAttachment, StorageFormat::Depth32)));
+		shadowMapRenderTargetLayout = hwRenderer->CreateRenderTargetLayout(MakeArrayView(AttachmentLayout(TextureUsage::SampledDepthAttachment, StorageFormat::Depth32)));
 		shadowMapRenderOutputs.SetSize(shadowMapArraySize);
 		for (int i = 0; i < shadowMapArraySize; i++)
 		{
