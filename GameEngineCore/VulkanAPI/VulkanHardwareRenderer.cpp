@@ -562,7 +562,7 @@ namespace VK
 			// Wait for any fence to be signaled
 			Device().waitForFences(
 				vk::ArrayProxy<const vk::Fence>(State().primaryFences->Count(), State().primaryFences->Buffer()),
-				vk::Bool32(false),
+				VK_FALSE,
 				UINT64_MAX
 			);
 
@@ -1092,7 +1092,7 @@ namespace VK
 				.setAspectMask(aspectFlags)
 				.setBaseMipLevel(0)
 				.setLevelCount(mipLevels)
-				.setBaseArrayLayer(1)
+				.setBaseArrayLayer(0)
 				.setLayerCount(arrayLayers);
 
 			vk::ImageViewCreateInfo imageViewCreateInfo = vk::ImageViewCreateInfo()
@@ -2485,7 +2485,6 @@ namespace VK
 				auto code = File::ReadAllBytes(compiledFileName);
 				vk::ShaderModuleCreateInfo createInfo(vk::ShaderModuleCreateFlags(), code.Count(), (unsigned int *)code.Buffer());
 				this->module = RendererState::Device().createShaderModule(createInfo);
-
 			}
 		}
 
@@ -3187,7 +3186,7 @@ namespace VK
 		}
 		virtual void Wait() override
 		{
-			//RendererState::Device().waitForFences(fence, true, UINT64_MAX);
+			//RendererState::Device().waitForFences(fence, VK_TRUE, UINT64_MAX);
 		}
 	};
 
