@@ -1030,17 +1030,31 @@ namespace VK
 	class Texture : public CoreLib::Object
 	{
 	public:
+		StorageFormat format;
+		TextureUsage usage;
+		int width;
+		int height;
+		int depth;
+		int mipLevels;
+		int arrayLayers;
+		int numSamples;
 		vk::Image image;
 		vk::ImageView view;
 		vk::ImageView view2;
 		vk::ImageView view3;
 		vk::DeviceMemory memory;
-		StorageFormat format;
-		TextureUsage usage;
+		vk::ImageLayout currentLayout;
 		Texture(TextureUsage usage, int width, int height, int depth, int mipLevels, int arrayLayers, int numSamples, StorageFormat format)
 		{
 			this->usage = usage;
 			this->format = format;
+			this->width = width;
+			this->height = height;
+			this->depth = depth;
+			this->mipLevels = mipLevels;
+			this->arrayLayers = arrayLayers;
+			this->numSamples = numSamples;
+			this->currentLayout = vk::ImageLayout::eUndefined;
 
 			// Create texture resources
 			vk::ImageAspectFlags aspectFlags = vk::ImageAspectFlagBits::eColor;
@@ -1159,401 +1173,12 @@ namespace VK
 			if (view) RendererState::Device().destroyImageView(view);
 			if (image) RendererState::Device().destroyImage(image);
 		}
-	};
 
-	class Texture2D : public VK::Texture, public GameEngine::Texture2D
-	{
-		//TODO: Need some way of determining layouts and performing transitions properly. 
-	public:
-		int width;
-		int height;
-		int samples = 1;
-		int arrayLayers = 1;
-		int mipLevels = 1;
-		vk::ImageLayout currentLayout;
-
-		Texture2D(TextureUsage usage, int width, int height, int mipLevelCount, StorageFormat format)
-			: VK::Texture(usage, width, height, 1, mipLevelCount, 1, 1, format)
+		void TransferLayout(vk::ImageLayout targetLayout)
 		{
-			this->width = width;
-			this->height = height;
-			this->mipLevels = mipLevelCount;
-		};
-
-		void GetSize(int& pwidth, int& pheight)
-		{
-			pwidth = width;
-			pheight = height;
-		}
-		void SetData(int level, int pwidth, int pheight, int numSamples, DataType inputType, void* data)
-		{
-			if (numSamples > 1)
-				throw HardwareRendererException("samples must be equal to 1");
-
-			if (data == nullptr)
-			{
-				// If there is no data to copy, just transition the image and return
-
-				// Create command buffer
-				//TODO: Use CommandBuffer class?
-				vk::CommandBuffer transferCommandBuffer = RendererState::CreateCommandBuffer(RendererState::TransferCommandPool());
-
-				vk::ImageAspectFlags aspectFlags;
-				if (format == StorageFormat::Depth32)
-					aspectFlags = vk::ImageAspectFlagBits::eDepth;
-				else if (format == StorageFormat::Depth24Stencil8)
-					aspectFlags = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
-				else
-					aspectFlags = vk::ImageAspectFlagBits::eColor;
-
-				// Record command buffer
-				vk::ImageSubresourceRange textureSubresourceRange = vk::ImageSubresourceRange()
-					.setAspectMask(aspectFlags)
-					.setBaseMipLevel(0)
-					.setLevelCount(mipLevels)
-					.setBaseArrayLayer(0)
-					.setLayerCount(1);
-
-				vk::ImageMemoryBarrier textureUsageBarrier = vk::ImageMemoryBarrier()
-					.setSrcAccessMask(LayoutFlags(vk::ImageLayout::eUndefined))
-					.setDstAccessMask(LayoutFlags(LayoutFromUsage(this->usage)))
-					.setOldLayout(vk::ImageLayout::eUndefined)
-					.setNewLayout(LayoutFromUsage(this->usage))
-					.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-					.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-					.setImage(this->image)
-					.setSubresourceRange(textureSubresourceRange);
-
-				vk::CommandBufferBeginInfo transferBeginInfo = vk::CommandBufferBeginInfo()
-					.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit)
-					.setPInheritanceInfo(nullptr);
-
-				transferCommandBuffer.begin(transferBeginInfo);
-				transferCommandBuffer.pipelineBarrier(
-					vk::PipelineStageFlagBits::eTopOfPipe,
-					vk::PipelineStageFlagBits::eTopOfPipe,
-					vk::DependencyFlags(),
-					nullptr,
-					nullptr,
-					textureUsageBarrier
-				);
-				transferCommandBuffer.end();
-
-				// Submit to queue
-				vk::SubmitInfo transferSubmitInfo = vk::SubmitInfo()
-					.setWaitSemaphoreCount(0)
-					.setPWaitSemaphores(nullptr)
-					.setPWaitDstStageMask(nullptr)
-					.setCommandBufferCount(1)
-					.setPCommandBuffers(&transferCommandBuffer)
-					.setSignalSemaphoreCount(0)
-					.setPSignalSemaphores(nullptr);
-
-				RendererState::TransferQueue().submit(transferSubmitInfo, vk::Fence());
-				RendererState::TransferQueue().waitIdle(); //TODO: Remove
-				RendererState::DestroyCommandBuffer(RendererState::TransferCommandPool(), transferCommandBuffer);
-			}
-			else
-			{
-				if (this->mipLevels < level)
-					throw HardwareRendererException("Attempted to set mipmap data for invalid level");
-
-				vk::ImageAspectFlags aspectFlags;
-				if (format == StorageFormat::Depth32)
-					aspectFlags = vk::ImageAspectFlagBits::eDepth;
-				else if (format == StorageFormat::Depth24Stencil8)
-					aspectFlags = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
-				else
-					aspectFlags = vk::ImageAspectFlagBits::eColor;
-
-				bool useStagingImage = false;
-				if (useStagingImage)
-				{
-					// Set up staging image and copy data to new image
-
-					int inputTypeSize = DataTypeSize(inputType);
-
-					// Create staging image
-					vk::ImageCreateInfo stagingImageCreateInfo = vk::ImageCreateInfo()
-						.setFlags(vk::ImageCreateFlags())
-						.setImageType(vk::ImageType::e2D)
-						.setFormat(TranslateStorageFormat(format))//TODO: base this off of inputType
-						.setExtent(vk::Extent3D(pwidth, pheight, 1))
-						.setMipLevels(1)
-						.setArrayLayers(1)
-						.setSamples(vk::SampleCountFlagBits::e1)
-						.setTiling(vk::ImageTiling::eLinear)
-						.setUsage(vk::ImageUsageFlagBits::eTransferSrc)
-						.setSharingMode(vk::SharingMode::eExclusive)
-						.setQueueFamilyIndexCount(0)
-						.setPQueueFamilyIndices(nullptr)
-						.setInitialLayout(vk::ImageLayout::ePreinitialized);
-
-					vk::Image stagingImage = RendererState::Device().createImage(stagingImageCreateInfo);
-
-					vk::MemoryRequirements stagingImageMemoryRequirements = RendererState::Device().getImageMemoryRequirements(image);
-
-					vk::MemoryAllocateInfo imageAllocateInfo = vk::MemoryAllocateInfo()
-						.setAllocationSize(stagingImageMemoryRequirements.size)
-						.setMemoryTypeIndex(GetMemoryType(stagingImageMemoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible));
-
-					vk::DeviceMemory stagingMemory = RendererState::Device().allocateMemory(imageAllocateInfo);
-
-					RendererState::Device().bindImageMemory(stagingImage, stagingMemory, 0);
-
-					vk::ImageSubresource stagingImageSubresource = vk::ImageSubresource()
-						.setAspectMask(aspectFlags)
-						.setMipLevel(0)
-						.setArrayLayer(0);
-
-					vk::SubresourceLayout stagingSubresourceLayout = RendererState::Device().getImageSubresourceLayout(stagingImage, stagingImageSubresource);
-
-					// Copy data to staging image
-					void* stagingMappedMemory = RendererState::Device().mapMemory(stagingMemory, 0, VK_WHOLE_SIZE, vk::MemoryMapFlags());
-
-					if (format == StorageFormat::BC1 || format == StorageFormat::BC5)
-					{
-						int blocks = (int)(ceil(pwidth / 4.0f) * ceil(pheight / 4.0f));
-						int bufferSize = format == StorageFormat::BC5 ? blocks * 16 : blocks * 8;
-						memcpy(stagingMappedMemory, data, bufferSize);
-					}
-					else
-					{
-						char* rowPtr = reinterpret_cast<char*>(stagingMappedMemory);
-						for (int y = 0; y < pheight; y++)
-						{
-							memcpy(rowPtr, &((char*)data)[y * pwidth * inputTypeSize], pwidth * inputTypeSize);
-							rowPtr += stagingSubresourceLayout.rowPitch;
-						}
-					}
-
-					RendererState::Device().unmapMemory(stagingMemory);
-
-					// Create image copy information
-					//TODO: Should this be a blit?
-					//TODO: Correctly handle format conversions
-					vk::ImageCopy stagingCopy = vk::ImageCopy()
-						.setSrcOffset(vk::Offset3D(0, 0, 0))
-						.setSrcSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(0).setBaseArrayLayer(0).setLayerCount(1))
-						.setDstOffset(vk::Offset3D(0, 0, 0))
-						.setDstSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(level).setBaseArrayLayer(0).setLayerCount(1))
-						.setExtent(vk::Extent3D(pwidth, pheight, 1));
-
-					// Create command buffer
-					//TODO: Use CommandBuffer class?
-					vk::CommandBuffer transferCommandBuffer = RendererState::CreateCommandBuffer(RendererState::TransferCommandPool());
-
-					// Record command buffer
-					vk::ImageSubresourceRange textureSubresourceRange = vk::ImageSubresourceRange()
-						.setAspectMask(aspectFlags)
-						.setBaseMipLevel(0)
-						.setLevelCount(mipLevels)
-						.setBaseArrayLayer(0)
-						.setLayerCount(1);
-
-					vk::ImageMemoryBarrier textureCopyBarrier = vk::ImageMemoryBarrier()
-						.setSrcAccessMask(LayoutFlags(vk::ImageLayout::eUndefined))
-						.setDstAccessMask(LayoutFlags(vk::ImageLayout::eTransferDstOptimal))
-						.setOldLayout(vk::ImageLayout::eUndefined)
-						.setNewLayout(vk::ImageLayout::eTransferDstOptimal)
-						.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-						.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-						.setImage(this->image)
-						.setSubresourceRange(textureSubresourceRange);
-
-					vk::ImageMemoryBarrier textureUsageBarrier = vk::ImageMemoryBarrier()
-						.setSrcAccessMask(LayoutFlags(vk::ImageLayout::eTransferDstOptimal))
-						.setDstAccessMask(LayoutFlags(LayoutFromUsage(this->usage)))
-						.setOldLayout(vk::ImageLayout::eTransferDstOptimal)
-						.setNewLayout(LayoutFromUsage(this->usage))
-						.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-						.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-						.setImage(this->image)
-						.setSubresourceRange(textureSubresourceRange);
-
-					vk::CommandBufferBeginInfo transferBeginInfo = vk::CommandBufferBeginInfo()
-						.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit)
-						.setPInheritanceInfo(nullptr);
-
-					transferCommandBuffer.begin(transferBeginInfo);
-					transferCommandBuffer.pipelineBarrier(
-						vk::PipelineStageFlagBits::eTopOfPipe,
-						vk::PipelineStageFlagBits::eTopOfPipe,
-						vk::DependencyFlags(),
-						nullptr,
-						nullptr,
-						textureCopyBarrier
-					);
-					transferCommandBuffer.copyImage(stagingImage, vk::ImageLayout::ePreinitialized, this->image, vk::ImageLayout::eTransferDstOptimal, stagingCopy);
-					transferCommandBuffer.pipelineBarrier(
-						vk::PipelineStageFlagBits::eTopOfPipe,
-						vk::PipelineStageFlagBits::eTopOfPipe,
-						vk::DependencyFlags(),
-						nullptr,
-						nullptr,
-						textureUsageBarrier
-					);
-					transferCommandBuffer.end();
-
-					// Submit to queue
-					vk::SubmitInfo transferSubmitInfo = vk::SubmitInfo()
-						.setWaitSemaphoreCount(0)
-						.setPWaitSemaphores(nullptr)
-						.setPWaitDstStageMask(nullptr)
-						.setCommandBufferCount(1)
-						.setPCommandBuffers(&transferCommandBuffer)
-						.setSignalSemaphoreCount(0)
-						.setPSignalSemaphores(nullptr);
-
-					RendererState::TransferQueue().submit(transferSubmitInfo, vk::Fence());
-					RendererState::TransferQueue().waitIdle(); //TODO: Remove
-					RendererState::DestroyCommandBuffer(RendererState::TransferCommandPool(), transferCommandBuffer);
-
-					// Destroy staging resources
-					RendererState::Device().freeMemory(stagingMemory);
-					RendererState::Device().destroyImage(stagingImage);
-				}
-				else
-				{
-					// Set up staging buffer and copy data to new image
-
-					int bufferSize;
-					if (format == StorageFormat::BC1 || format == StorageFormat::BC5)
-					{
-						int blocks = (int)(ceil(pwidth / 4.0f) * ceil(pheight / 4.0f));
-						bufferSize = format == StorageFormat::BC5 ? blocks * 16 : blocks * 8;
-					}
-					else
-					{
-						bufferSize = pwidth * pheight * DataTypeSize(inputType);
-					}
-
-					vk::BufferCreateInfo stagingBufferCreateInfo = vk::BufferCreateInfo()
-						.setFlags(vk::BufferCreateFlags())
-						.setSize(bufferSize)
-						.setUsage(vk::BufferUsageFlagBits::eTransferSrc)
-						.setSharingMode(vk::SharingMode::eExclusive)
-						.setQueueFamilyIndexCount(0)
-						.setPQueueFamilyIndices(nullptr);
-
-					vk::Buffer stagingBuffer = RendererState::Device().createBuffer(stagingBufferCreateInfo);
-
-					vk::MemoryRequirements stagingBufferMemoryRequirements = RendererState::Device().getBufferMemoryRequirements(stagingBuffer);
-
-					vk::MemoryAllocateInfo bufferAllocateInfo = vk::MemoryAllocateInfo()
-						.setAllocationSize(stagingBufferMemoryRequirements.size)
-						.setMemoryTypeIndex(GetMemoryType(stagingBufferMemoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible));
-
-					vk::DeviceMemory stagingMemory = RendererState::Device().allocateMemory(bufferAllocateInfo);
-
-					RendererState::Device().bindBufferMemory(stagingBuffer, stagingMemory, 0);
-
-					void* stagingMappedMemory = RendererState::Device().mapMemory(stagingMemory, 0, VK_WHOLE_SIZE, vk::MemoryMapFlags());
-					memcpy(stagingMappedMemory, data, bufferSize);
-
-					//TODO: flush?
-					RendererState::Device().unmapMemory(stagingMemory);
-
-					// Create buffer image copy information
-					vk::BufferImageCopy stagingCopy = vk::BufferImageCopy()
-						.setBufferOffset(0)
-						.setBufferRowLength(0)
-						.setBufferImageHeight(0)
-						.setImageSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(level).setBaseArrayLayer(0).setLayerCount(1))
-						.setImageOffset(vk::Offset3D())
-						.setImageExtent(vk::Extent3D(pwidth, pheight, 1));
-
-					// Create command buffer
-					//TODO: Use CommandBuffer class?
-					vk::CommandBuffer transferCommandBuffer = RendererState::CreateCommandBuffer(RendererState::TransferCommandPool());
-
-					// Record command buffer
-					vk::ImageSubresourceRange textureSubresourceRange = vk::ImageSubresourceRange()
-						.setAspectMask(aspectFlags)
-						.setBaseMipLevel(0)
-						.setLevelCount(mipLevels)
-						.setBaseArrayLayer(0)
-						.setLayerCount(1);
-
-					vk::ImageMemoryBarrier textureCopyBarrier = vk::ImageMemoryBarrier()
-						.setSrcAccessMask(LayoutFlags(vk::ImageLayout::eUndefined))
-						.setDstAccessMask(LayoutFlags(vk::ImageLayout::eTransferDstOptimal))
-						.setOldLayout(vk::ImageLayout::eUndefined)
-						.setNewLayout(vk::ImageLayout::eTransferDstOptimal)
-						.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-						.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-						.setImage(this->image)
-						.setSubresourceRange(textureSubresourceRange);
-
-					vk::ImageMemoryBarrier textureUsageBarrier = vk::ImageMemoryBarrier()
-						.setSrcAccessMask(LayoutFlags(vk::ImageLayout::eTransferDstOptimal))
-						.setDstAccessMask(LayoutFlags(LayoutFromUsage(this->usage)))
-						.setOldLayout(vk::ImageLayout::eTransferDstOptimal)
-						.setNewLayout(LayoutFromUsage(this->usage))
-						.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-						.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-						.setImage(this->image)
-						.setSubresourceRange(textureSubresourceRange);
-
-					vk::CommandBufferBeginInfo transferBeginInfo = vk::CommandBufferBeginInfo()
-						.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit)
-						.setPInheritanceInfo(nullptr);
-
-					transferCommandBuffer.begin(transferBeginInfo);
-					transferCommandBuffer.pipelineBarrier(
-						vk::PipelineStageFlagBits::eTopOfPipe,
-						vk::PipelineStageFlagBits::eTopOfPipe,
-						vk::DependencyFlags(),
-						nullptr,
-						nullptr,
-						textureCopyBarrier
-					);
-					transferCommandBuffer.copyBufferToImage(
-						stagingBuffer,
-						this->image,
-						vk::ImageLayout::eTransferDstOptimal,
-						stagingCopy
-					);
-					transferCommandBuffer.pipelineBarrier(
-						vk::PipelineStageFlagBits::eTopOfPipe,
-						vk::PipelineStageFlagBits::eTopOfPipe,
-						vk::DependencyFlags(),
-						nullptr,
-						nullptr,
-						textureUsageBarrier
-					);
-					transferCommandBuffer.end();
-
-					// Submit to queue
-					vk::SubmitInfo transferSubmitInfo = vk::SubmitInfo()
-						.setWaitSemaphoreCount(0)
-						.setPWaitSemaphores(nullptr)
-						.setPWaitDstStageMask(nullptr)
-						.setCommandBufferCount(1)
-						.setPCommandBuffers(&transferCommandBuffer)
-						.setSignalSemaphoreCount(0)
-						.setPSignalSemaphores(nullptr);
-
-					RendererState::TransferQueue().submit(transferSubmitInfo, vk::Fence());
-					RendererState::TransferQueue().waitIdle(); //TODO: Remove
-					RendererState::DestroyCommandBuffer(RendererState::TransferCommandPool(), transferCommandBuffer);
-
-					// Destroy staging resources
-					RendererState::Device().freeMemory(stagingMemory);
-					RendererState::Device().destroyBuffer(stagingBuffer);
-				}
-			}
-			this->currentLayout = LayoutFromUsage(this->usage);
-		}
-		void SetData(int pwidth, int pheight, int numSamples, DataType inputType, void* data)
-		{
-			SetData(0, pwidth, pheight, numSamples, inputType, data);
-		}
-		void BuildMipmaps()
-		{
-			vk::Image oldImage = image;
-			vk::ImageView oldView = view;
-			vk::DeviceMemory oldMemory = memory;
+			// Create command buffer
+			//TODO: Use CommandBuffer class?
+			vk::CommandBuffer transferCommandBuffer = RendererState::CreateCommandBuffer(RendererState::TransferCommandPool());
 
 			vk::ImageAspectFlags aspectFlags;
 			if (format == StorageFormat::Depth32)
@@ -1563,69 +1188,146 @@ namespace VK
 			else
 				aspectFlags = vk::ImageAspectFlagBits::eColor;
 
-			if (mipLevels != (int)std::floor(std::log2(max(width, height))) + 1)
+			// Record command buffer
+			vk::ImageSubresourceRange textureSubresourceRange = vk::ImageSubresourceRange()
+				.setAspectMask(aspectFlags)
+				.setBaseMipLevel(0)
+				.setLevelCount(mipLevels)
+				.setBaseArrayLayer(0)
+				.setLayerCount(arrayLayers);
+
+			vk::ImageMemoryBarrier textureUsageBarrier = vk::ImageMemoryBarrier()
+				.setSrcAccessMask(LayoutFlags(currentLayout))
+				.setDstAccessMask(LayoutFlags(targetLayout))
+				.setOldLayout(currentLayout)
+				.setNewLayout(targetLayout)
+				.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+				.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+				.setImage(this->image)
+				.setSubresourceRange(textureSubresourceRange);
+
+			vk::CommandBufferBeginInfo transferBeginInfo = vk::CommandBufferBeginInfo()
+				.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit)
+				.setPInheritanceInfo(nullptr);
+
+			transferCommandBuffer.begin(transferBeginInfo);
+			transferCommandBuffer.pipelineBarrier(
+				vk::PipelineStageFlagBits::eTopOfPipe,
+				vk::PipelineStageFlagBits::eTopOfPipe,
+				vk::DependencyFlags(),
+				nullptr,
+				nullptr,
+				textureUsageBarrier
+			);
+			transferCommandBuffer.end();
+
+			// Submit to queue
+			vk::SubmitInfo transferSubmitInfo = vk::SubmitInfo()
+				.setWaitSemaphoreCount(0)
+				.setPWaitSemaphores(nullptr)
+				.setPWaitDstStageMask(nullptr)
+				.setCommandBufferCount(1)
+				.setPCommandBuffers(&transferCommandBuffer)
+				.setSignalSemaphoreCount(0)
+				.setPSignalSemaphores(nullptr);
+
+			RendererState::TransferQueue().submit(transferSubmitInfo, vk::Fence());
+			RendererState::TransferQueue().waitIdle(); //TODO: Remove
+			RendererState::DestroyCommandBuffer(RendererState::TransferCommandPool(), transferCommandBuffer);
+
+			this->currentLayout = targetLayout;
+		}
+
+		void SetData(int level, int layer, int pwidth, int pheight, int pdepth, DataType inputType, void* data)
+		{
+			if (numSamples > 1)
+				throw HardwareRendererException("samples must be equal to 1");
+
+			if (this->mipLevels < level)
+				throw HardwareRendererException("Attempted to set mipmap data for invalid level");
+
+			if (this->arrayLayers < layer)
+				throw HardwareRendererException("Attempted to set layer data for invalid layer");
+
+			vk::ImageAspectFlags aspectFlags;
+			if (format == StorageFormat::Depth32)
+				aspectFlags = vk::ImageAspectFlagBits::eDepth;
+			else if (format == StorageFormat::Depth24Stencil8)
+				aspectFlags = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
+			else
+				aspectFlags = vk::ImageAspectFlagBits::eColor;
+
+			bool useStagingImage = false;
+			if (useStagingImage)
 			{
-				// Create new image resources that support mipmapping
-				vk::ImageCreateInfo imageCreateInfo = vk::ImageCreateInfo()
+				// Set up staging image and copy data to new image
+				int inputTypeSize = DataTypeSize(inputType);
+
+				// Create staging image
+				vk::ImageCreateInfo stagingImageCreateInfo = vk::ImageCreateInfo()
 					.setFlags(vk::ImageCreateFlags())
-					.setImageType(vk::ImageType::e2D)
-					.setFormat(TranslateStorageFormat(format))
-					.setExtent(vk::Extent3D(width, height, 1))
-					.setMipLevels(mipLevels)
+					.setImageType(depth == 1 ? vk::ImageType::e2D : vk::ImageType::e3D)
+					.setFormat(TranslateStorageFormat(format))//TODO: base this off of inputType
+					.setExtent(vk::Extent3D(pwidth, pheight, pdepth))
+					.setMipLevels(1)
 					.setArrayLayers(1)
-					.setSamples(SampleCount(samples))
-					.setTiling(vk::ImageTiling::eOptimal)
-					.setUsage(vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled)
+					.setSamples(vk::SampleCountFlagBits::e1)
+					.setTiling(vk::ImageTiling::eLinear)
+					.setUsage(vk::ImageUsageFlagBits::eTransferSrc)
 					.setSharingMode(vk::SharingMode::eExclusive)
 					.setQueueFamilyIndexCount(0)
 					.setPQueueFamilyIndices(nullptr)
-					.setInitialLayout(vk::ImageLayout::eUndefined);
+					.setInitialLayout(vk::ImageLayout::ePreinitialized);
 
-				image = RendererState::Device().createImage(imageCreateInfo);
+				vk::Image stagingImage = RendererState::Device().createImage(stagingImageCreateInfo);
 
-				vk::MemoryRequirements imageMemoryRequirements = RendererState::Device().getImageMemoryRequirements(image);
+				vk::MemoryRequirements stagingImageMemoryRequirements = RendererState::Device().getImageMemoryRequirements(image);
 
 				vk::MemoryAllocateInfo imageAllocateInfo = vk::MemoryAllocateInfo()
-					.setAllocationSize(imageMemoryRequirements.size)
-					.setMemoryTypeIndex(GetMemoryType(imageMemoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal));
+					.setAllocationSize(stagingImageMemoryRequirements.size)
+					.setMemoryTypeIndex(GetMemoryType(stagingImageMemoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible));
 
-				memory = RendererState::Device().allocateMemory(imageAllocateInfo);
+				vk::DeviceMemory stagingMemory = RendererState::Device().allocateMemory(imageAllocateInfo);
 
-				RendererState::Device().bindImageMemory(image, memory, 0);
+				RendererState::Device().bindImageMemory(stagingImage, stagingMemory, 0);
 
-				vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
+				vk::ImageSubresource stagingImageSubresource = vk::ImageSubresource()
 					.setAspectMask(aspectFlags)
-					.setBaseMipLevel(0)
-					.setLevelCount(mipLevels)
-					.setBaseArrayLayer(0)
-					.setLayerCount(1);
+					.setMipLevel(0)
+					.setArrayLayer(0);
 
-				vk::ImageViewCreateInfo imageViewCreateInfo = vk::ImageViewCreateInfo()
-					.setFlags(vk::ImageViewCreateFlags())
-					.setImage(image)
-					.setViewType(vk::ImageViewType::e2D)
-					.setFormat(imageCreateInfo.format)
-					.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA))//
-					.setSubresourceRange(imageSubresourceRange);
+				vk::SubresourceLayout stagingSubresourceLayout = RendererState::Device().getImageSubresourceLayout(stagingImage, stagingImageSubresource);
 
-				view = RendererState::Device().createImageView(imageViewCreateInfo);
+				// Copy data to staging image
+				void* stagingMappedMemory = RendererState::Device().mapMemory(stagingMemory, 0, VK_WHOLE_SIZE, vk::MemoryMapFlags());
 
-				// Create blit copy regions
-				CoreLib::List<vk::ImageBlit> stagingBlitRegions;
-				CoreLib::List<vk::ImageBlit> blitRegions;
-				stagingBlitRegions.Add(vk::ImageBlit()
-					.setSrcSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(0).setBaseArrayLayer(0).setLayerCount(1))
-					.setSrcOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(width, height, 1)})
-					.setDstSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(0).setBaseArrayLayer(0).setLayerCount(1))
-					.setDstOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(width, height, 1)}));
-				for (int l = 1; l < mipLevels; l++)
+				if (format == StorageFormat::BC1 || format == StorageFormat::BC5)
 				{
-					blitRegions.Add(vk::ImageBlit()
-						.setSrcSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(l - 1).setBaseArrayLayer(0).setLayerCount(1))
-						.setSrcOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(max(1, width >> (l - 1)), max(1, height >> (l - 1)), 1)})
-						.setDstSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(l).setBaseArrayLayer(0).setLayerCount(1))
-						.setDstOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(max(1, width >> l), max(1, height >> l), 1)}));
+					int blocks = (int)(ceil(pwidth / 4.0f) * ceil(pheight / 4.0f));
+					int bufferSize = format == StorageFormat::BC5 ? blocks * 16 : blocks * 8;
+					memcpy(stagingMappedMemory, data, bufferSize);
 				}
+				else
+				{
+					char* rowPtr = reinterpret_cast<char*>(stagingMappedMemory);
+					for (int y = 0; y < pheight; y++)
+					{
+						memcpy(rowPtr, &((char*)data)[y * pwidth * inputTypeSize], pwidth * inputTypeSize);
+						rowPtr += stagingSubresourceLayout.rowPitch;
+					}
+				}
+
+				RendererState::Device().unmapMemory(stagingMemory);
+
+				// Create image copy information
+				//TODO: Should this be a blit?
+				//TODO: Correctly handle format conversions
+				vk::ImageCopy stagingCopy = vk::ImageCopy()
+					.setSrcOffset(vk::Offset3D(0, 0, 0))
+					.setSrcSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(0).setBaseArrayLayer(0).setLayerCount(1))
+					.setDstOffset(vk::Offset3D(0, 0, 0))
+					.setDstSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(level).setBaseArrayLayer(0).setLayerCount(1))
+					.setExtent(vk::Extent3D(pwidth, pheight, 1));
 
 				// Create command buffer
 				//TODO: Use CommandBuffer class?
@@ -1672,22 +1374,7 @@ namespace VK
 					nullptr,
 					textureCopyBarrier
 				);
-				//TODO: Transition old image?
-				//TODO: Transition new image?
-				// Blit texture from old image to new resources
-				transferCommandBuffer.blitImage(
-					oldImage, currentLayout,
-					image, vk::ImageLayout::eGeneral,
-					vk::ArrayProxy<const vk::ImageBlit>(stagingBlitRegions.Count(), stagingBlitRegions.Buffer()),
-					vk::Filter::eNearest
-				);
-				// Blit texture to each mip level
-				transferCommandBuffer.blitImage(
-					image, vk::ImageLayout::eGeneral,
-					image, vk::ImageLayout::eGeneral,
-					vk::ArrayProxy<const vk::ImageBlit>(blitRegions.Count(), blitRegions.Buffer()),
-					vk::Filter::eLinear
-				);
+				transferCommandBuffer.copyImage(stagingImage, vk::ImageLayout::ePreinitialized, this->image, vk::ImageLayout::eTransferDstOptimal, stagingCopy);
 				transferCommandBuffer.pipelineBarrier(
 					vk::PipelineStageFlagBits::eTopOfPipe,
 					vk::PipelineStageFlagBits::eTopOfPipe,
@@ -1712,25 +1399,54 @@ namespace VK
 				RendererState::TransferQueue().waitIdle(); //TODO: Remove
 				RendererState::DestroyCommandBuffer(RendererState::TransferCommandPool(), transferCommandBuffer);
 
-				// Free old resources
-				RendererState::Device().destroyImageView(oldView);
-				RendererState::Device().freeMemory(oldMemory);
-				RendererState::Device().destroyImage(oldImage);
-
-				this->currentLayout = LayoutFromUsage(this->usage);
+				// Destroy staging resources
+				RendererState::Device().freeMemory(stagingMemory);
+				RendererState::Device().destroyImage(stagingImage);
 			}
 			else
 			{
-				// Create blit copy regions
-				CoreLib::List<vk::ImageBlit> blitRegions;
-				for (int l = 1; l < mipLevels; l++)
+				// Set up staging buffer and copy data to new image
+				int bufferSize = pwidth * pheight * pdepth * DataTypeSize(inputType);
+				if (format == StorageFormat::BC1 || format == StorageFormat::BC5)
 				{
-					blitRegions.Add(vk::ImageBlit()
-						.setSrcSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(l - 1).setBaseArrayLayer(0).setLayerCount(1))
-						.setSrcOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(max(1, width >> (l - 1)), max(1, height >> (l - 1)), 1)})
-						.setDstSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(l).setBaseArrayLayer(0).setLayerCount(1))
-						.setDstOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(max(1, width >> l), max(1, height >> l), 1)}));
+					int blocks = (int)(ceil(pwidth / 4.0f) * ceil(pheight / 4.0f));
+					bufferSize = format == StorageFormat::BC5 ? blocks * 16 : blocks * 8;
 				}
+
+				vk::BufferCreateInfo stagingBufferCreateInfo = vk::BufferCreateInfo()
+					.setFlags(vk::BufferCreateFlags())
+					.setSize(bufferSize)
+					.setUsage(vk::BufferUsageFlagBits::eTransferSrc)
+					.setSharingMode(vk::SharingMode::eExclusive)
+					.setQueueFamilyIndexCount(0)
+					.setPQueueFamilyIndices(nullptr);
+
+				vk::Buffer stagingBuffer = RendererState::Device().createBuffer(stagingBufferCreateInfo);
+
+				vk::MemoryRequirements stagingBufferMemoryRequirements = RendererState::Device().getBufferMemoryRequirements(stagingBuffer);
+
+				vk::MemoryAllocateInfo bufferAllocateInfo = vk::MemoryAllocateInfo()
+					.setAllocationSize(stagingBufferMemoryRequirements.size)
+					.setMemoryTypeIndex(GetMemoryType(stagingBufferMemoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible));
+
+				vk::DeviceMemory stagingMemory = RendererState::Device().allocateMemory(bufferAllocateInfo);
+
+				RendererState::Device().bindBufferMemory(stagingBuffer, stagingMemory, 0);
+
+				void* stagingMappedMemory = RendererState::Device().mapMemory(stagingMemory, 0, VK_WHOLE_SIZE, vk::MemoryMapFlags());
+				memcpy(stagingMappedMemory, data, bufferSize);
+
+				RendererState::Device().flushMappedMemoryRanges(vk::MappedMemoryRange(stagingMemory, 0, VK_WHOLE_SIZE));
+				RendererState::Device().unmapMemory(stagingMemory);
+
+				// Create buffer image copy information
+				vk::BufferImageCopy stagingCopy = vk::BufferImageCopy()
+					.setBufferOffset(0)
+					.setBufferRowLength(0)
+					.setBufferImageHeight(0)
+					.setImageSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(level).setBaseArrayLayer(layer).setLayerCount(1))
+					.setImageOffset(vk::Offset3D())
+					.setImageExtent(vk::Extent3D(pwidth, pheight, pdepth));
 
 				// Create command buffer
 				//TODO: Use CommandBuffer class?
@@ -1739,25 +1455,25 @@ namespace VK
 				// Record command buffer
 				vk::ImageSubresourceRange textureSubresourceRange = vk::ImageSubresourceRange()
 					.setAspectMask(aspectFlags)
-					.setBaseMipLevel(0)
-					.setLevelCount(mipLevels)
-					.setBaseArrayLayer(0)
+					.setBaseMipLevel(level)
+					.setLevelCount(1)
+					.setBaseArrayLayer(layer)
 					.setLayerCount(1);
 
 				vk::ImageMemoryBarrier textureCopyBarrier = vk::ImageMemoryBarrier()
-					.setSrcAccessMask(LayoutFlags(currentLayout))
-					.setDstAccessMask(LayoutFlags(vk::ImageLayout::eGeneral))
-					.setOldLayout(currentLayout)
-					.setNewLayout(vk::ImageLayout::eGeneral)
+					.setSrcAccessMask(LayoutFlags(vk::ImageLayout::eUndefined))
+					.setDstAccessMask(LayoutFlags(vk::ImageLayout::eTransferDstOptimal))
+					.setOldLayout(vk::ImageLayout::eUndefined)
+					.setNewLayout(vk::ImageLayout::eTransferDstOptimal)
 					.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
 					.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
 					.setImage(this->image)
 					.setSubresourceRange(textureSubresourceRange);
 
 				vk::ImageMemoryBarrier textureUsageBarrier = vk::ImageMemoryBarrier()
-					.setSrcAccessMask(LayoutFlags(vk::ImageLayout::eGeneral))
+					.setSrcAccessMask(LayoutFlags(vk::ImageLayout::eTransferDstOptimal))
 					.setDstAccessMask(LayoutFlags(LayoutFromUsage(this->usage)))
-					.setOldLayout(vk::ImageLayout::eGeneral)
+					.setOldLayout(vk::ImageLayout::eTransferDstOptimal)
 					.setNewLayout(LayoutFromUsage(this->usage))
 					.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
 					.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
@@ -1777,12 +1493,11 @@ namespace VK
 					nullptr,
 					textureCopyBarrier
 				);
-				// Blit texture to each mip level
-				transferCommandBuffer.blitImage(
-					image, vk::ImageLayout::eGeneral,
-					image, vk::ImageLayout::eGeneral,
-					vk::ArrayProxy<const vk::ImageBlit>(blitRegions.Count(), blitRegions.Buffer()),
-					vk::Filter::eLinear
+				transferCommandBuffer.copyBufferToImage(
+					stagingBuffer,
+					this->image,
+					vk::ImageLayout::eTransferDstOptimal,
+					stagingCopy
 				);
 				transferCommandBuffer.pipelineBarrier(
 					vk::PipelineStageFlagBits::eTopOfPipe,
@@ -1808,13 +1523,18 @@ namespace VK
 				RendererState::TransferQueue().waitIdle(); //TODO: Remove
 				RendererState::DestroyCommandBuffer(RendererState::TransferCommandPool(), transferCommandBuffer);
 
-				this->currentLayout = LayoutFromUsage(this->usage);
+				// Destroy staging resources
+				RendererState::Device().freeMemory(stagingMemory);
+				RendererState::Device().destroyBuffer(stagingBuffer);
 			}
+
+			this->currentLayout = LayoutFromUsage(this->usage);
 		}
-		void GetData(int mipLevel, void * data, int bufSize)
+
+		void GetData(int mipLevel, int arrayLayer, void* data, int bufSize)
 		{
 			// Set up staging buffer and copy data to new image
-			int bufferSize;
+			int bufferSize = 0;
 			if (format == StorageFormat::BC1 || format == StorageFormat::BC5)
 			{
 				int blocks = (int)(ceil(width / 4.0f) * ceil(height / 4.0f));
@@ -1867,7 +1587,7 @@ namespace VK
 				.setBufferOffset(0)
 				.setBufferRowLength(0)
 				.setBufferImageHeight(0)
-				.setImageSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(mipLevel).setBaseArrayLayer(0).setLayerCount(1))
+				.setImageSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(mipLevel).setBaseArrayLayer(arrayLayer).setLayerCount(1))
 				.setImageOffset(vk::Offset3D())
 				.setImageExtent(vk::Extent3D(max(1, width >> mipLevel), max(1, height >> mipLevel), 1));
 
@@ -1881,7 +1601,7 @@ namespace VK
 				.setBaseMipLevel(0)
 				.setLevelCount(mipLevels)
 				.setBaseArrayLayer(0)
-				.setLayerCount(1);
+				.setLayerCount(arrayLayers);
 
 			vk::ImageMemoryBarrier textureCopyBarrier = vk::ImageMemoryBarrier()
 				.setSrcAccessMask(LayoutFlags(currentLayout))
@@ -1956,23 +1676,148 @@ namespace VK
 			RendererState::Device().freeMemory(stagingMemory);
 			RendererState::Device().destroyBuffer(stagingBuffer);
 		}
+
+		void BuildMipmaps()
+		{
+			vk::Image oldImage = image;
+			vk::ImageView oldView = view;
+			vk::DeviceMemory oldMemory = memory;
+
+			vk::ImageAspectFlags aspectFlags;
+			if (format == StorageFormat::Depth32)
+				aspectFlags = vk::ImageAspectFlagBits::eDepth;
+			else if (format == StorageFormat::Depth24Stencil8)
+				aspectFlags = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
+			else
+				aspectFlags = vk::ImageAspectFlagBits::eColor;
+
+			// Create blit copy regions
+			CoreLib::List<vk::ImageBlit> blitRegions;
+			for (int l = 1; l < mipLevels; l++)
+			{
+				blitRegions.Add(vk::ImageBlit()
+					.setSrcSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(l - 1).setBaseArrayLayer(0).setLayerCount(1))
+					.setSrcOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(max(1, width >> (l - 1)), max(1, height >> (l - 1)), 1)})
+					.setDstSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(l).setBaseArrayLayer(0).setLayerCount(1))
+					.setDstOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(max(1, width >> l), max(1, height >> l), 1)}));
+			}
+
+			// Create command buffer
+			//TODO: Use CommandBuffer class?
+			vk::CommandBuffer transferCommandBuffer = RendererState::CreateCommandBuffer(RendererState::TransferCommandPool());
+
+			// Record command buffer
+			vk::ImageSubresourceRange textureSubresourceRange = vk::ImageSubresourceRange()
+				.setAspectMask(aspectFlags)
+				.setBaseMipLevel(0)
+				.setLevelCount(mipLevels)
+				.setBaseArrayLayer(0)
+				.setLayerCount(1);
+
+			vk::ImageMemoryBarrier textureCopyBarrier = vk::ImageMemoryBarrier()
+				.setSrcAccessMask(LayoutFlags(currentLayout))
+				.setDstAccessMask(LayoutFlags(vk::ImageLayout::eGeneral))
+				.setOldLayout(currentLayout)
+				.setNewLayout(vk::ImageLayout::eGeneral)
+				.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+				.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+				.setImage(this->image)
+				.setSubresourceRange(textureSubresourceRange);
+
+			vk::ImageMemoryBarrier textureUsageBarrier = vk::ImageMemoryBarrier()
+				.setSrcAccessMask(LayoutFlags(vk::ImageLayout::eGeneral))
+				.setDstAccessMask(LayoutFlags(LayoutFromUsage(this->usage)))
+				.setOldLayout(vk::ImageLayout::eGeneral)
+				.setNewLayout(LayoutFromUsage(this->usage))
+				.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+				.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+				.setImage(this->image)
+				.setSubresourceRange(textureSubresourceRange);
+
+			vk::CommandBufferBeginInfo transferBeginInfo = vk::CommandBufferBeginInfo()
+				.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit)
+				.setPInheritanceInfo(nullptr);
+
+			transferCommandBuffer.begin(transferBeginInfo);
+			transferCommandBuffer.pipelineBarrier(
+				vk::PipelineStageFlagBits::eTopOfPipe,
+				vk::PipelineStageFlagBits::eTopOfPipe,
+				vk::DependencyFlags(),
+				nullptr,
+				nullptr,
+				textureCopyBarrier
+			);
+			// Blit texture to each mip level
+			transferCommandBuffer.blitImage(
+				image, vk::ImageLayout::eGeneral,
+				image, vk::ImageLayout::eGeneral,
+				vk::ArrayProxy<const vk::ImageBlit>(blitRegions.Count(), blitRegions.Buffer()),
+				vk::Filter::eLinear
+			);
+			transferCommandBuffer.pipelineBarrier(
+				vk::PipelineStageFlagBits::eTopOfPipe,
+				vk::PipelineStageFlagBits::eTopOfPipe,
+				vk::DependencyFlags(),
+				nullptr,
+				nullptr,
+				textureUsageBarrier
+			);
+			transferCommandBuffer.end();
+
+			// Submit to queue
+			vk::SubmitInfo transferSubmitInfo = vk::SubmitInfo()
+				.setWaitSemaphoreCount(0)
+				.setPWaitSemaphores(nullptr)
+				.setPWaitDstStageMask(nullptr)
+				.setCommandBufferCount(1)
+				.setPCommandBuffers(&transferCommandBuffer)
+				.setSignalSemaphoreCount(0)
+				.setPSignalSemaphores(nullptr);
+
+			RendererState::TransferQueue().submit(transferSubmitInfo, vk::Fence());
+			RendererState::TransferQueue().waitIdle(); //TODO: Remove
+			RendererState::DestroyCommandBuffer(RendererState::TransferCommandPool(), transferCommandBuffer);
+
+			this->currentLayout = LayoutFromUsage(this->usage);
+		}
+	};
+
+	class Texture2D : public VK::Texture, public GameEngine::Texture2D
+	{
+		//TODO: Need some way of determining layouts and performing transitions properly. 
+	public:
+		Texture2D(TextureUsage usage, int width, int height, int mipLevelCount, StorageFormat format)
+			: VK::Texture(usage, width, height, 1, mipLevelCount, 1, 1, format) {};
+
+		void GetSize(int& pwidth, int& pheight)
+		{
+			pwidth = width;
+			pheight = height;
+		}
+		void SetData(int level, int pwidth, int pheight, int numSamples, DataType inputType, void* data)
+		{
+			VK::Texture::SetData(level, 0, pwidth, pheight, 1, inputType, data);
+		}
+		void SetData(int pwidth, int pheight, int numSamples, DataType inputType, void* data)
+		{
+			VK::Texture::SetData(0, 0, pwidth, pheight, 1, inputType, data);
+		}
+		void BuildMipmaps()
+		{
+			VK::Texture::BuildMipmaps();
+		}
+		void GetData(int mipLevel, void * data, int bufSize)
+		{
+			VK::Texture::GetData(mipLevel, 0, data, bufSize);
+		}
 	};
 
 	class Texture2DArray : public VK::Texture, public GameEngine::Texture2DArray
 	{
 	public:
-		int width;
-		int height;
-		int arrayLayers;
 	public:
 		Texture2DArray(TextureUsage usage, int width, int height, int mipLevels, int arrayLayers, StorageFormat newFormat)
-			: VK::Texture(usage, width, height, 1, mipLevels, arrayLayers, 1, newFormat)
-		{
-			this->format = newFormat;
-			this->width = width;
-			this->height = height;
-			this->arrayLayers = arrayLayers;
-		};
+			: VK::Texture(usage, width, height, 1, mipLevels, arrayLayers, 1, newFormat) {};
 
 		virtual void GetSize(int& pwidth, int& pheight, int& players) override
 		{
@@ -1993,15 +1838,9 @@ namespace VK
 	class Texture3D : public VK::Texture, public GameEngine::Texture3D
 	{
 	private:
-		int width;
-		int height;
-		int depth;
 	public:
 		Texture3D(TextureUsage usage, int width, int height, int depth, int mipLevels, StorageFormat newFormat)
-			: VK::Texture(usage, width, height, depth, mipLevels, 1, 1, newFormat)
-		{
-			this->format = newFormat;
-		};
+			: VK::Texture(usage, width, height, depth, mipLevels, 1, 1, newFormat) {};
 
 		virtual void GetSize(int& pwidth, int& pheight, int& pdepth) override
 		{
@@ -4392,32 +4231,48 @@ namespace VK
 
 		Texture2D* CreateTexture2D(int pwidth, int pheight, StorageFormat format, DataType dataType, void* data)
 		{
-			//TODO: implement
+			TextureUsage usage;
 			if (format == StorageFormat::Depth24Stencil8 || format == StorageFormat::Depth32)
-				return new Texture2D(TextureUsage::SampledDepthAttachment, pwidth, pheight, 1, format);
+				usage = TextureUsage::SampledDepthAttachment;
 			else
-				return new Texture2D(TextureUsage::SampledColorAttachment, pwidth, pheight, 1, format);
+				usage = TextureUsage::SampledColorAttachment;
+
+			int mipLevelCount = (int)Math::Log2Floor(Math::Max(pwidth, pheight)) + 1;
+			Texture2D* res = new Texture2D(usage, pwidth, pheight, mipLevelCount, format);
+			res->SetData(pwidth, pheight, 1, dataType, data);
+			res->BuildMipmaps();
+			//res->TransferLayout(LayoutFromUsage(usage));
+			return res;
 		}
 
 		Texture2D* CreateTexture2D(TextureUsage usage, int pwidth, int pheight, int mipLevelCount, StorageFormat format)
 		{
-			return new Texture2D(usage, pwidth, pheight, mipLevelCount, format);
+			Texture2D* res = new Texture2D(usage, pwidth, pheight, mipLevelCount, format);
+			res->TransferLayout(LayoutFromUsage(usage));
+			return res;
 		}
 
 		Texture2D* CreateTexture2D(TextureUsage usage, int pwidth, int pheight, int mipLevelCount, StorageFormat format, DataType dataType, CoreLib::ArrayView<void*> mipLevelData)
 		{
-			//TODO: implement
-			return new Texture2D(usage, pwidth, pheight, mipLevelCount, format);
+			Texture2D* res = new Texture2D(usage, pwidth, pheight, mipLevelCount, format);
+			for (int level = 0; level < mipLevelCount; level++)
+				res->SetData(level, Math::Max(pwidth >> level, 1), Math::Max(pheight >> level, 1), 1, dataType, mipLevelData[level]);
+			res->TransferLayout(LayoutFromUsage(usage));
+			return res;
 		}
 
 		Texture2DArray * CreateTexture2DArray(TextureUsage usage, int w, int h, int layers, int mipLevelCount, StorageFormat format)
 		{
-			return new Texture2DArray(usage, w, h, mipLevelCount, layers, format);
+			Texture2DArray* res = new Texture2DArray(usage, w, h, mipLevelCount, layers, format);
+			res->TransferLayout(LayoutFromUsage(usage));
+			return res;
 		}
 
 		Texture3D * CreateTexture3D(TextureUsage usage, int w, int h, int d, int mipLevelCount, StorageFormat format)
 		{
-			return new Texture3D(usage, w, h, d, mipLevelCount, format);
+			Texture3D* res = new Texture3D(usage, w, h, d, mipLevelCount, format);
+			res->TransferLayout(LayoutFromUsage(usage));
+			return res;
 		}
 
 		TextureSampler* CreateTextureSampler()
