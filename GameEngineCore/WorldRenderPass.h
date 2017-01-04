@@ -12,9 +12,9 @@ namespace GameEngine
 		SpireShader * shader = nullptr;
 
 	protected:
-		CoreLib::Array<CoreLib::RefPtr<CommandBuffer>, 32> commandBufferPool;
+		CoreLib::Array<CoreLib::RefPtr<AsyncCommandBuffer>, 32> commandBufferPool;
 		int poolAllocPtr = 0;
-		CommandBuffer * AllocCommandBuffer();
+		AsyncCommandBuffer * AllocCommandBuffer();
 		virtual const char * GetShaderSource() = 0;
 		virtual RenderTargetLayout * CreateRenderTargetLayout() = 0;
 		virtual void SetPipelineStates(FixedFunctionPipelineStates & state)

@@ -51,27 +51,27 @@ namespace GameEngine
 
 		pipeline = pipelineBuilder->ToPipeline(renderTargetLayout.Ptr());
 		
-		commandBuffer = hwRenderer->CreateCommandBuffer();
+		commandBuffer = new AsyncCommandBuffer(hwRenderer);
 		AcquireRenderTargets();
 	}
 
 	void PostRenderPass::Execute(SharedModuleInstances sharedModules)
 	{
-		commandBuffer->BeginRecording(frameBuffer.Ptr());
+		auto cmdBuf = commandBuffer->BeginRecording(frameBuffer.Ptr());
 		if (clearFrameBuffer)
-			commandBuffer->ClearAttachments(frameBuffer.Ptr());
+			cmdBuf->ClearAttachments(frameBuffer.Ptr());
 
 		DescriptorSetBindings descBindings;
 		UpdateDescriptorSetBinding(sharedModules, descBindings);
 
-		commandBuffer->SetViewport(0, 0, width, height);
-		commandBuffer->BindPipeline(pipeline.Ptr());
-		commandBuffer->BindVertexBuffer(sharedRes->fullScreenQuadVertBuffer.Ptr(), 0);
+		cmdBuf->SetViewport(0, 0, width, height);
+		cmdBuf->BindPipeline(pipeline.Ptr());
+		cmdBuf->BindVertexBuffer(sharedRes->fullScreenQuadVertBuffer.Ptr(), 0);
 		for (auto & binding : descBindings.bindings)
-			commandBuffer->BindDescriptorSet(binding.index, binding.descriptorSet);
-		commandBuffer->Draw(0, 4);
-		commandBuffer->EndRecording();
-		hwRenderer->ExecuteCommandBuffers(frameBuffer.Ptr(), MakeArrayView(commandBuffer.Ptr()), nullptr);
+			cmdBuf->BindDescriptorSet(binding.index, binding.descriptorSet);
+		cmdBuf->Draw(0, 4);
+		cmdBuf->EndRecording();
+		hwRenderer->ExecuteCommandBuffers(frameBuffer.Ptr(), MakeArrayView(cmdBuf), nullptr);
 	}
 
 	void PostRenderPass::Resize(int screenWidth, int screenHeight)

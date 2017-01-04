@@ -7,6 +7,7 @@
 #include "Spire/Spire.h"
 #include "OS.h"
 #include "EngineLimits.h"
+#include "AsyncCommandBuffer.h"
 
 //#define WINDOWS_10_SCALING
 
@@ -654,9 +655,9 @@ namespace GraphicsUI
 		const int vertexBufferSize = 1 << 21;
 		RefPtr<TextureSampler> linearSampler;
 		RefPtr<RenderTargetLayout> renderTargetLayout;
-		RefPtr<DescriptorSet> descSet;
+		Array<RefPtr<DescriptorSet>, DynamicBufferLengthMultiplier> descSets;
 		RefPtr<FrameBuffer> frameBuffer;
-		RefPtr<CommandBuffer> cmdBuffer;
+		RefPtr<AsyncCommandBuffer> cmdBuffer;
 		List<UniformField> uniformFields;
 		List<UberVertex> vertexStream;
 		List<int> indexStream;
@@ -725,27 +726,36 @@ namespace GraphicsUI
 			indexBuffer = rendererApi->CreateBuffer(BufferUsage::ArrayBuffer, indexBufferSize * DynamicBufferLengthMultiplier);
 
 			Array<AttachmentLayout, 1> frameBufferLayout;
-			frameBufferLayout.Add(AttachmentLayout(TextureUsage::ColorAttachment, StorageFormat::RGBA_8));
+			frameBufferLayout.Add(AttachmentLayout(TextureUsage::SampledColorAttachment, StorageFormat::RGBA_8));
 
 			renderTargetLayout = rendererApi->CreateRenderTargetLayout(frameBufferLayout.GetArrayView());
 			pipeBuilder->SetDebugName("ui");
 			pipeline = pipeBuilder->ToPipeline(renderTargetLayout.Ptr());
 
-			cmdBuffer = rendererApi->CreateCommandBuffer();
+			cmdBuffer = new AsyncCommandBuffer(rendererApi);
 
 			linearSampler = rendererApi->CreateTextureSampler();
 			linearSampler->SetFilter(TextureFilter::Linear);
 
-			uiOverlayTexture = rendererApi->CreateTexture2D(TextureUsage::ColorAttachment, 4, 4, 1, StorageFormat::RGBA_8);
+			uiOverlayTexture = rendererApi->CreateTexture2D(TextureUsage::SampledColorAttachment, 4, 4, 1, StorageFormat::RGBA_8);
 			frameBuffer = renderTargetLayout->CreateFrameBuffer(MakeArrayView(uiOverlayTexture.Ptr()));
 
-			descSet = rendererApi->CreateDescriptorSet(descLayout.Ptr());
-			
+			for (int i = 0; i < descSets.GetCapacity(); i++)
+			{
+				auto descSet = rendererApi->CreateDescriptorSet(descLayout.Ptr());
+				descSet->BeginUpdate();
+				descSet->Update(0, uniformBuffer.Ptr());
+				descSet->Update(1, primitiveBuffer.Ptr(), i * primitiveBufferSize, primitiveBufferSize);
+				descSet->Update(2, system->GetTextBufferObject());
+				descSet->EndUpdate();
+				descSets.Add(descSet);
+			}
 		}
 		~GLUIRenderer()
 		{
 
 		}
+
 		Texture2D * GetRenderedImage()
 		{
 			return uiOverlayTexture.Ptr();
@@ -757,7 +767,7 @@ namespace GraphicsUI
 			rendererApi->Wait();
 			Matrix4::CreateOrthoMatrix(orthoMatrix, 0.0f, (float)screenWidth, 0.0f, (float)screenHeight, 1.0f, -1.0f);
 			uniformBuffer->SetData(&orthoMatrix, sizeof(orthoMatrix)); 
-			uiOverlayTexture = rendererApi->CreateTexture2D(TextureUsage::ColorAttachment, w, h, 1, StorageFormat::RGBA_8);
+			uiOverlayTexture = rendererApi->CreateTexture2D(TextureUsage::SampledColorAttachment, w, h, 1, StorageFormat::RGBA_8);
 			frameBuffer = renderTargetLayout->CreateFrameBuffer(MakeArrayView(uiOverlayTexture.Ptr()));
 		}
 		void BeginUIDrawing()
@@ -773,25 +783,20 @@ namespace GraphicsUI
 			indexBuffer->SetData(frameId * indexBufferSize, indexStream.Buffer(), sizeof(int) * indexStream.Count());
 			vertexBuffer->SetData(frameId * vertexBufferSize, vertexStream.Buffer(), sizeof(UberVertex) * vertexStream.Count());
 			primitiveBuffer->SetData(frameId * primitiveBufferSize, uniformFields.Buffer(), sizeof(UniformField) * uniformFields.Count());
-			cmdBuffer->BeginRecording(frameBuffer.Ptr());
-			cmdBuffer->Blit(uiOverlayTexture.Ptr(), baseTexture);
-			cmdBuffer->BindPipeline(pipeline.Ptr());
-			cmdBuffer->BindVertexBuffer(vertexBuffer.Ptr(), frameId * vertexBufferSize);
-			cmdBuffer->BindIndexBuffer(indexBuffer.Ptr(), frameId * indexBufferSize);
-			cmdBuffer->BindDescriptorSet(0, descSet.Ptr());
-			cmdBuffer->SetViewport(0, 0, screenWidth, screenHeight);
-			cmdBuffer->DrawIndexed(0, indexStream.Count());
-			cmdBuffer->EndRecording();
+			auto cmdBuf = cmdBuffer->BeginRecording(frameBuffer.Ptr());
+			cmdBuf->Blit(uiOverlayTexture.Ptr(), baseTexture);
+			cmdBuf->BindPipeline(pipeline.Ptr());
+			cmdBuf->BindVertexBuffer(vertexBuffer.Ptr(), frameId * vertexBufferSize);
+			cmdBuf->BindIndexBuffer(indexBuffer.Ptr(), frameId * indexBufferSize);
+			cmdBuf->BindDescriptorSet(0, descSets[frameId].Ptr());
+			cmdBuf->SetViewport(0, 0, screenWidth, screenHeight);
+			cmdBuf->DrawIndexed(0, indexStream.Count());
+			cmdBuf->EndRecording();
 		}
 		void SubmitCommands(GameEngine::Fence * fence)
 		{
-			descSet->BeginUpdate();
-			descSet->Update(0, uniformBuffer.Ptr());
-			descSet->Update(1, primitiveBuffer.Ptr(), frameId * primitiveBufferSize, primitiveBufferSize);
-			descSet->Update(2, system->GetTextBufferObject());
-			descSet->EndUpdate();
 			frameId++;
-			rendererApi->ExecuteCommandBuffers(frameBuffer.Ptr(), MakeArrayView(cmdBuffer.Ptr()), fence);
+			rendererApi->ExecuteCommandBuffers(frameBuffer.Ptr(), MakeArrayView(cmdBuffer->GetBuffer()), fence);
 		}
 		void DrawLine(const Color & color, float x0, float y0, float x1, float y1)
 		{

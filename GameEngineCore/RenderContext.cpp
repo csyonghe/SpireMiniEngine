@@ -524,7 +524,10 @@ namespace GameEngine
 				result->Width = (int)(screenWidth * ratio);
 				result->Height = (int)(screenHeight * ratio);
 			}
-			result->Texture = hardwareRenderer->CreateTexture2D(TextureUsage::ColorAttachment, result->Width, result->Height, 1, format);
+			if (format == StorageFormat::Depth24Stencil8 || format == StorageFormat::Depth32)
+				result->Texture = hardwareRenderer->CreateTexture2D(TextureUsage::SampledDepthAttachment, result->Width, result->Height, 1, format);
+			else
+				result->Texture = hardwareRenderer->CreateTexture2D(TextureUsage::SampledColorAttachment, result->Width, result->Height, 1, format);
 		}
 		result->FixedWidth = w;
 		result->FixedHeight = h;
@@ -542,9 +545,9 @@ namespace GameEngine
 				r.Value->Width = (int)(screenWidth * r.Value->ResolutionScale);
 				r.Value->Height = (int)(screenHeight * r.Value->ResolutionScale);
 				if(r.Value->Format == StorageFormat::Depth24Stencil8 || r.Value->Format == StorageFormat::Depth32)
-					r.Value->Texture = hardwareRenderer->CreateTexture2D(TextureUsage::DepthAttachment, r.Value->Width, r.Value->Height, 1, r.Value->Format);
+					r.Value->Texture = hardwareRenderer->CreateTexture2D(TextureUsage::SampledDepthAttachment, r.Value->Width, r.Value->Height, 1, r.Value->Format);
 				else
-					r.Value->Texture = hardwareRenderer->CreateTexture2D(TextureUsage::ColorAttachment, r.Value->Width, r.Value->Height, 1, r.Value->Format);
+					r.Value->Texture = hardwareRenderer->CreateTexture2D(TextureUsage::SampledColorAttachment, r.Value->Width, r.Value->Height, 1, r.Value->Format);
 			}
 		}
 		for (auto & output : renderOutputs)
@@ -723,13 +726,13 @@ namespace GameEngine
 	void RenderPassInstance::SetFixedOrderDrawContent(PipelineContext & pipelineManager, CullFrustum frustum, CoreLib::ArrayView<Drawable*> drawables)
 	{
 		renderOutput->GetSize(viewport.Width, viewport.Height);
-		commandBuffer->BeginRecording(renderOutput->GetFrameBuffer());
-		commandBuffer->SetViewport(viewport.X, viewport.Y, viewport.Width, viewport.Height);
-		commandBuffer->ClearAttachments(renderOutput->GetFrameBuffer());
+		auto cmdBuf = commandBuffer->BeginRecording(renderOutput->GetFrameBuffer());
+		cmdBuf->SetViewport(viewport.X, viewport.Y, viewport.Width, viewport.Height);
+		cmdBuf->ClearAttachments(renderOutput->GetFrameBuffer());
 		DescriptorSetBindingArray bindings;
 		pipelineManager.GetBindings(bindings);
 		for (int i = 0; i < bindings.Count(); i++)
-			commandBuffer->BindDescriptorSet(i, bindings[i]);
+			cmdBuf->BindDescriptorSet(i, bindings[i]);
 		numDrawCalls = 0;
 		for (auto obj : drawables)
 		{
@@ -742,19 +745,19 @@ namespace GameEngine
 			if (auto pipelineInst = obj->GetPipeline(renderPassId, pipelineManager))
 			{
 				auto mesh = obj->GetMesh();
-				commandBuffer->BindPipeline(pipelineInst->pipeline.Ptr());
-				commandBuffer->BindIndexBuffer(mesh->GetIndexBuffer(), mesh->indexBufferOffset);
-				commandBuffer->BindVertexBuffer(mesh->GetVertexBuffer(), mesh->vertexBufferOffset);
-				commandBuffer->BindDescriptorSet(bindings.Count(), obj->GetMaterial()->MaterialGeometryModule->GetCurrentDescriptorSet());
-				commandBuffer->BindDescriptorSet(bindings.Count() + 1, obj->GetMaterial()->MaterialPatternModule->GetCurrentDescriptorSet());
-				commandBuffer->BindDescriptorSet(bindings.Count() + 2, obj->GetTransformModule()->GetCurrentDescriptorSet());
-				commandBuffer->DrawIndexed(0, mesh->indexCount);
+				cmdBuf->BindPipeline(pipelineInst->pipeline.Ptr());
+				cmdBuf->BindIndexBuffer(mesh->GetIndexBuffer(), mesh->indexBufferOffset);
+				cmdBuf->BindVertexBuffer(mesh->GetVertexBuffer(), mesh->vertexBufferOffset);
+				cmdBuf->BindDescriptorSet(bindings.Count(), obj->GetMaterial()->MaterialGeometryModule->GetCurrentDescriptorSet());
+				cmdBuf->BindDescriptorSet(bindings.Count() + 1, obj->GetMaterial()->MaterialPatternModule->GetCurrentDescriptorSet());
+				cmdBuf->BindDescriptorSet(bindings.Count() + 2, obj->GetTransformModule()->GetCurrentDescriptorSet());
+				cmdBuf->DrawIndexed(0, mesh->indexCount);
 			}
 			pipelineManager.PopModuleInstance();
 			pipelineManager.PopModuleInstance();
 			pipelineManager.PopModuleInstance();
 		}
-		commandBuffer->EndRecording();
+		cmdBuf->EndRecording();
 	}
 	void RenderPassInstance::SetDrawContent(PipelineContext & pipelineManager, CoreLib::List<Drawable*>& reorderBuffer, CullFrustum frustum, CoreLib::ArrayView<Drawable*> drawables)
 	{
@@ -775,13 +778,13 @@ namespace GameEngine
 		}
 		reorderBuffer.Sort([](Drawable* d1, Drawable* d2) {return d1->ReorderKey < d2->ReorderKey; });
 		renderOutput->GetSize(viewport.Width, viewport.Height);
-		commandBuffer->BeginRecording(renderOutput->GetFrameBuffer());
-		commandBuffer->SetViewport(viewport.X, viewport.Y, viewport.Width, viewport.Height);
-		commandBuffer->ClearAttachments(renderOutput->GetFrameBuffer());
+		auto cmdBuf = commandBuffer->BeginRecording(renderOutput->GetFrameBuffer());
+		cmdBuf->SetViewport(viewport.X, viewport.Y, viewport.Width, viewport.Height);
+		cmdBuf->ClearAttachments(renderOutput->GetFrameBuffer());
 		DescriptorSetBindingArray bindings;
 		pipelineManager.GetBindings(bindings);
 		for (int i = 0; i < bindings.Count(); i++)
-			commandBuffer->BindDescriptorSet(i, bindings[i]);
+			cmdBuf->BindDescriptorSet(i, bindings[i]);
 		numDrawCalls = 0;
 		for (auto obj : reorderBuffer)
 		{
@@ -789,16 +792,16 @@ namespace GameEngine
 			if (auto pipelineInst = (PipelineClass*)obj->ReorderKey)
 			{
 				auto mesh = obj->GetMesh();
-				commandBuffer->BindPipeline(pipelineInst->pipeline.Ptr());
-				commandBuffer->BindIndexBuffer(mesh->GetIndexBuffer(), mesh->indexBufferOffset);
-				commandBuffer->BindVertexBuffer(mesh->GetVertexBuffer(), mesh->vertexBufferOffset);
-				commandBuffer->BindDescriptorSet(bindings.Count(), obj->GetMaterial()->MaterialGeometryModule->GetCurrentDescriptorSet());
-				commandBuffer->BindDescriptorSet(bindings.Count() + 1, obj->GetMaterial()->MaterialPatternModule->GetCurrentDescriptorSet());
-				commandBuffer->BindDescriptorSet(bindings.Count() + 2, obj->GetTransformModule()->GetCurrentDescriptorSet());
-				commandBuffer->DrawIndexed(0, mesh->indexCount);
+				cmdBuf->BindPipeline(pipelineInst->pipeline.Ptr());
+				cmdBuf->BindIndexBuffer(mesh->GetIndexBuffer(), mesh->indexBufferOffset);
+				cmdBuf->BindVertexBuffer(mesh->GetVertexBuffer(), mesh->vertexBufferOffset);
+				cmdBuf->BindDescriptorSet(bindings.Count(), obj->GetMaterial()->MaterialGeometryModule->GetCurrentDescriptorSet());
+				cmdBuf->BindDescriptorSet(bindings.Count() + 1, obj->GetMaterial()->MaterialPatternModule->GetCurrentDescriptorSet());
+				cmdBuf->BindDescriptorSet(bindings.Count() + 2, obj->GetTransformModule()->GetCurrentDescriptorSet());
+				cmdBuf->DrawIndexed(0, mesh->indexCount);
 			}
 		}
-		commandBuffer->EndRecording();
+		cmdBuf->EndRecording();
 	}
 	void FrameRenderTask::Clear()
 	{

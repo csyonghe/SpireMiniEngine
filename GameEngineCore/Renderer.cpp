@@ -215,7 +215,7 @@ namespace GameEngine
 
 			for (auto & pass : frameTask.renderPasses)
 			{
-				hardwareRenderer->ExecuteCommandBuffers(pass.renderOutput->GetFrameBuffer(), MakeArrayView(pass.commandBuffer), nullptr);
+				hardwareRenderer->ExecuteCommandBuffers(pass.renderOutput->GetFrameBuffer(), MakeArrayView(pass.commandBuffer->GetBuffer()), nullptr);
 				renderStats.NumPasses++;
 				renderStats.NumDrawCalls += pass.numDrawCalls;
 			}

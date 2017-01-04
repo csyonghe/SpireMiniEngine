@@ -27,7 +27,7 @@ namespace GameEngine
 		bool clearFrameBuffer = false;
 		CoreLib::RefPtr<RenderOutput> renderOutput;
 		CoreLib::RefPtr<FrameBuffer> frameBuffer;
-		CoreLib::RefPtr<CommandBuffer> commandBuffer;
+		CoreLib::RefPtr<AsyncCommandBuffer> commandBuffer;
 		CoreLib::RefPtr<Pipeline> pipeline;
 		CoreLib::List<CoreLib::RefPtr<Shader>> shaders;
 		CoreLib::List<CoreLib::RefPtr<DescriptorSetLayout>> descLayouts;

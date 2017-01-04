@@ -90,7 +90,7 @@ namespace GameEngine
 			uiEntry = new UIEntry(args.Width, args.Height, uiSystemInterface.Ptr());
 			uiSystemInterface->SetEntry(uiEntry.Ptr());
 			renderer->GetHardwareRenderer()->BeginDataTransfer();
-			//uiSystemInterface->SetResolution(args.Width, args.Height);
+			uiSystemInterface->SetResolution(args.Width, args.Height);
 			renderer->GetHardwareRenderer()->EndDataTransfer();
 
 			uiCommandForm = new CommandForm(uiEntry.Ptr());
