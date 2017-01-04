@@ -3542,7 +3542,6 @@ namespace VK
 			for (int k = 0; k < renderAttachments.attachments.Count(); k++)
 			{
 				vk::ImageAspectFlags aspectMask;
-				bool isDepth = false;
 
 				auto& attach = renderAttachments.attachments[k];
 
@@ -3570,28 +3569,38 @@ namespace VK
 				{
 				case GameEngine::TextureUsage::ColorAttachment:
 				case GameEngine::TextureUsage::SampledColorAttachment:
-					aspectMask = vk::ImageAspectFlagBits::eColor;
-					break;
-				case GameEngine::TextureUsage::DepthAttachment:
-				case GameEngine::TextureUsage::SampledDepthAttachment:
-					aspectMask = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
-					isDepth = true;
-					break;
-				}
-
-				if (isDepth)
 					attachments.Add(
 						vk::ClearAttachment()
-						.setAspectMask(aspectMask)
-						.setColorAttachment(VK_ATTACHMENT_UNUSED)
-						.setClearValue(vk::ClearDepthStencilValue(1.0f, 0)));
-				else
-					attachments.Add(
-						vk::ClearAttachment()
-						.setAspectMask(aspectMask)
+						.setAspectMask(vk::ImageAspectFlagBits::eColor)
 						.setColorAttachment(k)
 						.setClearValue(vk::ClearColorValue())
 					);
+					break;
+				case GameEngine::TextureUsage::DepthAttachment:
+				case GameEngine::TextureUsage::SampledDepthAttachment:
+					attachments.Add(
+						vk::ClearAttachment()
+						.setAspectMask(vk::ImageAspectFlagBits::eDepth)
+						.setColorAttachment(VK_ATTACHMENT_UNUSED)
+						.setClearValue(vk::ClearDepthStencilValue(1.0f, 0)));
+					break;
+				case GameEngine::TextureUsage::StencilAttachment:
+				case GameEngine::TextureUsage::SampledStencilAttachment:
+					attachments.Add(
+						vk::ClearAttachment()
+						.setAspectMask(vk::ImageAspectFlagBits::eStencil)
+						.setColorAttachment(VK_ATTACHMENT_UNUSED)
+						.setClearValue(vk::ClearDepthStencilValue(1.0f, 0)));
+					break;
+				case GameEngine::TextureUsage::DepthStencilAttachment:
+				case GameEngine::TextureUsage::SampledDepthStencilAttachment:
+					attachments.Add(
+						vk::ClearAttachment()
+						.setAspectMask(vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil)
+						.setColorAttachment(VK_ATTACHMENT_UNUSED)
+						.setClearValue(vk::ClearDepthStencilValue(1.0f, 0)));
+					break;
+				}
 
 				rects.Add(
 					vk::ClearRect()
