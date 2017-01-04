@@ -3270,6 +3270,8 @@ namespace VK
 						pendingOffsets[k],
 						pendingDescSets[k],
 						nullptr);
+				pendingOffsets.Clear();
+				pendingDescSets.Clear();
 			}
 			buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, dynamic_cast<VK::Pipeline*>(pipeline)->pipeline);
 		}
