@@ -4040,11 +4040,16 @@ namespace VK
 			vk::CommandBuffer primaryBuffer = primaryBufferFence.first;
 			vk::Fence primaryFence = primaryBufferFence.second;
 			primaryBuffer.begin(primaryBeginInfo);
-			primaryBuffer.executeCommands(prePassCommandBuffers.Count(), prePassCommandBuffers.Buffer());
-			primaryBuffer.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eSecondaryCommandBuffers);
-			primaryBuffer.executeCommands(renderPassCommandBuffers.Count(), renderPassCommandBuffers.Buffer());
-			primaryBuffer.executeCommands(postPassCommandBuffers.Count(), postPassCommandBuffers.Buffer());
-			primaryBuffer.endRenderPass();
+			if (prePassCommandBuffers.Count() > 0)
+				primaryBuffer.executeCommands(prePassCommandBuffers.Count(), prePassCommandBuffers.Buffer());
+			{ // BEGIN RenderPass
+				primaryBuffer.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eSecondaryCommandBuffers);
+				if (renderPassCommandBuffers.Count() > 0)
+					primaryBuffer.executeCommands(renderPassCommandBuffers.Count(), renderPassCommandBuffers.Buffer());
+				primaryBuffer.endRenderPass();
+			} // END RenderPass
+			if (postPassCommandBuffers.Count() > 0)
+				primaryBuffer.executeCommands(postPassCommandBuffers.Count(), postPassCommandBuffers.Buffer());
 
 #if SHARED_EVENT
 			primaryBuffer.setEvent(curEvent->internalEvent, vk::PipelineStageFlagBits::eBottomOfPipe);
