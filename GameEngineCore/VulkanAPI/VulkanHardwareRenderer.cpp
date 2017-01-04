@@ -2542,23 +2542,6 @@ namespace VK
 		}
 	};
 
-	class RenderTargetLayout;
-
-	class FrameBuffer : public GameEngine::FrameBuffer
-	{
-	public:
-		int width;
-		int height;
-		vk::Framebuffer framebuffer;
-		CoreLib::RefPtr<RenderTargetLayout> renderTargetLayout;
-		RenderAttachments renderAttachments;
-		FrameBuffer() {};
-		~FrameBuffer()
-		{
-			if (framebuffer) RendererState::Device().destroyFramebuffer(framebuffer);
-		}
-	};
-
 	class RenderTargetLayout : public GameEngine::RenderTargetLayout
 	{
 	public:
@@ -2684,62 +2667,79 @@ namespace VK
 			if (renderPass) RendererState::Device().destroyRenderPass(renderPass);
 		}
 
-		virtual FrameBuffer* CreateFrameBuffer(const RenderAttachments& renderAttachments) override
+		virtual FrameBuffer* CreateFrameBuffer(const RenderAttachments& renderAttachments) override;
+	};
+
+
+	class FrameBuffer : public GameEngine::FrameBuffer
+	{
+	public:
+		int width;
+		int height;
+		vk::Framebuffer framebuffer;
+		CoreLib::RefPtr<RenderTargetLayout> renderTargetLayout;
+		RenderAttachments renderAttachments;
+		FrameBuffer() {};
+		~FrameBuffer()
 		{
-#if _DEBUG
-			// Ensure the RenderAttachments are compatible with this RenderTargetLayout
-			for (auto colorReference : colorReferences)
-			{
-				TextureUsage usage = TextureUsage::ColorAttachment;
-				if (renderAttachments.attachments[colorReference.attachment].handle.tex2D)
-					usage = dynamic_cast<Texture2D*>(renderAttachments.attachments[colorReference.attachment].handle.tex2D)->usage;
-				else if (renderAttachments.attachments[colorReference.attachment].handle.tex2DArray)
-					usage = dynamic_cast<Texture2DArray*>(renderAttachments.attachments[colorReference.attachment].handle.tex2DArray)->usage;
-
-				if (!(usage & TextureUsage::ColorAttachment))
-					throw HardwareRendererException("Incompatible RenderTargetLayout and RenderAttachments");
-			}
-			if (depthReference.layout != vk::ImageLayout::eUndefined)
-			{
-				TextureUsage usage = TextureUsage::ColorAttachment;
-				if (renderAttachments.attachments[depthReference.attachment].handle.tex2D)
-					usage = dynamic_cast<Texture2D*>(renderAttachments.attachments[depthReference.attachment].handle.tex2D)->usage;
-				else if (renderAttachments.attachments[depthReference.attachment].handle.tex2DArray)
-					usage = dynamic_cast<Texture2DArray*>(renderAttachments.attachments[depthReference.attachment].handle.tex2DArray)->usage;
-
-				if (!(usage & TextureUsage::DepthAttachment))
-					throw HardwareRendererException("Incompatible RenderTargetLayout and RenderAttachments");
-			}
-#endif
-			FrameBuffer* result = new FrameBuffer();
-			result->renderTargetLayout = new RenderTargetLayout;
-			*result->renderTargetLayout = *this;
-			result->renderAttachments = renderAttachments;
-			CoreLib::List<vk::ImageView> framebufferAttachmentViews;
-			for (auto attachment : renderAttachments.attachments)
-			{
-				if (attachment.handle.tex2D)
-					framebufferAttachmentViews.Add(dynamic_cast<Texture2D*>(attachment.handle.tex2D)->view);
-				else if (attachment.handle.tex2DArray)
-					framebufferAttachmentViews.Add(dynamic_cast<Texture2DArray*>(attachment.handle.tex2DArray)->view);
-			}
-
-			vk::FramebufferCreateInfo framebufferCreateInfo = vk::FramebufferCreateInfo()
-				.setFlags(vk::FramebufferCreateFlags())
-				.setRenderPass(renderPass)
-				.setAttachmentCount(framebufferAttachmentViews.Count())
-				.setPAttachments(framebufferAttachmentViews.Buffer())
-				.setWidth(renderAttachments.width)
-				.setHeight(renderAttachments.height)
-				.setLayers(1);
-
-			result->framebuffer = RendererState::Device().createFramebuffer(framebufferCreateInfo);
-			result->width = renderAttachments.width;
-			result->height = renderAttachments.height;
-
-			return result;
+			if (framebuffer) RendererState::Device().destroyFramebuffer(framebuffer);
 		}
 	};
+
+	GameEngine::FrameBuffer* RenderTargetLayout::CreateFrameBuffer(const RenderAttachments& renderAttachments)
+	{
+#if _DEBUG
+		// Ensure the RenderAttachments are compatible with this RenderTargetLayout
+		for (auto colorReference : colorReferences)
+		{
+			TextureUsage usage = TextureUsage::ColorAttachment;
+			if (renderAttachments.attachments[colorReference.attachment].handle.tex2D)
+				usage = dynamic_cast<Texture2D*>(renderAttachments.attachments[colorReference.attachment].handle.tex2D)->usage;
+			else if (renderAttachments.attachments[colorReference.attachment].handle.tex2DArray)
+				usage = dynamic_cast<Texture2DArray*>(renderAttachments.attachments[colorReference.attachment].handle.tex2DArray)->usage;
+
+			if (!(usage & TextureUsage::ColorAttachment))
+				throw HardwareRendererException("Incompatible RenderTargetLayout and RenderAttachments");
+		}
+		if (depthReference.layout != vk::ImageLayout::eUndefined)
+		{
+			TextureUsage usage = TextureUsage::ColorAttachment;
+			if (renderAttachments.attachments[depthReference.attachment].handle.tex2D)
+				usage = dynamic_cast<Texture2D*>(renderAttachments.attachments[depthReference.attachment].handle.tex2D)->usage;
+			else if (renderAttachments.attachments[depthReference.attachment].handle.tex2DArray)
+				usage = dynamic_cast<Texture2DArray*>(renderAttachments.attachments[depthReference.attachment].handle.tex2DArray)->usage;
+
+			if (!(usage & TextureUsage::DepthAttachment))
+				throw HardwareRendererException("Incompatible RenderTargetLayout and RenderAttachments");
+		}
+#endif
+		FrameBuffer* result = new FrameBuffer();
+		result->renderTargetLayout = this;
+		result->renderAttachments = renderAttachments;
+		CoreLib::List<vk::ImageView> framebufferAttachmentViews;
+		for (auto attachment : renderAttachments.attachments)
+		{
+			if (attachment.handle.tex2D)
+				framebufferAttachmentViews.Add(dynamic_cast<Texture2D*>(attachment.handle.tex2D)->view);
+			else if (attachment.handle.tex2DArray)
+				framebufferAttachmentViews.Add(dynamic_cast<Texture2DArray*>(attachment.handle.tex2DArray)->view);
+		}
+
+		vk::FramebufferCreateInfo framebufferCreateInfo = vk::FramebufferCreateInfo()
+			.setFlags(vk::FramebufferCreateFlags())
+			.setRenderPass(renderPass)
+			.setAttachmentCount(framebufferAttachmentViews.Count())
+			.setPAttachments(framebufferAttachmentViews.Buffer())
+			.setWidth(renderAttachments.width)
+			.setHeight(renderAttachments.height)
+			.setLayers(1);
+
+		result->framebuffer = RendererState::Device().createFramebuffer(framebufferCreateInfo);
+		result->width = renderAttachments.width;
+		result->height = renderAttachments.height;
+
+		return result;
+	}
 
 	class DescriptorSetLayout : public GameEngine::DescriptorSetLayout
 	{
