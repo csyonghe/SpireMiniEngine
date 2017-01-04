@@ -143,13 +143,13 @@ namespace GameEngine
 		Unused = 0x0,
 		Sampled = 0x1,
 		ColorAttachment = 0x2,
-		SampledColorAttachment = 0x3,
+		SampledColorAttachment = 0x2 | 0x1,
 		DepthAttachment = 0x4,
-		SampledDepthAttachment = 0x5,
+		SampledDepthAttachment = 0x4 | 0x1,
 		StencilAttachment = 0x8,
-		SampledStencilAttachment = 0x9,
-		DepthStencilAttachment = 0xc,
-		SampledDepthStencilAttachment = 0xd,
+		SampledStencilAttachment = 0x8 | 0x1,
+		DepthStencilAttachment = 0x8 | 0x4,
+		SampledDepthStencilAttachment = 0x8 | 0x4 | 0x1,
 	};
 
 	struct AttachmentLayout
