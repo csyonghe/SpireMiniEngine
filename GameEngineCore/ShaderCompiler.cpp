@@ -48,7 +48,8 @@ namespace GameEngine
 			DescriptorSetInfo setInfo;
 			setInfo.BindingName = spParameterSetGetBindingName(descSet);
 			setInfo.BindingPoint = spParameterSetGetBindingIndex(descSet);
-			setInfo.Descriptors.Add(DescriptorLayout(0, BindingType::UniformBuffer, setInfo.BindingPoint));
+			if (spParameterSetGetBufferSize(descSet) != 0)
+				setInfo.Descriptors.Add(DescriptorLayout(0, BindingType::UniformBuffer, setInfo.BindingPoint));
 			int numDescs = spParameterSetGetBindingSlotCount(descSet);
 			for (int j = 0; j < numDescs; j++)
 			{
@@ -56,7 +57,7 @@ namespace GameEngine
 				DescriptorLayout desc;
 				if (slot->NumLegacyBindingPoints)
 					desc.LegacyBindingPoints.AddRange(slot->LegacyBindingPoints, slot->NumLegacyBindingPoints);
-				desc.Location = j + 1;
+				desc.Location = setInfo.Descriptors.Count();
 				switch (slot->Type)
 				{
 				case SPIRE_SAMPLER:

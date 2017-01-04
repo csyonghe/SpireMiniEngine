@@ -582,8 +582,8 @@ namespace GameEngine
 			rs->UniformMemory = nullptr;
 		int paramCount = spModuleGetParameterCount(shaderModule);
 		List<DescriptorLayout> descs;
-		descs.Add(DescriptorLayout(0, BindingType::UniformBuffer));
-		int bindLoc = 1;
+		if (rs->UniformMemory)
+			descs.Add(DescriptorLayout(0, BindingType::UniformBuffer));
 		for (int i = 0; i < paramCount; i++)
 		{
 			SpireComponentInfo info;
@@ -591,7 +591,7 @@ namespace GameEngine
 			if (info.BindableResourceType != SPIRE_NON_BINDABLE)
 			{
 				DescriptorLayout layout;
-				layout.Location = bindLoc++;
+				layout.Location = descs.Count();
 				switch (info.BindableResourceType)
 				{
 				case SPIRE_TEXTURE:
@@ -615,13 +615,15 @@ namespace GameEngine
 			}
 		}
 		rs->SetDescriptorSetLayout(hardwareRenderer.Ptr(), hardwareRenderer->CreateDescriptorSetLayout(descs.GetArrayView()));
-		for (int i = 0; i < DynamicBufferLengthMultiplier; i++)
+		if (rs->UniformMemory)
 		{
-			auto descSet = rs->GetDescriptorSet(i);
-			descSet->BeginUpdate();
-			if (rs->UniformMemory)
+			for (int i = 0; i < DynamicBufferLengthMultiplier; i++)
+			{
+				auto descSet = rs->GetDescriptorSet(i);
+				descSet->BeginUpdate();
 				descSet->Update(0, rs->UniformMemory->GetBuffer(), rs->BufferOffset + rs->BufferLength * i, rs->BufferLength);
-			descSet->EndUpdate();
+				descSet->EndUpdate();
+			}
 		}
 		return rs;
 	}

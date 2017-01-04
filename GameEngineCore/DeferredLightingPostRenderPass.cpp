@@ -40,11 +40,11 @@ namespace GameEngine
 				return;
 			
 			deferredDescSet->BeginUpdate();
-			deferredDescSet->Update(1, baseColorBuffer->Texture.Ptr(), TextureAspect::Color);
-			deferredDescSet->Update(2, pbrBuffer->Texture.Ptr(), TextureAspect::Color);
-			deferredDescSet->Update(3, normalBuffer->Texture.Ptr(), TextureAspect::Color);
-			deferredDescSet->Update(4, depthBuffer->Texture.Ptr(), TextureAspect::Depth);
-			deferredDescSet->Update(5, sharedRes->nearestSampler.Ptr());
+			deferredDescSet->Update(0, baseColorBuffer->Texture.Ptr(), TextureAspect::Color);
+			deferredDescSet->Update(1, pbrBuffer->Texture.Ptr(), TextureAspect::Color);
+			deferredDescSet->Update(2, normalBuffer->Texture.Ptr(), TextureAspect::Color);
+			deferredDescSet->Update(3, depthBuffer->Texture.Ptr(), TextureAspect::Depth);
+			deferredDescSet->Update(4, sharedRes->nearestSampler.Ptr());
 			deferredDescSet->EndUpdate();
 
 			attachments.SetAttachment(0, litColorBuffer->Texture.Ptr());
