@@ -31,8 +31,13 @@ StaticMesh
 {
     name "floor"
     mesh "plane.mesh"
-    material
+    /*material
     {
         shader "DefaultPattern.shader"
+    }*/
+     material
+    {
+        shader "Hero.shader"
+        var albedoMap = texture["Hero/Chr_FPS_D.TGA"]
     }
 }

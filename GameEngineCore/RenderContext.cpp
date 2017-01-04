@@ -255,8 +255,8 @@ namespace GameEngine
 			int paramCount = spModuleGetParameterCount(module);
 			EnumerableDictionary<String, int> bindingLocs;
 			EnumerableDictionary<String, DynamicVariable*> vars;
-			
-			int loc = 1;
+			int bufferSize = spModuleGetParameterBufferSize(module);
+			int loc = bufferSize == 0 ? 0 : 1;
 			for (int i = 0; i < paramCount; i++)
 			{
 				SpireComponentInfo param;
