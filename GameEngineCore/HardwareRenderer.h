@@ -148,6 +148,18 @@ namespace GameEngine
 		SampledDepthAttachment = 0x5
 	};
 
+	struct AttachmentLayout
+	{
+		TextureUsage Usage;
+		StorageFormat ImageFormat;
+		AttachmentLayout() {}
+		AttachmentLayout(TextureUsage usage, StorageFormat format)
+		{
+			Usage = usage;
+			ImageFormat = format;
+		}
+	};
+
 	inline constexpr TextureUsage operator&(TextureUsage lhs, TextureUsage rhs)
 	{
 		return static_cast<TextureUsage>(static_cast<int>(lhs) & static_cast<int>(rhs));
@@ -674,7 +686,7 @@ namespace GameEngine
 		virtual Texture3D* CreateTexture3D(TextureUsage usage, int width, int height, int depth, int mipLevelCount, StorageFormat format) = 0;
 		virtual TextureSampler* CreateTextureSampler() = 0;
 		virtual Shader* CreateShader(ShaderType stage, const char* data, int size) = 0;
-		virtual RenderTargetLayout* CreateRenderTargetLayout(CoreLib::ArrayView<TextureUsage> bindings) = 0;
+		virtual RenderTargetLayout* CreateRenderTargetLayout(CoreLib::ArrayView<AttachmentLayout> bindings) = 0;
 		virtual PipelineBuilder* CreatePipelineBuilder() = 0;
 		virtual DescriptorSetLayout* CreateDescriptorSetLayout(CoreLib::ArrayView<DescriptorLayout> descriptors) = 0;
 		virtual DescriptorSet* CreateDescriptorSet(DescriptorSetLayout* layout) = 0;

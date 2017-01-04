@@ -724,8 +724,8 @@ namespace GraphicsUI
 			vertexBuffer = rendererApi->CreateBuffer(BufferUsage::ArrayBuffer, vertexBufferSize * DynamicBufferLengthMultiplier);
 			indexBuffer = rendererApi->CreateBuffer(BufferUsage::ArrayBuffer, indexBufferSize * DynamicBufferLengthMultiplier);
 
-			Array<TextureUsage, 1> frameBufferLayout;
-			frameBufferLayout.Add(TextureUsage::ColorAttachment);
+			Array<AttachmentLayout, 1> frameBufferLayout;
+			frameBufferLayout.Add(AttachmentLayout(TextureUsage::ColorAttachment, StorageFormat::RGBA_8));
 
 			renderTargetLayout = rendererApi->CreateRenderTargetLayout(frameBufferLayout.GetArrayView());
 			pipeBuilder->SetDebugName("ui");

@@ -40,7 +40,7 @@ namespace GameEngine
 		}
 		virtual RenderTargetLayout * CreateRenderTargetLayout() override
 		{
-			return hwRenderer->CreateRenderTargetLayout(MakeArrayView(TextureUsage::DepthAttachment));
+			return sharedRes->shadowMapResources.shadowMapRenderTargetLayout.Ptr();
 		}
 	};
 
