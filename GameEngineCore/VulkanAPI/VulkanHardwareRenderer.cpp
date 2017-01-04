@@ -4015,10 +4015,12 @@ namespace VK
 					render = false;
 					post = true;
 				}
+#if _DEBUG
 				else if (post && internalBuffer->inRenderPass == true)
 				{
 					throw HardwareRendererException("Command buffers must be in 3 groups - prePass, renderPass, and postPass");
 				}
+#endif
 
 				if (pre)
 					prePassCommandBuffers.Add(internalBuffer->buffer);
