@@ -1557,7 +1557,7 @@ namespace GLL
 	public:
 		List<Descriptor> descriptors;
 		virtual void BeginUpdate() {}
-		virtual void Update(int location, GameEngine::Texture* texture) override
+		virtual void Update(int location, GameEngine::Texture* texture, TextureAspect aspect) override
 		{
 			if (location >= descriptors.Count())
 				throw HardwareRendererException("descriptor set write out of bounds.");

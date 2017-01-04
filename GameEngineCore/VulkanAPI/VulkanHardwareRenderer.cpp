@@ -2780,7 +2780,7 @@ namespace VK
 			writeDescriptorSets.Clear();
 		}
 
-		virtual void Update(int location, GameEngine::Texture* texture) override
+		virtual void Update(int location, GameEngine::Texture* texture, TextureAspect aspect) override
 		{
 			VK::Texture* internalTexture = dynamic_cast<VK::Texture*>(texture);
 

@@ -383,6 +383,11 @@ namespace GameEngine
 		virtual void Unmap() = 0;
 	};
 
+	enum class TextureAspect
+	{
+		Color, Depth, Stencil
+	};
+
 	class Texture : public CoreLib::RefObject
 	{
 	protected:
@@ -593,7 +598,7 @@ namespace GameEngine
 		DescriptorSet() {}
 	public:
 		virtual void BeginUpdate() = 0;
-		virtual void Update(int location, Texture* texture) = 0;
+		virtual void Update(int location, Texture* texture, TextureAspect aspect) = 0;
 		virtual void Update(int location, TextureSampler* sampler) = 0;
 		virtual void Update(int location, Buffer* buffer, int offset = 0, int length = -1) = 0;
 		virtual void EndUpdate() = 0;
