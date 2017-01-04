@@ -3998,14 +3998,42 @@ namespace VK
 #endif
 
 			// Aggregate secondary command buffers
-			CoreLib::List<vk::CommandBuffer> commandBuffersToExecute;
+			bool pre = true, render = false, post = false;
+
+			CoreLib::List<vk::CommandBuffer> prePassCommandBuffers;
+			CoreLib::List<vk::CommandBuffer> renderPassCommandBuffers;
+			CoreLib::List<vk::CommandBuffer> postPassCommandBuffers;
+
 			for (auto& buffer : commands)
 			{
-				commandBuffersToExecute.Add(((VK::CommandBuffer*)(buffer))->buffer);
+				auto internalBuffer = static_cast<VK::CommandBuffer*>(buffer);
+				if (pre && internalBuffer->inRenderPass == true)
+				{
+					pre = false;
+					render = true;
+					post = false;
+				}
+				else if (render && internalBuffer->inRenderPass == false)
+				{
+					pre = false;
+					render = false;
+					post = true;
+				}
+				else if (post && internalBuffer->inRenderPass == true)
+				{
+					throw HardwareRendererException("Command buffers must be in 3 groups - prePass, renderPass, and postPass");
+				}
+
+				if (pre)
+					prePassCommandBuffers.Add(internalBuffer->buffer);
+				else if (render)
+					renderPassCommandBuffers.Add(internalBuffer->buffer);
+				else
+					postPassCommandBuffers.Add(internalBuffer->buffer);
 #if SHARED_EVENT
 				((VK::CommandBuffer*)(buffer))->submitEvent = curEvent;
 #else
-				RendererState::Device().resetEvent(((VK::CommandBuffer*)(buffer))->submitEvent);
+				RendererState::Device().resetEvent(internalBuffer->submitEvent);
 #endif
 			}
 
@@ -4014,10 +4042,10 @@ namespace VK
 			vk::CommandBuffer primaryBuffer = primaryBufferFence.first;
 			vk::Fence primaryFence = primaryBufferFence.second;
 			primaryBuffer.begin(primaryBeginInfo);
+			primaryBuffer.executeCommands(prePassCommandBuffers.Count(), prePassCommandBuffers.Buffer());
 			primaryBuffer.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eSecondaryCommandBuffers);
-
-			primaryBuffer.executeCommands(commandBuffersToExecute.Count(), commandBuffersToExecute.Buffer());
-
+			primaryBuffer.executeCommands(renderPassCommandBuffers.Count(), renderPassCommandBuffers.Buffer());
+			primaryBuffer.executeCommands(postPassCommandBuffers.Count(), postPassCommandBuffers.Buffer());
 			primaryBuffer.endRenderPass();
 
 #if SHARED_EVENT
