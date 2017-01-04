@@ -3274,6 +3274,7 @@ namespace VK
 	class CommandBuffer : public GameEngine::CommandBuffer
 	{
 	public:
+		bool inRenderPass = false;
 		const vk::CommandPool& pool;
 		vk::CommandBuffer buffer;
 		Pipeline* curPipeline;
@@ -3306,8 +3307,45 @@ namespace VK
 #endif
 		}
 
+		inline void BeginRecording()
+		{
+			inRenderPass = false;
+
+			// Wait for command buffer to no longer be in use for a prior submission
+			while (true)
+			{
+#if SHARED_EVENT
+				if (RendererState::Device().getEventStatus(submitEvent->internalEvent) == vk::Result::eEventSet)
+					break;
+#else
+				if (RendererState::Device().getEventStatus(submitEvent) == vk::Result::eEventSet)
+					break;
+#endif
+			}
+
+			curPipeline = nullptr;
+			pendingOffsets.Clear();
+			pendingDescSets.Clear();
+
+			vk::CommandBufferInheritanceInfo inheritanceInfo = vk::CommandBufferInheritanceInfo()
+				.setRenderPass(vk::RenderPass())
+				.setSubpass(0)
+				.setFramebuffer(VK_NULL_HANDLE)
+				.setOcclusionQueryEnable(VK_TRUE)
+				.setQueryFlags(vk::QueryControlFlags())//
+				.setPipelineStatistics(vk::QueryPipelineStatisticFlags());//
+
+			vk::CommandBufferBeginInfo commandBufferBeginInfo = vk::CommandBufferBeginInfo()
+				.setFlags(vk::CommandBufferUsageFlagBits::eSimultaneousUse)
+				.setPInheritanceInfo(&inheritanceInfo);
+
+			buffer.begin(commandBufferBeginInfo);
+		}
+
 		inline void BeginRecording(GameEngine::RenderTargetLayout* renderTargetLayout, vk::Framebuffer framebuffer)
 		{
+			inRenderPass = true;
+
 			// Wait for command buffer to no longer be in use for a prior submission
 			while (true)
 			{
@@ -3380,6 +3418,9 @@ namespace VK
 		}
 		virtual void BindPipeline(GameEngine::Pipeline* pipeline) override
 		{
+			if (inRenderPass == false)
+				throw HardwareRendererException("RenderTargetLayout and FrameBuffer must be specified at BeginRecording for BindPipeline");
+
 			if (curPipeline == nullptr)
 			{
 				curPipeline = reinterpret_cast<VK::Pipeline*>(pipeline);
@@ -3419,6 +3460,9 @@ namespace VK
 
 		virtual void Blit(GameEngine::Texture2D* dstImage, GameEngine::Texture2D* srcImage) override
 		{
+			if (inRenderPass == true)
+				throw HardwareRendererException("BeginRecording must take no parameters for Blit");
+
 			vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
 				.setAspectMask(vk::ImageAspectFlagBits::eColor)
 				.setBaseMipLevel(0)
