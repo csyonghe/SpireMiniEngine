@@ -1171,6 +1171,8 @@ namespace VK
 			RendererState::Device().waitIdle(); //TODO: Remove
 			if (memory) RendererState::Device().freeMemory(memory);
 			if (view) RendererState::Device().destroyImageView(view);
+			if (view2) RendererState::Device().destroyImageView(view2);
+			if (view3) RendererState::Device().destroyImageView(view3);
 			if (image) RendererState::Device().destroyImage(image);
 		}
 
@@ -1238,7 +1240,7 @@ namespace VK
 			this->currentLayout = targetLayout;
 		}
 
-		void SetData(int level, int layer, int pwidth, int pheight, int pdepth, DataType inputType, void* data)
+		void SetData(int level, int layer, int xOffset, int yOffset, int zOffset, int pwidth, int pheight, int pdepth, DataType inputType, void* data)
 		{
 			if (numSamples > 1)
 				throw HardwareRendererException("samples must be equal to 1");
@@ -1445,7 +1447,7 @@ namespace VK
 					.setBufferRowLength(0)
 					.setBufferImageHeight(0)
 					.setImageSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(level).setBaseArrayLayer(layer).setLayerCount(1))
-					.setImageOffset(vk::Offset3D())
+					.setImageOffset(vk::Offset3D(xOffset, yOffset, zOffset))
 					.setImageExtent(vk::Extent3D(pwidth, pheight, pdepth));
 
 				// Create command buffer
@@ -1792,11 +1794,11 @@ namespace VK
 		}
 		void SetData(int level, int pwidth, int pheight, int numSamples, DataType inputType, void* data)
 		{
-			VK::Texture::SetData(level, 0, pwidth, pheight, 1, inputType, data);
+			VK::Texture::SetData(level, 0, 0, 0, 0, pwidth, pheight, 1, inputType, data);
 		}
 		void SetData(int pwidth, int pheight, int numSamples, DataType inputType, void* data)
 		{
-			VK::Texture::SetData(0, 0, pwidth, pheight, 1, inputType, data);
+			VK::Texture::SetData(0, 0, 0, 0, 0, pwidth, pheight, 1, inputType, data);
 		}
 		void BuildMipmaps()
 		{
@@ -1847,6 +1849,7 @@ namespace VK
 
 		virtual void SetData(int mipLevel, int xOffset, int yOffset, int zOffset, int pwidth, int pheight, int pdepth, DataType inputType, void * data) override
 		{
+			VK::Texture::SetData(mipLevel, 0, xOffset, yOffset, zOffset, pwidth, pheight, pdepth, inputType, data);
 		}
 	};
 
