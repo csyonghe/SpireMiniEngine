@@ -1817,6 +1817,10 @@ namespace GLL
 	public:
 		CoreLib::List<CommandData> buffer;
 	public:
+		virtual void BeginRecording() override
+		{
+			buffer.Clear();
+		}
 		virtual void BeginRecording(GameEngine::FrameBuffer* /*frameBuffer*/) override
 		{
 			buffer.Clear();

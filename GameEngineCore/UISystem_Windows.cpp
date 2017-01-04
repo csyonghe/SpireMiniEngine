@@ -657,7 +657,7 @@ namespace GraphicsUI
 		RefPtr<RenderTargetLayout> renderTargetLayout;
 		Array<RefPtr<DescriptorSet>, DynamicBufferLengthMultiplier> descSets;
 		RefPtr<FrameBuffer> frameBuffer;
-		RefPtr<AsyncCommandBuffer> cmdBuffer;
+		RefPtr<AsyncCommandBuffer> cmdBuffer, blitCmdBuffer;
 		List<UniformField> uniformFields;
 		List<UberVertex> vertexStream;
 		List<int> indexStream;
@@ -733,6 +733,7 @@ namespace GraphicsUI
 			pipeline = pipeBuilder->ToPipeline(renderTargetLayout.Ptr());
 
 			cmdBuffer = new AsyncCommandBuffer(rendererApi);
+			blitCmdBuffer = new AsyncCommandBuffer(rendererApi);
 
 			linearSampler = rendererApi->CreateTextureSampler();
 			linearSampler->SetFilter(TextureFilter::Linear);
@@ -783,8 +784,12 @@ namespace GraphicsUI
 			indexBuffer->SetData(frameId * indexBufferSize, indexStream.Buffer(), sizeof(int) * indexStream.Count());
 			vertexBuffer->SetData(frameId * vertexBufferSize, vertexStream.Buffer(), sizeof(UberVertex) * vertexStream.Count());
 			primitiveBuffer->SetData(frameId * primitiveBufferSize, uniformFields.Buffer(), sizeof(UniformField) * uniformFields.Count());
-			auto cmdBuf = cmdBuffer->BeginRecording(frameBuffer.Ptr());
+			
+			auto cmdBuf = blitCmdBuffer->BeginRecording();
 			cmdBuf->Blit(uiOverlayTexture.Ptr(), baseTexture);
+			cmdBuf->EndRecording();
+
+			cmdBuf = cmdBuffer->BeginRecording(frameBuffer.Ptr());
 			cmdBuf->BindPipeline(pipeline.Ptr());
 			cmdBuf->BindVertexBuffer(vertexBuffer.Ptr(), frameId * vertexBufferSize);
 			cmdBuf->BindIndexBuffer(indexBuffer.Ptr(), frameId * indexBufferSize);
@@ -796,7 +801,7 @@ namespace GraphicsUI
 		void SubmitCommands(GameEngine::Fence * fence)
 		{
 			frameId++;
-			rendererApi->ExecuteCommandBuffers(frameBuffer.Ptr(), MakeArrayView(cmdBuffer->GetBuffer()), fence);
+			rendererApi->ExecuteCommandBuffers(frameBuffer.Ptr(), MakeArray(blitCmdBuffer->GetBuffer(), cmdBuffer->GetBuffer()).GetArrayView(), fence);
 		}
 		void DrawLine(const Color & color, float x0, float y0, float x1, float y1)
 		{

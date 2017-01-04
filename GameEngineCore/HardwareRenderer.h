@@ -651,6 +651,8 @@ namespace GameEngine
 	protected:
 		CommandBuffer() {};
 	public:
+		// Begin recording non-render-pass-specific commands
+		virtual void BeginRecording() = 0;
 		// Specifying the FrameBuffer can result in better performance, but will need to be re-recorded when FrameBuffer changes
 		virtual void BeginRecording(FrameBuffer* frameBuffer) = 0;
 		// Not specifying a specific FrameBuffer may result in worse performance, but can be used with any compatible FrameBuffer
