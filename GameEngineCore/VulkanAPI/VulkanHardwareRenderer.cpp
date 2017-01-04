@@ -148,6 +148,10 @@ namespace VK
 			CoreLib::Diagnostics::Debug::Write((long long)messageCode);
 			CoreLib::Diagnostics::Debug::Write(" ");
 			CoreLib::Diagnostics::Debug::WriteLine(pMessage);
+#ifdef _DEBUG
+			if (flags & (VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT))
+				printf("break");
+#endif
 			return VK_FALSE;
 		}
 	}
@@ -979,7 +983,7 @@ namespace VK
 		case vk::ImageLayout::ePreinitialized:
 			return vk::AccessFlagBits::eHostWrite;
 		case vk::ImageLayout::ePresentSrcKHR:
-			return vk::AccessFlags();
+			return vk::AccessFlagBits::eMemoryRead;
 		default:
 			throw HardwareRendererException("Invalid ImageLayout");
 		}
@@ -2526,13 +2530,13 @@ namespace VK
 				descriptions.SetSize(size);
 		}
 
-		void SetColorAttachment(int binding, LoadOp loadOp = LoadOp::Load, StoreOp storeOp = StoreOp::Store)
+		void SetColorAttachment(int binding, StorageFormat format, LoadOp loadOp = LoadOp::Load, StoreOp storeOp = StoreOp::Store)
 		{
 			Resize(binding + 1);
 
 			descriptions[binding] = vk::AttachmentDescription()
 				.setFlags(vk::AttachmentDescriptionFlags())
-				.setFormat(vk::Format::eR8G8B8A8Unorm)//
+				.setFormat(TranslateStorageFormat(format))//
 				.setInitialLayout(vk::ImageLayout::eColorAttachmentOptimal)//
 				.setFinalLayout(vk::ImageLayout::eColorAttachmentOptimal)//
 				.setSamples(SampleCount(1))
@@ -2547,7 +2551,7 @@ namespace VK
 				//}
 		}
 
-		void SetDepthAttachment(int binding, LoadOp loadOp = LoadOp::Load, StoreOp storeOp = StoreOp::Store)
+		void SetDepthAttachment(int binding, StorageFormat format, LoadOp loadOp = LoadOp::Load, StoreOp storeOp = StoreOp::Store)
 		{
 			if (depthReference.layout != vk::ImageLayout::eUndefined)
 				throw HardwareRendererException("Only 1 depth/stencil attachment allowed.");
@@ -2556,7 +2560,7 @@ namespace VK
 
 			descriptions[binding] = vk::AttachmentDescription()
 				.setFlags(vk::AttachmentDescriptionFlags())
-				.setFormat(vk::Format::eD32Sfloat)
+				.setFormat(TranslateStorageFormat(format))
 				.setInitialLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal)
 				.setFinalLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal)
 				.setSamples(SampleCount(1))
@@ -2567,22 +2571,22 @@ namespace VK
 		}
 	public:
 		RenderTargetLayout() {};
-		RenderTargetLayout(CoreLib::ArrayView<TextureUsage> bindings)
+		RenderTargetLayout(CoreLib::ArrayView<AttachmentLayout> bindings)
 		{
 			depthReference.attachment = VK_ATTACHMENT_UNUSED;
 
 			int location = 0;
 			for (auto binding : bindings)
 			{
-				switch (binding)
+				switch (binding.Usage)
 				{
 				case TextureUsage::ColorAttachment:
 				case TextureUsage::SampledColorAttachment:
-					SetColorAttachment(location);
+					SetColorAttachment(location, binding.ImageFormat);
 					break;
 				case TextureUsage::DepthAttachment:
 				case TextureUsage::SampledDepthAttachment:
-					SetDepthAttachment(location);
+					SetDepthAttachment(location, binding.ImageFormat);
 					break;
 				case TextureUsage::Unused:
 					break;
@@ -3722,7 +3726,7 @@ namespace VK
 					.setLayerCount(1);
 
 				vk::ImageMemoryBarrier postPresentBarrier = vk::ImageMemoryBarrier()
-					.setSrcAccessMask(LayoutFlags(vk::ImageLayout::eUndefined))
+					.setSrcAccessMask(vk::AccessFlags())
 					.setDstAccessMask(LayoutFlags(vk::ImageLayout::eTransferDstOptimal))
 					.setOldLayout(vk::ImageLayout::eUndefined)
 					.setNewLayout(vk::ImageLayout::eTransferDstOptimal)
@@ -4289,7 +4293,7 @@ namespace VK
 			return result;
 		}
 
-		virtual RenderTargetLayout* CreateRenderTargetLayout(CoreLib::ArrayView<TextureUsage> bindings) override
+		virtual RenderTargetLayout* CreateRenderTargetLayout(CoreLib::ArrayView<AttachmentLayout> bindings) override
 		{
 			return new RenderTargetLayout(bindings);
 		}

@@ -15,9 +15,7 @@ namespace GameEngine
 		deferredVertexFormat.Attributes.Add(VertexAttributeDesc(DataType::Float2, 0, 0, 0));
 		deferredVertexFormat.Attributes.Add(VertexAttributeDesc(DataType::Float2, 0, 2 * sizeof(float), 1));
 		RefPtr<PipelineBuilder> pipelineBuilder = hwRenderer->CreatePipelineBuilder();
-		List<TextureUsage> renderTargets;
 		pipelineBuilder->SetVertexLayout(deferredVertexFormat);
-		renderTargetLayout = hwRenderer->CreateRenderTargetLayout(renderTargets.GetArrayView());
 		ShaderCompilationResult rs;
 		auto shaderFileName = GetShaderFileName();
 		if (!CompileShader(rs, sharedRes->spireContext, hwRenderer->GetSpireTarget(), shaderFileName))
@@ -47,7 +45,10 @@ namespace GameEngine
 		}
 		pipelineBuilder->SetBindingLayout(From(descLayouts).Select([](auto x) { return x.Ptr(); }).ToList().GetArrayView());
 		
+		List<AttachmentLayout> renderTargets;
 		SetupPipelineBindingLayout(pipelineBuilder.Ptr(), renderTargets);
+		renderTargetLayout = hwRenderer->CreateRenderTargetLayout(renderTargets.GetArrayView());
+
 		pipeline = pipelineBuilder->ToPipeline(renderTargetLayout.Ptr());
 		
 		commandBuffer = hwRenderer->CreateCommandBuffer();

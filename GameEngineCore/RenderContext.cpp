@@ -435,7 +435,7 @@ namespace GameEngine
 		shadowMapArrayFreeBits.Clear();
 		shadowMapArraySize = graphicsSettings.ShadowMapArraySize;
 
-		shadowMapRenderTargetLayout = hwRenderer->CreateRenderTargetLayout(MakeArrayView(TextureUsage::DepthAttachment));
+		shadowMapRenderTargetLayout = hwRenderer->CreateRenderTargetLayout(MakeArrayView(AttachmentLayout(TextureUsage::DepthAttachment, StorageFormat::Depth32)));
 		shadowMapRenderOutputs.SetSize(shadowMapArraySize);
 		for (int i = 0; i < shadowMapArraySize; i++)
 		{

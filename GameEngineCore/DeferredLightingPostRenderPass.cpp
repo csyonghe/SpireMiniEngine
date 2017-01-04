@@ -22,12 +22,9 @@ namespace GameEngine
 			normalBuffer = sharedRes->LoadSharedRenderTarget("normalBuffer", StorageFormat::RGB10_A2);
 			litColorBuffer = sharedRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8);
 		}
-		virtual void SetupPipelineBindingLayout(PipelineBuilder * pipelineBuilder, List<TextureUsage> & renderTargets) override
+		virtual void SetupPipelineBindingLayout(PipelineBuilder * pipelineBuilder, List<AttachmentLayout> & renderTargets) override
 		{
-			renderTargets.Add(TextureUsage::ColorAttachment);
-			renderTargets.Add(TextureUsage::ColorAttachment);
-			renderTargets.Add(TextureUsage::ColorAttachment);
-			renderTargets.Add(TextureUsage::DepthAttachment);
+			renderTargets.Add(AttachmentLayout(TextureUsage::ColorAttachment, StorageFormat::RGBA_8));
 			pipelineBuilder->SetDebugName("deferred_lighting");
 			deferredDescSet = hwRenderer->CreateDescriptorSet(descLayouts[0].Ptr());
 		}

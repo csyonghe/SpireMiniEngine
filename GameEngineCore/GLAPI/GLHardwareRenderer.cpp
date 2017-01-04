@@ -1005,7 +1005,7 @@ namespace GLL
 	class RenderTargetLayout : public GameEngine::RenderTargetLayout
 	{
 	public:
-		CoreLib::List<TextureUsage> attachments;
+		CoreLib::List<AttachmentLayout> attachments;
 	private:
 		void Resize(int size)
 		{
@@ -1013,10 +1013,10 @@ namespace GLL
 				attachments.SetSize(size);
 		}
 
-		void SetColorAttachment(int binding)
+		void SetColorAttachment(int binding, AttachmentLayout layout)
 		{
 			Resize(binding + 1);
-			attachments[binding] = TextureUsage::ColorAttachment;
+			attachments[binding] = layout;
 
 			//if (samples > 1)
 			//{
@@ -1024,32 +1024,32 @@ namespace GLL
 			//}
 		}
 
-		void SetDepthAttachment(int binding)
+		void SetDepthAttachment(int binding, AttachmentLayout layout)
 		{
 			for (auto attachment : attachments)
 			{
-				if (attachment == TextureUsage::DepthAttachment)
+				if (attachment.Usage == TextureUsage::DepthAttachment)
 					throw HardwareRendererException("Only 1 depth/stencil attachment allowed.");
 			}
 
 			Resize(binding + 1);
-			attachments[binding] = TextureUsage::DepthAttachment;
+			attachments[binding] = layout;
 		}
 	public:
-		RenderTargetLayout(CoreLib::ArrayView<TextureUsage> bindings)
+		RenderTargetLayout(CoreLib::ArrayView<AttachmentLayout> bindings)
 		{
 			int location = 0;
 			for (auto binding : bindings)
 			{
-				switch (binding)
+				switch (binding.Usage)
 				{
 				case TextureUsage::ColorAttachment:
 				case TextureUsage::SampledColorAttachment:
-					SetColorAttachment(location);
+					SetColorAttachment(location, binding);
 					break;
 				case TextureUsage::DepthAttachment:
 				case TextureUsage::SampledDepthAttachment:
-					SetDepthAttachment(location);
+					SetDepthAttachment(location, binding);
 					break;
 				case TextureUsage::Unused:
 					break;
@@ -3254,7 +3254,7 @@ namespace GLL
 			return rs;
 		}
 
-		RenderTargetLayout* CreateRenderTargetLayout(CoreLib::ArrayView<TextureUsage> bindings)
+		RenderTargetLayout* CreateRenderTargetLayout(CoreLib::ArrayView<AttachmentLayout> bindings)
 		{
 			return new RenderTargetLayout(bindings);
 		}
