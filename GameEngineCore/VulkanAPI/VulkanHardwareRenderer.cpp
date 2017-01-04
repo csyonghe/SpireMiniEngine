@@ -3404,7 +3404,6 @@ namespace VK
 		virtual void BindDescriptorSet(int binding, GameEngine::DescriptorSet* descSet) override
 		{
 			VK::DescriptorSet* internalDescriptorSet = reinterpret_cast<VK::DescriptorSet*>(descSet);
-
 			if (internalDescriptorSet->descriptorSet)
 			{
 				if (curPipeline == nullptr)
@@ -3415,6 +3414,8 @@ namespace VK
 				else
 					buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, curPipeline->pipelineLayout, binding, internalDescriptorSet->descriptorSet, nullptr);
 			}
+			else
+				throw 0;
 		}
 		virtual void BindPipeline(GameEngine::Pipeline* pipeline) override
 		{
@@ -3431,6 +3432,7 @@ namespace VK
 						pendingOffsets[k],
 						pendingDescSets[k],
 						nullptr);
+				pendingDescSets.Clear();
 			}
 			buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, dynamic_cast<VK::Pipeline*>(pipeline)->pipeline);
 		}

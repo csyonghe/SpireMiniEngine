@@ -727,9 +727,9 @@ namespace GameEngine
 	
 	inline void BindDescSet(DescriptorSet** curStates, CommandBuffer* cmdBuf, int id, DescriptorSet * descSet)
 	{
-		if (curStates[id] != descSet)
+		//if (curStates[id] != descSet)
 		{
-			curStates[id] = descSet;
+			//curStates[id] = descSet;
 			cmdBuf->BindDescriptorSet(id, descSet);
 		}
 	}
