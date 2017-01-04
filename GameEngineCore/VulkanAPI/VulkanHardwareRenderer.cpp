@@ -1032,6 +1032,8 @@ namespace VK
 	public:
 		vk::Image image;
 		vk::ImageView view;
+		vk::ImageView view2;
+		vk::ImageView view3;
 		vk::DeviceMemory memory;
 		StorageFormat format;
 		TextureUsage usage;
@@ -1108,6 +1110,47 @@ namespace VK
 				.setSubresourceRange(imageSubresourceRange);
 
 			view = RendererState::Device().createImageView(imageViewCreateInfo);
+
+			if (this->format == StorageFormat::Depth24Stencil8)
+			{
+				aspectFlags = vk::ImageAspectFlagBits::eDepth;
+
+				imageSubresourceRange = vk::ImageSubresourceRange()
+					.setAspectMask(aspectFlags)
+					.setBaseMipLevel(0)
+					.setLevelCount(mipLevels)
+					.setBaseArrayLayer(0)
+					.setLayerCount(arrayLayers);
+
+				imageViewCreateInfo = vk::ImageViewCreateInfo()
+					.setFlags(vk::ImageViewCreateFlags())
+					.setImage(image)
+					.setViewType(depth == 1 ? (arrayLayers == 1 ? vk::ImageViewType::e2D : vk::ImageViewType::e2DArray) : vk::ImageViewType::e3D)
+					.setFormat(imageCreateInfo.format)
+					.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA))//
+					.setSubresourceRange(imageSubresourceRange);
+
+				view2 = RendererState::Device().createImageView(imageViewCreateInfo);
+
+				aspectFlags = vk::ImageAspectFlagBits::eStencil;
+
+				imageSubresourceRange = vk::ImageSubresourceRange()
+					.setAspectMask(aspectFlags)
+					.setBaseMipLevel(0)
+					.setLevelCount(mipLevels)
+					.setBaseArrayLayer(0)
+					.setLayerCount(arrayLayers);
+
+				imageViewCreateInfo = vk::ImageViewCreateInfo()
+					.setFlags(vk::ImageViewCreateFlags())
+					.setImage(image)
+					.setViewType(depth == 1 ? (arrayLayers == 1 ? vk::ImageViewType::e2D : vk::ImageViewType::e2DArray) : vk::ImageViewType::e3D)
+					.setFormat(imageCreateInfo.format)
+					.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA))//
+					.setSubresourceRange(imageSubresourceRange);
+
+				view3 = RendererState::Device().createImageView(imageViewCreateInfo);
+			}
 		}
 		~Texture()
 		{
@@ -2784,10 +2827,22 @@ namespace VK
 		{
 			VK::Texture* internalTexture = dynamic_cast<VK::Texture*>(texture);
 
+			//vk::ImageLayout imageLayout = vk::ImageLayout::eGeneral;
+			//if (!!(internalTexture->usage & TextureUsage::DepthAttachment))
+			//{
+			//	imageLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+			//}
+
+			vk::ImageView view = internalTexture->view;
+			if (internalTexture->format == StorageFormat::Depth24Stencil8 &&  aspect == TextureAspect::Depth)
+				view = internalTexture->view2;
+			if (internalTexture->format == StorageFormat::Depth24Stencil8 &&  aspect == TextureAspect::Stencil)
+				view = internalTexture->view3;
+
 			imageInfo.Add(
 				vk::DescriptorImageInfo()
 				.setSampler(vk::Sampler())
-				.setImageView(internalTexture->view)
+				.setImageView(view)
 				.setImageLayout(vk::ImageLayout::eGeneral)//TODO: specify?
 			);
 
