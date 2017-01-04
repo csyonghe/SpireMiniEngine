@@ -723,17 +723,29 @@ namespace GameEngine
 			renderRes->indexBufferMemory.Free((char*)renderRes->indexBufferMemory.BufferPtr() + indexBufferOffset, indexCount * sizeof(int));
 	}
 	
+	inline void BindDescSet(DescriptorSet** curStates, CommandBuffer* cmdBuf, int id, DescriptorSet * descSet)
+	{
+		if (curStates[id] != descSet)
+		{
+			curStates[id] = descSet;
+			cmdBuf->BindDescriptorSet(id, descSet);
+		}
+	}
+
 	void RenderPassInstance::SetFixedOrderDrawContent(PipelineContext & pipelineManager, CullFrustum frustum, CoreLib::ArrayView<Drawable*> drawables)
 	{
 		renderOutput->GetSize(viewport.Width, viewport.Height);
 		auto cmdBuf = commandBuffer->BeginRecording(renderOutput->GetFrameBuffer());
 		cmdBuf->SetViewport(viewport.X, viewport.Y, viewport.Width, viewport.Height);
-		cmdBuf->ClearAttachments(renderOutput->GetFrameBuffer());
+		if (clearOutput)
+			cmdBuf->ClearAttachments(renderOutput->GetFrameBuffer());
 		DescriptorSetBindingArray bindings;
 		pipelineManager.GetBindings(bindings);
 		for (int i = 0; i < bindings.Count(); i++)
 			cmdBuf->BindDescriptorSet(i, bindings[i]);
 		numDrawCalls = 0;
+		Array<DescriptorSet*, 32> boundSets;
+		boundSets.SetSize(boundSets.GetCapacity());
 		for (auto obj : drawables)
 		{
 			if (!frustum.IsBoxInFrustum(obj->Bounds))
@@ -748,9 +760,9 @@ namespace GameEngine
 				cmdBuf->BindPipeline(pipelineInst->pipeline.Ptr());
 				cmdBuf->BindIndexBuffer(mesh->GetIndexBuffer(), mesh->indexBufferOffset);
 				cmdBuf->BindVertexBuffer(mesh->GetVertexBuffer(), mesh->vertexBufferOffset);
-				cmdBuf->BindDescriptorSet(bindings.Count(), obj->GetMaterial()->MaterialGeometryModule->GetCurrentDescriptorSet());
-				cmdBuf->BindDescriptorSet(bindings.Count() + 1, obj->GetMaterial()->MaterialPatternModule->GetCurrentDescriptorSet());
-				cmdBuf->BindDescriptorSet(bindings.Count() + 2, obj->GetTransformModule()->GetCurrentDescriptorSet());
+				BindDescSet(boundSets.Buffer(), cmdBuf, bindings.Count(), obj->GetMaterial()->MaterialGeometryModule->GetCurrentDescriptorSet());
+				BindDescSet(boundSets.Buffer(), cmdBuf, bindings.Count() + 1, obj->GetMaterial()->MaterialPatternModule->GetCurrentDescriptorSet());
+				BindDescSet(boundSets.Buffer(), cmdBuf, bindings.Count() + 2, obj->GetTransformModule()->GetCurrentDescriptorSet());
 				cmdBuf->DrawIndexed(0, mesh->indexCount);
 			}
 			pipelineManager.PopModuleInstance();
@@ -777,31 +789,7 @@ namespace GameEngine
 			reorderBuffer.Add(obj);
 		}
 		reorderBuffer.Sort([](Drawable* d1, Drawable* d2) {return d1->ReorderKey < d2->ReorderKey; });
-		renderOutput->GetSize(viewport.Width, viewport.Height);
-		auto cmdBuf = commandBuffer->BeginRecording(renderOutput->GetFrameBuffer());
-		cmdBuf->SetViewport(viewport.X, viewport.Y, viewport.Width, viewport.Height);
-		cmdBuf->ClearAttachments(renderOutput->GetFrameBuffer());
-		DescriptorSetBindingArray bindings;
-		pipelineManager.GetBindings(bindings);
-		for (int i = 0; i < bindings.Count(); i++)
-			cmdBuf->BindDescriptorSet(i, bindings[i]);
-		numDrawCalls = 0;
-		for (auto obj : reorderBuffer)
-		{
-			numDrawCalls++;
-			if (auto pipelineInst = (PipelineClass*)obj->ReorderKey)
-			{
-				auto mesh = obj->GetMesh();
-				cmdBuf->BindPipeline(pipelineInst->pipeline.Ptr());
-				cmdBuf->BindIndexBuffer(mesh->GetIndexBuffer(), mesh->indexBufferOffset);
-				cmdBuf->BindVertexBuffer(mesh->GetVertexBuffer(), mesh->vertexBufferOffset);
-				cmdBuf->BindDescriptorSet(bindings.Count(), obj->GetMaterial()->MaterialGeometryModule->GetCurrentDescriptorSet());
-				cmdBuf->BindDescriptorSet(bindings.Count() + 1, obj->GetMaterial()->MaterialPatternModule->GetCurrentDescriptorSet());
-				cmdBuf->BindDescriptorSet(bindings.Count() + 2, obj->GetTransformModule()->GetCurrentDescriptorSet());
-				cmdBuf->DrawIndexed(0, mesh->indexCount);
-			}
-		}
-		cmdBuf->EndRecording();
+		SetFixedOrderDrawContent(pipelineManager, frustum, reorderBuffer.GetArrayView());
 	}
 	void FrameRenderTask::Clear()
 	{

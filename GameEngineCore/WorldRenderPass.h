@@ -30,7 +30,7 @@ namespace GameEngine
 			poolAllocPtr = 0;
 		}
 		virtual void Bind();
-		RenderPassInstance CreateInstance(RenderOutput * output);
+		RenderPassInstance CreateInstance(RenderOutput * output, bool clearOutput);
 	};
 }
 

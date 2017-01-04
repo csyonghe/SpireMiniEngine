@@ -175,6 +175,7 @@ namespace GameEngine
 		AsyncCommandBuffer * commandBuffer = nullptr;
 		RenderOutput * renderOutput = nullptr;
 		FixedFunctionPipelineStates * fixedFunctionStates = nullptr;
+		bool clearOutput = false;
 	public:
 		void SetFixedOrderDrawContent(PipelineContext & pipelineManager, CullFrustum frustum, CoreLib::ArrayView<Drawable*> drawables);
 		void SetDrawContent(PipelineContext & pipelineManager, CoreLib::List<Drawable*> & reorderBuffer, CullFrustum frustum, CoreLib::ArrayView<Drawable*> drawables);

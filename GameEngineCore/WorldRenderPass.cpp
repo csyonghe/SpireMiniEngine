@@ -10,7 +10,7 @@ namespace GameEngine
 		sharedRes->pipelineManager.BindShader(shader, renderTargetLayout.Ptr(), &fixedFunctionStates);
 	}
 
-	RenderPassInstance WorldRenderPass::CreateInstance(RenderOutput * output)
+	RenderPassInstance WorldRenderPass::CreateInstance(RenderOutput * output, bool clearOutput)
 	{
 #ifdef _DEBUG
 		if (renderPassId == -1)
@@ -24,6 +24,7 @@ namespace GameEngine
 		rs.renderPassId = renderPassId;
 		rs.renderOutput = output;
 		rs.fixedFunctionStates = &fixedFunctionStates;
+		rs.clearOutput = clearOutput;
 		return rs;
 	}
 

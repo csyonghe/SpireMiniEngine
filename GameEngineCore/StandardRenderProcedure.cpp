@@ -106,7 +106,7 @@ namespace GameEngine
 					sharedRes->LoadSharedRenderTarget("normalBuffer", StorageFormat::RGB10_A2),
 					sharedRes->LoadSharedRenderTarget("depthBuffer", StorageFormat::Depth24Stencil8)
 				);
-				gBufferInstance = gBufferRenderPass->CreateInstance(gBufferOutput);
+				gBufferInstance = gBufferRenderPass->CreateInstance(gBufferOutput, true);
 			}
 			else
 			{
@@ -117,7 +117,7 @@ namespace GameEngine
 					sharedRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8),
 					sharedRes->LoadSharedRenderTarget("depthBuffer", StorageFormat::Depth24Stencil8)
 				);
-				forwardBaseInstance = forwardRenderPass->CreateInstance(forwardBaseOutput);
+				forwardBaseInstance = forwardRenderPass->CreateInstance(forwardBaseOutput, true);
 			}
 
 			atmospherePass = CreateAtmospherePostRenderPass();
@@ -308,7 +308,7 @@ namespace GameEngine
 								viewportMatrix.m[1][1] = 0.5f; viewportMatrix.m[3][1] = 0.5f;
 								viewportMatrix.m[2][2] = 1.0f; viewportMatrix.m[3][2] = 0.0f;
 								Matrix4::Multiply(lightData.lightMatrix[i], viewportMatrix, shadowMapView.ViewProjectionTransform);
-								auto pass = shadowRenderPass->CreateInstance(shadowMapRes.shadowMapRenderOutputs[i + shadowMapStartId].Ptr());\
+								auto pass = shadowRenderPass->CreateInstance(shadowMapRes.shadowMapRenderOutputs[i + shadowMapStartId].Ptr(), true);
 
 								ModuleInstance * shadowMapPassModuleInstance = nullptr;
 								if (shadowMapViewInstancePtr < shadowViewInstances.Count())
