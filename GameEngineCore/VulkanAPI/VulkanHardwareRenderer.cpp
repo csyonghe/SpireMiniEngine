@@ -1679,10 +1679,6 @@ namespace VK
 
 		void BuildMipmaps()
 		{
-			vk::Image oldImage = image;
-			vk::ImageView oldView = view;
-			vk::DeviceMemory oldMemory = memory;
-
 			vk::ImageAspectFlags aspectFlags;
 			if (format == StorageFormat::Depth32)
 				aspectFlags = vk::ImageAspectFlagBits::eDepth;
@@ -1696,10 +1692,10 @@ namespace VK
 			for (int l = 1; l < mipLevels; l++)
 			{
 				blitRegions.Add(vk::ImageBlit()
-					.setSrcSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(l - 1).setBaseArrayLayer(0).setLayerCount(1))
-					.setSrcOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(max(1, width >> (l - 1)), max(1, height >> (l - 1)), 1)})
-					.setDstSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(l).setBaseArrayLayer(0).setLayerCount(1))
-					.setDstOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(max(1, width >> l), max(1, height >> l), 1)}));
+					.setSrcSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(l - 1).setBaseArrayLayer(0).setLayerCount(arrayLayers))
+					.setSrcOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(max(1, width >> (l - 1)), max(1, height >> (l - 1)), max(1, depth >> (l - 1)))})
+					.setDstSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(l).setBaseArrayLayer(0).setLayerCount(arrayLayers))
+					.setDstOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(max(1, width >> l), max(1, height >> l), max(1, depth >> l))}));
 			}
 
 			// Create command buffer
@@ -1712,7 +1708,7 @@ namespace VK
 				.setBaseMipLevel(0)
 				.setLevelCount(mipLevels)
 				.setBaseArrayLayer(0)
-				.setLayerCount(1);
+				.setLayerCount(arrayLayers);
 
 			vk::ImageMemoryBarrier textureCopyBarrier = vk::ImageMemoryBarrier()
 				.setSrcAccessMask(LayoutFlags(currentLayout))
