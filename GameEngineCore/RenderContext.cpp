@@ -293,12 +293,12 @@ namespace GameEngine
 							{
 								auto tex = LoadTexture(val.StringValue);
 								if (tex)
-									descSet->Update(binding.Value, tex);
+									descSet->Update(binding.Value, tex, TextureAspect::Color);
 							}
 							else
 							{
 								Print("Invalid material(%S): shader parameter '%S' is not provided in material file.\n", material->Name.ToWString(), binding.Key.ToWString());
-								descSet->Update(binding.Value, LoadTexture("error.texture"));
+								descSet->Update(binding.Value, LoadTexture("error.texture"), TextureAspect::Color);
 							}
 						}
 						descSet->EndUpdate();

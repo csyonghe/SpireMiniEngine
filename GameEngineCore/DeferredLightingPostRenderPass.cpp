@@ -40,10 +40,10 @@ namespace GameEngine
 				return;
 			
 			deferredDescSet->BeginUpdate();
-			deferredDescSet->Update(1, baseColorBuffer->Texture.Ptr());
-			deferredDescSet->Update(2, pbrBuffer->Texture.Ptr());
-			deferredDescSet->Update(3, normalBuffer->Texture.Ptr());
-			deferredDescSet->Update(4, depthBuffer->Texture.Ptr());
+			deferredDescSet->Update(1, baseColorBuffer->Texture.Ptr(), TextureAspect::Color);
+			deferredDescSet->Update(2, pbrBuffer->Texture.Ptr(), TextureAspect::Color);
+			deferredDescSet->Update(3, normalBuffer->Texture.Ptr(), TextureAspect::Color);
+			deferredDescSet->Update(4, depthBuffer->Texture.Ptr(), TextureAspect::Depth);
 			deferredDescSet->Update(5, sharedRes->nearestSampler.Ptr());
 			deferredDescSet->EndUpdate();
 

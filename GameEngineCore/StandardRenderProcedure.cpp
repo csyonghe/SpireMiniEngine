@@ -135,7 +135,7 @@ namespace GameEngine
 				descSet->EndUpdate();
 				descSet = lightingParams->GetDescriptorSet(i);
 				descSet->BeginUpdate();
-				descSet->Update(1, sharedRes->shadowMapResources.shadowMapArray.Ptr());
+				descSet->Update(1, sharedRes->shadowMapResources.shadowMapArray.Ptr(), TextureAspect::Depth);
 				descSet->Update(2, sharedRes->shadowSampler.Ptr());
 				descSet->EndUpdate();
 			}
