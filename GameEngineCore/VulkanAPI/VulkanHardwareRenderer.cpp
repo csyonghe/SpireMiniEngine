@@ -3874,16 +3874,12 @@ namespace VK
 				.setPInheritanceInfo(nullptr);
 
 			// Create render pass begin info
-			CoreLib::Array<vk::ClearValue, 2> clearValues;
-			clearValues.Add(vk::ClearColorValue(std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 0.0f }));
-			clearValues.Add(vk::ClearDepthStencilValue(1.0f, 0));
-
 			vk::RenderPassBeginInfo renderPassBeginInfo = vk::RenderPassBeginInfo()
 				.setRenderPass(((VK::FrameBuffer*)frameBuffer)->renderTargetLayout->renderPass)
 				.setFramebuffer(dynamic_cast<VK::FrameBuffer*>(frameBuffer)->framebuffer)
 				.setRenderArea(vk::Rect2D().setOffset(vk::Offset2D(0, 0)).setExtent(vk::Extent2D(dynamic_cast<VK::FrameBuffer*>(frameBuffer)->width, dynamic_cast<VK::FrameBuffer*>(frameBuffer)->height)))
-				.setClearValueCount(clearValues.Count())
-				.setPClearValues(clearValues.Buffer());
+				.setClearValueCount(0)
+				.setPClearValues(nullptr);
 
 #if SHARED_EVENT
 			CoreLib::RefPtr<TestEvent> curEvent = new TestEvent();
