@@ -148,8 +148,8 @@ namespace GameEngine
 		SampledDepthAttachment = 0x5,
 		StencilAttachment = 0x8,
 		SampledStencilAttachment = 0x9,
-		DepthStencilAttachment = 0x12,
-		SampledDepthStencilAttachment = 0x13,
+		DepthStencilAttachment = 0xc,
+		SampledDepthStencilAttachment = 0xd,
 	};
 
 	struct AttachmentLayout
