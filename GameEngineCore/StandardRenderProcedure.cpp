@@ -120,8 +120,8 @@ namespace GameEngine
 				forwardBaseInstance = forwardRenderPass->CreateInstance(forwardBaseOutput);
 			}
 
-			//atmospherePass = CreateAtmospherePostRenderPass();
-			//renderer->RegisterPostRenderPass(atmospherePass);
+			atmospherePass = CreateAtmospherePostRenderPass();
+			renderer->RegisterPostRenderPass(atmospherePass);
 
 			// initialize forwardBasePassModule and lightingModule
 			renderPassUniformMemory.Init(sharedRes->hardwareRenderer.Ptr(), BufferUsage::UniformBuffer, true, 22, sharedRes->hardwareRenderer->UniformBufferAlignment());
@@ -212,10 +212,10 @@ namespace GameEngine
 				}
 				else if (actorType == EngineActorType::Atmosphere)
 				{
-					//useAtmosphere = true;
-					//auto atmosphere = dynamic_cast<AtmosphereActor*>(actor.Value.Ptr());
-					//atmosphere->Parameters.SunDir = atmosphere->Parameters.SunDir.Normalize();
-					//atmospherePass->SetParameters(&atmosphere->Parameters, sizeof(atmosphere->Parameters));
+					useAtmosphere = true;
+					auto atmosphere = dynamic_cast<AtmosphereActor*>(actor.Value.Ptr());
+					atmosphere->Parameters.SunDir = atmosphere->Parameters.SunDir.Normalize();
+					atmospherePass->SetParameters(&atmosphere->Parameters, sizeof(atmosphere->Parameters));
 				}
 			}
 
@@ -370,7 +370,7 @@ namespace GameEngine
 
 		virtual void ResizeFrame(int w, int h) override
 		{
-			//atmospherePass->Resize(w, h);
+			atmospherePass->Resize(w, h);
 			if (deferred)
 				deferredLightingPass->Resize(w, h);
 		}
