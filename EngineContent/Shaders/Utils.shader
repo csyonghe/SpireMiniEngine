@@ -369,7 +369,7 @@ module Lighting
     public param mat4[8] lightMatrix;
     public param vec4[2] zPlanes;
     public param Texture2DArrayShadow shadowMapArray;
-    public param SamplerState shadowMapSampler;
+    public param SamplerComparisonState shadowMapSampler;
 
     require vec3 normal;   
     require vec3 albedo;
