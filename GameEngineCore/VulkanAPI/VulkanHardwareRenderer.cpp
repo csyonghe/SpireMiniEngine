@@ -1460,8 +1460,8 @@ namespace VK
 					.setAspectMask(aspectFlags)
 					.setBaseMipLevel(0)
 					.setLevelCount(mipLevels)
-					.setBaseArrayLayer(layer)
-					.setLayerCount(1);
+					.setBaseArrayLayer(0)
+					.setLayerCount(arrayLayers);
 
 				vk::ImageMemoryBarrier textureCopyBarrier = vk::ImageMemoryBarrier()
 					.setSrcAccessMask(LayoutFlags(vk::ImageLayout::eUndefined))
