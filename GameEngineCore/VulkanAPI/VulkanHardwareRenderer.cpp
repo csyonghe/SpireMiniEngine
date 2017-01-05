@@ -883,8 +883,9 @@ namespace VK
 		case TextureUsage::SampledColorAttachment:
 			return vk::ImageLayout::eColorAttachmentOptimal;
 		case TextureUsage::DepthAttachment:
-		case TextureUsage::SampledDepthAttachment:
 			return vk::ImageLayout::eDepthStencilAttachmentOptimal;
+		case TextureUsage::SampledDepthAttachment:
+			return vk::ImageLayout::eGeneral;
 		case TextureUsage::Sampled: return vk::ImageLayout::eShaderReadOnlyOptimal;
 		default: throw CoreLib::NotImplementedException("LayoutFromUsage");
 		}
@@ -1040,9 +1041,7 @@ namespace VK
 		int arrayLayers;
 		int numSamples;
 		vk::Image image;
-		vk::ImageView view;
-		vk::ImageView view2;
-		vk::ImageView view3;
+		CoreLib::List<vk::ImageView> views;
 		vk::DeviceMemory memory;
 		vk::ImageLayout currentLayout;
 		Texture(TextureUsage usage, int width, int height, int depth, int mipLevels, int arrayLayers, int numSamples, StorageFormat format)
@@ -1104,71 +1103,72 @@ namespace VK
 			memory = RendererState::Device().allocateMemory(imageAllocateInfo);
 			RendererState::Device().bindImageMemory(image, memory, 0);
 
-			vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
-				.setAspectMask(aspectFlags)
-				.setBaseMipLevel(0)
-				.setLevelCount(mipLevels)
-				.setBaseArrayLayer(0)
-				.setLayerCount(arrayLayers);
-
-			vk::ImageViewCreateInfo imageViewCreateInfo = vk::ImageViewCreateInfo()
-				.setFlags(vk::ImageViewCreateFlags())
-				.setImage(image)
-				.setViewType(depth == 1 ? (arrayLayers == 1 ? vk::ImageViewType::e2D : vk::ImageViewType::e2DArray) : vk::ImageViewType::e3D)
-				.setFormat(imageCreateInfo.format)
-				.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA))//
-				.setSubresourceRange(imageSubresourceRange);
-
-			view = RendererState::Device().createImageView(imageViewCreateInfo);
-			if (this->format == StorageFormat::Depth24 || this->format == StorageFormat::Depth32 || this->format == StorageFormat::Depth24Stencil8)
+			for (int i = 0; i < arrayLayers; i++)
 			{
-				aspectFlags = vk::ImageAspectFlagBits::eDepth;
-
-				imageSubresourceRange = vk::ImageSubresourceRange()
+				vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
 					.setAspectMask(aspectFlags)
 					.setBaseMipLevel(0)
 					.setLevelCount(mipLevels)
-					.setBaseArrayLayer(0)
-					.setLayerCount(arrayLayers);
+					.setBaseArrayLayer(i)
+					.setLayerCount(i==0?arrayLayers:1);
 
-				imageViewCreateInfo = vk::ImageViewCreateInfo()
+				vk::ImageViewCreateInfo imageViewCreateInfo = vk::ImageViewCreateInfo()
 					.setFlags(vk::ImageViewCreateFlags())
 					.setImage(image)
 					.setViewType(depth == 1 ? (arrayLayers == 1 ? vk::ImageViewType::e2D : vk::ImageViewType::e2DArray) : vk::ImageViewType::e3D)
 					.setFormat(imageCreateInfo.format)
-					.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR))//
+					.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA))//
 					.setSubresourceRange(imageSubresourceRange);
 
-				view2 = RendererState::Device().createImageView(imageViewCreateInfo);
-			}
-			if (this->format == StorageFormat::Depth24Stencil8)
-			{
-				aspectFlags = vk::ImageAspectFlagBits::eStencil;
+				views.Add(RendererState::Device().createImageView(imageViewCreateInfo));
+				if (isDepthFormat(this->format))
+				{
+					aspectFlags = vk::ImageAspectFlagBits::eDepth;
 
-				imageSubresourceRange = vk::ImageSubresourceRange()
-					.setAspectMask(aspectFlags)
-					.setBaseMipLevel(0)
-					.setLevelCount(mipLevels)
-					.setBaseArrayLayer(0)
-					.setLayerCount(arrayLayers);
+					imageSubresourceRange = vk::ImageSubresourceRange()
+						.setAspectMask(aspectFlags)
+						.setBaseMipLevel(0)
+						.setLevelCount(1)
+						.setBaseArrayLayer(i)
+						.setLayerCount(arrayLayers);
 
-				imageViewCreateInfo = vk::ImageViewCreateInfo()
-					.setFlags(vk::ImageViewCreateFlags())
-					.setImage(image)
-					.setViewType(depth == 1 ? (arrayLayers == 1 ? vk::ImageViewType::e2D : vk::ImageViewType::e2DArray) : vk::ImageViewType::e3D)
-					.setFormat(imageCreateInfo.format)
-					.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR))//
-					.setSubresourceRange(imageSubresourceRange);
+					imageViewCreateInfo = vk::ImageViewCreateInfo()
+						.setFlags(vk::ImageViewCreateFlags())
+						.setImage(image)
+						.setViewType(depth == 1 ? (arrayLayers == 1 ? vk::ImageViewType::e2D : vk::ImageViewType::e2DArray) : vk::ImageViewType::e3D)
+						.setFormat(imageCreateInfo.format)
+						.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR))//
+						.setSubresourceRange(imageSubresourceRange);
 
-				view3 = RendererState::Device().createImageView(imageViewCreateInfo);
+					views.Add(RendererState::Device().createImageView(imageViewCreateInfo));
+				}
+				if (this->format == StorageFormat::Depth24Stencil8)
+				{
+					aspectFlags = vk::ImageAspectFlagBits::eStencil;
+
+					imageSubresourceRange = vk::ImageSubresourceRange()
+						.setAspectMask(aspectFlags)
+						.setBaseMipLevel(0)
+						.setLevelCount(1)
+						.setBaseArrayLayer(i)
+						.setLayerCount(arrayLayers);
+
+					imageViewCreateInfo = vk::ImageViewCreateInfo()
+						.setFlags(vk::ImageViewCreateFlags())
+						.setImage(image)
+						.setViewType(depth == 1 ? (arrayLayers == 1 ? vk::ImageViewType::e2D : vk::ImageViewType::e2DArray) : vk::ImageViewType::e3D)
+						.setFormat(imageCreateInfo.format)
+						.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR))//
+						.setSubresourceRange(imageSubresourceRange);
+
+					views.Add(RendererState::Device().createImageView(imageViewCreateInfo));
+				}
 			}
 		}
 		~Texture()
 		{
 			if (memory) RendererState::Device().freeMemory(memory);
-			if (view) RendererState::Device().destroyImageView(view);
-			if (view2) RendererState::Device().destroyImageView(view2);
-			if (view3) RendererState::Device().destroyImageView(view3);
+			for (auto view : views) RendererState::Device().destroyImageView(view);
 			if (image) RendererState::Device().destroyImage(image);
 		}
 
@@ -2559,10 +2559,13 @@ namespace VK
 		vk::Framebuffer framebuffer;
 		CoreLib::RefPtr<RenderTargetLayout> renderTargetLayout;
 		RenderAttachments renderAttachments;
+		CoreLib::List<vk::ImageView> attachmentImageViews;
 		FrameBuffer() {};
 		~FrameBuffer()
 		{
 			if (framebuffer) RendererState::Device().destroyFramebuffer(framebuffer);
+			for (auto view : attachmentImageViews)
+				RendererState::Device().destroyImageView(view);
 		}
 	};
 
@@ -2600,9 +2603,43 @@ namespace VK
 		for (auto attachment : renderAttachments.attachments)
 		{
 			if (attachment.handle.tex2D)
-				framebufferAttachmentViews.Add(dynamic_cast<Texture2D*>(attachment.handle.tex2D)->view);
+			{
+				vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
+					.setAspectMask(vk::ImageAspectFlagBits::eColor)
+					.setBaseMipLevel(0)
+					.setLevelCount(1)
+					.setBaseArrayLayer(0)
+					.setLayerCount(1);
+				auto tex = dynamic_cast<Texture2D*>(attachment.handle.tex2D);
+				vk::ImageViewCreateInfo imageViewCreateInfo = vk::ImageViewCreateInfo()
+					.setFlags(vk::ImageViewCreateFlags())
+					.setImage(tex->image)
+					.setViewType(vk::ImageViewType::e2D)
+					.setFormat(TranslateStorageFormat(tex->format))
+					.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA))//
+					.setSubresourceRange(imageSubresourceRange);
+
+				framebufferAttachmentViews.Add(RendererState::Device().createImageView(imageViewCreateInfo));
+			}
 			else if (attachment.handle.tex2DArray)
-				framebufferAttachmentViews.Add(dynamic_cast<Texture2DArray*>(attachment.handle.tex2DArray)->view);
+			{
+				vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
+					.setAspectMask(vk::ImageAspectFlagBits::eColor)
+					.setBaseMipLevel(0)
+					.setLevelCount(1)
+					.setBaseArrayLayer(attachment.layer)
+					.setLayerCount(1);
+				auto tex = dynamic_cast<Texture2DArray*>(attachment.handle.tex2DArray);
+				vk::ImageViewCreateInfo imageViewCreateInfo = vk::ImageViewCreateInfo()
+					.setFlags(vk::ImageViewCreateFlags())
+					.setImage(tex->image)
+					.setViewType(vk::ImageViewType::e2D)
+					.setFormat(TranslateStorageFormat(tex->format))
+					.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA))//
+					.setSubresourceRange(imageSubresourceRange);
+
+				framebufferAttachmentViews.Add(RendererState::Device().createImageView(imageViewCreateInfo));
+			}
 		}
 
 		vk::FramebufferCreateInfo framebufferCreateInfo = vk::FramebufferCreateInfo()
@@ -2617,7 +2654,7 @@ namespace VK
 		result->framebuffer = RendererState::Device().createFramebuffer(framebufferCreateInfo);
 		result->width = renderAttachments.width;
 		result->height = renderAttachments.height;
-
+		result->attachmentImageViews = framebufferAttachmentViews;
 		return result;
 	}
 
@@ -2718,11 +2755,11 @@ namespace VK
 			//	imageLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 			//}
 
-			vk::ImageView view = internalTexture->view;
-			if (internalTexture->format == StorageFormat::Depth24Stencil8 &&  aspect == TextureAspect::Depth)
-				view = internalTexture->view2;
+			vk::ImageView view = internalTexture->views[0];
+			if (isDepthFormat(internalTexture->format) && aspect == TextureAspect::Depth)
+				view = internalTexture->views[1];
 			if (internalTexture->format == StorageFormat::Depth24Stencil8 &&  aspect == TextureAspect::Stencil)
-				view = internalTexture->view3;
+				view = internalTexture->views[2];
 
 			imageInfo.Add(
 				vk::DescriptorImageInfo()
@@ -4218,10 +4255,7 @@ namespace VK
 		Texture2D* CreateTexture2D(int pwidth, int pheight, StorageFormat format, DataType dataType, void* data)
 		{
 			TextureUsage usage;
-			if (isDepthFormat(format))
-				usage = TextureUsage::SampledDepthAttachment;
-			else
-				usage = TextureUsage::SampledColorAttachment;
+			usage = TextureUsage::Sampled;
 
 			int mipLevelCount = (int)Math::Log2Floor(Math::Max(pwidth, pheight)) + 1;
 			Texture2D* res = new Texture2D(usage, pwidth, pheight, mipLevelCount, format);
