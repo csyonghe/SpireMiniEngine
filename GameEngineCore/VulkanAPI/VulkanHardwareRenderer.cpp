@@ -3088,6 +3088,7 @@ namespace VK
 		Fence()
 		{
 			mEvent = RendererState::Device().createEvent(vk::EventCreateInfo());
+			RendererState::Device().setEvent(mEvent);
 		}
 		~Fence()
 		{
