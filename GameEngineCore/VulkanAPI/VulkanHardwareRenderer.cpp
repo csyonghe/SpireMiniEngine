@@ -3116,7 +3116,6 @@ namespace VK
 		Pipeline* curPipeline;
 		CoreLib::Array<uint32_t, 32> pendingOffsets;
 		CoreLib::Array<vk::DescriptorSet, 32> pendingDescSets;
-		CoreLib::RefPtr<Fence> submitEvent;
 
 		CommandBuffer(const vk::CommandPool& commandPool) : pool(commandPool)
 		{
@@ -3777,8 +3776,6 @@ namespace VK
 
 		virtual void ExecuteCommandBuffers(GameEngine::FrameBuffer* frameBuffer, CoreLib::ArrayView<GameEngine::CommandBuffer*> commands, GameEngine::Fence* fence) override
 		{
-			VK::Fence* internalFence = static_cast<VK::Fence*>(fence);
-
 			// Create command buffer begin info
 			vk::CommandBufferBeginInfo primaryBeginInfo = vk::CommandBufferBeginInfo()
 				.setFlags(vk::CommandBufferUsageFlagBits::eSimultaneousUse)
@@ -3827,7 +3824,6 @@ namespace VK
 					renderPassCommandBuffers.Add(internalBuffer->buffer);
 				else
 					postPassCommandBuffers.Add(internalBuffer->buffer);
-				internalBuffer->submitEvent = internalFence;
 			}
 
 			// Record primary command buffer
@@ -3846,7 +3842,8 @@ namespace VK
 			if (postPassCommandBuffers.Count() > 0)
 				primaryBuffer.executeCommands(postPassCommandBuffers.Count(), postPassCommandBuffers.Buffer());
 
-			primaryBuffer.setEvent(internalFence->mEvent, vk::PipelineStageFlagBits::eBottomOfPipe);
+			if (fence)
+				primaryBuffer.setEvent(static_cast<VK::Fence*>(fence)->mEvent, vk::PipelineStageFlagBits::eBottomOfPipe);
 
 			primaryBuffer.end();
 
