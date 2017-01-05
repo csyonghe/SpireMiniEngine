@@ -571,13 +571,13 @@ namespace VK
 			vk::CommandBuffer commandBuffer = (*State().primaryBuffers)[next];
 			vk::Fence fence = (*State().primaryFences)[next];
 
-			//Device().waitForFences(
-			//	fence,
-			//	VK_TRUE,
-			//	UINT64_MAX
-			//);
+			Device().waitForFences(
+				fence,
+				VK_TRUE,
+				UINT64_MAX
+			);
 
-			//Device().resetFences(fence);
+			Device().resetFences(fence);
 
 			i++;
 			return std::make_pair(commandBuffer, fence);
@@ -3129,7 +3129,7 @@ namespace VK
 		~Fence() {}
 		virtual void Reset() override
 		{
-			if (assocFence) RendererState::Device().resetFences(assocFence);
+			//if (assocFence) RendererState::Device().resetFences(assocFence);
 		}
 		virtual void Wait() override
 		{
