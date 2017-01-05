@@ -132,6 +132,8 @@ namespace GameEngine
 		level = nullptr;
 		uiEntry = nullptr;
 		uiSystemInterface = nullptr;
+		for (auto & fence : syncFences)
+			fence = nullptr;
 		renderer = nullptr;
 	}
 
