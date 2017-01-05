@@ -1000,12 +1000,12 @@ namespace VK
 	int32_t GetMemoryType(uint32_t memoryTypeBits, vk::MemoryPropertyFlags memoryPropertyFlags)
 	{
 		int32_t memoryTypeIndex = 0;
-
+		auto memProperties = RendererState::PhysicalDevice().getMemoryProperties();
 		for (uint32_t k = 0; k < 32; k++)
 		{
 			if ((memoryTypeBits & 1) == 1)
 			{
-				if ((RendererState::PhysicalDevice().getMemoryProperties().memoryTypes[k].propertyFlags & memoryPropertyFlags) == memoryPropertyFlags)
+				if ((memProperties.memoryTypes[k].propertyFlags & memoryPropertyFlags) == memoryPropertyFlags)
 				{
 					memoryTypeIndex = k;
 					return memoryTypeIndex;
@@ -1258,7 +1258,28 @@ namespace VK
 				aspectFlags = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
 			else
 				aspectFlags = vk::ImageAspectFlagBits::eColor;
-
+			int dataTypeSize = DataTypeSize(inputType);
+			List<unsigned short> translatedBuffer;
+			if (format == StorageFormat::R_F16 || format == StorageFormat::RG_F16 || format == StorageFormat::RGBA_F16)
+			{
+				// transcode f32 to f16
+				int channelCount = 1;
+				switch (format)
+				{
+				case StorageFormat::RG_F16:
+					channelCount = 2;
+					break;
+				case StorageFormat::RGBA_F16:
+					channelCount = 4;
+					break;
+				}
+				translatedBuffer.SetSize(pwidth * pheight * pdepth * layerCount * channelCount);
+				float * src = (float*)data;
+				for (int i = 0; i < translatedBuffer.Count(); i++)
+					translatedBuffer[i] = FloatToHalf(src[i]);
+				dataTypeSize >>= 1;
+				data = (void*)translatedBuffer.Buffer();
+			}
 			bool useStagingImage = false;
 			if (useStagingImage)
 			{
@@ -1408,7 +1429,7 @@ namespace VK
 			else
 			{
 				// Set up staging buffer and copy data to new image
-				int bufferSize = pwidth * pheight * pdepth * layerCount * DataTypeSize(inputType);
+				int bufferSize = pwidth * pheight * pdepth * layerCount * dataTypeSize;
 				if (format == StorageFormat::BC1 || format == StorageFormat::BC5)
 				{
 					int blocks = (int)(ceil(pwidth / 4.0f) * ceil(pheight / 4.0f));

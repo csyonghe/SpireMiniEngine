@@ -57,7 +57,12 @@ module VertexTransform
     require vec3 worldTransformPos(vec3 pos);
 
     public vec3 pos = worldTransformPos(fineVertPos+displacement); 
-    public vec4 projCoord = viewProjectionTransform * vec4(pos, 1);
+    public vec4 projCoord
+    {
+        vec4 rs = viewProjectionTransform * vec4(pos, 1);
+        //rs.z = (rs.z + rs.w) * 0.5;
+        return rs;
+    } 
 }
 
 module NoAnimation
@@ -447,7 +452,7 @@ module Lighting
         return result;
     }
     
-    float brightness = clamp(dot(lightDir, normal), 0.0, 1.0) * shadow;
+    float brightness = /*clamp(dot(lightDir, normal), 0.0, 1.0) +*/ clamp(dot(normalize(vec3(0.0, 100.0, 0.0)-pos), normal),0.0,1.0) * shadow;
 
     float highlight_phongStandard
     {
@@ -464,7 +469,7 @@ module Lighting
         float specular = dotNL * D * FV * specular_in;
         return specular;
     }
-    float highlight = highlight_GGXstandard;
+    float highlight = highlight_GGXstandard*0.0;
     public vec3 result = lightColor * 
                         (albedo * (brightness + 0.4)*(1.0-metallic_in) + 
                         mix(albedo, vec3(1.0), 1.0 - metallic_in) * (highlight * shadow));

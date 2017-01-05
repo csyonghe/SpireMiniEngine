@@ -496,6 +496,7 @@ shader AtmospherePostPass targets StandardPipeline
         float x = vertUV.x*2-1;
         float y = vertUV.y*2-1;
         vec4 position = invViewProjTransform * vec4(x, y, z, 1.0f);
+        
         vec3 pos = position.xyz / position.w;
         vec3 v = pos-cameraPos;
         float t = length(v);
