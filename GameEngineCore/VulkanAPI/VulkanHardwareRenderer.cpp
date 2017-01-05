@@ -564,27 +564,7 @@ namespace VK
 
 		static std::pair<const vk::CommandBuffer, const vk::Fence> PrimaryBuffer()
 		{
-			/// Take first signaled command buffer
-			//// Wait for any fence to be signaled
-			//Device().waitForFences(
-			//	vk::ArrayProxy<const vk::Fence>(State().primaryFences->Count(), State().primaryFences->Buffer()),
-			//	VK_FALSE,
-			//	UINT64_MAX
-			//);
-
-			//// Iterate through fences to grab first signaled
-			//int numBuffers = State().primaryFences->Count();
-			//for (int k = 0; k < numBuffers; k++)
-			//	if (Device().getFenceStatus((*State().primaryFences)[k]) == vk::Result::eSuccess)
-			//	{
-			//		static int usageCount[128] = { 0 };
-			//		usageCount[k]++;
-			//		// Set the fence to unsignaled state
-			//		Device().resetFences((*State().primaryFences)[k]);
-			//		return std::make_pair((*State().primaryBuffers)[k], (*State().primaryFences)[k]);
-			//	}
-
-			/// Round robin command buffers in order
+			// Round robin command buffers in order
 			static int i = 0;
 			int next = i % numCommandBuffers;
 
@@ -3143,28 +3123,22 @@ namespace VK
 	class Fence : public GameEngine::Fence
 	{
 	public:
-		vk::Event mEvent;
+		vk::Fence assocFence;
 	public:
-		Fence()
-		{
-			mEvent = RendererState::Device().createEvent(vk::EventCreateInfo());
-			RendererState::Device().setEvent(mEvent);
-		}
-		~Fence()
-		{
-			if (mEvent) RendererState::Device().destroyEvent(mEvent);
-		}
+		Fence() {}
+		~Fence() {}
 		virtual void Reset() override
 		{
-			RendererState::Device().resetEvent(mEvent);
+			//if (assocFence) RendererState::Device().resetFences(assocFence);
 		}
 		virtual void Wait() override
 		{
-			while (true)
-			{
-				if (RendererState::Device().getEventStatus(mEvent) == vk::Result::eEventSet)
-					break;
-			}
+			if (assocFence)
+				RendererState::Device().waitForFences(
+					assocFence,
+					VK_TRUE,
+					UINT64_MAX
+				);
 		}
 	};
 
@@ -3904,7 +3878,7 @@ namespace VK
 				primaryBuffer.executeCommands(postPassCommandBuffers.Count(), postPassCommandBuffers.Buffer());
 
 			if (fence)
-				primaryBuffer.setEvent(static_cast<VK::Fence*>(fence)->mEvent, vk::PipelineStageFlagBits::eBottomOfPipe);
+				static_cast<VK::Fence*>(fence)->assocFence = primaryFence;
 
 			primaryBuffer.end();
 
@@ -3916,6 +3890,7 @@ namespace VK
 				.setPCommandBuffers(&primaryBuffer)
 				.setSignalSemaphoreCount(0)
 				.setPSignalSemaphores(nullptr);
+
 			//RendererState::RenderQueue().waitIdle();
 			RendererState::RenderQueue().submit(submitInfo, primaryFence);
 		}
