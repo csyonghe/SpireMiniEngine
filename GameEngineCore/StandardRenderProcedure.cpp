@@ -82,9 +82,9 @@ namespace GameEngine
 		}
 		virtual RenderTarget* GetOutput() override
 		{
-			if (useAtmosphere)
-				return sharedRes->LoadSharedRenderTarget("litAtmosphereColor", StorageFormat::RGBA_8).Ptr();
-			else
+			//if (useAtmosphere)
+			//	return sharedRes->LoadSharedRenderTarget("litAtmosphereColor", StorageFormat::RGBA_8).Ptr();
+			//else
 				return sharedRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8).Ptr();
 		}
 		virtual void Init(Renderer * renderer) override
@@ -363,7 +363,7 @@ namespace GameEngine
 
 			if (useAtmosphere)
 			{
-				task.postPasses.Add(atmospherePass);
+			//	task.postPasses.Add(atmospherePass);
 			}
 			task.sharedModuleInstances = sharedModules;
 		}
