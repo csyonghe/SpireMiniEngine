@@ -1240,7 +1240,7 @@ namespace VK
 			this->currentLayout = targetLayout;
 		}
 
-		void SetData(int level, int layer, int xOffset, int yOffset, int zOffset, int pwidth, int pheight, int pdepth, DataType inputType, void* data)
+		void SetData(int level, int layer, int xOffset, int yOffset, int zOffset, int pwidth, int pheight, int pdepth, int layerCount, DataType inputType, void* data)
 		{
 			if (numSamples > 1)
 				throw HardwareRendererException("samples must be equal to 1");
@@ -1272,7 +1272,7 @@ namespace VK
 					.setFormat(TranslateStorageFormat(format))//TODO: base this off of inputType
 					.setExtent(vk::Extent3D(pwidth, pheight, pdepth))
 					.setMipLevels(1)
-					.setArrayLayers(1)
+					.setArrayLayers(layerCount)
 					.setSamples(vk::SampleCountFlagBits::e1)
 					.setTiling(vk::ImageTiling::eLinear)
 					.setUsage(vk::ImageUsageFlagBits::eTransferSrc)
@@ -1408,11 +1408,12 @@ namespace VK
 			else
 			{
 				// Set up staging buffer and copy data to new image
-				int bufferSize = pwidth * pheight * pdepth * DataTypeSize(inputType);
+				int bufferSize = pwidth * pheight * pdepth * layerCount * DataTypeSize(inputType);
 				if (format == StorageFormat::BC1 || format == StorageFormat::BC5)
 				{
 					int blocks = (int)(ceil(pwidth / 4.0f) * ceil(pheight / 4.0f));
 					bufferSize = format == StorageFormat::BC5 ? blocks * 16 : blocks * 8;
+					bufferSize *= layerCount;
 				}
 
 				vk::BufferCreateInfo stagingBufferCreateInfo = vk::BufferCreateInfo()
@@ -1446,7 +1447,7 @@ namespace VK
 					.setBufferOffset(0)
 					.setBufferRowLength(0)
 					.setBufferImageHeight(0)
-					.setImageSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(level).setBaseArrayLayer(layer).setLayerCount(1))
+					.setImageSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(level).setBaseArrayLayer(layer).setLayerCount(layerCount))
 					.setImageOffset(vk::Offset3D(xOffset, yOffset, zOffset))
 					.setImageExtent(vk::Extent3D(pwidth, pheight, pdepth));
 
@@ -1794,11 +1795,11 @@ namespace VK
 		}
 		void SetData(int level, int pwidth, int pheight, int numSamples, DataType inputType, void* data)
 		{
-			VK::Texture::SetData(level, 0, 0, 0, 0, pwidth, pheight, 1, inputType, data);
+			VK::Texture::SetData(level, 0, 0, 0, 0, pwidth, pheight, 1, 1, inputType, data);
 		}
 		void SetData(int pwidth, int pheight, int numSamples, DataType inputType, void* data)
 		{
-			VK::Texture::SetData(0, 0, 0, 0, 0, pwidth, pheight, 1, inputType, data);
+			VK::Texture::SetData(0, 0, 0, 0, 0, pwidth, pheight, 1, 1, inputType, data);
 		}
 		void BuildMipmaps()
 		{
@@ -1826,10 +1827,12 @@ namespace VK
 
 		virtual void SetData(int mipLevel, int xOffset, int yOffset, int layerOffset, int pwidth, int pheight, int layerCount, DataType inputType, void * data) override
 		{
+			VK::Texture::SetData(mipLevel, layerOffset, xOffset, yOffset, 0, pwidth, pheight, 1, layerCount, inputType, data);
 		}
 
 		virtual void BuildMipmaps() override
 		{
+			VK::Texture::BuildMipmaps();
 		}
 	};
 
@@ -1849,7 +1852,7 @@ namespace VK
 
 		virtual void SetData(int mipLevel, int xOffset, int yOffset, int zOffset, int pwidth, int pheight, int pdepth, DataType inputType, void * data) override
 		{
-			VK::Texture::SetData(mipLevel, 0, xOffset, yOffset, zOffset, pwidth, pheight, pdepth, inputType, data);
+			VK::Texture::SetData(mipLevel, 0, xOffset, yOffset, zOffset, pwidth, pheight, pdepth, 1, inputType, data);
 		}
 	};
 
