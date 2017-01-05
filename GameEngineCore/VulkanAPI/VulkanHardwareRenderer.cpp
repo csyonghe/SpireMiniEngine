@@ -3083,50 +3083,29 @@ namespace VK
 	class Fence : public GameEngine::Fence
 	{
 	public:
-		vk::Fence fence;
+		vk::Event mEvent;
 	public:
 		Fence()
 		{
-			vk::FenceCreateInfo fenceCreateInfo = vk::FenceCreateInfo()
-				.setFlags(vk::FenceCreateFlagBits::eSignaled);
-
-			fence = RendererState::Device().createFence(fenceCreateInfo);
+			mEvent = RendererState::Device().createEvent(vk::EventCreateInfo());
 		}
 		~Fence()
 		{
-			if (fence) RendererState::Device().destroyFence(fence);
+			if (mEvent) RendererState::Device().destroyEvent(mEvent);
 		}
 		virtual void Reset() override
 		{
-			//RendererState::Device().resetFences(fence);
+			RendererState::Device().resetEvent(mEvent);
 		}
 		virtual void Wait() override
 		{
-			//RendererState::Device().waitForFences(fence, VK_TRUE, UINT64_MAX);
+			while (true)
+			{
+				if (RendererState::Device().getEventStatus(mEvent) == vk::Result::eEventSet)
+					break;
+			}
 		}
 	};
-
-// Toggles between a shared event for all command buffers vs a single event for 
-// each command buffer for syncrhonization. Shared event will wait for all
-// command buffers in a group to be submitted before recording any, while 
-// individual event would wait for any individual command buffer.
-#define SHARED_EVENT false
-#if SHARED_EVENT
-	class TestEvent
-	{
-	public:
-		vk::Event internalEvent;
-
-		TestEvent()
-		{
-			internalEvent = RendererState::Device().createEvent(vk::EventCreateInfo());
-		}
-		~TestEvent()
-		{
-			RendererState::Device().destroyEvent(internalEvent);
-		}
-	};
-#endif
 
 	class CommandBuffer : public GameEngine::CommandBuffer
 	{
@@ -3137,48 +3116,22 @@ namespace VK
 		Pipeline* curPipeline;
 		CoreLib::Array<uint32_t, 32> pendingOffsets;
 		CoreLib::Array<vk::DescriptorSet, 32> pendingDescSets;
-#if SHARED_EVENT
-		CoreLib::RefPtr<TestEvent> submitEvent;
-#else
-		vk::Event submitEvent;
-#endif
+		CoreLib::RefPtr<Fence> submitEvent;
 
 		CommandBuffer(const vk::CommandPool& commandPool) : pool(commandPool)
 		{
 			buffer = RendererState::CreateCommandBuffer(pool, vk::CommandBufferLevel::eSecondary);
-#if SHARED_EVENT
-			submitEvent = new TestEvent;
-			RendererState::Device().setEvent(submitEvent->internalEvent);
-#else
-			submitEvent = RendererState::Device().createEvent(vk::EventCreateInfo());
-			RendererState::Device().setEvent(submitEvent);
-#endif
 		}
 		CommandBuffer() : CommandBuffer(RendererState::RenderCommandPool()) {}
 
 		~CommandBuffer()
 		{
 			RendererState::DestroyCommandBuffer(pool, buffer);
-#if !SHARED_EVENT
-			RendererState::Device().destroyEvent(submitEvent);
-#endif
 		}
 
 		inline void BeginRecording()
 		{
 			inRenderPass = false;
-
-			// Wait for command buffer to no longer be in use for a prior submission
-			while (true)
-			{
-#if SHARED_EVENT
-				if (RendererState::Device().getEventStatus(submitEvent->internalEvent) == vk::Result::eEventSet)
-					break;
-#else
-				if (RendererState::Device().getEventStatus(submitEvent) == vk::Result::eEventSet)
-					break;
-#endif
-			}
 
 			curPipeline = nullptr;
 			pendingOffsets.Clear();
@@ -3202,18 +3155,6 @@ namespace VK
 		inline void BeginRecording(GameEngine::RenderTargetLayout* renderTargetLayout, vk::Framebuffer framebuffer)
 		{
 			inRenderPass = true;
-
-			// Wait for command buffer to no longer be in use for a prior submission
-			while (true)
-			{
-#if SHARED_EVENT
-				if (RendererState::Device().getEventStatus(submitEvent->internalEvent) == vk::Result::eEventSet)
-					break;
-#else
-				if (RendererState::Device().getEventStatus(submitEvent) == vk::Result::eEventSet)
-					break;
-#endif
-			}
 
 			curPipeline = nullptr;
 			pendingOffsets.Clear();
@@ -3836,6 +3777,8 @@ namespace VK
 
 		virtual void ExecuteCommandBuffers(GameEngine::FrameBuffer* frameBuffer, CoreLib::ArrayView<GameEngine::CommandBuffer*> commands, GameEngine::Fence* fence) override
 		{
+			VK::Fence* internalFence = static_cast<VK::Fence*>(fence);
+
 			// Create command buffer begin info
 			vk::CommandBufferBeginInfo primaryBeginInfo = vk::CommandBufferBeginInfo()
 				.setFlags(vk::CommandBufferUsageFlagBits::eSimultaneousUse)
@@ -3848,10 +3791,6 @@ namespace VK
 				.setRenderArea(vk::Rect2D().setOffset(vk::Offset2D(0, 0)).setExtent(vk::Extent2D(dynamic_cast<VK::FrameBuffer*>(frameBuffer)->width, dynamic_cast<VK::FrameBuffer*>(frameBuffer)->height)))
 				.setClearValueCount(0)
 				.setPClearValues(nullptr);
-
-#if SHARED_EVENT
-			CoreLib::RefPtr<TestEvent> curEvent = new TestEvent();
-#endif
 
 			// Aggregate secondary command buffers
 			bool pre = true, render = false, post = false;
@@ -3888,11 +3827,7 @@ namespace VK
 					renderPassCommandBuffers.Add(internalBuffer->buffer);
 				else
 					postPassCommandBuffers.Add(internalBuffer->buffer);
-#if SHARED_EVENT
-				((VK::CommandBuffer*)(buffer))->submitEvent = curEvent;
-#else
-				RendererState::Device().resetEvent(internalBuffer->submitEvent);
-#endif
+				internalBuffer->submitEvent = internalFence;
 			}
 
 			// Record primary command buffer
@@ -3911,12 +3846,7 @@ namespace VK
 			if (postPassCommandBuffers.Count() > 0)
 				primaryBuffer.executeCommands(postPassCommandBuffers.Count(), postPassCommandBuffers.Buffer());
 
-#if SHARED_EVENT
-			primaryBuffer.setEvent(curEvent->internalEvent, vk::PipelineStageFlagBits::eBottomOfPipe);
-#else
-			for (auto& buffer : commands)
-				primaryBuffer.setEvent(((VK::CommandBuffer*)(buffer))->submitEvent, vk::PipelineStageFlagBits::eBottomOfPipe);
-#endif
+			primaryBuffer.setEvent(internalFence->mEvent, vk::PipelineStageFlagBits::eBottomOfPipe);
 
 			primaryBuffer.end();
 
