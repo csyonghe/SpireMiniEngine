@@ -1458,8 +1458,8 @@ namespace VK
 				// Record command buffer
 				vk::ImageSubresourceRange textureSubresourceRange = vk::ImageSubresourceRange()
 					.setAspectMask(aspectFlags)
-					.setBaseMipLevel(level)
-					.setLevelCount(1)
+					.setBaseMipLevel(0)
+					.setLevelCount(mipLevels)
 					.setBaseArrayLayer(layer)
 					.setLayerCount(1);
 
@@ -4246,7 +4246,6 @@ namespace VK
 			Texture2D* res = new Texture2D(usage, pwidth, pheight, mipLevelCount, format);
 			res->SetData(pwidth, pheight, 1, dataType, data);
 			res->BuildMipmaps();
-			//res->TransferLayout(LayoutFromUsage(usage));
 			return res;
 		}
 
@@ -4262,7 +4261,6 @@ namespace VK
 			Texture2D* res = new Texture2D(usage, pwidth, pheight, mipLevelCount, format);
 			for (int level = 0; level < mipLevelCount; level++)
 				res->SetData(level, Math::Max(pwidth >> level, 1), Math::Max(pheight >> level, 1), 1, dataType, mipLevelData[level]);
-			res->TransferLayout(LayoutFromUsage(usage));
 			return res;
 		}
 
