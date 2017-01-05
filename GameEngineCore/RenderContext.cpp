@@ -142,7 +142,7 @@ namespace GameEngine
 			dataType = DataType::Byte2;
 			break;
 		case CoreLib::Graphics::TextureStorageFormat::RGB8:
-			format = StorageFormat::RGBA_I8;
+			format = StorageFormat::RGBA_8;
 			dataType = DataType::Byte4;
 			translatedData = Graphics::TranslateThreeChannelTextureFormat(textureData, data.GetWidth()*data.GetHeight(), 1);
 			textureData = translatedData.Buffer();
