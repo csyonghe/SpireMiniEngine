@@ -1746,12 +1746,31 @@ namespace VK
 				nullptr,
 				textureCopyBarrier
 			);
+			
+			vk::Filter blitFilter = vk::Filter::eLinear;
+			switch (format)
+			{
+			case StorageFormat::Int8:
+			case StorageFormat::Int16:
+			case StorageFormat::Int32_Raw:
+			case StorageFormat::RG_I8:
+			case StorageFormat::RG_I16:
+			case StorageFormat::RG_I32_Raw:
+			case StorageFormat::RGB_I8:
+			case StorageFormat::RGB_I16:
+			case StorageFormat::RGB_I32_Raw:
+			case StorageFormat::RGBA_I8:
+			case StorageFormat::RGBA_I16:
+			case StorageFormat::RGBA_I32_Raw:
+				blitFilter = vk::Filter::eNearest;
+			}
+
 			// Blit texture to each mip level
 			transferCommandBuffer.blitImage(
 				image, vk::ImageLayout::eGeneral,
 				image, vk::ImageLayout::eGeneral,
 				vk::ArrayProxy<const vk::ImageBlit>(blitRegions.Count(), blitRegions.Buffer()),
-				vk::Filter::eLinear
+				blitFilter
 			);
 			transferCommandBuffer.pipelineBarrier(
 				vk::PipelineStageFlagBits::eTopOfPipe,
