@@ -134,11 +134,11 @@ namespace GameEngine
 		switch (data.GetFormat())
 		{
 		case CoreLib::Graphics::TextureStorageFormat::R8:
-			format = StorageFormat::Int8;
+			format = StorageFormat::R_8;
 			dataType = DataType::Byte;
 			break;
 		case CoreLib::Graphics::TextureStorageFormat::RG8:
-			format = StorageFormat::RG_I8;
+			format = StorageFormat::RG_8;
 			dataType = DataType::Byte2;
 			break;
 		case CoreLib::Graphics::TextureStorageFormat::RGB8:
@@ -152,7 +152,7 @@ namespace GameEngine
 			dataType = DataType::Byte4;
 			break;
 		case CoreLib::Graphics::TextureStorageFormat::R_F32:
-			format = StorageFormat::Float32;
+			format = StorageFormat::R_F32;
 			dataType = DataType::Float;
 			break;
 		case CoreLib::Graphics::TextureStorageFormat::RG_F32:

@@ -115,13 +115,11 @@ namespace GameEngine
 	enum class StorageFormat
 	{
 		Invalid = -1,
-		Int8, Int16, Int32_Raw,
-		Float16, Float32,
-		RG_I8, RG_I16, RG_I32_Raw,
+		R_8, R_I8, R_16, R_I16, Int32_Raw,
+		R_F16, R_F32,
+		RG_8, RG_16, RG_I8, RG_I16, RG_I32_Raw,
 		RG_F16, RG_F32,
-		RGB_I8, RGB_I16, RGB_I32_Raw,
-		RGB_F16, RGB_F32,
-		RGBA_8, RGBA_I8, RGBA_I16, RGBA_I32_Raw,
+		RGBA_8, RGBA_I8, RGBA_16, RGBA_I16, RGBA_I32_Raw,
 		RGBA_F16, RGBA_F32,
 		RGBA_Compressed, R11F_G11F_B10F, RGB10_A2,
 		BC1, BC5,
@@ -200,36 +198,31 @@ namespace GameEngine
 	{
 		switch (format)
 		{
-		case StorageFormat::Int8:
+		case StorageFormat::R_8:
+		case StorageFormat::R_I8:
 			return 1;
 		case StorageFormat::RG_I8:
-		case StorageFormat::Int16:
-		case StorageFormat::Float16:
+		case StorageFormat::RG_8:
+		case StorageFormat::R_F16:
 			return 2;
-		case StorageFormat::RGB_I8:
-			return 3;
 		case StorageFormat::RGBA_8:
 		case StorageFormat::RGBA_I8:
+		case StorageFormat::RG_16:
 		case StorageFormat::RG_F16:
 		case StorageFormat::RG_I16:
 		case StorageFormat::Int32_Raw:
-		case StorageFormat::Float32:
+		case StorageFormat::R_F32:
 		case StorageFormat::R11F_G11F_B10F:
 		case StorageFormat::RGB10_A2:
 		case StorageFormat::Depth32:
 		case StorageFormat::Depth24Stencil8:
 			return 4;
-		case StorageFormat::RGB_I16:
-		case StorageFormat::RGB_F16:
-			return 6;
 		case StorageFormat::RGBA_I16:
 		case StorageFormat::RGBA_F16:
+		case StorageFormat::RGBA_16:
 		case StorageFormat::RG_I32_Raw:
 		case StorageFormat::RG_F32:
 			return 8;
-		case StorageFormat::RGB_I32_Raw:
-		case StorageFormat::RGB_F32:
-			return 12;
 		case StorageFormat::RGBA_I32_Raw:
 		case StorageFormat::RGBA_F32:
 			return 16;

@@ -89,19 +89,22 @@ namespace GLL
 		int internalFormat = 0;
 		switch (format)
 		{
-		case StorageFormat::Float16:
+		case StorageFormat::R_F16:
 			internalFormat = GL_R16F;
 			break;
-		case StorageFormat::Float32:
+		case StorageFormat::R_F32:
 			internalFormat = GL_R32F;
 			break;
-		case StorageFormat::Int16:
+		case StorageFormat::R_16:
 			internalFormat = GL_R16;
+			break;
+		case StorageFormat::R_I16:
+			internalFormat = GL_R16I;
 			break;
 		case StorageFormat::Int32_Raw:
 			internalFormat = GL_R32I;
 			break;
-		case StorageFormat::Int8:
+		case StorageFormat::R_8:
 			internalFormat = GL_R8;
 			break;
 		case StorageFormat::RG_F16:
@@ -111,28 +114,19 @@ namespace GLL
 			internalFormat = GL_RG32F;
 			break;
 		case StorageFormat::RG_I16:
+			internalFormat = GL_RG16I;
+			break;
+		case StorageFormat::RG_16:
 			internalFormat = GL_RG16;
 			break;
 		case StorageFormat::RG_I32_Raw:
 			internalFormat = GL_RG32I;
 			break;
-		case StorageFormat::RG_I8:
+		case StorageFormat::RG_8:
 			internalFormat = GL_RG8;
 			break;
-		case StorageFormat::RGB_F16:
-			internalFormat = GL_RGB16F;
-			break;
-		case StorageFormat::RGB_F32:
-			internalFormat = GL_RGB32F;
-			break;
-		case StorageFormat::RGB_I16:
-			internalFormat = GL_RGB16;
-			break;
-		case StorageFormat::RGB_I32_Raw:
-			internalFormat = GL_RGB32I;
-			break;
-		case StorageFormat::RGB_I8:
-			internalFormat = GL_RGB8;
+		case StorageFormat::RG_I8:
+			internalFormat = GL_RG8I;
 			break;
 		case StorageFormat::RGBA_F16:
 			internalFormat = GL_RGBA16F;
@@ -153,6 +147,8 @@ namespace GLL
 			internalFormat = GL_RGBA32I;
 			break;
 		case StorageFormat::RGBA_I8:
+			internalFormat = GL_RGBA8I;
+			break;
 		case StorageFormat::RGBA_8:
 			internalFormat = GL_RGBA8;
 			break;

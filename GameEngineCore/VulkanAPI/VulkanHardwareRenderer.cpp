@@ -748,24 +748,24 @@ namespace VK
 	{
 		switch (format)
 		{
-		case StorageFormat::Float16: return vk::Format::eR16Sfloat;
-		case StorageFormat::Float32: return vk::Format::eR32Sfloat;
-		case StorageFormat::Int8: return vk::Format::eR8Uint;
-		case StorageFormat::Int16: return vk::Format::eR16Uint;
+		case StorageFormat::R_F16: return vk::Format::eR16Sfloat;
+		case StorageFormat::R_F32: return vk::Format::eR32Sfloat;
+		case StorageFormat::R_I8: return vk::Format::eR8Uint;
+		case StorageFormat::R_I16: return vk::Format::eR16Uint;
+		case StorageFormat::R_8: return vk::Format::eR8Unorm;
+		case StorageFormat::R_16: return vk::Format::eR16Unorm;
 		case StorageFormat::Int32_Raw: return vk::Format::eR32Sint;//
 		case StorageFormat::RG_F16: return vk::Format::eR16G16Sfloat;
 		case StorageFormat::RG_F32: return vk::Format::eR32G32Sfloat;
 		case StorageFormat::RG_I8: return vk::Format::eR8G8Uint;
+		case StorageFormat::RG_8: return vk::Format::eR8G8Unorm;
+		case StorageFormat::RG_16: return vk::Format::eR16G16Unorm;
 		case StorageFormat::RG_I16: return vk::Format::eR16G16Uint;
 		case StorageFormat::RG_I32_Raw: return vk::Format::eR32G32Sint;//
-		case StorageFormat::RGB_F16: return vk::Format::eR16G16B16Sfloat;
-		case StorageFormat::RGB_F32: return vk::Format::eR32G32B32Sfloat;
-		case StorageFormat::RGB_I8: return vk::Format::eR8G8B8Uint;
-		case StorageFormat::RGB_I16: return vk::Format::eR16G16B16Uint;
-		case StorageFormat::RGB_I32_Raw: return vk::Format::eR32G32B32Sint;//
 		case StorageFormat::RGBA_F16: return vk::Format::eR16G16B16A16Sfloat;
 		case StorageFormat::RGBA_F32: return vk::Format::eR32G32B32A32Sfloat;
 		case StorageFormat::RGBA_8: return vk::Format::eR8G8B8A8Unorm;
+		case StorageFormat::RGBA_16: return vk::Format::eR16G16B16A16Snorm;
 		case StorageFormat::RGBA_I8: return vk::Format::eR8G8B8A8Uint;
 		case StorageFormat::RGBA_I16: return vk::Format::eR16G16B16A16Uint;
 		case StorageFormat::RGBA_I32_Raw: return vk::Format::eR32G32B32A32Sint;//
@@ -1750,15 +1750,12 @@ namespace VK
 			vk::Filter blitFilter = vk::Filter::eLinear;
 			switch (format)
 			{
-			case StorageFormat::Int8:
-			case StorageFormat::Int16:
+			case StorageFormat::R_I8:
+			case StorageFormat::R_I16:
 			case StorageFormat::Int32_Raw:
 			case StorageFormat::RG_I8:
 			case StorageFormat::RG_I16:
 			case StorageFormat::RG_I32_Raw:
-			case StorageFormat::RGB_I8:
-			case StorageFormat::RGB_I16:
-			case StorageFormat::RGB_I32_Raw:
 			case StorageFormat::RGBA_I8:
 			case StorageFormat::RGBA_I16:
 			case StorageFormat::RGBA_I32_Raw:

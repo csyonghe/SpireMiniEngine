@@ -974,8 +974,8 @@ namespace GraphicsUI
 		UIImage(UIWindowsSystemInterface* ctx, const CoreLib::Imaging::Bitmap & bmp)
 		{
 			context = ctx;
-			texture = context->rendererApi->CreateTexture2D(TextureUsage::Sampled, bmp.GetWidth(), bmp.GetHeight(), 1, bmp.GetIsTransparent() ? StorageFormat::RGBA_I8 : StorageFormat::RGB_I8);
-			texture->SetData(bmp.GetWidth(), bmp.GetHeight(), 1, bmp.GetIsTransparent() ? DataType::Byte4 : DataType::Byte, bmp.GetPixels());
+			texture = context->rendererApi->CreateTexture2D(TextureUsage::Sampled, bmp.GetWidth(), bmp.GetHeight(), 1, StorageFormat::RGBA_8);
+			texture->SetData(bmp.GetWidth(), bmp.GetHeight(), 1, DataType::Byte4, bmp.GetPixels());
 			w = bmp.GetWidth();
 			h = bmp.GetHeight();
 		}
