@@ -2790,6 +2790,9 @@ namespace VK
 	class Pipeline : public GameEngine::Pipeline
 	{
 	public:
+#if _DEBUG
+		CoreLib::ArrayView<GameEngine::DescriptorSetLayout*> descriptorSets;
+#endif
 		vk::PipelineLayout pipelineLayout;
 		vk::Pipeline pipeline;
 	public:
@@ -2804,7 +2807,11 @@ namespace VK
 	class PipelineBuilder : public GameEngine::PipelineBuilder
 	{
 	public:
+#if _DEBUG
 		CoreLib::String debugName;
+		CoreLib::ArrayView<GameEngine::DescriptorSetLayout*> descriptorSets;
+#endif
+
 		CoreLib::List<vk::DescriptorSetLayout> setLayouts;
 		CoreLib::List<vk::PushConstantRange> pushConstantRanges;//TODO:
 		CoreLib::List<vk::PipelineShaderStageCreateInfo> shaderStages;
@@ -2916,6 +2923,9 @@ namespace VK
 		}
 		virtual void SetBindingLayout(CoreLib::ArrayView<GameEngine::DescriptorSetLayout*> descriptorSets) override
 		{
+#if _DEBUG
+			this->descriptorSets = descriptorSets;
+#endif
 			for (auto& set : descriptorSets)
 			{
 				if (set) //TODO: ?
@@ -2924,7 +2934,9 @@ namespace VK
 		}
 		virtual void SetDebugName(CoreLib::String name) override
 		{
+#if _DEBUG
 			debugName = name;
+#endif
 		}
 		virtual Pipeline* ToPipeline(GameEngine::RenderTargetLayout* renderTargetLayout) override
 		{
@@ -2934,6 +2946,9 @@ namespace VK
 
 	Pipeline::Pipeline(RenderTargetLayout* renderTargetLayout, PipelineBuilder* pipelineBuilder)
 	{
+#if _DEBUG
+		this->descriptorSets = pipelineBuilder->descriptorSets;
+#endif
 		// Create Pipeline Layout
 		vk::PipelineLayoutCreateInfo layoutCreateInfo = vk::PipelineLayoutCreateInfo()
 			.setFlags(vk::PipelineLayoutCreateFlags())
