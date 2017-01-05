@@ -2602,10 +2602,15 @@ namespace VK
 	{
 	public:
 		vk::DescriptorSetLayout layout;
+#if _DEBUG
+		CoreLib::ArrayView<GameEngine::DescriptorLayout> descriptors;
+#endif
 
 		DescriptorSetLayout(CoreLib::ArrayView<GameEngine::DescriptorLayout> descriptors)
 		{
 #if _DEBUG
+			this->descriptors = descriptors;
+
 			CoreLib::Array<int, 32> usedDescriptors;
 			usedDescriptors.SetSize(32);
 			for (auto& desc : usedDescriptors)
