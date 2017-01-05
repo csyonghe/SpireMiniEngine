@@ -27,6 +27,7 @@ namespace VK
 {
 	const int TargetVulkanVersion_Major = 1;
 	const int TargetVulkanVersion_Minor = 0;
+	const int numCommandBuffers = 128;
 
 	unsigned int GpuId = 0;
 
@@ -416,7 +417,7 @@ namespace VK
 			// Create primary command buffers
 			State().primaryFences = new CoreLib::List<vk::Fence>();
 			State().primaryBuffers = new CoreLib::List<vk::CommandBuffer>();
-			const int numCommandBuffers = 128;
+			
 			for (int k = 0; k < numCommandBuffers; k++)
 			{
 				// Initially all fences are signaled
@@ -585,7 +586,7 @@ namespace VK
 
 			/// Round robin command buffers in order
 			static int i = 0;
-			int next = i % 128;
+			int next = i % numCommandBuffers;
 
 			vk::CommandBuffer commandBuffer = (*State().primaryBuffers)[next];
 			vk::Fence fence = (*State().primaryFences)[next];
@@ -3915,7 +3916,7 @@ namespace VK
 				.setPCommandBuffers(&primaryBuffer)
 				.setSignalSemaphoreCount(0)
 				.setPSignalSemaphores(nullptr);
-
+			RendererState::RenderQueue().waitIdle();
 			RendererState::RenderQueue().submit(submitInfo, primaryFence);
 		}
 		virtual void Wait() override
