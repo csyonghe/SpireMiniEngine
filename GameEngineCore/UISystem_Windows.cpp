@@ -508,6 +508,7 @@ namespace GraphicsUI
 
 				require @vs vec4 projCoord;
 				
+				[VertexInput]
 				extern @vs rootVert vertAttribIn;
 				import(rootVert->vs) vertexImport()
 				{
@@ -621,6 +622,7 @@ namespace GraphicsUI
 					}
 					else
 						discard;
+					
 					return result;
 				}
 			}

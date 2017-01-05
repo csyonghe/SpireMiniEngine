@@ -3042,7 +3042,7 @@ namespace VK
 				vk::PipelineColorBlendAttachmentState()
 				.setBlendEnable(pipelineBuilder->FixedFunctionStates.BlendMode != BlendMode::Replace)
 				.setSrcColorBlendFactor(pipelineBuilder->FixedFunctionStates.BlendMode == BlendMode::AlphaBlend ? vk::BlendFactor::eSrcAlpha : vk::BlendFactor::eOne)
-				.setDstColorBlendFactor(pipelineBuilder->FixedFunctionStates.BlendMode == BlendMode::AlphaBlend ? vk::BlendFactor::eOneMinusSrcAlpha : vk::BlendFactor::eOne)
+				.setDstColorBlendFactor(pipelineBuilder->FixedFunctionStates.BlendMode == BlendMode::AlphaBlend ? vk::BlendFactor::eOneMinusSrcAlpha : vk::BlendFactor::eZero)
 				.setColorBlendOp(vk::BlendOp::eAdd)
 				.setSrcAlphaBlendFactor(pipelineBuilder->FixedFunctionStates.BlendMode == BlendMode::AlphaBlend ? vk::BlendFactor::eSrcAlpha : vk::BlendFactor::eOne)
 				.setDstAlphaBlendFactor(pipelineBuilder->FixedFunctionStates.BlendMode == BlendMode::AlphaBlend ? vk::BlendFactor::eSrcAlpha : vk::BlendFactor::eZero)
@@ -3239,20 +3239,20 @@ namespace VK
 		{
 			if (inRenderPass == false)
 				throw HardwareRendererException("RenderTargetLayout and FrameBuffer must be specified at BeginRecording for BindPipeline");
-
+			auto newPipeline = reinterpret_cast<VK::Pipeline*>(pipeline);
 			if (curPipeline == nullptr)
 			{
-				curPipeline = reinterpret_cast<VK::Pipeline*>(pipeline);
 				for(int k = 0; k < pendingDescSets.Count(); k++)
 					buffer.bindDescriptorSets(
 						vk::PipelineBindPoint::eGraphics,
-						curPipeline->pipelineLayout,
+						newPipeline->pipelineLayout,
 						pendingOffsets[k],
 						pendingDescSets[k],
 						nullptr);
 				pendingOffsets.Clear();
 				pendingDescSets.Clear();
 			}
+			curPipeline = newPipeline;
 			buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, dynamic_cast<VK::Pipeline*>(pipeline)->pipeline);
 		}
 
