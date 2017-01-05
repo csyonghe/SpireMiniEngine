@@ -563,24 +563,43 @@ namespace VK
 
 		static std::pair<const vk::CommandBuffer, const vk::Fence> PrimaryBuffer()
 		{
-			// Wait for any fence to be signaled
+			/// Take first signaled command buffer
+			//// Wait for any fence to be signaled
+			//Device().waitForFences(
+			//	vk::ArrayProxy<const vk::Fence>(State().primaryFences->Count(), State().primaryFences->Buffer()),
+			//	VK_FALSE,
+			//	UINT64_MAX
+			//);
+
+			//// Iterate through fences to grab first signaled
+			//int numBuffers = State().primaryFences->Count();
+			//for (int k = 0; k < numBuffers; k++)
+			//	if (Device().getFenceStatus((*State().primaryFences)[k]) == vk::Result::eSuccess)
+			//	{
+			//		static int usageCount[128] = { 0 };
+			//		usageCount[k]++;
+			//		// Set the fence to unsignaled state
+			//		Device().resetFences((*State().primaryFences)[k]);
+			//		return std::make_pair((*State().primaryBuffers)[k], (*State().primaryFences)[k]);
+			//	}
+
+			/// Round robin command buffers in order
+			static int i = 0;
+			int next = i % 128;
+
+			vk::CommandBuffer commandBuffer = (*State().primaryBuffers)[next];
+			vk::Fence fence = (*State().primaryFences)[next];
+
 			Device().waitForFences(
-				vk::ArrayProxy<const vk::Fence>(State().primaryFences->Count(), State().primaryFences->Buffer()),
-				VK_FALSE,
+				fence,
+				VK_TRUE,
 				UINT64_MAX
 			);
 
-			int numBuffers = State().primaryFences->Count();
-			for (int k = 0; k < numBuffers; k++)
-				if (Device().getFenceStatus((*State().primaryFences)[k]) == vk::Result::eSuccess)
-				{
-					static int usageCount[3] = { 0, 0, 0 };
-					usageCount[k]++;
-					// Set the fence to unsignaled state
-					Device().resetFences((*State().primaryFences)[k]);
-					return std::make_pair((*State().primaryBuffers)[k], (*State().primaryFences)[k]);
-				}
-			return std::make_pair(vk::CommandBuffer(), vk::Fence());
+			Device().resetFences(fence);
+
+			i++;
+			return std::make_pair(commandBuffer, fence);
 		}
 
 		static const vk::DescriptorPool& DescriptorPool()
@@ -1168,7 +1187,6 @@ namespace VK
 		}
 		~Texture()
 		{
-			RendererState::Device().waitIdle(); //TODO: Remove
 			if (memory) RendererState::Device().freeMemory(memory);
 			if (view) RendererState::Device().destroyImageView(view);
 			if (view2) RendererState::Device().destroyImageView(view2);
@@ -4194,7 +4212,6 @@ namespace VK
 				.setSignalSemaphoreCount(1)
 				.setPSignalSemaphores(&renderingFinishedSemaphore);
 
-			RendererState::RenderQueue().waitIdle(); //TODO: Remove
 			RendererState::RenderQueue().submit(submitInfo, vk::Fence());
 
 			vk::PresentInfoKHR presentInfo = vk::PresentInfoKHR()
