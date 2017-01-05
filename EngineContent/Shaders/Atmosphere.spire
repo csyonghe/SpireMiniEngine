@@ -522,7 +522,7 @@ shader AtmospherePostPass targets StandardPipeline
             vec3 finalColor = colorIn * extinction + inscatter;
             result = vec4(finalColor, 1.0);
         }
-        result = vec4(z,z,z, 1.0);
+        result = vec4(z, 1.0);
 		return result;
     }
 }

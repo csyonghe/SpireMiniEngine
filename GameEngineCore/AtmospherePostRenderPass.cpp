@@ -82,7 +82,7 @@ namespace GameEngine
 		virtual void AcquireRenderTargets() override
 		{
 			colorBuffer = sharedRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8);
-			depthBuffer = sharedRes->LoadSharedRenderTarget("depthBuffer", StorageFormat::Depth24Stencil8);
+			depthBuffer = sharedRes->LoadSharedRenderTarget("depthBuffer", StorageFormat::Depth32);
 			colorOutBuffer = sharedRes->LoadSharedRenderTarget("litAtmosphereColor", StorageFormat::RGBA_8);
 		}
 		virtual void SetupPipelineBindingLayout(PipelineBuilder * pipelineBuilder, List<AttachmentLayout> & renderTargets) override

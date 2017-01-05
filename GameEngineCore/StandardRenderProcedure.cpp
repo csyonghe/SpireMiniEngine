@@ -104,7 +104,7 @@ namespace GameEngine
 					sharedRes->LoadSharedRenderTarget("baseColorBuffer", StorageFormat::RGBA_8),
 					sharedRes->LoadSharedRenderTarget("pbrBuffer", StorageFormat::RGBA_8),
 					sharedRes->LoadSharedRenderTarget("normalBuffer", StorageFormat::RGB10_A2),
-					sharedRes->LoadSharedRenderTarget("depthBuffer", StorageFormat::Depth24Stencil8)
+					sharedRes->LoadSharedRenderTarget("depthBuffer", StorageFormat::Depth32)
 				);
 				gBufferInstance = gBufferRenderPass->CreateInstance(gBufferOutput, true);
 			}
@@ -115,7 +115,7 @@ namespace GameEngine
 				forwardBaseOutput = sharedRes->CreateRenderOutput(
 					forwardRenderPass->GetRenderTargetLayout(),
 					sharedRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8),
-					sharedRes->LoadSharedRenderTarget("depthBuffer", StorageFormat::Depth24Stencil8)
+					sharedRes->LoadSharedRenderTarget("depthBuffer", StorageFormat::Depth32)
 				);
 				forwardBaseInstance = forwardRenderPass->CreateInstance(forwardBaseOutput, true);
 			}

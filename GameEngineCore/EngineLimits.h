@@ -6,7 +6,7 @@ namespace GameEngine
 	const int MaxWorldRenderPasses = 8;
 	const int MaxPostRenderPasses = 32;
 	const int MaxShadowCascades = 8;
-	const int DynamicBufferLengthMultiplier = 2; // double buffering for dynamic uniforms
+	const int DynamicBufferLengthMultiplier = 5; // double buffering for dynamic uniforms
 }
 
 #endif

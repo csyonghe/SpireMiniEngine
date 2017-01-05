@@ -3916,7 +3916,7 @@ namespace VK
 				.setPCommandBuffers(&primaryBuffer)
 				.setSignalSemaphoreCount(0)
 				.setPSignalSemaphores(nullptr);
-			RendererState::RenderQueue().waitIdle();
+			//RendererState::RenderQueue().waitIdle();
 			RendererState::RenderQueue().submit(submitInfo, primaryFence);
 		}
 		virtual void Wait() override

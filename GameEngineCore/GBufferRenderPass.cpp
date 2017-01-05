@@ -42,7 +42,7 @@ namespace GameEngine
 				AttachmentLayout(TextureUsage::ColorAttachment, StorageFormat::RGBA_8),
 				AttachmentLayout(TextureUsage::ColorAttachment, StorageFormat::RGBA_8),
 				AttachmentLayout(TextureUsage::ColorAttachment, StorageFormat::RGB10_A2),
-				AttachmentLayout(TextureUsage::DepthAttachment, StorageFormat::Depth24Stencil8)).GetArrayView());
+				AttachmentLayout(TextureUsage::DepthAttachment, StorageFormat::Depth32)).GetArrayView());
 		}
 	};
 
