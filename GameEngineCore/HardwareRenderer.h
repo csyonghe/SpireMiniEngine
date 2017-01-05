@@ -123,8 +123,21 @@ namespace GameEngine
 		RGBA_F16, RGBA_F32,
 		RGBA_Compressed, R11F_G11F_B10F, RGB10_A2,
 		BC1, BC5,
-		Depth32, Depth24Stencil8
+		Depth24, Depth32, Depth24Stencil8
 	};
+
+	inline bool isDepthFormat(StorageFormat format)
+	{
+		switch (format)
+		{
+		case StorageFormat::Depth24:
+		case StorageFormat::Depth24Stencil8:
+		case StorageFormat::Depth32:
+			return true;
+		default:
+			return false;
+		}
+	}
 
 	enum class TextureCubeFace
 	{

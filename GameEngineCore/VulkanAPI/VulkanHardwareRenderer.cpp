@@ -773,6 +773,7 @@ namespace VK
 		case StorageFormat::RGBA_Compressed: return vk::Format::eBc7UnormBlock;//
 		case StorageFormat::R11F_G11F_B10F: return vk::Format::eB10G11R11UfloatPack32; // need to swizzle?
 		case StorageFormat::RGB10_A2: return vk::Format::eA2R10G10B10UnormPack32;//
+		case StorageFormat::Depth24: return vk::Format::eX8D24UnormPack32;
 		case StorageFormat::Depth32: return vk::Format::eD32Sfloat;
 		case StorageFormat::Depth24Stencil8: return vk::Format::eD24UnormS8Uint;
 		default: throw CoreLib::NotImplementedException("TranslateStorageFormat");
@@ -1066,16 +1067,11 @@ namespace VK
 			}
 			else if (!!(this->usage & TextureUsage::DepthAttachment))
 			{
-				if (this->format == StorageFormat::Depth32)
-				{
-					aspectFlags = vk::ImageAspectFlagBits::eDepth;
-					usageFlags = vk::ImageUsageFlagBits::eDepthStencilAttachment;
-				}
-				else if (this->format == StorageFormat::Depth24Stencil8)
-				{
-					aspectFlags = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
-					usageFlags = vk::ImageUsageFlagBits::eDepthStencilAttachment;
-				}
+				aspectFlags = vk::ImageAspectFlagBits::eDepth;
+				usageFlags = vk::ImageUsageFlagBits::eDepthStencilAttachment;
+
+				if (this->format == StorageFormat::Depth24Stencil8)
+					aspectFlags |= vk::ImageAspectFlagBits::eStencil;
 			}
 			if (!!(this->usage & TextureUsage::Sampled))
 			{
@@ -1182,10 +1178,12 @@ namespace VK
 			vk::CommandBuffer transferCommandBuffer = RendererState::CreateCommandBuffer(RendererState::TransferCommandPool());
 
 			vk::ImageAspectFlags aspectFlags;
-			if (format == StorageFormat::Depth32)
+			if (isDepthFormat(format))
+			{
 				aspectFlags = vk::ImageAspectFlagBits::eDepth;
-			else if (format == StorageFormat::Depth24Stencil8)
-				aspectFlags = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
+				if (format == StorageFormat::Depth24Stencil8)
+					aspectFlags |= vk::ImageAspectFlagBits::eStencil;
+			}
 			else
 				aspectFlags = vk::ImageAspectFlagBits::eColor;
 
@@ -1251,12 +1249,15 @@ namespace VK
 				throw HardwareRendererException("Attempted to set layer data for invalid layer");
 
 			vk::ImageAspectFlags aspectFlags;
-			if (format == StorageFormat::Depth32)
+			if (isDepthFormat(format))
+			{
 				aspectFlags = vk::ImageAspectFlagBits::eDepth;
-			else if (format == StorageFormat::Depth24Stencil8)
-				aspectFlags = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
+				if (format == StorageFormat::Depth24Stencil8)
+					aspectFlags |= vk::ImageAspectFlagBits::eStencil;
+			}
 			else
 				aspectFlags = vk::ImageAspectFlagBits::eColor;
+
 			int dataTypeSize = DataTypeSize(inputType);
 			List<unsigned short> translatedBuffer;
 			if (format == StorageFormat::R_F16 || format == StorageFormat::RG_F16 || format == StorageFormat::RGBA_F16)
@@ -1599,10 +1600,9 @@ namespace VK
 			}
 			else if (!!(usage & TextureUsage::DepthAttachment))
 			{
-				if (format == StorageFormat::Depth32)
-					aspectFlags = vk::ImageAspectFlagBits::eDepth;
-				else if (format == StorageFormat::Depth24Stencil8)
-					aspectFlags = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
+				aspectFlags = vk::ImageAspectFlagBits::eDepth;
+				if (format == StorageFormat::Depth24Stencil8)
+					aspectFlags |= vk::ImageAspectFlagBits::eStencil;
 			}
 
 			// Create buffer image copy information
@@ -1703,10 +1703,12 @@ namespace VK
 		void BuildMipmaps()
 		{
 			vk::ImageAspectFlags aspectFlags;
-			if (format == StorageFormat::Depth32)
+			if (isDepthFormat(format))
+			{
 				aspectFlags = vk::ImageAspectFlagBits::eDepth;
-			else if (format == StorageFormat::Depth24Stencil8)
-				aspectFlags = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
+				if (format == StorageFormat::Depth24Stencil8)
+					aspectFlags |= vk::ImageAspectFlagBits::eStencil;
+			}
 			else
 				aspectFlags = vk::ImageAspectFlagBits::eColor;
 
@@ -4215,7 +4217,7 @@ namespace VK
 		Texture2D* CreateTexture2D(int pwidth, int pheight, StorageFormat format, DataType dataType, void* data)
 		{
 			TextureUsage usage;
-			if (format == StorageFormat::Depth24Stencil8 || format == StorageFormat::Depth32)
+			if (isDepthFormat(format))
 				usage = TextureUsage::SampledDepthAttachment;
 			else
 				usage = TextureUsage::SampledColorAttachment;

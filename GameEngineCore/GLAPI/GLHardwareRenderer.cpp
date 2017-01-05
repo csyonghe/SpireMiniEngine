@@ -165,6 +165,9 @@ namespace GLL
 		case StorageFormat::BC5:
 			internalFormat = GL_COMPRESSED_RG_RGTC2;
 			break;
+		case StorageFormat::Depth24:
+			internalFormat = GL_DEPTH_COMPONENT24;
+			break;
 		case StorageFormat::Depth24Stencil8:
 			internalFormat = GL_DEPTH24_STENCIL8;
 			break;
@@ -1941,7 +1944,7 @@ namespace GLL
 					f = dynamic_cast<GLL::Texture2D*>(attach.handle.tex2D)->storageFormat;
 				else if (attach.handle.tex2DArray)
 					f = dynamic_cast<GLL::Texture2DArray*>(attach.handle.tex2DArray)->storageFormat;
-				if (f == StorageFormat::Depth24Stencil8 || f == StorageFormat::Depth32)
+				if (isDepthFormat(f))
 					usage.Add(TextureUsage::DepthAttachment);
 				else
 					usage.Add(TextureUsage::ColorAttachment);
@@ -2147,11 +2150,9 @@ namespace GLL
 				{
 					bool isDepth = false;
 					if (renderAttachment.handle.tex2D)
-						isDepth = renderAttachment.handle.tex2D->storageFormat == StorageFormat::Depth24Stencil8 ||
-						renderAttachment.handle.tex2D->storageFormat == StorageFormat::Depth32;
+						isDepth = isDepthFormat(renderAttachment.handle.tex2D->storageFormat);
 					else if(renderAttachment.handle.tex2DArray)
-						isDepth = renderAttachment.handle.tex2DArray->storageFormat == StorageFormat::Depth24Stencil8 ||
-						renderAttachment.handle.tex2DArray->storageFormat == StorageFormat::Depth32;
+						isDepth = isDepthFormat(renderAttachment.handle.tex2DArray->storageFormat);
 					if (isDepth)
 					{
 						if (renderAttachment.handle.tex2D)
