@@ -644,7 +644,7 @@ namespace VK
 			State().rendererCount--;
 
 			if (RendererCount() == 0)
-				Destroy();//TODO: Should I destroy the state here?
+				;//Destroy();//TODO: Should I destroy the state here?
 		}
 
 		static int RendererCount()
