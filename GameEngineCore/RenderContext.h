@@ -25,6 +25,8 @@ namespace GameEngine
 	class RendererSharedResource;
 	class Level;
 
+	const StorageFormat DepthBufferFormat = StorageFormat::Depth24;
+
 	struct BoneTransform
 	{
 		VectorMath::Matrix4 TransformMatrix;

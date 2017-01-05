@@ -1120,8 +1120,7 @@ namespace VK
 				.setSubresourceRange(imageSubresourceRange);
 
 			view = RendererState::Device().createImageView(imageViewCreateInfo);
-
-			if (this->format == StorageFormat::Depth24Stencil8)
+			if (this->format == StorageFormat::Depth24 || this->format == StorageFormat::Depth32 || this->format == StorageFormat::Depth24Stencil8)
 			{
 				aspectFlags = vk::ImageAspectFlagBits::eDepth;
 
@@ -1137,11 +1136,13 @@ namespace VK
 					.setImage(image)
 					.setViewType(depth == 1 ? (arrayLayers == 1 ? vk::ImageViewType::e2D : vk::ImageViewType::e2DArray) : vk::ImageViewType::e3D)
 					.setFormat(imageCreateInfo.format)
-					.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA))//
+					.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR))//
 					.setSubresourceRange(imageSubresourceRange);
 
 				view2 = RendererState::Device().createImageView(imageViewCreateInfo);
-
+			}
+			if (this->format == StorageFormat::Depth24Stencil8)
+			{
 				aspectFlags = vk::ImageAspectFlagBits::eStencil;
 
 				imageSubresourceRange = vk::ImageSubresourceRange()
@@ -1156,7 +1157,7 @@ namespace VK
 					.setImage(image)
 					.setViewType(depth == 1 ? (arrayLayers == 1 ? vk::ImageViewType::e2D : vk::ImageViewType::e2DArray) : vk::ImageViewType::e3D)
 					.setFormat(imageCreateInfo.format)
-					.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA))//
+					.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR))//
 					.setSubresourceRange(imageSubresourceRange);
 
 				view3 = RendererState::Device().createImageView(imageViewCreateInfo);
