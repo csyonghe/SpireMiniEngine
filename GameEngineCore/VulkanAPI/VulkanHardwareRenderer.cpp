@@ -1922,7 +1922,7 @@ namespace VK
 		vk::Sampler sampler;
 		TextureFilter filter = TextureFilter::Nearest;
 		WrapMode wrap = WrapMode::Repeat;
-		CompareFunc op = CompareFunc::Never;
+		CompareFunc op = CompareFunc::Disabled;
 
 		void CreateSampler()
 		{

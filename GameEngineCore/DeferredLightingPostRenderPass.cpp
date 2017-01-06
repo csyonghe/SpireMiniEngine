@@ -17,7 +17,7 @@ namespace GameEngine
 		virtual void AcquireRenderTargets() override
 		{
 			baseColorBuffer = sharedRes->LoadSharedRenderTarget("baseColorBuffer", StorageFormat::RGBA_8);
-			depthBuffer = sharedRes->LoadSharedRenderTarget("depthValBuffer", StorageFormat::RG_F32);
+			depthBuffer = sharedRes->LoadSharedRenderTarget("depthValBuffer", StorageFormat::R_F32);
 			pbrBuffer = sharedRes->LoadSharedRenderTarget("pbrBuffer", StorageFormat::RGBA_8);
 			normalBuffer = sharedRes->LoadSharedRenderTarget("normalBuffer", StorageFormat::RGB10_A2);
 			litColorBuffer = sharedRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8);

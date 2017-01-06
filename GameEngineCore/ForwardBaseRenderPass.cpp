@@ -41,7 +41,7 @@ namespace GameEngine
 		{
 			return hwRenderer->CreateRenderTargetLayout(MakeArray(
 				AttachmentLayout(TextureUsage::ColorAttachment, StorageFormat::RGBA_8),
-				AttachmentLayout(TextureUsage::ColorAttachment, StorageFormat::RG_F32),
+				AttachmentLayout(TextureUsage::ColorAttachment, StorageFormat::R_F32),
 				AttachmentLayout(TextureUsage::DepthAttachment, DepthBufferFormat)).GetArrayView());
 		}
 		virtual char * GetName() override
