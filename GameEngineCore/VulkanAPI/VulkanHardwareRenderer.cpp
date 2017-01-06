@@ -149,7 +149,7 @@ namespace VK
 			CoreLib::Diagnostics::Debug::Write((long long)messageCode);
 			CoreLib::Diagnostics::Debug::Write(" ");
 			CoreLib::Diagnostics::Debug::WriteLine(pMessage);
-#ifdef _DEBUG
+#if _DEBUG
 			if (flags & (VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT))
 				printf("break");
 #endif
@@ -229,7 +229,7 @@ namespace VK
 
 			// Enabled Layers
 			CoreLib::List<const char*> enabledInstanceLayers;
-#ifdef _DEBUG
+#if _DEBUG
 			bool hasValidationLayer = false;
 			auto supportedLayers = vk::enumerateInstanceLayerProperties();
 			for (auto & l : supportedLayers)
@@ -238,7 +238,7 @@ namespace VK
 					hasValidationLayer = true;
 					break;
 				}
-#ifdef USE_VALIDATION_LAYER
+#if USE_VALIDATION_LAYER
 			if (hasValidationLayer)
 				enabledInstanceLayers.Add("VK_LAYER_LUNARG_standard_validation");
 #endif
@@ -246,7 +246,7 @@ namespace VK
 			// Enabled Extensions
 			CoreLib::List<const char*> enabledInstanceExtensions;
 			enabledInstanceExtensions.Add(VK_KHR_SURFACE_EXTENSION_NAME);
-#ifdef _WIN32
+#if _WIN32
 			enabledInstanceExtensions.Add(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
 #endif
 			DEBUG_ONLY(enabledInstanceExtensions.Add(VK_EXT_DEBUG_REPORT_EXTENSION_NAME));
@@ -351,7 +351,7 @@ namespace VK
 				printf("Layer %s not supported\n", layerName);
 			};
 			CoreLib::List<const char*> enabledDeviceLayers;
-#ifdef USE_VALIDATION_LAYER
+#if USE_VALIDATION_LAYER
 			DEBUG_ONLY(AddLayer(enabledDeviceLayers, "VK_LAYER_LUNARG_standard_validation"));
 #endif
 			// Lambda to check if extension is present and then add it
@@ -658,7 +658,7 @@ namespace VK
 			// Create the surface
 			vk::SurfaceKHR surface;
 
-#ifdef _WIN32
+#if _WIN32
 			vk::Win32SurfaceCreateInfoKHR surfaceCreateInfo = vk::Win32SurfaceCreateInfoKHR()
 				.setHwnd((HWND)windowHandle)
 				.setHinstance(GetModuleHandle(NULL));
@@ -1832,11 +1832,11 @@ namespace VK
 			pwidth = width;
 			pheight = height;
 		}
-		void SetData(int level, int pwidth, int pheight, int numSamples, DataType inputType, void* data)
+		void SetData(int level, int pwidth, int pheight, int /*numSamples*/, DataType inputType, void* data)
 		{
 			VK::Texture::SetData(level, 0, 0, 0, 0, pwidth, pheight, 1, 1, inputType, data);
 		}
-		void SetData(int pwidth, int pheight, int numSamples, DataType inputType, void* data)
+		void SetData(int pwidth, int pheight, int /*numSamples*/, DataType inputType, void* data)
 		{
 			VK::Texture::SetData(0, 0, 0, 0, 0, pwidth, pheight, 1, 1, inputType, data);
 		}
@@ -3287,7 +3287,7 @@ namespace VK
 		}
 		virtual void BindPipeline(GameEngine::Pipeline* pipeline) override
 		{
-#ifdef _DEBUG
+#if _DEBUG
 			if (inRenderPass == false)
 				throw HardwareRendererException("RenderTargetLayout and FrameBuffer must be specified at BeginRecording for BindPipeline");
 #endif
@@ -3333,7 +3333,7 @@ namespace VK
 
 		virtual void Blit(GameEngine::Texture2D* dstImage, GameEngine::Texture2D* srcImage) override
 		{
-#ifdef _DEBUG
+#if _DEBUG
 			if (inRenderPass == true)
 				throw HardwareRendererException("BeginRecording must take no parameters for Blit");
 #endif
