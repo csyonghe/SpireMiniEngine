@@ -2419,7 +2419,7 @@ namespace VK
 			memset(&startupInfo, 0, sizeof(STARTUPINFO));
 			memset(&procInfo, 0, sizeof(PROCESS_INFORMATION));
 			startupInfo.cb = sizeof(STARTUPINFO);
-			CreateProcessW(nullptr, (LPWSTR)("\"" + glslc + "\" -V \"" + Path::GetFileName(tempFileName) + "\" -o \"" + compiledFileName + "\"").ToWString(),
+			CreateProcessW(nullptr, (LPWSTR)("\"" + glslc + "\" -V \"" + Path::GetFileName(tempFileName) + "\" -o \"" + Path::GetFileName(compiledFileName) + "\"").ToWString(),
 				nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr,	Path::GetDirectoryName(tempFileName).ToWString(), &startupInfo, &procInfo);
 			WaitForSingleObject(procInfo.hProcess, INFINITE);
 			DWORD exitCode = 0XFFFF;
