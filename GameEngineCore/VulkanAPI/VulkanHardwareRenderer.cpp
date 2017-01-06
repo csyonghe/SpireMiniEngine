@@ -904,10 +904,10 @@ namespace VK
 		case TextureUsage::SampledColorAttachment:
 			return vk::ImageLayout::eColorAttachmentOptimal;
 		case TextureUsage::DepthAttachment:
-			return vk::ImageLayout::eDepthStencilAttachmentOptimal;
 		case TextureUsage::SampledDepthAttachment:
-			return vk::ImageLayout::eGeneral;
-		case TextureUsage::Sampled: return vk::ImageLayout::eShaderReadOnlyOptimal;
+			return vk::ImageLayout::eDepthStencilAttachmentOptimal;
+		case TextureUsage::Sampled:
+			return vk::ImageLayout::eShaderReadOnlyOptimal;
 		default: throw CoreLib::NotImplementedException("LayoutFromUsage");
 		}
 	}
@@ -2622,7 +2622,7 @@ namespace VK
 		FrameBuffer* result = new FrameBuffer();
 		result->renderTargetLayout = this;
 		result->renderAttachments = renderAttachments;
-		CoreLib::List<vk::ImageView> framebufferAttachmentViews;
+		result->attachmentImageViews.Clear();
 		for (auto attachment : renderAttachments.attachments)
 		{
 			if (attachment.handle.tex2D)
@@ -2654,7 +2654,7 @@ namespace VK
 					.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA))//
 					.setSubresourceRange(imageSubresourceRange);
 
-				framebufferAttachmentViews.Add(RendererState::Device().createImageView(imageViewCreateInfo));
+				result->attachmentImageViews.Add(RendererState::Device().createImageView(imageViewCreateInfo));
 			}
 			else if (attachment.handle.tex2DArray)
 			{
@@ -2685,15 +2685,15 @@ namespace VK
 					.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA))//
 					.setSubresourceRange(imageSubresourceRange);
 
-				framebufferAttachmentViews.Add(RendererState::Device().createImageView(imageViewCreateInfo));
+				result->attachmentImageViews.Add(RendererState::Device().createImageView(imageViewCreateInfo));
 			}
 		}
 
 		vk::FramebufferCreateInfo framebufferCreateInfo = vk::FramebufferCreateInfo()
 			.setFlags(vk::FramebufferCreateFlags())
 			.setRenderPass(renderPass)
-			.setAttachmentCount(framebufferAttachmentViews.Count())
-			.setPAttachments(framebufferAttachmentViews.Buffer())
+			.setAttachmentCount(result->attachmentImageViews.Count())
+			.setPAttachments(result->attachmentImageViews.Buffer())
 			.setWidth(renderAttachments.width)
 			.setHeight(renderAttachments.height)
 			.setLayers(1);
@@ -2701,7 +2701,6 @@ namespace VK
 		result->framebuffer = RendererState::Device().createFramebuffer(framebufferCreateInfo);
 		result->width = renderAttachments.width;
 		result->height = renderAttachments.height;
-		result->attachmentImageViews = framebufferAttachmentViews;
 		return result;
 	}
 
@@ -2806,7 +2805,7 @@ namespace VK
 				vk::DescriptorImageInfo()
 				.setSampler(vk::Sampler())
 				.setImageView(view)
-				.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)//
+				.setImageLayout(internalTexture->currentLayout)//
 			);
 
 			writeDescriptorSets.Add(
