@@ -3206,12 +3206,17 @@ namespace VK
 		}
 		virtual void Wait() override
 		{
+			static int waitCounter = 0;
 			if (assocFence)
-				RendererState::Device().waitForFences(
+				while (RendererState::Device().waitForFences(
 					assocFence,
 					VK_TRUE,
-					UINT64_MAX
-				);
+					1
+				) != vk::Result::eSuccess) {
+					waitCounter++;
+				};
+			/*if (waitCounter > 10)
+				Print("waited %d\n", waitCounter);*/
 		}
 	};
 

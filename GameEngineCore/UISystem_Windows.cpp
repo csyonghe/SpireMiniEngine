@@ -1206,8 +1206,8 @@ namespace GraphicsUI
 
 	void UIWindowsSystemInterface::WaitForDrawFence()
 	{
-		if (textBufferFence)
-			textBufferFence->Wait();
+		//if (textBufferFence)
+		//	textBufferFence->Wait();
 	}
 
 	unsigned char * UIWindowsSystemInterface::AllocTextBuffer(int size)
