@@ -2707,6 +2707,7 @@ namespace VK
 	class DescriptorSetLayout : public GameEngine::DescriptorSetLayout
 	{
 	public:
+		CoreLib::List<vk::DescriptorSetLayoutBinding> layoutBindings;
 		vk::DescriptorSetLayout layout;
 #if _DEBUG
 		CoreLib::ArrayView<GameEngine::DescriptorLayout> descriptors;
@@ -2722,7 +2723,6 @@ namespace VK
 			for (auto& desc : usedDescriptors)
 				desc = false;
 #endif
-			CoreLib::List<vk::DescriptorSetLayoutBinding> layoutBindings;
 
 			for (auto& desc : descriptors)
 			{
