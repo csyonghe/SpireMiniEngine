@@ -149,7 +149,7 @@ namespace VK
 			CoreLib::Diagnostics::Debug::Write((long long)messageCode);
 			CoreLib::Diagnostics::Debug::Write(" ");
 			CoreLib::Diagnostics::Debug::WriteLine(pMessage);
-#ifdef _DEBUG
+#if _DEBUG
 			if (flags & (VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT))
 				printf("break");
 #endif
@@ -191,6 +191,8 @@ namespace VK
 		vk::Queue renderQueue;
 		vk::Queue transferQueue;
 
+		vk::PipelineCache pipelineCache;
+
 		CoreLib::RefPtr<CoreLib::List<DescriptorPoolObject*>> descriptorPoolChain;
 
 		RendererState() {}
@@ -229,7 +231,7 @@ namespace VK
 
 			// Enabled Layers
 			CoreLib::List<const char*> enabledInstanceLayers;
-#ifdef _DEBUG
+#if _DEBUG
 			bool hasValidationLayer = false;
 			auto supportedLayers = vk::enumerateInstanceLayerProperties();
 			for (auto & l : supportedLayers)
@@ -238,7 +240,7 @@ namespace VK
 					hasValidationLayer = true;
 					break;
 				}
-#ifdef USE_VALIDATION_LAYER
+#if USE_VALIDATION_LAYER
 			if (hasValidationLayer)
 				enabledInstanceLayers.Add("VK_LAYER_LUNARG_standard_validation");
 #endif
@@ -246,7 +248,7 @@ namespace VK
 			// Enabled Extensions
 			CoreLib::List<const char*> enabledInstanceExtensions;
 			enabledInstanceExtensions.Add(VK_KHR_SURFACE_EXTENSION_NAME);
-#ifdef _WIN32
+#if _WIN32
 			enabledInstanceExtensions.Add(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
 #endif
 			DEBUG_ONLY(enabledInstanceExtensions.Add(VK_EXT_DEBUG_REPORT_EXTENSION_NAME));
@@ -351,7 +353,7 @@ namespace VK
 				printf("Layer %s not supported\n", layerName);
 			};
 			CoreLib::List<const char*> enabledDeviceLayers;
-#ifdef USE_VALIDATION_LAYER
+#if USE_VALIDATION_LAYER
 			DEBUG_ONLY(AddLayer(enabledDeviceLayers, "VK_LAYER_LUNARG_standard_validation"));
 #endif
 			// Lambda to check if extension is present and then add it
@@ -437,6 +439,12 @@ namespace VK
 			CreateDevice();
 			CreateCommandPool();
 			CreateDescriptorPoolChain();
+
+			vk::PipelineCacheCreateInfo createInfo = vk::PipelineCacheCreateInfo()
+				.setInitialDataSize(0)
+				.setPInitialData(nullptr);
+
+			State().pipelineCache = State().device.createPipelineCache(createInfo);
 		}
 
 		static void Init()
@@ -487,6 +495,7 @@ namespace VK
 		static void UninitDevice()
 		{
 			State().device.waitIdle();
+			State().device.destroyPipelineCache(State().pipelineCache);
 			DestroyDescriptorPoolChain();
 			DestroyCommandPool();
 			DestroyDevice();
@@ -560,6 +569,11 @@ namespace VK
 		static const vk::Queue& RenderQueue()
 		{
 			return State().renderQueue;
+		}
+
+		static const vk::PipelineCache& PipelineCache()
+		{
+			return State().pipelineCache;
 		}
 
 		static std::pair<const vk::CommandBuffer, const vk::Fence> PrimaryBuffer()
@@ -657,7 +671,7 @@ namespace VK
 			// Create the surface
 			vk::SurfaceKHR surface;
 
-#ifdef _WIN32
+#if _WIN32
 			vk::Win32SurfaceCreateInfoKHR surfaceCreateInfo = vk::Win32SurfaceCreateInfoKHR()
 				.setHwnd((HWND)windowHandle)
 				.setHinstance(GetModuleHandle(NULL));
@@ -1831,11 +1845,11 @@ namespace VK
 			pwidth = width;
 			pheight = height;
 		}
-		void SetData(int level, int pwidth, int pheight, int numSamples, DataType inputType, void* data)
+		void SetData(int level, int pwidth, int pheight, int /*numSamples*/, DataType inputType, void* data)
 		{
 			VK::Texture::SetData(level, 0, 0, 0, 0, pwidth, pheight, 1, 1, inputType, data);
 		}
-		void SetData(int pwidth, int pheight, int numSamples, DataType inputType, void* data)
+		void SetData(int pwidth, int pheight, int /*numSamples*/, DataType inputType, void* data)
 		{
 			VK::Texture::SetData(0, 0, 0, 0, 0, pwidth, pheight, 1, 1, inputType, data);
 		}
@@ -2604,12 +2618,24 @@ namespace VK
 			if (attachment.handle.tex2D)
 			{
 				auto tex = dynamic_cast<Texture2D*>(attachment.handle.tex2D);
+				
+				vk::ImageAspectFlags aspectFlags;
+				if (isDepthFormat(tex->format))
+				{
+					aspectFlags = vk::ImageAspectFlagBits::eDepth;
+					if (tex->format == StorageFormat::Depth24Stencil8)
+						aspectFlags |= vk::ImageAspectFlagBits::eStencil;
+				}
+				else
+					aspectFlags = vk::ImageAspectFlagBits::eColor;
+
 				vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
-					.setAspectMask(isDepthFormat(tex->format) ? vk::ImageAspectFlagBits::eDepth : vk::ImageAspectFlagBits::eColor)
+					.setAspectMask(aspectFlags)
 					.setBaseMipLevel(0)
 					.setLevelCount(1)
 					.setBaseArrayLayer(0)
 					.setLayerCount(1);
+
 				vk::ImageViewCreateInfo imageViewCreateInfo = vk::ImageViewCreateInfo()
 					.setFlags(vk::ImageViewCreateFlags())
 					.setImage(tex->image)
@@ -2623,12 +2649,24 @@ namespace VK
 			else if (attachment.handle.tex2DArray)
 			{
 				auto tex = dynamic_cast<Texture2DArray*>(attachment.handle.tex2DArray);
+
+				vk::ImageAspectFlags aspectFlags;
+				if (isDepthFormat(tex->format))
+				{
+					aspectFlags = vk::ImageAspectFlagBits::eDepth;
+					if (tex->format == StorageFormat::Depth24Stencil8)
+						aspectFlags |= vk::ImageAspectFlagBits::eStencil;
+				}
+				else
+					aspectFlags = vk::ImageAspectFlagBits::eColor; 
+				
 				vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
-					.setAspectMask(isDepthFormat(tex->format) ? vk::ImageAspectFlagBits::eDepth : vk::ImageAspectFlagBits::eColor)
+					.setAspectMask(aspectFlags)
 					.setBaseMipLevel(0)
 					.setLevelCount(1)
 					.setBaseArrayLayer(attachment.layer)
 					.setLayerCount(1);
+
 				vk::ImageViewCreateInfo imageViewCreateInfo = vk::ImageViewCreateInfo()
 					.setFlags(vk::ImageViewCreateFlags())
 					.setImage(tex->image)
@@ -2748,12 +2786,6 @@ namespace VK
 		{
 			VK::Texture* internalTexture = dynamic_cast<VK::Texture*>(texture);
 
-			//vk::ImageLayout imageLayout = vk::ImageLayout::eGeneral;
-			//if (!!(internalTexture->usage & TextureUsage::DepthAttachment))
-			//{
-			//	imageLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-			//}
-
 			vk::ImageView view = internalTexture->views[0];
 			if (isDepthFormat(internalTexture->format) && aspect == TextureAspect::Depth)
 				view = internalTexture->views[1];
@@ -2764,7 +2796,7 @@ namespace VK
 				vk::DescriptorImageInfo()
 				.setSampler(vk::Sampler())
 				.setImageView(view)
-				.setImageLayout(vk::ImageLayout::eGeneral)//TODO: specify?
+				.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)//
 			);
 
 			writeDescriptorSets.Add(
@@ -3147,7 +3179,7 @@ namespace VK
 			.setBasePipelineHandle(vk::Pipeline())
 			.setBasePipelineIndex(-1);
 
-		this->pipeline = RendererState::Device().createGraphicsPipelines(vk::PipelineCache(), pipelineCreateInfo)[0];
+		this->pipeline = RendererState::Device().createGraphicsPipelines(RendererState::PipelineCache(), pipelineCreateInfo)[0];
 
 //#if _DEBUG
 //		vk::DebugMarkerObjectNameInfoEXT nameInfo = vk::DebugMarkerObjectNameInfoEXT()
@@ -3286,7 +3318,7 @@ namespace VK
 		}
 		virtual void BindPipeline(GameEngine::Pipeline* pipeline) override
 		{
-#ifdef _DEBUG
+#if _DEBUG
 			if (inRenderPass == false)
 				throw HardwareRendererException("RenderTargetLayout and FrameBuffer must be specified at BeginRecording for BindPipeline");
 #endif
@@ -3330,9 +3362,72 @@ namespace VK
 			buffer.setScissor(0, vk::Rect2D(vk::Offset2D(x, y), vk::Extent2D(width, height)));
 		}
 
+		virtual void TransferLayout(const RenderAttachments& attachments, CoreLib::ArrayView<TextureUsage> layouts) override
+		{
+#if _DEBUG
+			if (inRenderPass == true)
+				throw HardwareRendererException("BeginRecording must take no parameters for TransferLayout");
+
+			if (attachments.attachments.Count() != layouts.Count())
+				throw HardwareRendererException("Disagreeing number of attachments and layouts");
+#endif
+			CoreLib::List<vk::ImageMemoryBarrier> imageBarriers;
+
+			for (int k = 0; k < layouts.Count(); k++)
+			{
+				auto& attachment = attachments.attachments[k];
+
+				VK::Texture* internalTex;
+				if (attachment.handle.tex2D)
+					internalTex = reinterpret_cast<VK::Texture*>(attachment.handle.tex2D);
+				else if (attachment.handle.tex2DArray)
+					internalTex = reinterpret_cast<VK::Texture*>(attachment.handle.tex2DArray);
+
+				vk::ImageAspectFlags aspectFlags;
+				if (isDepthFormat(internalTex->format))
+				{
+					aspectFlags = vk::ImageAspectFlagBits::eDepth;
+					if (internalTex->format == StorageFormat::Depth24Stencil8)
+						aspectFlags |= vk::ImageAspectFlagBits::eStencil;
+				}
+				else
+					aspectFlags = vk::ImageAspectFlagBits::eColor;
+
+				vk::ImageSubresourceRange subresourceRange = vk::ImageSubresourceRange()
+					.setAspectMask(aspectFlags)
+					.setBaseMipLevel(0)
+					.setLevelCount(internalTex->mipLevels)
+					.setBaseArrayLayer(attachment.layer == -1 ? 0 : attachment.layer)
+					.setLayerCount(1);
+
+				imageBarriers.Add(vk::ImageMemoryBarrier()
+					.setSrcAccessMask(LayoutFlags(internalTex->currentLayout))
+					.setDstAccessMask(LayoutFlags(LayoutFromUsage(layouts[k])))
+					.setOldLayout(internalTex->currentLayout)
+					.setNewLayout(LayoutFromUsage(layouts[k]))
+					.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+					.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+					.setImage(internalTex->image)
+					.setSubresourceRange(subresourceRange));
+
+				internalTex->currentLayout = LayoutFromUsage(layouts[k]);
+			}
+
+			buffer.pipelineBarrier(
+				vk::PipelineStageFlagBits::eTopOfPipe,
+				vk::PipelineStageFlagBits::eTopOfPipe,
+				vk::DependencyFlags(),
+				nullptr,
+				nullptr,
+				vk::ArrayProxy<const vk::ImageMemoryBarrier>(
+					imageBarriers.Count(), 
+					imageBarriers.Buffer())
+			);
+		}
+
 		virtual void Blit(GameEngine::Texture2D* dstImage, GameEngine::Texture2D* srcImage) override
 		{
-#ifdef _DEBUG
+#if _DEBUG
 			if (inRenderPass == true)
 				throw HardwareRendererException("BeginRecording must take no parameters for Blit");
 #endif
