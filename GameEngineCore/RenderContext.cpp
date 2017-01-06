@@ -25,7 +25,7 @@ namespace GameEngine
 
 	PipelineClass * Drawable::GetPipeline(int passId, PipelineContext & pipelineManager)
 	{
-		if (pipelineCache[passId] == nullptr)
+		//if (pipelineCache[passId] == nullptr)
 		{
 			auto rs = pipelineManager.GetPipeline(&vertFormat);
 			pipelineCache[passId] = rs;
@@ -683,7 +683,7 @@ namespace GameEngine
 
 		spireContext = spCreateCompilationContext("");
 		LoadShaderLibrary();
-		pipelineManager.Init(spireContext, hardwareRenderer.Ptr());
+		pipelineManager.Init(spireContext, hardwareRenderer.Ptr(), &renderStats);
 
 		indexBufferMemory.Init(hardwareRenderer.Ptr(), BufferUsage::IndexBuffer, false, 26, 256);
 		vertexBufferMemory.Init(hardwareRenderer.Ptr(), BufferUsage::ArrayBuffer, false, 28, 256);

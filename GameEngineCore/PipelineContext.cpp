@@ -56,6 +56,7 @@ namespace GameEngine
 
 	PipelineClass * PipelineContext::GetPipeline(MeshVertexFormat * vertFormat)
 	{
+		auto timePoint = CoreLib::Diagnostics::PerformanceCounter::Start();
 		shaderKeyBuilder.Clear();
 		shaderKeyBuilder.Append(spShaderGetName(shader));
 		shaderKeyBuilder.Append(vertFormat->GetTypeId());
@@ -63,7 +64,10 @@ namespace GameEngine
 			m->GetKey(shaderKeyBuilder);
 		char* key = shaderKeyBuilder.Buffer();
 		if (auto pipeline = pipelineObjects.TryGetValue(key))
+		{
+			renderStats->PipelineLookupTime += CoreLib::Diagnostics::PerformanceCounter::EndSeconds(timePoint);
 			return pipeline->Ptr();
+		}
 
 		RefPtr<PipelineBuilder> pipelineBuilder = hwRenderer->CreatePipelineBuilder();
 

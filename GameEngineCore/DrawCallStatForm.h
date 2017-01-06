@@ -11,11 +11,14 @@ namespace GameEngine
 		GraphicsUI::Label * lblNumDrawCalls;
 		GraphicsUI::Label * lblNumWorldPasses;
 		GraphicsUI::Label * lblFps;
+		GraphicsUI::Label * lblCpuTime;
+		GraphicsUI::Label * lblPipelineLookupTime;
 
 	public:
 		DrawCallStatForm(GraphicsUI::UIEntry * parent);
 		void SetNumDrawCalls(int val);
 		void SetNumWorldPasses(int val);
+		void SetCpuTime(float time, float pipelineLookupTime);
 		void SetFrameRenderTime(float val);
 
 	};

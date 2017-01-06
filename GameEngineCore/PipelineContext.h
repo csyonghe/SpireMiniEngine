@@ -63,6 +63,8 @@ namespace GameEngine
 		CoreLib::List<CoreLib::RefPtr<DescriptorSetLayout>> descriptorSetLayouts;
 	};
 
+	class RenderStat;
+
 	class PipelineContext
 	{
 	private:
@@ -75,14 +77,15 @@ namespace GameEngine
 		CoreLib::Array<ModuleInstance*, 32> modules;
 		ShaderKeyBuilder shaderKeyBuilder;
 		HardwareRenderer * hwRenderer;
-
+		RenderStat * renderStats = nullptr;
 		CoreLib::Dictionary<int, VertexFormat> vertexFormats;
 	public:
 		PipelineContext() = default;
-		void Init(SpireCompilationContext * spireCtx, HardwareRenderer * hw) 
+		void Init(SpireCompilationContext * spireCtx, HardwareRenderer * hw, RenderStat * pRenderStats)
 		{
 			spireContext = spireCtx;
 			hwRenderer = hw;
+			renderStats = pRenderStats;
 		}
 		VertexFormat LoadVertexFormat(MeshVertexFormat vertFormat);
 		void BindShader(SpireShader * pShader, RenderTargetLayout * pRenderTargetLayout, FixedFunctionPipelineStates * states)

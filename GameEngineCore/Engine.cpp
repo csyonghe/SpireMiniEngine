@@ -220,6 +220,7 @@ namespace GameEngine
 			auto stats = renderer->GetStats();
 			drawCallStatForm->SetNumDrawCalls(stats.NumDrawCalls);
 			drawCallStatForm->SetNumWorldPasses(stats.NumPasses);
+			drawCallStatForm->SetCpuTime(stats.CpuTime, stats.PipelineLookupTime);
 			aggregateTime = 0.0f;
 			frameCount = 0;
 		}

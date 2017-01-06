@@ -15,13 +15,6 @@ namespace GameEngine
 	class Material;
 	class ModuleInstance;
 
-	class RenderStat
-	{
-	public:
-		int NumDrawCalls = 0;
-		int NumPasses = 0;
-	};
-
 	class Renderer : public CoreLib::Object
 	{
 	public:

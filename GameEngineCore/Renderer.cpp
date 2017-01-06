@@ -94,7 +94,6 @@ namespace GameEngine
 		List<RenderPassInstance> renderPassInstances;
 		List<PostRenderPass*> postPassInstances;
 		HardwareRenderer * hardwareRenderer = nullptr;
-		RenderStat renderStats;
 		Level* level = nullptr;
 		FrameRenderTask frameTask;
 		int uniformBufferAlignment = 256;
@@ -106,6 +105,7 @@ namespace GameEngine
 			renderPassInstances.Clear();
 			postPassInstances.Clear();
 			RenderProcedureParameters params;
+			params.renderStats = &sharedRes.renderStats;
             Array<CameraActor*, 8> cameras;
             cameras.Add(level->CurrentCamera.Ptr());
 			params.level = level;
@@ -191,11 +191,14 @@ namespace GameEngine
 		{
 			if (!level)
 				return;
+			sharedRes.renderStats.PipelineLookupTime = 0;
+			auto timePoint = CoreLib::Diagnostics::PerformanceCounter::Start();
 			RunRenderProcedure();
+			sharedRes.renderStats.CpuTime = CoreLib::Diagnostics::PerformanceCounter::EndSeconds(timePoint);
 		}
 		virtual RenderStat GetStats() override
 		{
-			return renderStats;
+			return sharedRes.renderStats;
 		}
 
 		struct DescriptorSetUpdate
@@ -210,18 +213,21 @@ namespace GameEngine
 		virtual void RenderFrame() override
 		{
 			if (!level) return;
-			renderStats.NumDrawCalls = 0;
-			renderStats.NumPasses = 0;
+			auto timePoint = CoreLib::Diagnostics::PerformanceCounter::Start();
 
+			sharedRes.renderStats.NumDrawCalls = 0;
+			sharedRes.renderStats.NumPasses = 0;
 			for (auto & pass : frameTask.renderPasses)
 			{
 				hardwareRenderer->ExecuteCommandBuffers(pass.renderOutput->GetFrameBuffer(), MakeArrayView(pass.commandBuffer->GetBuffer()), nullptr);
-				renderStats.NumPasses++;
-				renderStats.NumDrawCalls += pass.numDrawCalls;
+				sharedRes.renderStats.NumPasses++;
+				sharedRes.renderStats.NumDrawCalls += pass.numDrawCalls;
 			}
 
 			for (auto pass : frameTask.postPasses)
 				pass->Execute(frameTask.sharedModuleInstances);
+			
+			sharedRes.renderStats.CpuTime += CoreLib::Diagnostics::PerformanceCounter::EndSeconds(timePoint);
 		}
 		virtual RendererSharedResource * GetSharedResource() override
 		{

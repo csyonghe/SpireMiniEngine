@@ -27,6 +27,15 @@ namespace GameEngine
 
 	const StorageFormat DepthBufferFormat = StorageFormat::Depth24;
 
+	class RenderStat
+	{
+	public:
+		int NumDrawCalls = 0;
+		int NumPasses = 0;
+		float CpuTime = 0.0f;
+		float PipelineLookupTime = 0.0f;
+	};
+
 	struct BoneTransform
 	{
 		VectorMath::Matrix4 TransformMatrix;
@@ -184,10 +193,11 @@ namespace GameEngine
 	};
 
 	class RendererService;
-
+	
 	struct RenderProcedureParameters
 	{
 		Renderer * renderer;
+		RenderStat * renderStats;
 		CoreLib::ArrayView<CameraActor *> cameras;
 		Level * level;
 		RendererService * rendererService;
@@ -241,6 +251,7 @@ namespace GameEngine
 		RenderAPI api;
 		void LoadShaderLibrary();
 	public:
+		RenderStat renderStats;
 		CoreLib::RefPtr<HardwareRenderer> hardwareRenderer;
 		CoreLib::RefPtr<TextureSampler> textureSampler, nearestSampler, linearSampler, shadowSampler;
 		SpireCompilationContext * spireContext = nullptr;
