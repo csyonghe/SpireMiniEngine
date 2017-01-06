@@ -2411,21 +2411,23 @@ namespace VK
 			memset(&startupInfo, 0, sizeof(STARTUPINFO));
 			memset(&procInfo, 0, sizeof(PROCESS_INFORMATION));
 			startupInfo.cb = sizeof(STARTUPINFO);
-			int succ = CreateProcessW(nullptr, (LPWSTR)("\"" + glslc + "\" -V \"" + Path::GetFileName(tempFileName) + "\"").ToWString(),
+			CreateProcessW(nullptr, (LPWSTR)("\"" + glslc + "\" -V \"" + Path::GetFileName(tempFileName) + "\"").ToWString(),
 				nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr,
 				Path::GetDirectoryName(tempFileName).ToWString(), &startupInfo, &procInfo);
 			WaitForSingleObject(procInfo.hProcess, INFINITE);
-			DWORD exitCode;
+			DWORD exitCode = -1;
 			GetExitCodeProcess(procInfo.hProcess, &exitCode);
 
 			CloseHandle(procInfo.hProcess);
 			CloseHandle(procInfo.hThread);
-			if (compiledFileName.Length())
+			if (File::Exists(compiledFileName.Length()) && exitCode == 0)
 			{
 				auto code = File::ReadAllBytes(compiledFileName);
 				vk::ShaderModuleCreateInfo createInfo(vk::ShaderModuleCreateFlags(), code.Count(), (unsigned int *)code.Buffer());
 				this->module = RendererState::Device().createShaderModule(createInfo);
 			}
+			else
+				throw HardwareRendererException("spirv compilation failure.");
 		}
 
 		void Destroy()
