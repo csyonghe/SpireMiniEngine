@@ -102,6 +102,16 @@ namespace GameEngine
 			drawCallStatForm = new DrawCallStatForm(uiEntry.Ptr());
 			drawCallStatForm->Posit(args.Width - drawCallStatForm->GetWidth() - 10, 10, drawCallStatForm->GetWidth(), drawCallStatForm->GetHeight());
 
+			switch (args.API)
+			{
+			case RenderAPI::Vulkan:
+				Print("using Vulkan renderer, on GPU %d\n", Engine::Instance()->GpuId);
+				break;
+			case RenderAPI::OpenGL:
+				Print("using OpenGL renderer.\n");
+				break;
+			}
+
 			auto configFile = Path::Combine(gameDir, "game.config");
 			levelToLoad = RemoveQuote(args.StartupLevelName);
 			if (File::Exists(configFile))

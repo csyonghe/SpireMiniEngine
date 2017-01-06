@@ -3051,9 +3051,9 @@ namespace VK
 			.setCullMode(vk::CullModeFlagBits::eBack)
 			.setFrontFace(vk::FrontFace::eClockwise)
 			.setDepthBiasEnable(pipelineBuilder->FixedFunctionStates.EnablePolygonOffset)
-			.setDepthBiasConstantFactor(pipelineBuilder->FixedFunctionStates.PolygonOffsetFactor)
+			.setDepthBiasConstantFactor(pipelineBuilder->FixedFunctionStates.PolygonOffsetUnits)
 			.setDepthBiasClamp(0.0f)
-			.setDepthBiasSlopeFactor(pipelineBuilder->FixedFunctionStates.PolygonOffsetUnits)
+			.setDepthBiasSlopeFactor(pipelineBuilder->FixedFunctionStates.PolygonOffsetFactor)
 			.setLineWidth(1.0f);
 
 		// Create Multisampling Description
