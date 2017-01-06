@@ -191,6 +191,8 @@ namespace VK
 		vk::Queue renderQueue;
 		vk::Queue transferQueue;
 
+		vk::PipelineCache pipelineCache;
+
 		CoreLib::RefPtr<CoreLib::List<DescriptorPoolObject*>> descriptorPoolChain;
 
 		RendererState() {}
@@ -437,6 +439,12 @@ namespace VK
 			CreateDevice();
 			CreateCommandPool();
 			CreateDescriptorPoolChain();
+
+			vk::PipelineCacheCreateInfo createInfo = vk::PipelineCacheCreateInfo()
+				.setInitialDataSize(0)
+				.setPInitialData(nullptr);
+
+			State().pipelineCache = State().device.createPipelineCache(createInfo);
 		}
 
 		static void Init()
@@ -487,6 +495,7 @@ namespace VK
 		static void UninitDevice()
 		{
 			State().device.waitIdle();
+			State().device.destroyPipelineCache(State().pipelineCache);
 			DestroyDescriptorPoolChain();
 			DestroyCommandPool();
 			DestroyDevice();
@@ -560,6 +569,11 @@ namespace VK
 		static const vk::Queue& RenderQueue()
 		{
 			return State().renderQueue;
+		}
+
+		static const vk::PipelineCache& PipelineCache()
+		{
+			return State().pipelineCache;
 		}
 
 		static std::pair<const vk::CommandBuffer, const vk::Fence> PrimaryBuffer()
@@ -3166,7 +3180,7 @@ namespace VK
 			.setBasePipelineHandle(vk::Pipeline())
 			.setBasePipelineIndex(-1);
 
-		this->pipeline = RendererState::Device().createGraphicsPipelines(vk::PipelineCache(), pipelineCreateInfo)[0];
+		this->pipeline = RendererState::Device().createGraphicsPipelines(RendererState::PipelineCache(), pipelineCreateInfo)[0];
 
 //#if _DEBUG
 //		vk::DebugMarkerObjectNameInfoEXT nameInfo = vk::DebugMarkerObjectNameInfoEXT()
