@@ -2377,7 +2377,7 @@ namespace VK
 			Destroy();
 		}
 
-		void Create(ShaderType pstage, const char* data, int size)
+		void Create(ShaderType pstage, const char* data, int /*size*/)
 		{
 			Destroy();
 
@@ -2404,18 +2404,18 @@ namespace VK
 			auto glslc = Engine::Instance()->FindFile("glslangValidator.exe", ResourceType::ExtTools);
 			if (!glslc.Length())
 				throw HardwareRendererException("glslc not found.");
-			auto compiledFileName = Path::Combine(Engine::Instance()->GetDirectory(false, ResourceType::ShaderCache), String(postfix) + ".spv");
+			auto compiledFileName = tempFileName + ".spv";
 			DeleteFileW(compiledFileName.ToWString());
 			STARTUPINFO startupInfo;
 			PROCESS_INFORMATION procInfo;
 			memset(&startupInfo, 0, sizeof(STARTUPINFO));
 			memset(&procInfo, 0, sizeof(PROCESS_INFORMATION));
 			startupInfo.cb = sizeof(STARTUPINFO);
-			CreateProcessW(nullptr, (LPWSTR)("\"" + glslc + "\" -V \"" + Path::GetFileName(tempFileName) + "\"").ToWString(),
+			CreateProcessW(nullptr, (LPWSTR)("\"" + glslc + "\" -V \"" + Path::GetFileName(tempFileName) + "\" -o \"" + compiledFileName + "\"").ToWString(),
 				nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr,
 				Path::GetDirectoryName(tempFileName).ToWString(), &startupInfo, &procInfo);
 			WaitForSingleObject(procInfo.hProcess, INFINITE);
-			DWORD exitCode = -1;
+			DWORD exitCode = 0XFFFF;
 			GetExitCodeProcess(procInfo.hProcess, &exitCode);
 
 			CloseHandle(procInfo.hProcess);
