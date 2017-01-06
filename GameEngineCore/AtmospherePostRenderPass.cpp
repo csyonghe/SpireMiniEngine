@@ -105,7 +105,7 @@ namespace GameEngine
 			atmosphereDesc->BeginUpdate();
 			atmosphereDesc->Update(0, parameterBuffer.Ptr());
 			atmosphereDesc->Update(1, colorBuffer->Texture.Ptr(), TextureAspect::Color);
-			atmosphereDesc->Update(2, depthBuffer->Texture.Ptr(), TextureAspect::Depth);
+			atmosphereDesc->Update(2, depthBuffer->Texture.Ptr(), TextureAspect::Color);
 			atmosphereDesc->Update(3, transmittanceTex.Ptr(), TextureAspect::Color);
 			atmosphereDesc->Update(4, irradianceTex.Ptr(), TextureAspect::Color);
 			atmosphereDesc->Update(5, inscatterTex.Ptr(), TextureAspect::Color);

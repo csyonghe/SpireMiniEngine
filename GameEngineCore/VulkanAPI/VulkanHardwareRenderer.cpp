@@ -618,8 +618,7 @@ namespace VK
 					vk::Result err = static_cast<vk::Result>(e.code().value());
 					if (err == vk::Result::eErrorOutOfDeviceMemory)
 					{
-						RendererState::
-						State().descriptorPoolChain->Add(new DescriptorPoolObject());
+						RendererState::State().descriptorPoolChain->Add(new DescriptorPoolObject());
 						return AllocateDescriptorSet(layout);
 					}
 					else
@@ -2604,13 +2603,13 @@ namespace VK
 		{
 			if (attachment.handle.tex2D)
 			{
+				auto tex = dynamic_cast<Texture2D*>(attachment.handle.tex2D);
 				vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
-					.setAspectMask(vk::ImageAspectFlagBits::eColor)
+					.setAspectMask(isDepthFormat(tex->format) ? vk::ImageAspectFlagBits::eDepth : vk::ImageAspectFlagBits::eColor)
 					.setBaseMipLevel(0)
 					.setLevelCount(1)
 					.setBaseArrayLayer(0)
 					.setLayerCount(1);
-				auto tex = dynamic_cast<Texture2D*>(attachment.handle.tex2D);
 				vk::ImageViewCreateInfo imageViewCreateInfo = vk::ImageViewCreateInfo()
 					.setFlags(vk::ImageViewCreateFlags())
 					.setImage(tex->image)
@@ -2623,13 +2622,13 @@ namespace VK
 			}
 			else if (attachment.handle.tex2DArray)
 			{
+				auto tex = dynamic_cast<Texture2DArray*>(attachment.handle.tex2DArray);
 				vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
-					.setAspectMask(vk::ImageAspectFlagBits::eColor)
+					.setAspectMask(isDepthFormat(tex->format) ? vk::ImageAspectFlagBits::eDepth : vk::ImageAspectFlagBits::eColor)
 					.setBaseMipLevel(0)
 					.setLevelCount(1)
 					.setBaseArrayLayer(attachment.layer)
 					.setLayerCount(1);
-				auto tex = dynamic_cast<Texture2DArray*>(attachment.handle.tex2DArray);
 				vk::ImageViewCreateInfo imageViewCreateInfo = vk::ImageViewCreateInfo()
 					.setFlags(vk::ImageViewCreateFlags())
 					.setImage(tex->image)
