@@ -585,11 +585,19 @@ namespace VK
 			vk::CommandBuffer commandBuffer = (*State().primaryBuffers)[next];
 			vk::Fence fence = (*State().primaryFences)[next];
 
-			Device().waitForFences(
+			static int waitCounter = 0;
+
+			while (Device().waitForFences(
 				fence,
 				VK_TRUE,
-				UINT64_MAX
-			);
+				1
+				) != vk::Result::eSuccess)
+				waitCounter++;
+			/*if (waitCounter > 1)
+			{
+				Print("waited on primary buffer %d\n", waitCounter);
+				waitCounter = 0;
+			}*/
 
 			Device().resetFences(fence);
 
