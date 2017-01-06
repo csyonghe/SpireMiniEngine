@@ -25,7 +25,6 @@ namespace GameEngine
 				public out @Fragment vec3 outputAlbedo = albedo;
 				public out @Fragment vec3 outputPbr = lightParam;
 				public out @Fragment vec3 outputNormal = TangentSpaceToWorldSpace(vec3(normal.x, -normal.y, normal.z)) * 0.5 + 0.5;
-				public out @Fragment float outputDepth = projCoord.z / projCoord.w;
 			};
 		)";
 	protected:
@@ -43,7 +42,6 @@ namespace GameEngine
 				AttachmentLayout(TextureUsage::ColorAttachment, StorageFormat::RGBA_8),
 				AttachmentLayout(TextureUsage::ColorAttachment, StorageFormat::RGBA_8),
 				AttachmentLayout(TextureUsage::ColorAttachment, StorageFormat::RGB10_A2),
-				AttachmentLayout(TextureUsage::ColorAttachment, StorageFormat::RG_F32),
 				AttachmentLayout(TextureUsage::DepthAttachment, DepthBufferFormat)).GetArrayView());
 		}
 	};

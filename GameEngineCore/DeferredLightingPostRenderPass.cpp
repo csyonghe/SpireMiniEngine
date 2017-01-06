@@ -17,7 +17,7 @@ namespace GameEngine
 		virtual void AcquireRenderTargets() override
 		{
 			baseColorBuffer = sharedRes->LoadSharedRenderTarget("baseColorBuffer", StorageFormat::RGBA_8);
-			depthBuffer = sharedRes->LoadSharedRenderTarget("depthValBuffer", StorageFormat::R_F32);
+			depthBuffer = sharedRes->LoadSharedRenderTarget("depthBuffer", DepthBufferFormat);
 			pbrBuffer = sharedRes->LoadSharedRenderTarget("pbrBuffer", StorageFormat::RGBA_8);
 			normalBuffer = sharedRes->LoadSharedRenderTarget("normalBuffer", StorageFormat::RGB10_A2);
 			litColorBuffer = sharedRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8);
@@ -43,7 +43,7 @@ namespace GameEngine
 			deferredDescSet->Update(0, baseColorBuffer->Texture.Ptr(), TextureAspect::Color);
 			deferredDescSet->Update(1, pbrBuffer->Texture.Ptr(), TextureAspect::Color);
 			deferredDescSet->Update(2, normalBuffer->Texture.Ptr(), TextureAspect::Color);
-			deferredDescSet->Update(3, depthBuffer->Texture.Ptr(), TextureAspect::Color);
+			deferredDescSet->Update(3, depthBuffer->Texture.Ptr(), TextureAspect::Depth);
 			deferredDescSet->Update(4, sharedRes->nearestSampler.Ptr());
 			deferredDescSet->EndUpdate();
 

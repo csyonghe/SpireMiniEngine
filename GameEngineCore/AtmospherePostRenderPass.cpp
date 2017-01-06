@@ -82,7 +82,7 @@ namespace GameEngine
 		virtual void AcquireRenderTargets() override
 		{
 			colorBuffer = sharedRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8);
-			depthBuffer = sharedRes->LoadSharedRenderTarget("depthValBuffer", StorageFormat::R_F32);
+			depthBuffer = sharedRes->LoadSharedRenderTarget("depthBuffer", DepthBufferFormat);
 			colorOutBuffer = sharedRes->LoadSharedRenderTarget("litAtmosphereColor", StorageFormat::RGBA_8);
 		}
 		virtual void SetupPipelineBindingLayout(PipelineBuilder * pipelineBuilder, List<AttachmentLayout> & renderTargets) override
@@ -105,7 +105,7 @@ namespace GameEngine
 			atmosphereDesc->BeginUpdate();
 			atmosphereDesc->Update(0, parameterBuffer.Ptr());
 			atmosphereDesc->Update(1, colorBuffer->Texture.Ptr(), TextureAspect::Color);
-			atmosphereDesc->Update(2, depthBuffer->Texture.Ptr(), TextureAspect::Color);
+			atmosphereDesc->Update(2, depthBuffer->Texture.Ptr(), TextureAspect::Depth);
 			atmosphereDesc->Update(3, transmittanceTex.Ptr(), TextureAspect::Color);
 			atmosphereDesc->Update(4, irradianceTex.Ptr(), TextureAspect::Color);
 			atmosphereDesc->Update(5, inscatterTex.Ptr(), TextureAspect::Color);
