@@ -2715,12 +2715,12 @@ namespace VK
 		// previously bound descriptors and then create new imageInfo/bufferInfo
 		// and swap them with the old one, as well as only updating the descriptors
 		// that had changed. Should this do that too?
+		vk::DescriptorSet descriptorSet;
+		vk::DescriptorPool descriptorPool;
 		CoreLib::RefPtr<DescriptorSetLayout> descriptorSetLayout;
 		CoreLib::List<vk::DescriptorImageInfo> imageInfo;
 		CoreLib::List<vk::DescriptorBufferInfo> bufferInfo;
 		CoreLib::List<vk::WriteDescriptorSet> writeDescriptorSets;
-		vk::DescriptorPool descriptorPool;
-		vk::DescriptorSet descriptorSet;
 	public:
 		DescriptorSet() {}
 		DescriptorSet(DescriptorSetLayout* layout)
@@ -2936,8 +2936,8 @@ namespace VK
 				shaderStages.Add(
 					vk::PipelineShaderStageCreateInfo()
 					.setFlags(vk::PipelineShaderStageCreateFlagBits())
-					.setStage(ShaderStage(dynamic_cast<VK::Shader*>(shader)->stage))
-					.setModule(dynamic_cast<VK::Shader*>(shader)->module)
+					.setStage(ShaderStage(reinterpret_cast<VK::Shader*>(shader)->stage))
+					.setModule(reinterpret_cast<VK::Shader*>(shader)->module)
 					.setPName("main")
 					.setPSpecializationInfo(nullptr)
 				);
@@ -3000,7 +3000,7 @@ namespace VK
 		}
 		virtual Pipeline* ToPipeline(GameEngine::RenderTargetLayout* renderTargetLayout) override
 		{
-			return new Pipeline(dynamic_cast<RenderTargetLayout*>(renderTargetLayout), this);
+			return new Pipeline(reinterpret_cast<RenderTargetLayout*>(renderTargetLayout), this);
 		}
 	};
 
@@ -3139,11 +3139,11 @@ namespace VK
 			.setPViewportState(&viewportCreateInfo)
 			.setPRasterizationState(&rasterizationCreateInfo)
 			.setPMultisampleState(&multisampleCreateInfo)
-			.setPDepthStencilState(dynamic_cast<VK::RenderTargetLayout*>(renderTargetLayout)->depthReference.layout == vk::ImageLayout::eUndefined ? nullptr : &depthStencilCreateInfo)
-			.setPColorBlendState(dynamic_cast<VK::RenderTargetLayout*>(renderTargetLayout)->colorReferences.Count() == 0 ? nullptr : &colorBlendCreateInfo)
+			.setPDepthStencilState(reinterpret_cast<VK::RenderTargetLayout*>(renderTargetLayout)->depthReference.layout == vk::ImageLayout::eUndefined ? nullptr : &depthStencilCreateInfo)
+			.setPColorBlendState(reinterpret_cast<VK::RenderTargetLayout*>(renderTargetLayout)->colorReferences.Count() == 0 ? nullptr : &colorBlendCreateInfo)
 			.setPDynamicState(&dynamicStateCreateInfo)
 			.setLayout(pipelineLayout)
-			.setRenderPass(dynamic_cast<VK::RenderTargetLayout*>(renderTargetLayout)->renderPass)
+			.setRenderPass(reinterpret_cast<VK::RenderTargetLayout*>(renderTargetLayout)->renderPass)
 			.setSubpass(0)
 			.setBasePipelineHandle(vk::Pipeline())
 			.setBasePipelineIndex(-1);
@@ -3235,7 +3235,7 @@ namespace VK
 			pendingDescSets.Clear();
 
 			vk::CommandBufferInheritanceInfo inheritanceInfo = vk::CommandBufferInheritanceInfo()
-				.setRenderPass(dynamic_cast<VK::RenderTargetLayout*>(renderTargetLayout)->renderPass)
+				.setRenderPass(reinterpret_cast<VK::RenderTargetLayout*>(renderTargetLayout)->renderPass)
 				.setSubpass(0)//
 				.setFramebuffer(framebuffer)
 				.setOcclusionQueryEnable(VK_TRUE)//
@@ -3266,33 +3266,31 @@ namespace VK
 
 		virtual void BindVertexBuffer(Buffer* vertexBuffer, int byteOffset) override
 		{
-			buffer.bindVertexBuffers(0, dynamic_cast<VK::BufferObject*>(vertexBuffer)->buffer, { (vk::DeviceSize)byteOffset });
+			buffer.bindVertexBuffers(0, reinterpret_cast<VK::BufferObject*>(vertexBuffer)->buffer, { (vk::DeviceSize)byteOffset });
 		}
 		virtual void BindIndexBuffer(Buffer* indexBuffer, int byteOffset) override
 		{
 			//TODO: Can make index buffer use 16 bit ints if possible?
-			buffer.bindIndexBuffer(dynamic_cast<VK::BufferObject*>(indexBuffer)->buffer, { (vk::DeviceSize)byteOffset }, vk::IndexType::eUint32);
+			buffer.bindIndexBuffer(reinterpret_cast<VK::BufferObject*>(indexBuffer)->buffer, { (vk::DeviceSize)byteOffset }, vk::IndexType::eUint32);
 		}
 		virtual void BindDescriptorSet(int binding, GameEngine::DescriptorSet* descSet) override
 		{
 			VK::DescriptorSet* internalDescriptorSet = reinterpret_cast<VK::DescriptorSet*>(descSet);
-			if (internalDescriptorSet->descriptorSet)
+			if (curPipeline == nullptr)
 			{
-				if (curPipeline == nullptr)
-				{
-					pendingDescSets.Add(internalDescriptorSet->descriptorSet);
-					pendingOffsets.Add(binding);
-				}
-				else
-					buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, curPipeline->pipelineLayout, binding, internalDescriptorSet->descriptorSet, nullptr);
+				pendingDescSets.Add(internalDescriptorSet->descriptorSet);
+				pendingOffsets.Add(binding);
 			}
 			else
-				throw 0;
+				buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, curPipeline->pipelineLayout, binding, internalDescriptorSet->descriptorSet, nullptr);
+			
 		}
 		virtual void BindPipeline(GameEngine::Pipeline* pipeline) override
 		{
+#ifdef _DEBUG
 			if (inRenderPass == false)
 				throw HardwareRendererException("RenderTargetLayout and FrameBuffer must be specified at BeginRecording for BindPipeline");
+#endif
 			auto newPipeline = reinterpret_cast<VK::Pipeline*>(pipeline);
 			if (curPipeline == nullptr)
 			{
@@ -3307,7 +3305,7 @@ namespace VK
 				pendingDescSets.Clear();
 			}
 			curPipeline = newPipeline;
-			buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, dynamic_cast<VK::Pipeline*>(pipeline)->pipeline);
+			buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, reinterpret_cast<VK::Pipeline*>(pipeline)->pipeline);
 		}
 
 		virtual void Draw(int firstVertex, int vertexCount) override
@@ -3335,9 +3333,10 @@ namespace VK
 
 		virtual void Blit(GameEngine::Texture2D* dstImage, GameEngine::Texture2D* srcImage) override
 		{
+#ifdef _DEBUG
 			if (inRenderPass == true)
 				throw HardwareRendererException("BeginRecording must take no parameters for Blit");
-
+#endif
 			vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
 				.setAspectMask(vk::ImageAspectFlagBits::eColor)
 				.setBaseMipLevel(0)
@@ -3859,8 +3858,8 @@ namespace VK
 			// Create render pass begin info
 			vk::RenderPassBeginInfo renderPassBeginInfo = vk::RenderPassBeginInfo()
 				.setRenderPass(((VK::FrameBuffer*)frameBuffer)->renderTargetLayout->renderPass)
-				.setFramebuffer(dynamic_cast<VK::FrameBuffer*>(frameBuffer)->framebuffer)
-				.setRenderArea(vk::Rect2D().setOffset(vk::Offset2D(0, 0)).setExtent(vk::Extent2D(dynamic_cast<VK::FrameBuffer*>(frameBuffer)->width, dynamic_cast<VK::FrameBuffer*>(frameBuffer)->height)))
+				.setFramebuffer(reinterpret_cast<VK::FrameBuffer*>(frameBuffer)->framebuffer)
+				.setRenderArea(vk::Rect2D().setOffset(vk::Offset2D(0, 0)).setExtent(vk::Extent2D(reinterpret_cast<VK::FrameBuffer*>(frameBuffer)->width, reinterpret_cast<VK::FrameBuffer*>(frameBuffer)->height)))
 				.setClearValueCount(0)
 				.setPClearValues(nullptr);
 

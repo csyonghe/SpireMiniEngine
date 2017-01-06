@@ -727,9 +727,9 @@ namespace GameEngine
 	
 	inline void BindDescSet(DescriptorSet** curStates, CommandBuffer* cmdBuf, int id, DescriptorSet * descSet)
 	{
-		//if (curStates[id] != descSet)
+		if (curStates[id] != descSet)
 		{
-			//curStates[id] = descSet;
+			curStates[id] = descSet;
 			cmdBuf->BindDescriptorSet(id, descSet);
 		}
 	}
@@ -760,11 +760,11 @@ namespace GameEngine
 			{
 				auto mesh = obj->GetMesh();
 				cmdBuf->BindPipeline(pipelineInst->pipeline.Ptr());
-				cmdBuf->BindIndexBuffer(mesh->GetIndexBuffer(), mesh->indexBufferOffset);
-				cmdBuf->BindVertexBuffer(mesh->GetVertexBuffer(), mesh->vertexBufferOffset);
 				BindDescSet(boundSets.Buffer(), cmdBuf, bindings.Count(), obj->GetMaterial()->MaterialGeometryModule->GetCurrentDescriptorSet());
 				BindDescSet(boundSets.Buffer(), cmdBuf, bindings.Count() + 1, obj->GetMaterial()->MaterialPatternModule->GetCurrentDescriptorSet());
 				BindDescSet(boundSets.Buffer(), cmdBuf, bindings.Count() + 2, obj->GetTransformModule()->GetCurrentDescriptorSet());
+				cmdBuf->BindIndexBuffer(mesh->GetIndexBuffer(), mesh->indexBufferOffset);
+				cmdBuf->BindVertexBuffer(mesh->GetVertexBuffer(), mesh->vertexBufferOffset);
 				cmdBuf->DrawIndexed(0, mesh->indexCount);
 			}
 			pipelineManager.PopModuleInstance();
