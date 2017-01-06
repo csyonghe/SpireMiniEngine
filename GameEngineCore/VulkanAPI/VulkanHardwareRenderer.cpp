@@ -2412,22 +2412,22 @@ namespace VK
 			memset(&procInfo, 0, sizeof(PROCESS_INFORMATION));
 			startupInfo.cb = sizeof(STARTUPINFO);
 			CreateProcessW(nullptr, (LPWSTR)("\"" + glslc + "\" -V \"" + Path::GetFileName(tempFileName) + "\" -o \"" + compiledFileName + "\"").ToWString(),
-				nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr,
-				Path::GetDirectoryName(tempFileName).ToWString(), &startupInfo, &procInfo);
+				nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr,	Path::GetDirectoryName(tempFileName).ToWString(), &startupInfo, &procInfo);
 			WaitForSingleObject(procInfo.hProcess, INFINITE);
 			DWORD exitCode = 0XFFFF;
 			GetExitCodeProcess(procInfo.hProcess, &exitCode);
-
 			CloseHandle(procInfo.hProcess);
 			CloseHandle(procInfo.hThread);
-			if (File::Exists(compiledFileName.Length()) && exitCode == 0)
+			if (File::Exists(compiledFileName) && exitCode == 0)
 			{
 				auto code = File::ReadAllBytes(compiledFileName);
 				vk::ShaderModuleCreateInfo createInfo(vk::ShaderModuleCreateFlags(), code.Count(), (unsigned int *)code.Buffer());
 				this->module = RendererState::Device().createShaderModule(createInfo);
 			}
 			else
+			{
 				throw HardwareRendererException("spirv compilation failure.");
+			}
 		}
 
 		void Destroy()
@@ -3014,12 +3014,12 @@ namespace VK
 				);
 			}
 		}
-		virtual void SetBindingLayout(CoreLib::ArrayView<GameEngine::DescriptorSetLayout*> descriptorSets) override
+		virtual void SetBindingLayout(CoreLib::ArrayView<GameEngine::DescriptorSetLayout*> pDescriptorSets) override
 		{
 #if _DEBUG
-			this->descriptorSets = descriptorSets;
+			this->descriptorSets = pDescriptorSets;
 #endif
-			for (auto& set : descriptorSets)
+			for (auto& set : pDescriptorSets)
 			{
 				if (set) //TODO: ?
 					setLayouts.Add(reinterpret_cast<VK::DescriptorSetLayout*>(set)->layout);
@@ -3379,11 +3379,11 @@ namespace VK
 			{
 				auto& attachment = attachments.attachments[k];
 
-				VK::Texture* internalTex;
+				VK::Texture* internalTex = nullptr;
 				if (attachment.handle.tex2D)
-					internalTex = reinterpret_cast<VK::Texture*>(attachment.handle.tex2D);
+					internalTex = dynamic_cast<VK::Texture*>(attachment.handle.tex2D);
 				else if (attachment.handle.tex2DArray)
-					internalTex = reinterpret_cast<VK::Texture*>(attachment.handle.tex2DArray);
+					internalTex = dynamic_cast<VK::Texture*>(attachment.handle.tex2DArray);
 
 				vk::ImageAspectFlags aspectFlags;
 				if (isDepthFormat(internalTex->format))
