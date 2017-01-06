@@ -1904,6 +1904,9 @@ namespace GLL
 			data.draw.count = indexCount;
 			buffer.Add(data);
 		}
+		virtual void TransferLayout(const RenderAttachments& /*attachments*/, ArrayView<TextureUsage> /*layouts*/) override
+		{
+		}
 		virtual void Blit(GameEngine::Texture2D* dstImage, GameEngine::Texture2D* srcImage) override
 		{
 			CommandData data;

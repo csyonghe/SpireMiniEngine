@@ -2604,13 +2604,25 @@ namespace VK
 		{
 			if (attachment.handle.tex2D)
 			{
+				auto tex = dynamic_cast<Texture2D*>(attachment.handle.tex2D);
+				
+				vk::ImageAspectFlags aspectFlags;
+				if (isDepthFormat(tex->format))
+				{
+					aspectFlags = vk::ImageAspectFlagBits::eDepth;
+					if (tex->format == StorageFormat::Depth24Stencil8)
+						aspectFlags |= vk::ImageAspectFlagBits::eStencil;
+				}
+				else
+					aspectFlags = vk::ImageAspectFlagBits::eColor;
+
 				vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
-					.setAspectMask(vk::ImageAspectFlagBits::eColor)
+					.setAspectMask(aspectFlags)
 					.setBaseMipLevel(0)
 					.setLevelCount(1)
 					.setBaseArrayLayer(0)
 					.setLayerCount(1);
-				auto tex = dynamic_cast<Texture2D*>(attachment.handle.tex2D);
+
 				vk::ImageViewCreateInfo imageViewCreateInfo = vk::ImageViewCreateInfo()
 					.setFlags(vk::ImageViewCreateFlags())
 					.setImage(tex->image)
@@ -2623,13 +2635,25 @@ namespace VK
 			}
 			else if (attachment.handle.tex2DArray)
 			{
+				auto tex = dynamic_cast<Texture2DArray*>(attachment.handle.tex2DArray);
+
+				vk::ImageAspectFlags aspectFlags;
+				if (isDepthFormat(tex->format))
+				{
+					aspectFlags = vk::ImageAspectFlagBits::eDepth;
+					if (tex->format == StorageFormat::Depth24Stencil8)
+						aspectFlags |= vk::ImageAspectFlagBits::eStencil;
+				}
+				else
+					aspectFlags = vk::ImageAspectFlagBits::eColor; 
+				
 				vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
-					.setAspectMask(vk::ImageAspectFlagBits::eColor)
+					.setAspectMask(aspectFlags)
 					.setBaseMipLevel(0)
 					.setLevelCount(1)
 					.setBaseArrayLayer(attachment.layer)
 					.setLayerCount(1);
-				auto tex = dynamic_cast<Texture2DArray*>(attachment.handle.tex2DArray);
+
 				vk::ImageViewCreateInfo imageViewCreateInfo = vk::ImageViewCreateInfo()
 					.setFlags(vk::ImageViewCreateFlags())
 					.setImage(tex->image)
@@ -2749,12 +2773,6 @@ namespace VK
 		{
 			VK::Texture* internalTexture = dynamic_cast<VK::Texture*>(texture);
 
-			//vk::ImageLayout imageLayout = vk::ImageLayout::eGeneral;
-			//if (!!(internalTexture->usage & TextureUsage::DepthAttachment))
-			//{
-			//	imageLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-			//}
-
 			vk::ImageView view = internalTexture->views[0];
 			if (isDepthFormat(internalTexture->format) && aspect == TextureAspect::Depth)
 				view = internalTexture->views[1];
@@ -2765,7 +2783,7 @@ namespace VK
 				vk::DescriptorImageInfo()
 				.setSampler(vk::Sampler())
 				.setImageView(view)
-				.setImageLayout(vk::ImageLayout::eGeneral)//TODO: specify?
+				.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)//
 			);
 
 			writeDescriptorSets.Add(
@@ -3329,6 +3347,69 @@ namespace VK
 		{
 			buffer.setViewport(0, vk::Viewport((float)x, (float)y, (float)width, (float)height, 0.0f, 1.0f));
 			buffer.setScissor(0, vk::Rect2D(vk::Offset2D(x, y), vk::Extent2D(width, height)));
+		}
+
+		virtual void TransferLayout(const RenderAttachments& attachments, CoreLib::ArrayView<TextureUsage> layouts) override
+		{
+#if _DEBUG
+			if (inRenderPass == true)
+				throw HardwareRendererException("BeginRecording must take no parameters for TransferLayout");
+
+			if (attachments.attachments.Count() != layouts.Count())
+				throw HardwareRendererException("Disagreeing number of attachments and layouts");
+#endif
+			CoreLib::List<vk::ImageMemoryBarrier> imageBarriers;
+
+			for (int k = 0; k < layouts.Count(); k++)
+			{
+				auto& attachment = attachments.attachments[k];
+
+				VK::Texture* internalTex;
+				if (attachment.handle.tex2D)
+					internalTex = reinterpret_cast<VK::Texture*>(attachment.handle.tex2D);
+				else if (attachment.handle.tex2DArray)
+					internalTex = reinterpret_cast<VK::Texture*>(attachment.handle.tex2DArray);
+
+				vk::ImageAspectFlags aspectFlags;
+				if (isDepthFormat(internalTex->format))
+				{
+					aspectFlags = vk::ImageAspectFlagBits::eDepth;
+					if (internalTex->format == StorageFormat::Depth24Stencil8)
+						aspectFlags |= vk::ImageAspectFlagBits::eStencil;
+				}
+				else
+					aspectFlags = vk::ImageAspectFlagBits::eColor;
+
+				vk::ImageSubresourceRange subresourceRange = vk::ImageSubresourceRange()
+					.setAspectMask(aspectFlags)
+					.setBaseMipLevel(0)
+					.setLevelCount(internalTex->mipLevels)
+					.setBaseArrayLayer(attachment.layer == -1 ? 0 : attachment.layer)
+					.setLayerCount(1);
+
+				imageBarriers.Add(vk::ImageMemoryBarrier()
+					.setSrcAccessMask(LayoutFlags(internalTex->currentLayout))
+					.setDstAccessMask(LayoutFlags(LayoutFromUsage(layouts[k])))
+					.setOldLayout(internalTex->currentLayout)
+					.setNewLayout(LayoutFromUsage(layouts[k]))
+					.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+					.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+					.setImage(internalTex->image)
+					.setSubresourceRange(subresourceRange));
+
+				internalTex->currentLayout = LayoutFromUsage(layouts[k]);
+			}
+
+			buffer.pipelineBarrier(
+				vk::PipelineStageFlagBits::eTopOfPipe,
+				vk::PipelineStageFlagBits::eTopOfPipe,
+				vk::DependencyFlags(),
+				nullptr,
+				nullptr,
+				vk::ArrayProxy<const vk::ImageMemoryBarrier>(
+					imageBarriers.Count(), 
+					imageBarriers.Buffer())
+			);
 		}
 
 		virtual void Blit(GameEngine::Texture2D* dstImage, GameEngine::Texture2D* srcImage) override

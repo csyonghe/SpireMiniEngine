@@ -673,6 +673,7 @@ namespace GameEngine
 		virtual void DrawInstanced(int numInstances, int firstVertex, int vertexCount) = 0;
 		virtual void DrawIndexed(int firstIndex, int indexCount) = 0;
 		virtual void DrawIndexedInstanced(int numInstances, int firstIndex, int indexCount) = 0;
+		virtual void TransferLayout(const RenderAttachments& attachments, CoreLib::ArrayView<TextureUsage> layouts) = 0;
 		virtual void Blit(Texture2D* dstImage, Texture2D* srcImage) = 0;
 		virtual void ClearAttachments(FrameBuffer * frameBuffer) = 0;
 	};
