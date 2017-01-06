@@ -12,18 +12,21 @@ namespace GameEngine
 	using namespace CoreLib;
 	using namespace CoreLib::WinForm;
 
-	struct VideoRecordingParameters
+	struct AppLaunchParameters
 	{
-		bool Enabled = false;
+		bool EnableVideoCapture = false;
+		bool DumpRenderStats = false;
+		String RenderStatsDumpFileName;
 		String Directory;
 		float Length = 10.0f;
 		int FramesPerSecond = 30;
+		int RunForFrames = 0; // run for this many frames and then terminate
 	};
 
 	class MainForm : public CoreLib::WinForm::Form
 	{
 	private:
-		VideoRecordingParameters videoRecParams;
+		AppLaunchParameters params;
 	protected:
 		int ProcessMessage(WinMessage & msg) override
 		{
@@ -38,10 +41,10 @@ namespace GameEngine
 			return rs;
 		}
 	public:
-		MainForm(const VideoRecordingParameters & pVideoRecParams)
+		MainForm(const AppLaunchParameters & pParams)
 		{
 			wantChars = true;
-			videoRecParams = pVideoRecParams;
+			params = pParams;
 			SetText("Game Engine");
 			OnResized.Bind(this, &MainForm::FormResized);
 			OnFocus.Bind([](auto, auto) {Engine::Instance()->EnableInput(true); });
@@ -61,14 +64,28 @@ namespace GameEngine
 			if (instance)
 			{
 				instance->Tick();
-				if (videoRecParams.Enabled)
+				if (params.EnableVideoCapture)
 				{
 					auto image = instance->GetRenderResult(true);
-					Engine::SaveImage(image, CoreLib::IO::Path::Combine(videoRecParams.Directory, String(frameId) + ".bmp"));
-					if (Engine::Instance()->GetTime() >= videoRecParams.Length)
+					Engine::SaveImage(image, CoreLib::IO::Path::Combine(params.Directory, String(frameId) + ".bmp"));
+					if (Engine::Instance()->GetTime() >= params.Length)
 						Close();
 				}
 				frameId++;
+				if (frameId == params.RunForFrames)
+				{
+					if (params.DumpRenderStats)
+					{
+						auto renderStats = Engine::Instance()->GetRenderStats();
+						StringBuilder sb;
+						for (auto & rs : renderStats)
+						{
+							sb << rs.Divisor << "\t" << rs.CpuTime * 1000.0f << "\t" << rs.PipelineLookupTime << "\t" << rs.NumDrawCalls << "\n";
+						}
+						CoreLib::IO::File::WriteAllText(params.RenderStatsDumpFileName, sb.ProduceString());
+					}
+					Close();
+				}
 			}
 		}
 	};
@@ -106,7 +123,7 @@ int wWinMain(
 	Application::Init();
 	{
 		EngineInitArguments args;
-		VideoRecordingParameters videoRecParams;
+		AppLaunchParameters appParams;
 
 
 		args.API = RenderAPI::OpenGL;
@@ -128,22 +145,29 @@ int wWinMain(
 			args.StartupLevelName = parser.GetOptionValue("-level");
 		if (parser.OptionExists("-recdir"))
 		{
-			videoRecParams.Enabled = true;
-			videoRecParams.Directory = RemoveQuote(parser.GetOptionValue("-recdir"));
+			appParams.EnableVideoCapture = true;
+			appParams.Directory = RemoveQuote(parser.GetOptionValue("-recdir"));
 		}
 		if (parser.OptionExists("-reclen"))
 		{
-			videoRecParams.Enabled = true;
-			videoRecParams.Length = (float)StringToDouble(parser.GetOptionValue("-reclen"));
+			appParams.EnableVideoCapture = true;
+			appParams.Length = (float)StringToDouble(parser.GetOptionValue("-reclen"));
 		}
 		if (parser.OptionExists("-recfps"))
 		{
-			videoRecParams.Enabled = true;
-			videoRecParams.FramesPerSecond = (int)StringToInt(parser.GetOptionValue("-recfps"));
+			appParams.EnableVideoCapture = true;
+			appParams.FramesPerSecond = (int)StringToInt(parser.GetOptionValue("-recfps"));
 		}
         if (parser.OptionExists("-no_console"))
             args.NoConsole = true;
-		auto form = new MainForm(videoRecParams);
+		if (parser.OptionExists("-runforframes"))
+			appParams.RunForFrames = (int)StringToInt(parser.GetOptionValue("-runforframes"));
+		if (parser.OptionExists("-dumpstat"))
+		{
+			appParams.DumpRenderStats = true;
+			appParams.RenderStatsDumpFileName = parser.GetOptionValue("-dumpstat");
+		}
+		auto form = new MainForm(appParams);
 		Application::SetMainLoopEventHandler(new CoreLib::WinForm::NotifyEvent(form, &MainForm::MainLoop));
 
 		args.Width = form->GetClientWidth();
@@ -154,10 +178,15 @@ int wWinMain(
 
 		Engine::Init(args);
 		
-		if (videoRecParams.Enabled)
+		if (parser.OptionExists("-pipelinecache"))
+		{
+			Engine::Instance()->GetGraphicsSettings().UsePipelineCache = ((int)StringToInt(parser.GetOptionValue("-pipelinecache")) == 1);
+		}
+
+		if (appParams.EnableVideoCapture)
 		{
 			Engine::Instance()->SetTimingMode(GameEngine::TimingMode::Fixed);
-			Engine::Instance()->SetFrameDuration(1.0f / videoRecParams.FramesPerSecond);
+			Engine::Instance()->SetFrameDuration(1.0f / appParams.FramesPerSecond);
 		}
 
 		Application::Run(form, true);

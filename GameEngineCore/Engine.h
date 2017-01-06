@@ -63,6 +63,8 @@ namespace GameEngine
 		
 		CoreLib::RefPtr<RenderTargetLayout> uiFrameBufferLayout;
 		CoreLib::RefPtr<GraphicsUI::UIEntry> uiEntry;
+
+		CoreLib::Array<RenderStat, 4> renderStats;
 		GraphicsUI::CommandForm * uiCommandForm = nullptr;
 		DrawCallStatForm * drawCallStatForm = nullptr;
 		CoreLib::RefPtr<GraphicsUI::UIWindowsSystemInterface> uiSystemInterface;
@@ -112,6 +114,10 @@ namespace GameEngine
 			return uiEntry.Ptr();
 		}
 		Texture2D * GetRenderResult(bool withUI);
+		CoreLib::ArrayView<RenderStat> GetRenderStats()
+		{
+			return renderStats.GetArrayView();
+		}
 		
 	public:
 		Actor * CreateActor(const CoreLib::String & name);

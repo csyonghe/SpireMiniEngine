@@ -101,6 +101,7 @@ namespace GameEngine
                 uiEntry->CloseWindow(uiCommandForm);
 			drawCallStatForm = new DrawCallStatForm(uiEntry.Ptr());
 			drawCallStatForm->Posit(args.Width - drawCallStatForm->GetWidth() - 10, 10, drawCallStatForm->GetWidth(), drawCallStatForm->GetHeight());
+			renderStats.SetSize(4);
 
 			switch (args.API)
 			{
@@ -216,13 +217,20 @@ namespace GameEngine
 
 		if (aggregateTime > 1.0f)
 		{
-			drawCallStatForm->SetFrameRenderTime(aggregateTime / frameCount);
-			auto stats = renderer->GetStats();
-			drawCallStatForm->SetNumDrawCalls(stats.NumDrawCalls);
-			drawCallStatForm->SetNumWorldPasses(stats.NumPasses);
-			drawCallStatForm->SetCpuTime(stats.CpuTime, stats.PipelineLookupTime);
-			aggregateTime = 0.0f;
-			frameCount = 0;
+			auto &stats = renderer->GetStats();
+			if (stats.Divisor > 500)
+			{
+				drawCallStatForm->SetFrameRenderTime(aggregateTime / frameCount);
+				drawCallStatForm->SetNumDrawCalls(stats.NumDrawCalls / stats.Divisor);
+				drawCallStatForm->SetNumWorldPasses(stats.NumPasses / stats.Divisor);
+				drawCallStatForm->SetCpuTime(stats.CpuTime / stats.Divisor, stats.PipelineLookupTime / stats.Divisor);
+				static int ptr = 0;
+				renderStats[ptr%renderStats.Count()] = stats;
+				ptr++;
+				stats.Clear();
+				aggregateTime = 0.0f;
+				frameCount = 0;
+			}
 		}
 
 		frameCounter++;

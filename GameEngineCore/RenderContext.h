@@ -30,10 +30,19 @@ namespace GameEngine
 	class RenderStat
 	{
 	public:
+		int Divisor = 0;
 		int NumDrawCalls = 0;
 		int NumPasses = 0;
 		float CpuTime = 0.0f;
 		float PipelineLookupTime = 0.0f;
+		void Clear()
+		{
+			Divisor = 0;
+			NumDrawCalls = 0;
+			NumPasses = 0;
+			CpuTime = 0.0f;
+			PipelineLookupTime = 0.0f;
+		}
 	};
 
 	struct BoneTransform

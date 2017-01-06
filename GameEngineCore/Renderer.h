@@ -22,7 +22,7 @@ namespace GameEngine
 		virtual int RegisterPostRenderPass(PostRenderPass * pass) = 0;
 		virtual void InitializeLevel(Level * level) = 0;
 		virtual void TakeSnapshot() = 0;
-		virtual RenderStat GetStats() = 0;
+		virtual RenderStat& GetStats() = 0;
 		virtual void RenderFrame() = 0;
 		virtual void DestroyContext() = 0;
 		virtual void Resize(int w, int h) = 0;

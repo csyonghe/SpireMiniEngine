@@ -191,12 +191,14 @@ namespace GameEngine
 		{
 			if (!level)
 				return;
-			sharedRes.renderStats.PipelineLookupTime = 0;
+			static int frameId = 0;
+			frameId++;
 			auto timePoint = CoreLib::Diagnostics::PerformanceCounter::Start();
 			RunRenderProcedure();
-			sharedRes.renderStats.CpuTime = CoreLib::Diagnostics::PerformanceCounter::EndSeconds(timePoint);
+			sharedRes.renderStats.CpuTime += CoreLib::Diagnostics::PerformanceCounter::EndSeconds(timePoint);
+			sharedRes.renderStats.Divisor++;
 		}
-		virtual RenderStat GetStats() override
+		virtual RenderStat & GetStats() override
 		{
 			return sharedRes.renderStats;
 		}
@@ -215,8 +217,7 @@ namespace GameEngine
 			if (!level) return;
 			auto timePoint = CoreLib::Diagnostics::PerformanceCounter::Start();
 
-			sharedRes.renderStats.NumDrawCalls = 0;
-			sharedRes.renderStats.NumPasses = 0;
+			
 			for (auto & pass : frameTask.renderPasses)
 			{
 				hardwareRenderer->ExecuteCommandBuffers(pass.renderOutput->GetFrameBuffer(), MakeArrayView(pass.commandBuffer->GetBuffer()), nullptr);

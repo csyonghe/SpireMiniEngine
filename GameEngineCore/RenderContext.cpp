@@ -25,7 +25,7 @@ namespace GameEngine
 
 	PipelineClass * Drawable::GetPipeline(int passId, PipelineContext & pipelineManager)
 	{
-		if (pipelineCache[passId] == nullptr)
+		if (!Engine::Instance()->GetGraphicsSettings().UsePipelineCache || pipelineCache[passId] == nullptr)
 		{
 			auto rs = pipelineManager.GetPipeline(&vertFormat);
 			pipelineCache[passId] = rs;
