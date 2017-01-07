@@ -748,6 +748,7 @@ namespace GameEngine
 		numDrawCalls = 0;
 		Array<DescriptorSet*, 32> boundSets;
 		boundSets.SetSize(boundSets.GetCapacity());
+		auto stat = pipelineManager.GetRenderStat();
 		for (auto obj : drawables)
 		{
 			if (!frustum.IsBoxInFrustum(obj->Bounds))
@@ -756,8 +757,10 @@ namespace GameEngine
 			pipelineManager.PushModuleInstance(obj->GetMaterial()->MaterialGeometryModule.Ptr());
 			pipelineManager.PushModuleInstance(obj->GetMaterial()->MaterialPatternModule.Ptr());
 			pipelineManager.PushModuleInstance(obj->GetTransformModule());
+			auto timePoint = CoreLib::Diagnostics::PerformanceCounter::Start();
 			if (auto pipelineInst = obj->GetPipeline(renderPassId, pipelineManager))
 			{
+				stat->PipelineLookupTime += CoreLib::Diagnostics::PerformanceCounter::EndSeconds(timePoint);
 				auto mesh = obj->GetMesh();
 				cmdBuf->BindPipeline(pipelineInst->pipeline.Ptr());
 				BindDescSet(boundSets.Buffer(), cmdBuf, bindings.Count(), obj->GetMaterial()->MaterialGeometryModule->GetCurrentDescriptorSet());

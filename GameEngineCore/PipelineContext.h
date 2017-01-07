@@ -8,7 +8,40 @@
 
 namespace GameEngine
 {
-	using ShaderKeyBuilder = CoreLib::StringBuilder;
+	class ShaderKey
+	{
+	public:
+		CoreLib::Array<unsigned short, 8> ModuleIds;
+		int HashCode = 0;
+		inline int GetHashCode()
+		{
+			return HashCode;
+		}
+		bool operator == (const ShaderKey & key)
+		{
+			if (ModuleIds.Count() != key.ModuleIds.Count())
+				return false;
+			for (int i = 0; i < ModuleIds.Count(); i++)
+				if (ModuleIds[i] != key.ModuleIds[i])
+					return false;
+			return true;
+		}
+	};
+	class ShaderKeyBuilder
+	{
+	public:
+		ShaderKey Key;
+		inline void Clear()
+		{
+			Key.ModuleIds.Clear();
+			Key.HashCode = 0;
+		}
+		void Append(unsigned int moduleId)
+		{
+			Key.HashCode ^= (moduleId << ((Key.ModuleIds.Count() & 1) * 16));
+			Key.ModuleIds.Add((unsigned short)moduleId);
+		}
+	};
 
 	class MeshVertexFormat;
 	
@@ -49,7 +82,7 @@ namespace GameEngine
 		}
 		void GetKey(ShaderKeyBuilder & keyBuilder)
 		{
-			keyBuilder.Append(spGetModuleName(specializedModule));
+			keyBuilder.Append(spGetModuleUID(specializedModule));
 		}
 	};
 
@@ -73,7 +106,7 @@ namespace GameEngine
 		RenderTargetLayout * renderTargetLayout = nullptr;
 
 		FixedFunctionPipelineStates * fixedFunctionStates = nullptr;
-		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<PipelineClass>> pipelineObjects;
+		CoreLib::EnumerableDictionary<ShaderKey, CoreLib::RefPtr<PipelineClass>> pipelineObjects;
 		CoreLib::Array<ModuleInstance*, 32> modules;
 		ShaderKeyBuilder shaderKeyBuilder;
 		HardwareRenderer * hwRenderer;
@@ -86,6 +119,10 @@ namespace GameEngine
 			spireContext = spireCtx;
 			hwRenderer = hw;
 			renderStats = pRenderStats;
+		}
+		inline RenderStat * GetRenderStat() 
+		{
+			return renderStats;
 		}
 		VertexFormat LoadVertexFormat(MeshVertexFormat vertFormat);
 		void BindShader(SpireShader * pShader, RenderTargetLayout * pRenderTargetLayout, FixedFunctionPipelineStates * states)
