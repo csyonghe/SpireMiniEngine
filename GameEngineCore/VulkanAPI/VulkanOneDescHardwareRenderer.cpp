@@ -651,8 +651,7 @@ namespace VKO
 						.setDescriptorSetCount(1)
 						.setPSetLayouts(&layout);
 
-					std::vector<vk::DescriptorSet> descriptorSets = RendererState::Device().allocateDescriptorSets(descriptorSetAllocateInfo);
-					res.second = descriptorSets[0];
+					vkAllocateDescriptorSets(RendererState::Device(), (VkDescriptorSetAllocateInfo*)&descriptorSetAllocateInfo, (VkDescriptorSet*)&res.second);
 
 					return res;
 				}
