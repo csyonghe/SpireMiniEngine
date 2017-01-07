@@ -454,13 +454,14 @@ namespace VKO
 		{
 			if (State().initialized)
 				return;
-
 			State().initialized = true;
 			vkelInit();
 			CreateInstance();
 			SelectPhysicalDevice();
 			InitDevice();
 
+			for (int i = 0; i < BufferingFactor; i++)
+				State().transientDescriptorPools->Add(new DescriptorPoolObject(true));
 			State().frameCounter = 0;
 		}
 
@@ -584,6 +585,7 @@ namespace VKO
 		{
 			// Round robin command buffers in order
 			static int i = 0;
+			i++;
 			int next = i % numCommandBuffers;
 
 			vk::CommandBuffer commandBuffer = (*State().primaryBuffers)[next];
@@ -605,17 +607,12 @@ namespace VKO
 
 			Device().resetFences(fence);
 
-			i++;
 			return std::make_pair(commandBuffer, fence);
 		}
 
 		static const vk::DescriptorPool& TransientPool()
 		{
-			if (State().transientDescriptorPools->Count() == 0)
-			{
-				for (int i = 0; i < BufferingFactor; i++)
-					State().transientDescriptorPools->Add(new DescriptorPoolObject(true));
-			}
+			
 
 			return (*State().transientDescriptorPools)[State().frameCounter%BufferingFactor]->pool;
 		}
@@ -2783,9 +2780,9 @@ namespace VKO
 				.setImageView(view)
 				.setImageLayout(internalTexture->currentLayout)//
 			);
-
-			writeDescriptorSets.Add(
-				vk::WriteDescriptorSet()
+			if (writeDescriptorSets.Count() < location + 1)
+				writeDescriptorSets.SetSize(location + 1);
+			writeDescriptorSets[location] = vk::WriteDescriptorSet()
 				.setDstSet(nullptr)
 				.setDstBinding(location)
 				.setDstArrayElement(0)
@@ -2793,8 +2790,7 @@ namespace VKO
 				.setDescriptorType(vk::DescriptorType::eSampledImage)
 				.setPImageInfo(&imageInfo[imageInfo.Count()-1])
 				.setPBufferInfo(nullptr)
-				.setPTexelBufferView(nullptr)
-			);
+				.setPTexelBufferView(nullptr);
 		}
 
 		virtual void Update(int location, GameEngine::TextureSampler* sampler) override
@@ -2808,8 +2804,9 @@ namespace VKO
 				.setImageLayout(vk::ImageLayout::eUndefined)
 			);
 
-			writeDescriptorSets.Add(
-				vk::WriteDescriptorSet()
+			if (writeDescriptorSets.Count() < location + 1)
+				writeDescriptorSets.SetSize(location + 1);
+			writeDescriptorSets[location] = vk::WriteDescriptorSet()
 				.setDstSet(nullptr)
 				.setDstBinding(location)
 				.setDstArrayElement(0)
@@ -2817,8 +2814,7 @@ namespace VKO
 				.setDescriptorType(vk::DescriptorType::eSampler)
 				.setPImageInfo(&imageInfo[imageInfo.Count()-1])
 				.setPBufferInfo(nullptr)
-				.setPTexelBufferView(nullptr)
-			);
+				.setPTexelBufferView(nullptr);
 		}
 
 		virtual void Update(int location, GameEngine::Buffer* buffer, int offset = 0, int length = -1) override
@@ -2839,8 +2835,9 @@ namespace VKO
 				.setRange(range)
 			);
 
-			writeDescriptorSets.Add(
-				vk::WriteDescriptorSet()
+			if (writeDescriptorSets.Count() < location + 1)
+				writeDescriptorSets.SetSize(location + 1);
+			writeDescriptorSets[location] = vk::WriteDescriptorSet()
 				.setDstSet(nullptr)
 				.setDstBinding(location)
 				.setDstArrayElement(0)
@@ -2848,8 +2845,7 @@ namespace VKO
 				.setDescriptorType(descriptorType)
 				.setPImageInfo(nullptr)
 				.setPBufferInfo(&bufferInfo[bufferInfo.Count()-1])
-				.setPTexelBufferView(nullptr)
-			);
+				.setPTexelBufferView(nullptr);
 		}
 
 		virtual void EndUpdate() override {}
@@ -3330,21 +3326,21 @@ namespace VKO
 			//TODO: Can make index buffer use 16 bit ints if possible?
 			buffer.bindIndexBuffer(reinterpret_cast<VKO::BufferObject*>(indexBuffer)->buffer, { (vk::DeviceSize)byteOffset }, vk::IndexType::eUint32);
 		}
-		virtual void BindDescriptorSet(int binding, GameEngine::DescriptorSet* descSet) override
+		virtual void BindDescriptorSet(int binding, GameEngine::DescriptorSet* pdescSet) override
 		{
-			boundDescSets[binding] = reinterpret_cast<VKO::DescriptorSet*>(descSet);
-		
-			/*			
-			pendingDescSet->descriptorSet = RendererState::AllocateTransientDescriptorSet(pendingDescSet->descriptorSetLayout->);
-
-			for (auto& writeDesc : pendingDescSet->writeDescriptorSets)
-				writeDesc.setDstSet(pendingDescSet->descriptorSet);
-
-			if (pendingDescSet->writeDescriptorSets.Count() > 0)
-				RendererState::Device().updateDescriptorSets(
-					vk::ArrayProxy<const vk::WriteDescriptorSet>(pendingDescSet->writeDescriptorSets.Count(), pendingDescSet->writeDescriptorSets.Buffer()),
-					nullptr);
-			*/
+			auto descSet = reinterpret_cast<VKO::DescriptorSet*>(pdescSet);
+			if (boundPipeline)
+			{
+				int j = 0;
+				auto & writeDescSet = descSet->writeDescriptorSets;
+				if (writeDescSet.Count() == boundPipeline->descriptors[binding].Count())
+					for (auto &wd : writeDescSet)
+					{
+						wd.dstBinding = boundPipeline->descriptors[binding][j].LegacyBindingPoints[0];
+						j++;
+					}
+			}
+			boundDescSets[binding] = descSet;
 		}
 		virtual void BindPipeline(GameEngine::Pipeline* pipeline) override
 		{
@@ -3354,31 +3350,46 @@ namespace VKO
 #endif
 			auto newPipeline = reinterpret_cast<VKO::Pipeline*>(pipeline);
 			boundPipeline = newPipeline;
+			for (int i = 0; i < boundPipeline->descriptors.Count(); i++)
+			{
+				auto set = boundDescSets[i];
+				if (set && set->writeDescriptorSets.Count() == boundPipeline->descriptors[i].Count())
+				{
+					int j = 0;
+					auto & writeDescSet = set->writeDescriptorSets;
+					for (auto &wd : writeDescSet)
+					{
+						wd.dstBinding = boundPipeline->descriptors[i][j].LegacyBindingPoints[0];
+						j++;
+					}
+				}
+			}
 			buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, newPipeline->pipeline);
 		}
 
 		CoreLib::List<vk::WriteDescriptorSet> writes;
 		void UpdateBindings()
 		{
-			writes.Clear();
 			auto descSet = RendererState::AllocateTransientDescriptorSet(boundPipeline->setLayout);
 			for (int i = 0; i < boundPipeline->descriptors.Count(); i++)
 			{
 				auto set = boundDescSets[i];
 				if (set)
 				{
-					for (auto wd : set->writeDescriptorSets)
+					int j = 0;
+					auto & writeDescSet = set->writeDescriptorSets;
+					for (auto &wd : writeDescSet)
 					{
 						wd.dstSet = descSet;
-						wd.dstBinding = boundPipeline->descriptors[i][wd.dstBinding].LegacyBindingPoints[0];
-						writes.Add(wd);
+						wd.dstBinding = boundPipeline->descriptors[i][j].LegacyBindingPoints[0];
+						j++;
 					}
+					if (j)
+						RendererState::Device().updateDescriptorSets(
+							vk::ArrayProxy<const vk::WriteDescriptorSet>(writeDescSet.Count(), writeDescSet.Buffer()),
+							nullptr);
 				}
 			}
-			if (writes.Count() > 0)
-				RendererState::Device().updateDescriptorSets(
-					vk::ArrayProxy<const vk::WriteDescriptorSet>(writes.Count(), writes.Buffer()),
-					nullptr);
 			buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, boundPipeline->pipelineLayout, 0u, descSet, nullptr);
 		}
 
