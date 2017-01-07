@@ -684,10 +684,9 @@ namespace VKO
 						.setDescriptorPool(TransientPool())
 						.setDescriptorSetCount(1)
 						.setPSetLayouts(&layout);
-
-					std::vector<vk::DescriptorSet> descriptorSets = RendererState::Device().allocateDescriptorSets(descriptorSetAllocateInfo);
-
-					return descriptorSets[0];
+					vk::DescriptorSet descSet;
+					vkAllocateDescriptorSets(RendererState::Device(), (VkDescriptorSetAllocateInfo*)&descriptorSetAllocateInfo, (VkDescriptorSet*)&descSet);
+					return descSet;
 				}
 				catch (std::system_error& e)
 				{
