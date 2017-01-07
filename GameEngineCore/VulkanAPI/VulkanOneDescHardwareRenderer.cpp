@@ -19,7 +19,7 @@
 #define DEBUG_ONLY(x) do {    } while(0)
 #endif
 
-const int BufferingFactor = 4;
+const int BufferingFactor = 8;
 
 using namespace GameEngine;
 using namespace CoreLib::IO;
@@ -3407,10 +3407,11 @@ namespace VKO
 			buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, newPipeline->pipeline);
 		}
 
+		CoreLib::List<vk::WriteDescriptorSet> writes;
 		void UpdateBindings()
 		{
+			writes.Clear();
 			auto descSet = RendererState::AllocateTransientDescriptorSet(boundPipeline->setLayout);
-			CoreLib::List<vk::WriteDescriptorSet> writes;
 			for (int i = 0; i < boundPipeline->descriptors.Count(); i++)
 			{
 				auto set = boundDescSets[i];
