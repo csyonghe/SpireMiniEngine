@@ -8,6 +8,7 @@
 #include "OS.h"
 #include "EngineLimits.h"
 #include "AsyncCommandBuffer.h"
+#include "ShaderCompiler.h"
 
 //#define WINDOWS_10_SCALING
 
@@ -679,6 +680,7 @@ namespace GraphicsUI
 			spSetCodeGenTarget(spireCtx, rendererApi->GetSpireTarget());
 			String spireShaderSrc(uberSpireShader);
 			auto result = spCompileShaderFromSource(spireCtx, uberSpireShader, "ui_uber_shader", diagSink);
+			
 			if (!spDiagnosticSinkHasAnyErrors(diagSink))
 			{
 				int len = 0;
@@ -695,6 +697,10 @@ namespace GraphicsUI
 				spGetDiagnosticOutput(diagSink, buffer.Buffer(), size);
 				CoreLib::Diagnostics::Debug::WriteLine(String(buffer.Buffer()));
 			}
+			
+			ShaderCompilationResult compileResult;
+			GetShaderCompilationResult(compileResult, result, diagSink);
+
 			spDestroyDiagnosticSink(diagSink);
 			spDestroyCompilationResult(result);
 			spDestroyCompilationContext(spireCtx);
@@ -713,9 +719,10 @@ namespace GraphicsUI
 			vformat.Attributes.Add(VertexAttributeDesc(DataType::Float2, 0, 8, 1));
 			vformat.Attributes.Add(VertexAttributeDesc(DataType::Int, 0, 16, 2));
 			pipeBuilder->SetVertexLayout(vformat);
-			RefPtr<DescriptorSetLayout> descLayout = rendererApi->CreateDescriptorSetLayout(MakeArray(DescriptorLayout(0, BindingType::UniformBuffer, 0),
-				DescriptorLayout(1, BindingType::StorageBuffer, 0),
-				DescriptorLayout(2, BindingType::StorageBuffer, 1)).GetArrayView());
+			auto binding = compileResult.BindingLayouts.First().Value;
+			RefPtr<DescriptorSetLayout> descLayout = rendererApi->CreateDescriptorSetLayout(MakeArray(DescriptorLayout(0, BindingType::UniformBuffer, binding.Descriptors[0].LegacyBindingPoints.First()),
+				DescriptorLayout(1, BindingType::StorageBuffer, binding.Descriptors[1].LegacyBindingPoints.First()),
+				DescriptorLayout(2, BindingType::StorageBuffer, binding.Descriptors[2].LegacyBindingPoints.First())).GetArrayView());
 			pipeBuilder->SetBindingLayout(MakeArrayView(descLayout.Ptr()));
 			pipeBuilder->FixedFunctionStates.PrimitiveRestartEnabled = true;
 			pipeBuilder->FixedFunctionStates.PrimitiveTopology = PrimitiveType::TriangleFans;
