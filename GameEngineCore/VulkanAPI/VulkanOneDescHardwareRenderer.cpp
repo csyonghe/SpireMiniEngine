@@ -3285,6 +3285,7 @@ namespace VKO
 		inline void BeginRecording(GameEngine::RenderTargetLayout* renderTargetLayout, vk::Framebuffer framebuffer)
 		{
 			inRenderPass = true;
+			boundPipeline = nullptr;
 			for (int i = 0; i < boundDescSets.Count(); i++)
 				boundDescSets[i] = nullptr;
 			vk::CommandBufferInheritanceInfo inheritanceInfo = vk::CommandBufferInheritanceInfo()
@@ -3349,22 +3350,26 @@ namespace VKO
 				throw HardwareRendererException("RenderTargetLayout and FrameBuffer must be specified at BeginRecording for BindPipeline");
 #endif
 			auto newPipeline = reinterpret_cast<VKO::Pipeline*>(pipeline);
-			boundPipeline = newPipeline;
-			for (int i = 0; i < boundPipeline->descriptors.Count(); i++)
+			if (boundPipeline != newPipeline)
 			{
-				auto set = boundDescSets[i];
-				if (set && set->writeDescriptorSets.Count() == boundPipeline->descriptors[i].Count())
+				boundPipeline = newPipeline;
+
+				for (int i = 0; i < boundPipeline->descriptors.Count(); i++)
 				{
-					int j = 0;
-					auto & writeDescSet = set->writeDescriptorSets;
-					for (auto &wd : writeDescSet)
+					auto set = boundDescSets[i];
+					if (set && set->writeDescriptorSets.Count() == boundPipeline->descriptors[i].Count())
 					{
-						wd.dstBinding = boundPipeline->descriptors[i][j].LegacyBindingPoints[0];
-						j++;
+						int j = 0;
+						auto & writeDescSet = set->writeDescriptorSets;
+						for (auto &wd : writeDescSet)
+						{
+							wd.dstBinding = boundPipeline->descriptors[i][j].LegacyBindingPoints[0];
+							j++;
+						}
 					}
 				}
+				buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, newPipeline->pipeline);
 			}
-			buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, newPipeline->pipeline);
 		}
 
 		CoreLib::List<vk::WriteDescriptorSet> writes;
@@ -3374,14 +3379,16 @@ namespace VKO
 			for (int i = 0; i < boundPipeline->descriptors.Count(); i++)
 			{
 				auto set = boundDescSets[i];
-				if (set)
+				if (set && set->writeDescriptorSets.Count() == boundPipeline->descriptors[i].Count())
 				{
 					int j = 0;
 					auto & writeDescSet = set->writeDescriptorSets;
 					for (auto &wd : writeDescSet)
 					{
 						wd.dstSet = descSet;
-						wd.dstBinding = boundPipeline->descriptors[i][j].LegacyBindingPoints[0];
+						//if (wd.dstBinding != boundPipeline->descriptors[i][j].LegacyBindingPoints[0])
+						//	printf("break");
+						//wd.dstBinding = boundPipeline->descriptors[i][j].LegacyBindingPoints[0];
 						j++;
 					}
 					if (j)
