@@ -800,7 +800,6 @@ namespace VKO
 		static void AdvanceFrame()
 		{
 			State().frameCounter++;
-			State().device.waitIdle();
 			State().device.resetDescriptorPool(
 				(*State().transientDescriptorPools)[State().frameCounter%BufferingFactor]->pool,
 				vk::DescriptorPoolResetFlags());
