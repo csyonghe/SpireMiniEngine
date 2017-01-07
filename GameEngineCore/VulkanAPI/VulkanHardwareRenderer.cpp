@@ -188,6 +188,7 @@ namespace VK
 
 		int renderQueueIndex;
 		int transferQueueIndex;
+		vk::Queue presentQueue;
 		vk::Queue renderQueue;
 		vk::Queue transferQueue;
 
@@ -391,7 +392,8 @@ namespace VK
 			// Load device level function pointers
 			vkelDeviceInit((VkPhysicalDevice)(State().physicalDevice), (VkDevice)(State().device));
 
-			State().renderQueue = State().device.getQueue(renderQueueFamilyIndex, 0);
+			State().presentQueue = State().device.getQueue(renderQueueFamilyIndex, 0);
+			State().renderQueue = State().device.getQueue(renderQueueFamilyIndex, 1);
 			State().transferQueue = State().device.getQueue(transferQueueFamilyIndex, renderQueuePriorities.Count() - 1);//TODO: Change the index if changing family
 		}
 
@@ -569,6 +571,11 @@ namespace VK
 		static const vk::Queue& RenderQueue()
 		{
 			return State().renderQueue;
+		}
+
+		static const vk::Queue& PresentQueue()
+		{
+			return State().presentQueue;
 		}
 
 		static const vk::PipelineCache& PipelineCache()
@@ -4336,7 +4343,7 @@ namespace VK
 				.setPImageIndices(&nextImage)
 				.setPResults(nullptr);
 
-			RendererState::RenderQueue().presentKHR(presentInfo);
+			RendererState::PresentQueue().presentKHR(presentInfo);
 		}
 
 		virtual BufferObject* CreateBuffer(BufferUsage usage, int size) override
