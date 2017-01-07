@@ -3313,7 +3313,9 @@ namespace VK
 				pendingOffsets.Add(binding);
 			}
 			else
+			{
 				buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, curPipeline->pipelineLayout, binding, internalDescriptorSet->descriptorSet, nullptr);
+			}
 			
 		}
 		virtual void BindPipeline(GameEngine::Pipeline* pipeline) override
@@ -3335,8 +3337,11 @@ namespace VK
 				pendingOffsets.Clear();
 				pendingDescSets.Clear();
 			}
-			curPipeline = newPipeline;
-			buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, reinterpret_cast<VK::Pipeline*>(pipeline)->pipeline);
+			if (curPipeline != newPipeline)
+			{
+				curPipeline = newPipeline;
+				buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, reinterpret_cast<VK::Pipeline*>(pipeline)->pipeline);
+			}
 		}
 
 		virtual void Draw(int firstVertex, int vertexCount) override
