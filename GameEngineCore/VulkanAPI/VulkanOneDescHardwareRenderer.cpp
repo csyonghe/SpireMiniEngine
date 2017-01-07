@@ -2810,19 +2810,11 @@ namespace VKO
 		// previously bound descriptors and then create new imageInfo/bufferInfo
 		// and swap them with the old one, as well as only updating the descriptors
 		// that had changed. Should this do that too?
-		CoreLib::RefPtr<DescriptorSetLayout> descriptorSetLayout;
 		CoreLib::Array<vk::DescriptorImageInfo, 32> imageInfo;
 		CoreLib::Array<vk::DescriptorBufferInfo, 32> bufferInfo;
 		CoreLib::List<vk::WriteDescriptorSet> writeDescriptorSets;
 	public:
 		DescriptorSet() {}
-		DescriptorSet(DescriptorSetLayout* layout)
-		{
-			// We need to keep a ref pointer to the layout because we need to have
-			// the layout available when we call vkUpdateDescriptorSets (2.3.1)
-			descriptorSetLayout = layout;
-		}
-		~DescriptorSet() {}
 
 		virtual void BeginUpdate() override
 		{
@@ -3312,8 +3304,12 @@ namespace VKO
 		{
 			buffer = RendererState::CreateCommandBuffer(pool, vk::CommandBufferLevel::eSecondary);
 			boundDescSets.SetSize(boundDescSets.GetCapacity());
+			
 		}
-		CommandBuffer() : CommandBuffer(RendererState::RenderCommandPool()) {}
+		CommandBuffer() : CommandBuffer(RendererState::RenderCommandPool())
+		{
+			boundDescSets.SetSize(boundDescSets.GetCapacity());
+		}
 
 		~CommandBuffer()
 		{
@@ -3323,6 +3319,10 @@ namespace VKO
 		inline void BeginRecording()
 		{
 			inRenderPass = false;
+
+			boundPipeline = nullptr;
+			for (int i = 0; i < boundDescSets.Count(); i++)
+				boundDescSets[i] = nullptr;
 
 			vk::CommandBufferInheritanceInfo inheritanceInfo = vk::CommandBufferInheritanceInfo()
 				.setRenderPass(vk::RenderPass())
@@ -3342,7 +3342,8 @@ namespace VKO
 		inline void BeginRecording(GameEngine::RenderTargetLayout* renderTargetLayout, vk::Framebuffer framebuffer)
 		{
 			inRenderPass = true;
-
+			for (int i = 0; i < boundDescSets.Count(); i++)
+				boundDescSets[i] = nullptr;
 			vk::CommandBufferInheritanceInfo inheritanceInfo = vk::CommandBufferInheritanceInfo()
 				.setRenderPass(reinterpret_cast<VKO::RenderTargetLayout*>(renderTargetLayout)->renderPass)
 				.setSubpass(0)//
@@ -3406,14 +3407,6 @@ namespace VKO
 #endif
 			auto newPipeline = reinterpret_cast<VKO::Pipeline*>(pipeline);
 			boundPipeline = newPipeline;
-			/*
-			buffer.bindDescriptorSets(
-				vk::PipelineBindPoint::eGraphics,
-				newPipeline->pipelineLayout,
-				0,
-				pendingDescSet->descriptorSet,
-				nullptr);
-			*/
 			buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, newPipeline->pipeline);
 		}
 
@@ -3424,11 +3417,14 @@ namespace VKO
 			for (int i = 0; i < boundPipeline->descriptors.Count(); i++)
 			{
 				auto set = boundDescSets[i];
-				for (auto wd : set->writeDescriptorSets)
+				if (set)
 				{
-					wd.dstSet = descSet;
-					wd.dstBinding = boundPipeline->descriptors[i][wd.dstBinding].LegacyBindingPoints[0];
-					writes.Add(wd);
+					for (auto wd : set->writeDescriptorSets)
+					{
+						wd.dstSet = descSet;
+						wd.dstBinding = boundPipeline->descriptors[i][wd.dstBinding].LegacyBindingPoints[0];
+						writes.Add(wd);
+					}
 				}
 			}
 			if (writes.Count() > 0)
@@ -4522,9 +4518,9 @@ namespace VKO
 			return new DescriptorSetLayout(descriptors);
 		}
 
-		virtual DescriptorSet * CreateDescriptorSet(GameEngine::DescriptorSetLayout* layout) override
+		virtual DescriptorSet * CreateDescriptorSet(GameEngine::DescriptorSetLayout* /*layout*/) override
 		{
-			return new DescriptorSet(reinterpret_cast<VKO::DescriptorSetLayout*>(layout));
+			return new DescriptorSet();
 		}
 
 		virtual int GetDescriptorPoolCount() override
