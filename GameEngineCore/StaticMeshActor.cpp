@@ -37,12 +37,13 @@ namespace GameEngine
 			{
 				MeshName = parser.ReadStringLiteral();
 				Mesh = level->LoadMesh(MeshName);
-				Bounds = Mesh->Bounds;
 			}
 			if (!Mesh)
 			{
 				isInvalid = true;
 			}
+			else
+				Bounds = Mesh->Bounds;
 			return true;
 		}
 		if (parser.LookAhead("material"))

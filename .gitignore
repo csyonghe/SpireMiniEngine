@@ -262,3 +262,4 @@ paket-files/
 [Cc]ache/[Ss]haders/
 /ExampleGame/Cache/Shaders/temp.vert
 /ExampleGame/Cache/Shaders/temp.frag
+/Factory

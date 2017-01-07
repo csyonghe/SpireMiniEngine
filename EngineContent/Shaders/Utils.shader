@@ -37,7 +37,7 @@ module TangentSpaceTransform
     require vec3 worldTransformTangent(vec3 pos);
     public vec3 vTangent = worldTransformTangent(coarseVertTangent);
     public vec3 vBiTangent = worldTransformTangent(coarseVertBinormal);
-    public vec3 vNormal = cross(coarseVertBinormal, coarseVertTangent);
+    public vec3 vNormal = cross(vBiTangent, vTangent);
     
     public vec3 WorldSpaceToTangentSpace(vec3 v)
     {
