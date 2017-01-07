@@ -13,6 +13,7 @@
 #include "PipelineContext.h"
 #include "AsyncCommandBuffer.h"
 #include "EngineLimits.h"
+#include "CoreLib/PerformanceCounter.h"
 
 namespace GameEngine
 {
@@ -30,11 +31,13 @@ namespace GameEngine
 	class RenderStat
 	{
 	public:
+		float TotalTime;
 		int Divisor = 0;
 		int NumDrawCalls = 0;
 		int NumPasses = 0;
 		float CpuTime = 0.0f;
 		float PipelineLookupTime = 0.0f;
+		CoreLib::Diagnostics::TimePoint StartTime;
 		void Clear()
 		{
 			Divisor = 0;

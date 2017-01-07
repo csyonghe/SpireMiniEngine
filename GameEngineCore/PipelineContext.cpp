@@ -65,8 +65,9 @@ namespace GameEngine
 		char* key = shaderKeyBuilder.Buffer();
 		if (auto pipeline = pipelineObjects.TryGetValue(key))
 		{
+			auto rs = pipeline->Ptr();
 			renderStats->PipelineLookupTime += CoreLib::Diagnostics::PerformanceCounter::EndSeconds(timePoint);
-			return pipeline->Ptr();
+			return rs;
 		}
 
 		RefPtr<PipelineBuilder> pipelineBuilder = hwRenderer->CreatePipelineBuilder();

@@ -194,13 +194,18 @@ namespace GameEngine
 			}
 		}
 		lastGameLogicTime = thisGameLogicTime;
-
+		auto &stats = renderer->GetStats();
 		auto thisRenderingTime = PerformanceCounter::Start();
 		renderingTimeDelta = PerformanceCounter::EndSeconds(lastRenderingTime);
 		lastRenderingTime = thisRenderingTime;
 
+		if (stats.Divisor == 0)
+			stats.StartTime = thisRenderingTime;
+
 		inDataTransfer = true;
 		syncFences[frameCount % DynamicBufferLengthMultiplier]->Wait();
+
+		auto cpuTimePoint = CoreLib::Diagnostics::PerformanceCounter::Start();
 		renderer->GetHardwareRenderer()->BeginDataTransfer();
 		renderer->TakeSnapshot();
 		auto uiCommands = uiEntry->DrawUI();
@@ -211,20 +216,21 @@ namespace GameEngine
 		renderer->RenderFrame();
 		uiSystemInterface->ExecuteDrawCommands(syncFences[frameCount % DynamicBufferLengthMultiplier].Ptr());
 		renderer->GetHardwareRenderer()->Present(uiSystemInterface->GetRenderedImage());
-
+		stats.CpuTime += CoreLib::Diagnostics::PerformanceCounter::EndSeconds(cpuTimePoint);
 		frameCount++;
 		aggregateTime += renderingTimeDelta;
 
-		if (aggregateTime > 1.0f)
+		
+		if (stats.Divisor >= 100)
 		{
-			auto &stats = renderer->GetStats();
-			if (stats.Divisor > 500)
+			if (aggregateTime > 1.0f)
 			{
 				drawCallStatForm->SetFrameRenderTime(aggregateTime / frameCount);
 				drawCallStatForm->SetNumDrawCalls(stats.NumDrawCalls / stats.Divisor);
 				drawCallStatForm->SetNumWorldPasses(stats.NumPasses / stats.Divisor);
 				drawCallStatForm->SetCpuTime(stats.CpuTime / stats.Divisor, stats.PipelineLookupTime / stats.Divisor);
 				static int ptr = 0;
+				stats.TotalTime = CoreLib::Diagnostics::PerformanceCounter::EndSeconds(stats.StartTime);
 				renderStats[ptr%renderStats.Count()] = stats;
 				ptr++;
 				stats.Clear();

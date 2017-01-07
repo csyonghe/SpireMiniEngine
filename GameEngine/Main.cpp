@@ -78,9 +78,13 @@ namespace GameEngine
 					{
 						auto renderStats = Engine::Instance()->GetRenderStats();
 						StringBuilder sb;
-						for (auto & rs : renderStats)
+						for (auto rs : renderStats)
 						{
-							sb << rs.Divisor << "\t" << rs.CpuTime * 1000.0f << "\t" << rs.PipelineLookupTime << "\t" << rs.NumDrawCalls << "\n";
+							if (rs.Divisor != 0)
+							{
+								sb << String(rs.CpuTime * 1000.0f / rs.Divisor, "%.1f") << "\t" << String(rs.PipelineLookupTime * 1000.0f / rs.Divisor, "%.1f")
+									<< "\t" << String(rs.TotalTime * 1000.0f / rs.Divisor, "%.1f") << "\t" << rs.NumDrawCalls / rs.Divisor << "\n";
+							}
 						}
 						CoreLib::IO::File::WriteAllText(params.RenderStatsDumpFileName, sb.ProduceString());
 					}
@@ -165,7 +169,7 @@ int wWinMain(
 		if (parser.OptionExists("-dumpstat"))
 		{
 			appParams.DumpRenderStats = true;
-			appParams.RenderStatsDumpFileName = parser.GetOptionValue("-dumpstat");
+			appParams.RenderStatsDumpFileName = RemoveQuote(parser.GetOptionValue("-dumpstat"));
 		}
 		auto form = new MainForm(appParams);
 		Application::SetMainLoopEventHandler(new CoreLib::WinForm::NotifyEvent(form, &MainForm::MainLoop));

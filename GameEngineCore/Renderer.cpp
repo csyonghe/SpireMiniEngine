@@ -193,9 +193,7 @@ namespace GameEngine
 				return;
 			static int frameId = 0;
 			frameId++;
-			auto timePoint = CoreLib::Diagnostics::PerformanceCounter::Start();
 			RunRenderProcedure();
-			sharedRes.renderStats.CpuTime += CoreLib::Diagnostics::PerformanceCounter::EndSeconds(timePoint);
 			sharedRes.renderStats.Divisor++;
 		}
 		virtual RenderStat & GetStats() override
@@ -215,8 +213,6 @@ namespace GameEngine
 		virtual void RenderFrame() override
 		{
 			if (!level) return;
-			auto timePoint = CoreLib::Diagnostics::PerformanceCounter::Start();
-
 			
 			for (auto & pass : frameTask.renderPasses)
 			{
@@ -227,8 +223,6 @@ namespace GameEngine
 
 			for (auto pass : frameTask.postPasses)
 				pass->Execute(frameTask.sharedModuleInstances);
-			
-			sharedRes.renderStats.CpuTime += CoreLib::Diagnostics::PerformanceCounter::EndSeconds(timePoint);
 		}
 		virtual RendererSharedResource * GetSharedResource() override
 		{
