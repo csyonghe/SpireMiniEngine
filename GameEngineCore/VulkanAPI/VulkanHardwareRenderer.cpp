@@ -616,39 +616,26 @@ namespace VK
 		static std::pair<vk::DescriptorPool, vk::DescriptorSet> AllocateDescriptorSet(vk::DescriptorSetLayout layout)
 		{
 			//TODO: add counter mechanism to DescriptorPoolObject so we know when to destruct
-			int numTries = 2;
-			while (true)
+			std::pair<vk::DescriptorPool, vk::DescriptorSet> res;
+			res.first = State().DescriptorPool();
+
+			// Create Descriptor Set
+			vk::DescriptorSetAllocateInfo descriptorSetAllocateInfo = vk::DescriptorSetAllocateInfo()
+				.setDescriptorPool(res.first)
+				.setDescriptorSetCount(1)
+				.setPSetLayouts(&layout);
+
+			auto err = RendererState::Device().allocateDescriptorSets(&descriptorSetAllocateInfo, &res.second);
+			if (err != vk::Result::eSuccess)
 			{
-				try
+				if (err == vk::Result::eErrorOutOfDeviceMemory)
 				{
-					std::pair<vk::DescriptorPool, vk::DescriptorSet> res;
-					res.first = State().DescriptorPool();
-
-					// Create Descriptor Set
-					vk::DescriptorSetAllocateInfo descriptorSetAllocateInfo = vk::DescriptorSetAllocateInfo()
-						.setDescriptorPool(res.first)
-						.setDescriptorSetCount(1)
-						.setPSetLayouts(&layout);
-
-					std::vector<vk::DescriptorSet> descriptorSets = RendererState::Device().allocateDescriptorSets(descriptorSetAllocateInfo);
-					res.second = descriptorSets[0];
-
-					return res;
+					RendererState::State().descriptorPoolChain->Add(new DescriptorPoolObject());
+					return AllocateDescriptorSet(layout);
 				}
-				catch (std::system_error& e)
-				{
-					vk::Result err = static_cast<vk::Result>(e.code().value());
-					if (err == vk::Result::eErrorOutOfDeviceMemory)
-					{
-						RendererState::State().descriptorPoolChain->Add(new DescriptorPoolObject());
-						return AllocateDescriptorSet(layout);
-					}
-					else
-						throw e;
-
-					if (--numTries <= 0) throw e;
-				}
+				else throw HardwareRendererException("Couldn't allocate descriptor set.");
 			}
+			else return res;
 		}
 
 		// Bookkeeping for multiple instances of HardwareRenderer
@@ -3159,7 +3146,7 @@ namespace VK
 			.setBlendConstants({ 0.0f, 0.0f, 0.0f, 0.0f });
 
 		// Create Dynamic Description
-		CoreLib::List<vk::DynamicState> dynamicStates;
+		CoreLib::Array<vk::DynamicState,2> dynamicStates;
 		dynamicStates.Add(vk::DynamicState::eViewport);
 		dynamicStates.Add(vk::DynamicState::eScissor);
 		vk::PipelineDynamicStateCreateInfo dynamicStateCreateInfo = vk::PipelineDynamicStateCreateInfo()
