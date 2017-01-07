@@ -194,7 +194,6 @@ namespace VKO
 
 		vk::PipelineCache pipelineCache;
 
-		CoreLib::RefPtr<CoreLib::List<DescriptorPoolObject*>> descriptorPoolChain;
 		CoreLib::RefPtr<CoreLib::Array<DescriptorPoolObject*, BufferingFactor>> transientDescriptorPools;
 
 		int frameCounter;
@@ -434,7 +433,6 @@ namespace VKO
 
 		static void CreateDescriptorPoolChain()
 		{
-			State().descriptorPoolChain = new CoreLib::List<DescriptorPoolObject*>();
 			State().transientDescriptorPools = new CoreLib::Array<DescriptorPoolObject*, BufferingFactor>();
 		}
 
@@ -491,13 +489,9 @@ namespace VKO
 
 		static void DestroyDescriptorPoolChain()
 		{
-			for (auto& descriptorPool : *State().descriptorPoolChain)
-				delete descriptorPool;
-
 			for (auto& descriptorPool : *State().transientDescriptorPools)
 				delete descriptorPool;
 
-			State().descriptorPoolChain = nullptr;
 			State().transientDescriptorPools = nullptr;
 		}
 
@@ -615,14 +609,6 @@ namespace VKO
 			return std::make_pair(commandBuffer, fence);
 		}
 
-		static const vk::DescriptorPool& DescriptorPool()
-		{
-			if (State().descriptorPoolChain->Count() == 0)
-				State().descriptorPoolChain->Add(new DescriptorPoolObject());
-
-			return State().descriptorPoolChain->Last()->pool;
-		}
-
 		static const vk::DescriptorPool& TransientPool()
 		{
 			if (State().transientDescriptorPools->Count() == 0)
@@ -632,43 +618,6 @@ namespace VKO
 			}
 
 			return (*State().transientDescriptorPools)[State().frameCounter%BufferingFactor]->pool;
-		}
-
-		static std::pair<vk::DescriptorPool, vk::DescriptorSet> AllocateDescriptorSet(vk::DescriptorSetLayout layout)
-		{
-			//TODO: add counter mechanism to DescriptorPoolObject so we know when to destruct
-			int numTries = 2;
-			while (true)
-			{
-				try
-				{
-					std::pair<vk::DescriptorPool, vk::DescriptorSet> res;
-					res.first = State().DescriptorPool();
-
-					// Create Descriptor Set
-					vk::DescriptorSetAllocateInfo descriptorSetAllocateInfo = vk::DescriptorSetAllocateInfo()
-						.setDescriptorPool(res.first)
-						.setDescriptorSetCount(1)
-						.setPSetLayouts(&layout);
-
-					vkAllocateDescriptorSets(RendererState::Device(), (VkDescriptorSetAllocateInfo*)&descriptorSetAllocateInfo, (VkDescriptorSet*)&res.second);
-
-					return res;
-				}
-				catch (std::system_error& e)
-				{
-					vk::Result err = static_cast<vk::Result>(e.code().value());
-					if (err == vk::Result::eErrorOutOfDeviceMemory)
-					{
-						RendererState::State().descriptorPoolChain->Add(new DescriptorPoolObject());
-						return AllocateDescriptorSet(layout);
-					}
-					else
-						throw e;
-
-					if (--numTries <= 0) throw e;
-				}
-			}
 		}
 
 		static vk::DescriptorSet AllocateTransientDescriptorSet(vk::DescriptorSetLayout layout)
@@ -684,9 +633,10 @@ namespace VKO
 						.setDescriptorPool(TransientPool())
 						.setDescriptorSetCount(1)
 						.setPSetLayouts(&layout);
-					vk::DescriptorSet descSet;
-					vkAllocateDescriptorSets(RendererState::Device(), (VkDescriptorSetAllocateInfo*)&descriptorSetAllocateInfo, (VkDescriptorSet*)&descSet);
-					return descSet;
+
+					vk::DescriptorSet res;
+					RendererState::Device().allocateDescriptorSets(&descriptorSetAllocateInfo, &res);
+					return res;
 				}
 				catch (std::system_error& e)
 				{
