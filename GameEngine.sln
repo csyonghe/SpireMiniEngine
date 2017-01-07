@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+VisualStudioVersion = 14.0.25123.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CoreLib", "CoreLib\CoreLib.vcxproj", "{CC291035-BF4A-4C63-B374-F85DB4A9C712}"
 EndProject
@@ -118,44 +118,5 @@ Global
 		{517500DD-C6C3-463A-96A9-3007F13CF5BF} = {2B999327-7CF3-4231-8141-B1ADC656C244}
 		{57C94DA3-A806-4B27-A3BF-B3C65BABE1CB} = {2B999327-7CF3-4231-8141-B1ADC656C244}
 		{10854CB2-BE7A-479A-8DCD-08F00649CE73} = {2B999327-7CF3-4231-8141-B1ADC656C244}
-	EndGlobalSection
-	GlobalSection(TeamFoundationVersionControl) = preSolution
-		SccNumberOfProjects = 10
-		SccEnterpriseProvider = {4CA58AB2-18FA-4F8D-95D4-32DDF27D184C}
-		SccTeamFoundationServer = https://yongsprojects.visualstudio.com/
-		SccLocalPath0 = .
-		SccProjectUniqueName1 = CoreLib\\CoreLib.vcxproj
-		SccProjectName1 = CoreLib
-		SccLocalPath1 = CoreLib
-		SccProjectUniqueName2 = GameEngineCore\\GameEngineCore.vcxproj
-		SccProjectName2 = GameEngineCore
-		SccLocalPath2 = GameEngineCore
-		SccProjectUniqueName3 = Tools\\ModelImporter\\ModelImporter.vcxproj
-		SccProjectTopLevelParentUniqueName3 = GameEngine.sln
-		SccProjectName3 = Tools/ModelImporter
-		SccLocalPath3 = Tools\\ModelImporter
-		SccProjectUniqueName4 = GameEngine\\GameEngine.vcxproj
-		SccProjectName4 = GameEngine
-		SccLocalPath4 = GameEngine
-		SccProjectUniqueName5 = Tools\\TextureConverter\\TextureConverter.vcxproj
-		SccProjectTopLevelParentUniqueName5 = GameEngine.sln
-		SccProjectName5 = Tools/TextureConverter
-		SccLocalPath5 = Tools\\TextureConverter
-		SccProjectUniqueName6 = Tools\\MocapConverter\\MocapConverter.vcxproj
-		SccProjectTopLevelParentUniqueName6 = GameEngine.sln
-		SccProjectName6 = Tools/MocapConverter
-		SccLocalPath6 = Tools\\MocapConverter
-		SccProjectUniqueName7 = Tools\\UnrealLevelConverter\\UnrealLevelConverter.vcxproj
-		SccProjectTopLevelParentUniqueName7 = GameEngine.sln
-		SccProjectName7 = Tools/UnrealLevelConverter
-		SccLocalPath7 = Tools\\UnrealLevelConverter
-		SccProjectUniqueName8 = Tools\\MotionGraphBuilder\\MotionGraphBuilder.vcxproj
-		SccProjectTopLevelParentUniqueName8 = GameEngine.sln
-		SccProjectName8 = Tools/MotionGraphBuilder
-		SccLocalPath8 = Tools\\MotionGraphBuilder
-		SccProjectUniqueName9 = Tools\\PathMeshGenerator\\PathMeshGenerator.vcxproj
-		SccProjectTopLevelParentUniqueName9 = GameEngine.sln
-		SccProjectName9 = Tools/PathMeshGenerator
-		SccLocalPath9 = Tools\\PathMeshGenerator
 	EndGlobalSection
 EndGlobal

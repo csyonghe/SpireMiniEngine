@@ -14,7 +14,7 @@
 // Only execute actions of DEBUG_ONLY in DEBUG mode
 #if _DEBUG
 #define DEBUG_ONLY(x) do { x; } while(0)
-#define USE_VALIDATION_LAYER 1
+//#define USE_VALIDATION_LAYER 1
 #else
 #define DEBUG_ONLY(x) do {    } while(0)
 #endif
@@ -473,7 +473,6 @@ namespace VKO
 
 		static void DestroyInstance()
 		{
-			DEBUG_ONLY(State().instance.destroyDebugReportCallbackEXT(State().callback));
 			State().instance.destroy();
 		}
 
@@ -801,6 +800,7 @@ namespace VKO
 		static void AdvanceFrame()
 		{
 			State().frameCounter++;
+			State().device.waitIdle();
 			State().device.resetDescriptorPool(
 				(*State().transientDescriptorPools)[State().frameCounter%BufferingFactor]->pool,
 				vk::DescriptorPoolResetFlags());
@@ -3435,6 +3435,7 @@ namespace VKO
 				RendererState::Device().updateDescriptorSets(
 					vk::ArrayProxy<const vk::WriteDescriptorSet>(writes.Count(), writes.Buffer()),
 					nullptr);
+			buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, boundPipeline->pipelineLayout, 0u, descSet, nullptr);
 		}
 
 		virtual void Draw(int firstVertex, int vertexCount) override
@@ -3742,6 +3743,8 @@ namespace VKO
 
 		CoreLib::List<vk::Image> images; //alternatively could call getSwapchainImages each time
 		CoreLib::List<vk::CommandBuffer> commandBuffers;
+		int nextPresentCommandBufferPtr = 0;
+
 		vk::Semaphore imageAvailableSemaphore;
 		vk::Semaphore renderingFinishedSemaphore;
 
@@ -3837,7 +3840,7 @@ namespace VKO
 			vk::CommandBufferAllocateInfo commandBufferAllocateInfo = vk::CommandBufferAllocateInfo()
 				.setCommandPool(RendererState::SwapchainCommandPool())
 				.setLevel(vk::CommandBufferLevel::ePrimary)
-				.setCommandBufferCount((uint32_t)images.Count());
+				.setCommandBufferCount((uint32_t)images.Count() * 2);
 
 			commandBuffers.SetSize(commandBufferAllocateInfo.commandBufferCount);
 			RendererState::Device().allocateCommandBuffers(&commandBufferAllocateInfo, commandBuffers.Buffer());
@@ -4275,9 +4278,11 @@ namespace VKO
 		{
 			if (images.Count() == 0) return;
 			uint32_t nextImage = RendererState::Device().acquireNextImageKHR(swapchain, UINT64_MAX, imageAvailableSemaphore, vk::Fence()).value;
-
+			static int frameId = 0;
+			frameId++;
 			//TODO: see if following line is beneficial
-			commandBuffers[nextImage].reset(vk::CommandBufferResetFlags()); // implicitly done by begin
+			int nextCmd = nextImage * 2 + (frameId & 1);
+			commandBuffers[nextCmd].reset(vk::CommandBufferResetFlags()); // implicitly done by begin
 
 			vk::CommandBufferBeginInfo commandBufferBeginInfo = vk::CommandBufferBeginInfo()
 				.setFlags(vk::CommandBufferUsageFlagBits::eSimultaneousUse)
@@ -4310,8 +4315,8 @@ namespace VKO
 				.setImage(images[nextImage])
 				.setSubresourceRange(imageSubresourceRange);
 
-			commandBuffers[nextImage].begin(commandBufferBeginInfo); // start recording
-			commandBuffers[nextImage].pipelineBarrier(
+			commandBuffers[nextCmd].begin(commandBufferBeginInfo); // start recording
+			commandBuffers[nextCmd].pipelineBarrier(
 				vk::PipelineStageFlagBits::eTransfer,
 				vk::PipelineStageFlagBits::eTransfer,
 				vk::DependencyFlags(),
@@ -4323,7 +4328,7 @@ namespace VKO
 			if (srcImage == nullptr)
 			{
 				// If no source image, clear to debug purple
-				commandBuffers[nextImage].clearColorImage(
+				commandBuffers[nextCmd].clearColorImage(
 					images[nextImage],
 					vk::ImageLayout::eTransferDstOptimal,
 					vk::ClearColorValue(std::array<float, 4>{ 1.0f, 0.0f, 1.0f, 0.0f }),
@@ -4352,7 +4357,7 @@ namespace VKO
 					.setImage(dynamic_cast<Texture2D*>(srcImage)->image)
 					.setSubresourceRange(imageSubresourceRange);
 
-				commandBuffers[nextImage].pipelineBarrier(
+				commandBuffers[nextCmd].pipelineBarrier(
 					vk::PipelineStageFlagBits::eTransfer,
 					vk::PipelineStageFlagBits::eTransfer,
 					vk::DependencyFlags(),
@@ -4383,7 +4388,7 @@ namespace VKO
 					.setDstSubresource(subresourceLayers)
 					.setDstOffsets(dstOffsets);
 
-				commandBuffers[nextImage].blitImage(
+				commandBuffers[nextCmd].blitImage(
 					dynamic_cast<VKO::Texture2D*>(srcImage)->image,
 					vk::ImageLayout::eTransferSrcOptimal,
 					images[nextImage],
@@ -4392,7 +4397,7 @@ namespace VKO
 					vk::Filter::eNearest
 				);
 
-				commandBuffers[nextImage].pipelineBarrier(
+				commandBuffers[nextCmd].pipelineBarrier(
 					vk::PipelineStageFlagBits::eTransfer,
 					vk::PipelineStageFlagBits::eTransfer,
 					vk::DependencyFlags(),
@@ -4402,7 +4407,7 @@ namespace VKO
 				);
 			}
 
-			commandBuffers[nextImage].pipelineBarrier(
+			commandBuffers[nextCmd].pipelineBarrier(
 				vk::PipelineStageFlagBits::eTransfer,
 				vk::PipelineStageFlagBits::eBottomOfPipe,
 				vk::DependencyFlags(),
@@ -4410,7 +4415,7 @@ namespace VKO
 				nullptr,
 				prePresentBarrier
 			);
-			commandBuffers[nextImage].end(); // stop recording
+			commandBuffers[nextCmd].end(); // stop recording
 
 			vk::PipelineStageFlags waitDstStageMask = vk::PipelineStageFlags(vk::PipelineStageFlagBits::eColorAttachmentOutput);
 
@@ -4419,7 +4424,7 @@ namespace VKO
 				.setPWaitSemaphores(&imageAvailableSemaphore)
 				.setPWaitDstStageMask(&waitDstStageMask)
 				.setCommandBufferCount(1)
-				.setPCommandBuffers(&commandBuffers[nextImage])
+				.setPCommandBuffers(&commandBuffers[nextCmd])
 				.setSignalSemaphoreCount(1)
 				.setPSignalSemaphores(&renderingFinishedSemaphore);
 

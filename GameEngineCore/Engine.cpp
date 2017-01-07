@@ -111,6 +111,9 @@ namespace GameEngine
 			case RenderAPI::OpenGL:
 				Print("using OpenGL renderer.\n");
 				break;
+			case RenderAPI::VulkanSingle:
+				Print("using VulkanOne renderer, on GPU %d\n", Engine::Instance()->GpuId);
+				break;
 			}
 
 			auto configFile = Path::Combine(gameDir, "game.config");
