@@ -161,7 +161,7 @@ namespace VKO
 	{
 	public:
 		vk::DescriptorPool pool;
-		DescriptorPoolObject();
+		DescriptorPoolObject(bool transient=false);
 		~DescriptorPoolObject();
 	};
 
@@ -194,6 +194,9 @@ namespace VKO
 		vk::PipelineCache pipelineCache;
 
 		CoreLib::RefPtr<CoreLib::List<DescriptorPoolObject*>> descriptorPoolChain;
+		CoreLib::RefPtr<CoreLib::Array<DescriptorPoolObject*, 3>> transientDescriptorPools;
+
+		int frameCounter;
 
 		RendererState() {}
 
@@ -431,6 +434,7 @@ namespace VKO
 		static void CreateDescriptorPoolChain()
 		{
 			State().descriptorPoolChain = new CoreLib::List<DescriptorPoolObject*>();
+			State().transientDescriptorPools = new CoreLib::Array<DescriptorPoolObject*, 3>();
 		}
 
 		// This function encapsulates all device-specific initialization
@@ -457,6 +461,8 @@ namespace VKO
 			CreateInstance();
 			SelectPhysicalDevice();
 			InitDevice();
+
+			State().frameCounter = 0;
 		}
 
 		static void DestroyDevice()
@@ -488,7 +494,11 @@ namespace VKO
 			for (auto& descriptorPool : *State().descriptorPoolChain)
 				delete descriptorPool;
 
+			for (auto& descriptorPool : *State().transientDescriptorPools)
+				delete descriptorPool;
+
 			State().descriptorPoolChain = nullptr;
+			State().transientDescriptorPools = nullptr;
 		}
 
 		// This function encapsulates all device-specific destruction
@@ -611,6 +621,18 @@ namespace VKO
 				State().descriptorPoolChain->Add(new DescriptorPoolObject());
 
 			return State().descriptorPoolChain->Last()->pool;
+		}
+
+		static const vk::DescriptorPool& TransientPool()
+		{
+			if (State().transientDescriptorPools->Count() == 0)
+			{
+				State().transientDescriptorPools->Add(new DescriptorPoolObject(true));
+				State().transientDescriptorPools->Add(new DescriptorPoolObject(true));
+				State().transientDescriptorPools->Add(new DescriptorPoolObject(true));
+			}
+
+			return (*State().transientDescriptorPools)[State().frameCounter%3]->pool;
 		}
 
 		static std::pair<vk::DescriptorPool, vk::DescriptorSet> AllocateDescriptorSet(vk::DescriptorSetLayout layout)
@@ -740,9 +762,14 @@ namespace VKO
 
 			return commandBuffer;
 		}
+
+		static void AdvanceFrame()
+		{
+			State().frameCounter++;
+		}
 	};
 
-	DescriptorPoolObject::DescriptorPoolObject() {
+	DescriptorPoolObject::DescriptorPoolObject(bool transient) {
 		CoreLib::List<vk::DescriptorPoolSize> poolSizes;
 		poolSizes.Add(vk::DescriptorPoolSize(vk::DescriptorType::eSampler, 200));
 		poolSizes.Add(vk::DescriptorPoolSize(vk::DescriptorType::eSampledImage, 20000));
@@ -750,7 +777,7 @@ namespace VKO
 		poolSizes.Add(vk::DescriptorPoolSize(vk::DescriptorType::eStorageBuffer, 2500));
 
 		vk::DescriptorPoolCreateInfo poolCreateInfo = vk::DescriptorPoolCreateInfo()
-			.setFlags(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet)
+			.setFlags(transient ? vk::DescriptorPoolCreateFlags() : vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet)
 			.setMaxSets(5000)
 			.setPoolSizeCount(poolSizes.Count())
 			.setPPoolSizes(poolSizes.Buffer());
@@ -4346,6 +4373,8 @@ namespace VKO
 				.setPResults(nullptr);
 
 			RendererState::RenderQueue().presentKHR(presentInfo);
+
+			RendererState::AdvanceFrame();
 		}
 
 		virtual BufferObject* CreateBuffer(BufferUsage usage, int size) override
