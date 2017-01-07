@@ -56,7 +56,7 @@ namespace GameEngine
 
 	enum class RenderAPI
 	{
-		OpenGL, Vulkan
+		OpenGL, Vulkan, VulkanSingle
 	};
 
 	class DrawableMesh : public CoreLib::RefObject

@@ -720,6 +720,7 @@ namespace GameEngine
 	// HardwareRenderer instance constructors
 	HardwareRenderer* CreateGLHardwareRenderer();
 	HardwareRenderer* CreateVulkanHardwareRenderer(int gpuId);
+	HardwareRenderer* CreateVulkanOneDescHardwareRenderer(int gpuId);
 }
 
 #endif

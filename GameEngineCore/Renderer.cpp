@@ -124,6 +124,9 @@ namespace GameEngine
 			case RenderAPI::Vulkan:
 				hardwareRenderer = CreateVulkanHardwareRenderer(Engine::Instance()->GpuId);
 				break;
+			case RenderAPI::VulkanSingle:
+				hardwareRenderer = CreateVulkanOneDescHardwareRenderer(Engine::Instance()->GpuId);
+				break;
 			case RenderAPI::OpenGL:
 				hardwareRenderer = CreateGLHardwareRenderer();
 				break;
