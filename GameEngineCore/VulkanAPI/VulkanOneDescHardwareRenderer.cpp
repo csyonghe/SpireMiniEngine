@@ -816,7 +816,7 @@ namespace VKO
 
 		vk::DescriptorPoolCreateInfo poolCreateInfo = vk::DescriptorPoolCreateInfo()
 			.setFlags(transient ? vk::DescriptorPoolCreateFlags() : vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet)
-			.setMaxSets(5000)
+			.setMaxSets(500000)
 			.setPoolSizeCount(poolSizes.Count())
 			.setPPoolSizes(poolSizes.Buffer());
 
