@@ -673,6 +673,40 @@ namespace VKO
 			}
 		}
 
+		static vk::DescriptorSet AllocateTransientDescriptorSet(vk::DescriptorSetLayout layout)
+		{
+			//TODO: add counter mechanism to DescriptorPoolObject so we know when to destruct
+			int numTries = 2;
+			while (true)
+			{
+				try
+				{
+					// Create Descriptor Set
+					vk::DescriptorSetAllocateInfo descriptorSetAllocateInfo = vk::DescriptorSetAllocateInfo()
+						.setDescriptorPool(TransientPool())
+						.setDescriptorSetCount(1)
+						.setPSetLayouts(&layout);
+
+					std::vector<vk::DescriptorSet> descriptorSets = RendererState::Device().allocateDescriptorSets(descriptorSetAllocateInfo);
+
+					return descriptorSets[0];
+				}
+				catch (std::system_error& e)
+				{
+					vk::Result err = static_cast<vk::Result>(e.code().value());
+					if (err == vk::Result::eErrorOutOfDeviceMemory)
+					{
+						RendererState::State().descriptorPoolChain->Add(new DescriptorPoolObject());
+						return AllocateTransientDescriptorSet(layout);
+					}
+					else
+						throw e;
+
+					if (--numTries <= 0) throw e;
+				}
+			}
+		}
+
 		// Bookkeeping for multiple instances of HardwareRenderer
 		static void AddRenderer()
 		{
@@ -766,6 +800,9 @@ namespace VKO
 		static void AdvanceFrame()
 		{
 			State().frameCounter++;
+			State().device.resetDescriptorPool(
+				(*State().transientDescriptorPools)[State().frameCounter%3]->pool,
+				vk::DescriptorPoolResetFlags());
 		}
 	};
 
@@ -2754,13 +2791,13 @@ namespace VKO
 			for (auto& desc : descriptors)
 			{
 #if _DEBUG
-				if (usedDescriptors[desc.Location] != false)
+				if (usedDescriptors[desc.LegacyBindingPoints[0]] != false)
 					throw HardwareRendererException("Descriptor location already in use.");
-				usedDescriptors[desc.Location] = true;
+				usedDescriptors[desc.LegacyBindingPoints[0]] = true;
 #endif
 				layoutBindings.Add(
 					vk::DescriptorSetLayoutBinding()
-					.setBinding(desc.Location)
+					.setBinding(desc.LegacyBindingPoints[0])
 					.setDescriptorType(TranslateBindingType(desc.Type))
 					.setDescriptorCount(1)
 					.setStageFlags(vk::ShaderStageFlagBits::eAllGraphics)//TODO: improve
@@ -2789,7 +2826,6 @@ namespace VKO
 		// and swap them with the old one, as well as only updating the descriptors
 		// that had changed. Should this do that too?
 		vk::DescriptorSet descriptorSet;
-		vk::DescriptorPool descriptorPool;
 		CoreLib::RefPtr<DescriptorSetLayout> descriptorSetLayout;
 		CoreLib::List<vk::DescriptorImageInfo> imageInfo;
 		CoreLib::List<vk::DescriptorBufferInfo> bufferInfo;
@@ -2801,15 +2837,8 @@ namespace VKO
 			// We need to keep a ref pointer to the layout because we need to have
 			// the layout available when we call vkUpdateDescriptorSets (2.3.1)
 			descriptorSetLayout = layout;
-
-			std::pair<vk::DescriptorPool, vk::DescriptorSet> res = RendererState::AllocateDescriptorSet(layout->layout);
-			descriptorPool = res.first;
-			descriptorSet = res.second;
 		}
-		~DescriptorSet()
-		{
-			if (descriptorSet) RendererState::Device().freeDescriptorSets(descriptorPool, descriptorSet);
-		}
+		~DescriptorSet() {}
 
 		virtual void BeginUpdate() override
 		{
@@ -2903,13 +2932,7 @@ namespace VKO
 			);
 		}
 
-		virtual void EndUpdate() override
-		{
-			if (writeDescriptorSets.Count() > 0)
-				RendererState::Device().updateDescriptorSets(
-					vk::ArrayProxy<const vk::WriteDescriptorSet>(writeDescriptorSets.Count(), writeDescriptorSets.Buffer()),
-					nullptr);
-		}
+		virtual void EndUpdate() override {}
 	};
 
 	class PipelineBuilder;
@@ -3101,7 +3124,6 @@ namespace VKO
 			.setPrimitiveRestartEnable(pipelineBuilder->FixedFunctionStates.PrimitiveRestartEnabled);
 
 		// Create Viewport Description
-		//empty
 		vk::PipelineViewportStateCreateInfo viewportCreateInfo = vk::PipelineViewportStateCreateInfo()
 			.setFlags(vk::PipelineViewportStateCreateFlags())
 			.setViewportCount(1)
@@ -3260,9 +3282,7 @@ namespace VKO
 		bool inRenderPass = false;
 		const vk::CommandPool& pool;
 		vk::CommandBuffer buffer;
-		Pipeline* curPipeline;
-		CoreLib::Array<uint32_t, 32> pendingOffsets;
-		CoreLib::Array<vk::DescriptorSet, 32> pendingDescSets;
+		CoreLib::RefPtr<VKO::DescriptorSet> pendingDescSet;
 
 		CommandBuffer(const vk::CommandPool& commandPool) : pool(commandPool)
 		{
@@ -3278,10 +3298,6 @@ namespace VKO
 		inline void BeginRecording()
 		{
 			inRenderPass = false;
-
-			curPipeline = nullptr;
-			pendingOffsets.Clear();
-			pendingDescSets.Clear();
 
 			vk::CommandBufferInheritanceInfo inheritanceInfo = vk::CommandBufferInheritanceInfo()
 				.setRenderPass(vk::RenderPass())
@@ -3301,10 +3317,6 @@ namespace VKO
 		inline void BeginRecording(GameEngine::RenderTargetLayout* renderTargetLayout, vk::Framebuffer framebuffer)
 		{
 			inRenderPass = true;
-
-			curPipeline = nullptr;
-			pendingOffsets.Clear();
-			pendingDescSets.Clear();
 
 			vk::CommandBufferInheritanceInfo inheritanceInfo = vk::CommandBufferInheritanceInfo()
 				.setRenderPass(reinterpret_cast<VKO::RenderTargetLayout*>(renderTargetLayout)->renderPass)
@@ -3347,15 +3359,17 @@ namespace VKO
 		}
 		virtual void BindDescriptorSet(int binding, GameEngine::DescriptorSet* descSet) override
 		{
-			VKO::DescriptorSet* internalDescriptorSet = reinterpret_cast<VKO::DescriptorSet*>(descSet);
-			if (curPipeline == nullptr)
-			{
-				pendingDescSets.Add(internalDescriptorSet->descriptorSet);
-				pendingOffsets.Add(binding);
-			}
-			else
-				buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, curPipeline->pipelineLayout, binding, internalDescriptorSet->descriptorSet, nullptr);
+			pendingDescSet = reinterpret_cast<VKO::DescriptorSet*>(descSet);
+			
+			pendingDescSet->descriptorSet = RendererState::AllocateTransientDescriptorSet(pendingDescSet->descriptorSetLayout->layout);
 
+			for (auto& writeDesc : pendingDescSet->writeDescriptorSets)
+				writeDesc.setDstSet(pendingDescSet->descriptorSet);
+
+			if (pendingDescSet->writeDescriptorSets.Count() > 0)
+				RendererState::Device().updateDescriptorSets(
+					vk::ArrayProxy<const vk::WriteDescriptorSet>(pendingDescSet->writeDescriptorSets.Count(), pendingDescSet->writeDescriptorSets.Buffer()),
+					nullptr);
 		}
 		virtual void BindPipeline(GameEngine::Pipeline* pipeline) override
 		{
@@ -3364,20 +3378,15 @@ namespace VKO
 				throw HardwareRendererException("RenderTargetLayout and FrameBuffer must be specified at BeginRecording for BindPipeline");
 #endif
 			auto newPipeline = reinterpret_cast<VKO::Pipeline*>(pipeline);
-			if (curPipeline == nullptr)
-			{
-				for (int k = 0; k < pendingDescSets.Count(); k++)
-					buffer.bindDescriptorSets(
-						vk::PipelineBindPoint::eGraphics,
-						newPipeline->pipelineLayout,
-						pendingOffsets[k],
-						pendingDescSets[k],
-						nullptr);
-				pendingOffsets.Clear();
-				pendingDescSets.Clear();
-			}
-			curPipeline = newPipeline;
-			buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, reinterpret_cast<VKO::Pipeline*>(pipeline)->pipeline);
+
+			buffer.bindDescriptorSets(
+				vk::PipelineBindPoint::eGraphics,
+				newPipeline->pipelineLayout,
+				0,
+				pendingDescSet->descriptorSet,
+				nullptr);
+
+			buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, newPipeline->pipeline);
 		}
 
 		virtual void Draw(int firstVertex, int vertexCount) override
@@ -3766,7 +3775,7 @@ namespace VKO
 
 		virtual int GetSpireTarget() override
 		{
-			return SPIRE_GLSL_VULKAN;
+			return SPIRE_GLSL_VULKAN_ONE_DESC;
 		}
 
 		void CreateCommandBuffers()

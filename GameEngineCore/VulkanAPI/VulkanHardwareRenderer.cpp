@@ -3074,7 +3074,6 @@ namespace VK
 			.setPrimitiveRestartEnable(pipelineBuilder->FixedFunctionStates.PrimitiveRestartEnabled);
 
 		// Create Viewport Description
-		//empty
 		vk::PipelineViewportStateCreateInfo viewportCreateInfo = vk::PipelineViewportStateCreateInfo()
 			.setFlags(vk::PipelineViewportStateCreateFlags())
 			.setViewportCount(1)
