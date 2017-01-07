@@ -693,16 +693,17 @@ namespace VKO
 				}
 				catch (std::system_error& e)
 				{
-					vk::Result err = static_cast<vk::Result>(e.code().value());
-					if (err == vk::Result::eErrorOutOfDeviceMemory)
-					{
-						RendererState::State().descriptorPoolChain->Add(new DescriptorPoolObject());
-						return AllocateTransientDescriptorSet(layout);
-					}
-					else
-						throw e;
+					throw e;
+					//vk::Result err = static_cast<vk::Result>(e.code().value());
+					//if (err == vk::Result::eErrorOutOfDeviceMemory)
+					//{
+					//	RendererState::State().descriptorPoolChain->Add(new DescriptorPoolObject());
+					//	return AllocateTransientDescriptorSet(layout);
+					//}
+					//else
+					//	throw e;
 
-					if (--numTries <= 0) throw e;
+					//if (--numTries <= 0) throw e;
 				}
 			}
 		}
@@ -2768,11 +2769,26 @@ namespace VKO
 		return result;
 	}
 
+	class DescLayout : public CoreLib::RefObject
+	{
+	public:
+		vk::DescriptorSetLayout layout;
+		DescLayout() {}
+		DescLayout(vk::DescriptorSetLayout l)
+		{
+			layout = l;
+		}
+		~DescLayout()
+		{
+			RendererState::Device().destroyDescriptorSetLayout(layout);
+		}
+	};
+
 	class DescriptorSetLayout : public GameEngine::DescriptorSetLayout
 	{
 	public:
 		CoreLib::List<vk::DescriptorSetLayoutBinding> layoutBindings;
-		vk::DescriptorSetLayout layout;
+		CoreLib::RefPtr<DescLayout> layout;
 #if _DEBUG
 		CoreLib::ArrayView<GameEngine::DescriptorLayout> descriptors;
 #endif
@@ -2810,11 +2826,11 @@ namespace VKO
 				.setBindingCount(layoutBindings.Count())
 				.setPBindings(layoutBindings.Buffer());
 
-			layout = RendererState::Device().createDescriptorSetLayout(createInfo);
+			layout = new DescLayout(RendererState::Device().createDescriptorSetLayout(createInfo));
 		}
 		~DescriptorSetLayout()
 		{
-			RendererState::Device().destroyDescriptorSetLayout(layout);
+			layout = nullptr;
 		}
 	};
 
@@ -3076,10 +3092,35 @@ namespace VKO
 #if _DEBUG
 			this->descriptorSets = pDescriptorSets;
 #endif
+			CoreLib::List<vk::DescriptorSetLayoutBinding> bindings;
+
 			for (auto& set : pDescriptorSets)
 			{
-				if (set) //TODO: ?
-					setLayouts.Add(reinterpret_cast<VKO::DescriptorSetLayout*>(set)->layout);
+				if (set)
+				{
+					auto intSet = reinterpret_cast<VKO::DescriptorSetLayout*>(set);
+					for (auto& binding : intSet->layoutBindings)
+					{
+						bindings.Add(binding);
+					}
+				}
+			}
+
+			vk::DescriptorSetLayoutCreateInfo layoutCreateInfo = vk::DescriptorSetLayoutCreateInfo()
+				.setBindingCount(bindings.Count())
+				.setPBindings(bindings.Buffer())
+				.setFlags(vk::DescriptorSetLayoutCreateFlags());
+
+			setLayouts.Add(RendererState::Device().createDescriptorSetLayout(layoutCreateInfo));
+
+			auto sharedLayout = new DescLayout(setLayouts.Last());
+			for (auto& set : pDescriptorSets)
+			{
+				if (set)
+				{
+					auto intSet = reinterpret_cast<VKO::DescriptorSetLayout*>(set);
+					intSet->layout = sharedLayout;
+				}
 			}
 		}
 		virtual void SetDebugName(CoreLib::String name) override
@@ -3099,6 +3140,7 @@ namespace VKO
 #if _DEBUG
 		this->descriptorSets = pipelineBuilder->descriptorSets;
 #endif
+
 		// Create Pipeline Layout
 		vk::PipelineLayoutCreateInfo layoutCreateInfo = vk::PipelineLayoutCreateInfo()
 			.setFlags(vk::PipelineLayoutCreateFlags())
@@ -3361,7 +3403,7 @@ namespace VKO
 		{
 			pendingDescSet = reinterpret_cast<VKO::DescriptorSet*>(descSet);
 			
-			pendingDescSet->descriptorSet = RendererState::AllocateTransientDescriptorSet(pendingDescSet->descriptorSetLayout->layout);
+			pendingDescSet->descriptorSet = RendererState::AllocateTransientDescriptorSet(pendingDescSet->descriptorSetLayout->layout->layout);
 
 			for (auto& writeDesc : pendingDescSet->writeDescriptorSets)
 				writeDesc.setDstSet(pendingDescSet->descriptorSet);
