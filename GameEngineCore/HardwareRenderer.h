@@ -595,14 +595,6 @@ namespace GameEngine
 		}
 	};
 
-	class DescriptorPool : public CoreLib::RefObject
-	{
-	protected:
-		DescriptorPool() {}
-	public:
-		virtual void Reset() = 0;
-	};
-
 	// API specific class that holds internal representation of DescriptorSetLayout
 	class DescriptorSetLayout : public CoreLib::RefObject
 	{
@@ -714,7 +706,6 @@ namespace GameEngine
 		virtual Shader* CreateShader(ShaderType stage, const char* data, int size) = 0;
 		virtual RenderTargetLayout* CreateRenderTargetLayout(CoreLib::ArrayView<AttachmentLayout> bindings) = 0;
 		virtual PipelineBuilder* CreatePipelineBuilder() = 0;
-		virtual DescriptorPool* CreateDescriptorPool(int numSets, int numSamplers, int numTextures, int numUniformBuffers, int numStorageBuffers) = 0;
 		virtual DescriptorSetLayout* CreateDescriptorSetLayout(CoreLib::ArrayView<DescriptorLayout> descriptors) = 0;
 		virtual DescriptorSet* CreateDescriptorSet(DescriptorSetLayout* layout) = 0;
 		virtual int GetDescriptorPoolCount() = 0;
