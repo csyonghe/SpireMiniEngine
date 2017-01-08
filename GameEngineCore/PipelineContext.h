@@ -64,12 +64,10 @@ namespace GameEngine
 		CoreLib::List<int> currentSpecializationKey;
 		CoreLib::Array<CoreLib::RefPtr<DescriptorSet>, DynamicBufferLengthMultiplier> descriptors;
 		int currentDescriptor = 0;
-		int frameId = 0;
 	public:
 		CoreLib::List<int> SpecializeParamOffsets;
 		DeviceMemory * UniformMemory = nullptr;
 		int BufferOffset = 0, BufferLength = 0;
-		unsigned char * UniformPtr = nullptr;
 		CoreLib::String BindingName;
 		void SetUniformData(void * data, int length);
 		ModuleInstance() = default;

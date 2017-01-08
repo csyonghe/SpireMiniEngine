@@ -45,7 +45,8 @@ namespace GameEngine
 			{
 				if (moduleInstance.BufferLength)
 				{
-					unsigned char * ptr = moduleInstance.UniformPtr;
+					unsigned char * ptr0 = (unsigned char*)moduleInstance.UniformMemory->BufferPtr() + moduleInstance.BufferOffset;
+					auto ptr = ptr0;
 					auto end = ptr + moduleInstance.BufferLength;
 					material->FillInstanceUniformBuffer(&moduleInstance, [](const String&) {},
 						[&](auto & val)
@@ -63,7 +64,7 @@ namespace GameEngine
 						}
 					}
 					);
-					scene->instanceUniformMemory.Sync(moduleInstance.UniformPtr, moduleInstance.BufferLength);
+					scene->instanceUniformMemory.Sync(ptr0, moduleInstance.BufferLength);
 				}
 			};
 			update(material->MaterialGeometryModule);
@@ -75,7 +76,7 @@ namespace GameEngine
 	{
 		if (type != DrawableType::Static)
 			throw InvalidOperationException("cannot update non-static drawable with static transform data.");
-		if (!transformModule->UniformPtr)
+		if (!transformModule->UniformMemory)
 			throw InvalidOperationException("invalid buffer.");
 		transformModule->SetUniformData((void*)&localTransform, sizeof(Matrix4));
 	}
@@ -84,7 +85,7 @@ namespace GameEngine
 	{
 		if (type != DrawableType::Skeletal)
 			throw InvalidOperationException("cannot update static drawable with skeletal transform data.");
-		if (!transformModule->UniformPtr)
+		if (!transformModule->UniformMemory)
 			throw InvalidOperationException("invalid buffer.");
 
 		const int poseMatrixSize = skeleton->Bones.Count() * sizeof(Matrix4);
@@ -567,9 +568,9 @@ namespace GameEngine
 		if (rs.BufferLength > 0)
 		{
 			rs.BufferLength = RoundUpToAlignment(rs.BufferLength, hardwareRenderer->UniformBufferAlignment());;
-			rs.UniformPtr = (unsigned char *)uniformMemory->Alloc(rs.BufferLength * DynamicBufferLengthMultiplier);
+			auto ptr = (unsigned char *)uniformMemory->Alloc(rs.BufferLength * DynamicBufferLengthMultiplier);
 			rs.UniformMemory = uniformMemory;
-			rs.BufferOffset = (int)(rs.UniformPtr - (unsigned char*)uniformMemory->BufferPtr());
+			rs.BufferOffset = (int)(ptr - (unsigned char*)uniformMemory->BufferPtr());
 		}
 		else
 			rs.UniformMemory = nullptr;
@@ -587,24 +588,24 @@ namespace GameEngine
 				spModuleGetParameter(shaderModule, i, &info);
 				if (info.BindableResourceType != SPIRE_NON_BINDABLE)
 				{
-					DescriptorLayout layout;
-					layout.Location = descs.Count();
+					DescriptorLayout descLayout;
+					descLayout.Location = descs.Count();
 					switch (info.BindableResourceType)
 					{
 					case SPIRE_TEXTURE:
-						layout.Type = BindingType::Texture;
+						descLayout.Type = BindingType::Texture;
 						break;
 					case SPIRE_UNIFORM_BUFFER:
-						layout.Type = BindingType::UniformBuffer;
+						descLayout.Type = BindingType::UniformBuffer;
 						break;
 					case SPIRE_SAMPLER:
-						layout.Type = BindingType::Sampler;
+						descLayout.Type = BindingType::Sampler;
 						break;
 					case SPIRE_STORAGE_BUFFER:
-						layout.Type = BindingType::StorageBuffer;
+						descLayout.Type = BindingType::StorageBuffer;
 						break;
 					}
-					descs.Add(layout);
+					descs.Add(descLayout);
 				}
 				if (info.Specialize)
 				{

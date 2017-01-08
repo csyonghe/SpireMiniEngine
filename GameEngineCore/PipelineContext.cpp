@@ -166,13 +166,13 @@ namespace GameEngine
 		if (length > BufferLength)
 			throw HardwareRendererException("insufficient uniform buffer.");
 #endif
-		if (length && UniformPtr)
+		if (length && UniformMemory)
 		{
-			frameId = frameId % DynamicBufferLengthMultiplier;
-			int alternateBufferOffset = frameId * BufferLength;
-			memcpy(UniformPtr + alternateBufferOffset, data, length);
-			currentDescriptor = frameId;
-			frameId++;
+			currentDescriptor++;
+			currentDescriptor = currentDescriptor % DynamicBufferLengthMultiplier;
+			int alternateBufferOffset = currentDescriptor * BufferLength;
+			memcpy((char*)UniformMemory->BufferPtr() + BufferOffset + alternateBufferOffset, data, length);
+			//currentDescriptor = frameId;
 		}
 		bool keyChanged = false;
 		if (SpecializeParamOffsets.Count())
@@ -205,7 +205,7 @@ namespace GameEngine
 	ModuleInstance::~ModuleInstance()
 	{
 		if (UniformMemory)
-			UniformMemory->Free(UniformPtr, BufferLength * DynamicBufferLengthMultiplier);
+			UniformMemory->Free((char*)UniformMemory->BufferPtr() + BufferOffset, BufferLength * DynamicBufferLengthMultiplier);
 	}
 
 	void ModuleInstance::SetDescriptorSetLayout(HardwareRenderer * hw, DescriptorSetLayout * layout)
