@@ -324,21 +324,19 @@ namespace GameEngine
 			auto patternShaderName = Path::GetFileNameWithoutEXT(shaderFile) + "Pattern";
 			auto geomShaderName = Path::GetFileNameWithoutEXT(shaderFile) + "Geometry";
 			auto patternModule = spFindModule(spireContext, patternShaderName.Buffer());
+			
 			if (!patternModule && shaderFile.Length())
 			{
 				SpireDiagnosticSink * spireSink = spCreateDiagnosticSink(spireContext);
 				spLoadModuleLibrary(spireContext, shaderFile.Buffer(), spireSink);
 				if (spDiagnosticSinkHasAnyErrors(spireSink))
 					Print("Invalid material(%S): cannot compile shader '%S'. Output message:\n%S", material->Name.ToWString(), shaderFile.ToWString(), GetSpireOutput(spireSink).ToWString());
-				else
-				{
-					material->MaterialPatternModule = CreateMaterialModuleInstance(material, (patternShaderName).Buffer(), true);
-					auto geometryModuleName = Path::GetFileNameWithoutEXT(shaderFile) + "Geometry";
-					if (spFindModule(spireContext, geometryModuleName.Buffer()))
-						material->MaterialGeometryModule = CreateMaterialModuleInstance(material, geometryModuleName.Buffer(), false);
-				}
 				spDestroyDiagnosticSink(spireSink);
 			}
+			material->MaterialPatternModule = CreateMaterialModuleInstance(material, patternShaderName.Buffer(), true);
+			auto geometryModuleName = Path::GetFileNameWithoutEXT(shaderFile) + "Geometry";
+			if (spFindModule(spireContext, geometryModuleName.Buffer()))
+				material->MaterialGeometryModule = CreateMaterialModuleInstance(material, geometryModuleName.Buffer(), false);
 		}
 		// use default material if failed to load
 		if (!material->MaterialPatternModule)
