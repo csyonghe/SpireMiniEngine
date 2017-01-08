@@ -41,13 +41,13 @@ namespace GameEngine
 			for (auto & p : pipelineCache)
 				p = nullptr;
 
-			auto update = [=](ModuleInstance * moduleInstance)
+			auto update = [=](ModuleInstance & moduleInstance)
 			{
-				if (moduleInstance->BufferLength)
+				if (moduleInstance.BufferLength)
 				{
-					unsigned char * ptr = moduleInstance->UniformPtr;
-					auto end = ptr + moduleInstance->BufferLength;
-					material->FillInstanceUniformBuffer(moduleInstance, [](const String&) {},
+					unsigned char * ptr = moduleInstance.UniformPtr;
+					auto end = ptr + moduleInstance.BufferLength;
+					material->FillInstanceUniformBuffer(&moduleInstance, [](const String&) {},
 						[&](auto & val)
 					{
 						if (ptr + sizeof(val) > end)
@@ -63,11 +63,11 @@ namespace GameEngine
 						}
 					}
 					);
-					scene->instanceUniformMemory.Sync(moduleInstance->UniformPtr, moduleInstance->BufferLength);
+					scene->instanceUniformMemory.Sync(moduleInstance.UniformPtr, moduleInstance.BufferLength);
 				}
 			};
-			update(material->MaterialGeometryModule.Ptr());
-			update(material->MaterialPatternModule.Ptr());
+			update(material->MaterialGeometryModule);
+			update(material->MaterialPatternModule);
 		}
 	}
 
@@ -75,16 +75,16 @@ namespace GameEngine
 	{
 		if (type != DrawableType::Static)
 			throw InvalidOperationException("cannot update non-static drawable with static transform data.");
-		if (!transformModule->UniformPtr)
+		if (!transformModule.UniformPtr)
 			throw InvalidOperationException("invalid buffer.");
-		transformModule->SetUniformData((void*)&localTransform, sizeof(Matrix4));	
+		transformModule.SetUniformData((void*)&localTransform, sizeof(Matrix4));	
 	}
 
 	void Drawable::UpdateTransformUniform(const VectorMath::Matrix4 & localTransform, const Pose & pose)
 	{
 		if (type != DrawableType::Skeletal)
 			throw InvalidOperationException("cannot update static drawable with skeletal transform data.");
-		if (!transformModule->UniformPtr)
+		if (!transformModule.UniformPtr)
 			throw InvalidOperationException("invalid buffer.");
 
 		const int poseMatrixSize = skeleton->Bones.Count() * sizeof(Matrix4);
@@ -98,7 +98,7 @@ namespace GameEngine
 		{
 			Matrix4::Multiply(matrices[i], localTransform, matrices[i]);
 		}
-		transformModule->SetUniformData((void*)matrices.Buffer(), sizeof(Matrix4) * matrices.Count());
+		transformModule.SetUniformData((void*)matrices.Buffer(), sizeof(Matrix4) * matrices.Count());
 	}
     RefPtr<DrawableMesh> SceneResource::CreateDrawableMesh(Mesh * mesh)
     {
@@ -241,14 +241,13 @@ namespace GameEngine
 		}
 	}
 
-	RefPtr<ModuleInstance> SceneResource::CreateMaterialModuleInstance(Material* material, const char * moduleName, bool isPatternModule)
+	void SceneResource::CreateMaterialModuleInstance(ModuleInstance & result, Material* material, const char * moduleName, bool isPatternModule)
 	{
 		bool isValid = true;
 		auto module = spFindModule(spireContext, moduleName);
 		if (!module)
 		{
 			Print("Invalid material(%S): shader '%S' does not define '%s'.", material->Name.ToWString(), material->ShaderFile.ToWString(), moduleName);
-			return nullptr;
 		}
 		else
 		{
@@ -278,13 +277,13 @@ namespace GameEngine
 			}
 			if (isValid)
 			{
-				RefPtr<ModuleInstance> result = rendererResource->CreateModuleInstance(module, &instanceUniformMemory);
+				rendererResource->CreateModuleInstance(result, module, &instanceUniformMemory);
 				if (result)
 				{
 					// update all versions of descriptor set with material texture binding
 					for (int i = 0; i < DynamicBufferLengthMultiplier; i++)
 					{
-						auto descSet = result->GetDescriptorSet(i);
+						auto descSet = result.GetDescriptorSet(i);
 						descSet->BeginUpdate();
 						for (auto binding : bindingLocs)
 						{
@@ -310,9 +309,7 @@ namespace GameEngine
 				else
 					for (auto& v : vars)
 						material->GeometryVariables.Add(v.Value);
-				return result;
 			}
-			return nullptr;
 		}
 	}
 
@@ -333,30 +330,22 @@ namespace GameEngine
 					Print("Invalid material(%S): cannot compile shader '%S'. Output message:\n%S", material->Name.ToWString(), shaderFile.ToWString(), GetSpireOutput(spireSink).ToWString());
 				spDestroyDiagnosticSink(spireSink);
 			}
-			material->MaterialPatternModule = CreateMaterialModuleInstance(material, patternShaderName.Buffer(), true);
+			CreateMaterialModuleInstance(material->MaterialPatternModule, material, patternShaderName.Buffer(), true);
 			auto geometryModuleName = Path::GetFileNameWithoutEXT(shaderFile) + "Geometry";
 			if (spFindModule(spireContext, geometryModuleName.Buffer()))
-				material->MaterialGeometryModule = CreateMaterialModuleInstance(material, geometryModuleName.Buffer(), false);
+				CreateMaterialModuleInstance(material->MaterialGeometryModule, material, geometryModuleName.Buffer(), false);
 		}
 		// use default material if failed to load
 		if (!material->MaterialPatternModule)
 		{
-			if (!defaultMaterialPatternModule)
-			{
-				defaultMaterialPatternModule = CreateMaterialModuleInstance(material, "DefaultPattern", true);
-			}
-			material->MaterialPatternModule = defaultMaterialPatternModule;
+			CreateMaterialModuleInstance(material->MaterialPatternModule, material, "DefaultPattern", true);
 			if (!material->MaterialPatternModule)
 				throw InvalidOperationException("failed to load default material.");
 		}
 		// use default geometry if failed to load
 		if (!material->MaterialGeometryModule)
 		{
-			if (!defaultMaterialGeometryModule)
-			{
-				defaultMaterialGeometryModule = CreateMaterialModuleInstance(material, "DefaultGeometry", false);
-			}
-			material->MaterialGeometryModule = defaultMaterialGeometryModule;
+			CreateMaterialModuleInstance(material->MaterialGeometryModule, material, "DefaultGeometry", false);
 			if (!material->MaterialGeometryModule)
 				throw InvalidOperationException("failed to load default material.");
 		}
@@ -569,23 +558,24 @@ namespace GameEngine
 			return val + alignment - r;
 	}
 
-	ModuleInstance * RendererSharedResource::CreateModuleInstance(SpireModule * shaderModule, DeviceMemory * uniformMemory, int uniformBufferSize)
+	void RendererSharedResource::CreateModuleInstance(ModuleInstance & rs, SpireModule * shaderModule, DeviceMemory * uniformMemory, int uniformBufferSize)
 	{
-		ModuleInstance * rs = new ModuleInstance(spireContext, shaderModule);
-		rs->BindingName = spGetModuleName(shaderModule);
-		rs->BufferLength = Math::Max(spModuleGetParameterBufferSize(shaderModule), uniformBufferSize);
-		if (rs->BufferLength > 0)
+		rs.Init(spireContext, shaderModule);
+
+		rs.BindingName = spGetModuleName(shaderModule);
+		rs.BufferLength = Math::Max(spModuleGetParameterBufferSize(shaderModule), uniformBufferSize);
+		if (rs.BufferLength > 0)
 		{
-			rs->BufferLength = RoundUpToAlignment(rs->BufferLength, hardwareRenderer->UniformBufferAlignment());;
-			rs->UniformPtr = (unsigned char *)uniformMemory->Alloc(rs->BufferLength * DynamicBufferLengthMultiplier);
-			rs->UniformMemory = uniformMemory;
-			rs->BufferOffset = (int)(rs->UniformPtr - (unsigned char*)uniformMemory->BufferPtr());
+			rs.BufferLength = RoundUpToAlignment(rs.BufferLength, hardwareRenderer->UniformBufferAlignment());;
+			rs.UniformPtr = (unsigned char *)uniformMemory->Alloc(rs.BufferLength * DynamicBufferLengthMultiplier);
+			rs.UniformMemory = uniformMemory;
+			rs.BufferOffset = (int)(rs.UniformPtr - (unsigned char*)uniformMemory->BufferPtr());
 		}
 		else
-			rs->UniformMemory = nullptr;
+			rs.UniformMemory = nullptr;
 		int paramCount = spModuleGetParameterCount(shaderModule);
 		List<DescriptorLayout> descs;
-		if (rs->UniformMemory)
+		if (rs.UniformMemory)
 			descs.Add(DescriptorLayout(0, BindingType::UniformBuffer));
 		for (int i = 0; i < paramCount; i++)
 		{
@@ -614,21 +604,20 @@ namespace GameEngine
 			}
 			if (info.Specialize)
 			{
-				rs->SpecializeParamOffsets.Add(info.Offset);
+				rs.SpecializeParamOffsets.Add(info.Offset);
 			}
 		}
-		rs->SetDescriptorSetLayout(hardwareRenderer.Ptr(), hardwareRenderer->CreateDescriptorSetLayout(descs.GetArrayView()));
-		if (rs->UniformMemory)
+		rs.SetDescriptorSetLayout(hardwareRenderer.Ptr(), hardwareRenderer->CreateDescriptorSetLayout(descs.GetArrayView()));
+		if (rs.UniformMemory)
 		{
 			for (int i = 0; i < DynamicBufferLengthMultiplier; i++)
 			{
-				auto descSet = rs->GetDescriptorSet(i);
+				auto descSet = rs.GetDescriptorSet(i);
 				descSet->BeginUpdate();
-				descSet->Update(0, rs->UniformMemory->GetBuffer(), rs->BufferOffset + rs->BufferLength * i, rs->BufferLength);
+				descSet->Update(0, rs.UniformMemory->GetBuffer(), rs.BufferOffset + rs.BufferLength * i, rs.BufferLength);
 				descSet->EndUpdate();
 			}
 		}
-		return rs;
 	}
 
 	void RendererSharedResource::LoadShaderLibrary()
@@ -686,6 +675,7 @@ namespace GameEngine
 
 		spireContext = spCreateCompilationContext("");
 		LoadShaderLibrary();
+		
 		pipelineManager.Init(spireContext, hardwareRenderer.Ptr(), &renderStats);
 
 		indexBufferMemory.Init(hardwareRenderer.Ptr(), BufferUsage::IndexBuffer, false, 26, 256);
@@ -699,7 +689,9 @@ namespace GameEngine
 		linearSampler = nullptr;
 		renderTargets = CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<RenderTarget>>();
 		fullScreenQuadVertBuffer = nullptr;
+		//ModuleInstance::ClosePool();
 		spDestroyCompilationContext(spireContext);
+
 	}
 	
 	RenderTarget::RenderTarget(GameEngine::StorageFormat format, CoreLib::RefPtr<Texture2DArray> texArray, int layer, int w, int h)
@@ -751,26 +743,41 @@ namespace GameEngine
 		numDrawCalls = 0;
 		Array<DescriptorSet*, 32> boundSets;
 		boundSets.SetSize(boundSets.GetCapacity());
-		for (auto obj : drawables)
+		if (drawables.Count())
 		{
-			if (!frustum.IsBoxInFrustum(obj->Bounds))
-				continue;
-			numDrawCalls++;
-			pipelineManager.PushModuleInstance(obj->GetMaterial()->MaterialGeometryModule.Ptr());
-			pipelineManager.PushModuleInstance(obj->GetMaterial()->MaterialPatternModule.Ptr());
-			pipelineManager.PushModuleInstance(obj->GetTransformModule());
-			if (auto pipelineInst = obj->GetPipeline(renderPassId, pipelineManager))
+			Material* lastMaterial = drawables[0]->GetMaterial();
+
+			pipelineManager.PushModuleInstance(&lastMaterial->MaterialGeometryModule);
+			pipelineManager.PushModuleInstance(&lastMaterial->MaterialPatternModule);
+
+			for (auto obj : drawables)
 			{
-				auto mesh = obj->GetMesh();
-				cmdBuf->BindPipeline(pipelineInst->pipeline.Ptr());
-				BindDescSet(boundSets.Buffer(), cmdBuf, bindings.Count(), obj->GetMaterial()->MaterialGeometryModule->GetCurrentDescriptorSet());
-				BindDescSet(boundSets.Buffer(), cmdBuf, bindings.Count() + 1, obj->GetMaterial()->MaterialPatternModule->GetCurrentDescriptorSet());
-				BindDescSet(boundSets.Buffer(), cmdBuf, bindings.Count() + 2, obj->GetTransformModule()->GetCurrentDescriptorSet());
-				cmdBuf->BindIndexBuffer(mesh->GetIndexBuffer(), mesh->indexBufferOffset);
-				cmdBuf->BindVertexBuffer(mesh->GetVertexBuffer(), mesh->vertexBufferOffset);
-				cmdBuf->DrawIndexed(0, mesh->indexCount);
+				if (!frustum.IsBoxInFrustum(obj->Bounds))
+					continue;
+				numDrawCalls++;
+				auto newMaterial = obj->GetMaterial();
+				if (newMaterial != lastMaterial)
+				{
+					pipelineManager.PopModuleInstance();
+					pipelineManager.PopModuleInstance();
+					pipelineManager.PushModuleInstance(&newMaterial->MaterialGeometryModule);
+					pipelineManager.PushModuleInstance(&newMaterial->MaterialPatternModule);
+					lastMaterial = newMaterial;
+				}
+				pipelineManager.PushModuleInstanceNoShaderChange(obj->GetTransformModule());
+				if (auto pipelineInst = obj->GetPipeline(renderPassId, pipelineManager))
+				{
+					auto mesh = obj->GetMesh();
+					cmdBuf->BindPipeline(pipelineInst->pipeline.Ptr());
+					BindDescSet(boundSets.Buffer(), cmdBuf, bindings.Count(), newMaterial->MaterialGeometryModule.GetCurrentDescriptorSet());
+					BindDescSet(boundSets.Buffer(), cmdBuf, bindings.Count() + 1, newMaterial->MaterialPatternModule.GetCurrentDescriptorSet());
+					BindDescSet(boundSets.Buffer(), cmdBuf, bindings.Count() + 2, obj->GetTransformModule()->GetCurrentDescriptorSet());
+					cmdBuf->BindIndexBuffer(mesh->GetIndexBuffer(), mesh->indexBufferOffset);
+					cmdBuf->BindVertexBuffer(mesh->GetVertexBuffer(), mesh->vertexBufferOffset);
+					cmdBuf->DrawIndexed(0, mesh->indexCount);
+				}
+				pipelineManager.PopModuleInstance();
 			}
-			pipelineManager.PopModuleInstance();
 			pipelineManager.PopModuleInstance();
 			pipelineManager.PopModuleInstance();
 		}
@@ -779,21 +786,39 @@ namespace GameEngine
 	void RenderPassInstance::SetDrawContent(PipelineContext & pipelineManager, CoreLib::List<Drawable*>& reorderBuffer, CullFrustum frustum, CoreLib::ArrayView<Drawable*> drawables)
 	{
 		reorderBuffer.Clear();
-		for (auto obj : drawables)
+		if (drawables.Count() != 0)
 		{
-			obj->ReorderKey = nullptr;
-			if (!frustum.IsBoxInFrustum(obj->Bounds))
-				continue;
-			pipelineManager.PushModuleInstance(obj->GetMaterial()->MaterialGeometryModule.Ptr());
-			pipelineManager.PushModuleInstance(obj->GetMaterial()->MaterialPatternModule.Ptr());
-			pipelineManager.PushModuleInstance(obj->GetTransformModule());
-			obj->ReorderKey = obj->GetPipeline(renderPassId, pipelineManager);
+			Material* lastMaterial = drawables[0]->GetMaterial();
+
+			pipelineManager.PushModuleInstance(&lastMaterial->MaterialGeometryModule);
+			pipelineManager.PushModuleInstance(&lastMaterial->MaterialPatternModule);
+
+			for (auto obj : drawables)
+			{
+				obj->ReorderKey = nullptr;
+				if (!frustum.IsBoxInFrustum(obj->Bounds))
+					continue;
+				auto newMaterial = obj->GetMaterial();
+				if (newMaterial != lastMaterial)
+				{
+					pipelineManager.PopModuleInstance();
+					pipelineManager.PopModuleInstance();
+					pipelineManager.PushModuleInstance(&newMaterial->MaterialGeometryModule);
+					pipelineManager.PushModuleInstance(&newMaterial->MaterialPatternModule);
+					lastMaterial = newMaterial;
+				}
+				pipelineManager.PushModuleInstanceNoShaderChange(obj->GetTransformModule());
+				obj->ReorderKey = obj->GetPipeline(renderPassId, pipelineManager);
+				pipelineManager.PopModuleInstance();
+
+				reorderBuffer.Add(obj);
+			}
+
 			pipelineManager.PopModuleInstance();
 			pipelineManager.PopModuleInstance();
-			pipelineManager.PopModuleInstance();
-			reorderBuffer.Add(obj);
+			reorderBuffer.Sort([](Drawable* d1, Drawable* d2) {return d1->ReorderKey < d2->ReorderKey; });
 		}
-		reorderBuffer.Sort([](Drawable* d1, Drawable* d2) {return d1->ReorderKey < d2->ReorderKey; });
+
 		SetFixedOrderDrawContent(pipelineManager, frustum, reorderBuffer.GetArrayView());
 	}
 	void FrameRenderTask::Clear()

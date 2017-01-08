@@ -109,14 +109,15 @@ namespace GameEngine
 		friend class SceneResource;
 		friend class RendererServiceImpl;
 	private:
-		SceneResource * scene = nullptr;
+		DrawableType type = DrawableType::Static;
+		MeshVertexFormat vertFormat;
 		CoreLib::RefPtr<DrawableMesh> mesh = nullptr;
 		Material * material = nullptr;
+		ModuleInstance transformModule;
+
 		Skeleton * skeleton = nullptr;
-		MeshVertexFormat vertFormat;
-		DrawableType type = DrawableType::Static;
-		CoreLib::RefPtr<ModuleInstance> transformModule;
 		CoreLib::Array<PipelineClass*, MaxWorldRenderPasses> pipelineCache;
+		SceneResource * scene = nullptr;
 	public:
 		CoreLib::Graphics::BBox Bounds;
 		void * ReorderKey = nullptr;
@@ -132,7 +133,7 @@ namespace GameEngine
 		PipelineClass * GetPipeline(int passId, PipelineContext & pipelineManager);
 		inline ModuleInstance * GetTransformModule()
 		{
-			return transformModule.Ptr();
+			return &transformModule;
 		}
 		inline DrawableMesh * GetMesh()
 		{
@@ -272,7 +273,7 @@ namespace GameEngine
 		ShadowMapResource shadowMapResources;
 		CoreLib::List<CoreLib::RefPtr<RenderOutput>> renderOutputs;
 		void UpdateRenderResultFrameBuffer(RenderOutput * output);
-		ModuleInstance * CreateModuleInstance(SpireModule * shaderModule, DeviceMemory * uniformMemory, int uniformBufferSize = 0);
+		void CreateModuleInstance(ModuleInstance & mInst, SpireModule * shaderModule, DeviceMemory * uniformMemory, int uniformBufferSize = 0);
 	public:
 		CoreLib::RefPtr<Buffer> fullScreenQuadVertBuffer;
 		DeviceMemory indexBufferMemory, vertexBufferMemory;
@@ -318,10 +319,9 @@ namespace GameEngine
 	private:
 		RendererSharedResource * rendererResource;
 		SpireCompilationContext * spireContext = nullptr;
-		CoreLib::RefPtr<ModuleInstance> defaultMaterialPatternModule, defaultMaterialGeometryModule;
 		CoreLib::EnumerableDictionary<Mesh*, CoreLib::RefPtr<DrawableMesh>> meshes;
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<Texture2D>> textures;
-		CoreLib::RefPtr<ModuleInstance> CreateMaterialModuleInstance(Material* material, const char * moduleName, bool isPatternModule);
+		void CreateMaterialModuleInstance(ModuleInstance & mInst, Material* material, const char * moduleName, bool isPatternModule);
 	public:
 		CoreLib::RefPtr<DrawableMesh> LoadDrawableMesh(Mesh * mesh);
         CoreLib::RefPtr<DrawableMesh> CreateDrawableMesh(Mesh * mesh);

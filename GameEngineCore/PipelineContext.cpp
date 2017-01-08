@@ -54,6 +54,32 @@ namespace GameEngine
 		return rs;
 	}
 
+	PipelineClass * PipelineContext::GetPipelineInternal(MeshVertexFormat * vertFormat, int vtxId)
+	{
+		shaderKeyChanged = false;
+		lastVtxId = vtxId;
+
+		shaderKeyBuilder.Clear();
+		shaderKeyBuilder.Append(spShaderGetId(shader));
+		shaderKeyBuilder.FlipLeadingByte(vtxId);
+		for (int i = 0; i < modulePtr; i++)
+			shaderKeyBuilder.Append(modules[i]->ModuleId);
+		/*
+		if (shaderKeyBuilder.Key == lastKey)
+		{
+		return lastPipeline;
+		}*/
+		if (auto pipeline = pipelineObjects.TryGetValue(shaderKeyBuilder.Key))
+		{
+			//lastKey = shaderKeyBuilder.Key;
+			lastPipeline = pipeline->Ptr();
+			return pipeline->Ptr();
+		}
+		//lastKey = shaderKeyBuilder.Key;
+		lastPipeline = CreatePipeline(vertFormat);
+		return lastPipeline;
+	}
+
 	PipelineClass * PipelineContext::CreatePipeline(MeshVertexFormat * vertFormat)
 	{
 		RefPtr<PipelineBuilder> pipelineBuilder = hwRenderer->CreatePipelineBuilder();
@@ -65,8 +91,8 @@ namespace GameEngine
 
 		// Compile shaders
 		Array<SpireModule*, 32> spireModules;
-		for (auto m : modules)
-			spireModules.Add(m->specializedModule);
+		for (int i = 0; i < modulePtr; i++)
+			spireModules.Add(modules[i]->specializedModule);
 		SpireDiagnosticSink * sink = spCreateDiagnosticSink(spireContext);
 		auto compileRs = spCompileShader(spireContext, shader, spireModules.Buffer(), spireModules.Count(), vertFormat->GetShaderDefinition().Buffer(), sink);
 
@@ -173,6 +199,8 @@ namespace GameEngine
 		}
 		//UniformMemory->GetBuffer()->SetData(BufferOffset, data, CoreLib::Math::Min(length, BufferLength));
 	}
+
+	//IMPL_POOL_ALLOCATOR(ModuleInstance, MaxModuleInstances)
 
 	ModuleInstance::~ModuleInstance()
 	{

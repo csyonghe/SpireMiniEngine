@@ -55,10 +55,10 @@ namespace GameEngine
 			RendererServiceImpl(RendererImpl * pRenderer)
 				: renderer(pRenderer)
 			{}
-			ModuleInstance * CreateTransformModuleInstance(const char * name, int uniformBufferSize)
+			void CreateTransformModuleInstance(ModuleInstance & rs, const char * name, int uniformBufferSize)
 			{
 				auto sceneResources = renderer->sceneRes.Ptr();
-				return renderer->sharedRes.CreateModuleInstance(spFindModule(renderer->sharedRes.spireContext, name), &sceneResources->transformMemory, uniformBufferSize);
+				renderer->sharedRes.CreateModuleInstance(rs, spFindModule(renderer->sharedRes.spireContext, name), &sceneResources->transformMemory, uniformBufferSize);
 			}
 
 			virtual CoreLib::RefPtr<Drawable> CreateStaticDrawable(Mesh * mesh, Material * material, bool cacheMesh) override
@@ -67,7 +67,7 @@ namespace GameEngine
 				if (!material->MaterialPatternModule)
 					renderer->sceneRes->RegisterMaterial(material);
 				rs->type = DrawableType::Static;
-				rs->transformModule = CreateTransformModuleInstance("NoAnimation", (int)(sizeof(Vec4) * 7));
+				CreateTransformModuleInstance(rs->transformModule, "NoAnimation", (int)(sizeof(Vec4) * 7));
 				rs->vertFormat = mesh->GetVertexFormat();
 				return rs;
 			}
@@ -79,7 +79,7 @@ namespace GameEngine
 				rs->type = DrawableType::Skeletal;
 				rs->skeleton = skeleton;
 				int poseMatrixSize = skeleton->Bones.Count() * (sizeof(Vec4) * 7);
-				rs->transformModule = CreateTransformModuleInstance("SkeletalAnimation", poseMatrixSize);
+				CreateTransformModuleInstance(rs->transformModule, "SkeletalAnimation", poseMatrixSize);
 				rs->vertFormat = mesh->GetVertexFormat();
 				return rs;
 			}

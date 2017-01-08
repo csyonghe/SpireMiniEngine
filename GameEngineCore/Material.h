@@ -15,7 +15,7 @@ namespace GameEngine
 		CoreLib::String Name;
 		CoreLib::String ShaderFile;
 		bool ParameterDirty = true;
-		CoreLib::RefPtr<ModuleInstance> MaterialPatternModule, MaterialGeometryModule;
+		ModuleInstance MaterialPatternModule, MaterialGeometryModule;
 		CoreLib::EnumerableDictionary<CoreLib::String, DynamicVariable> Variables;
 		CoreLib::List<DynamicVariable*> PatternVariables, GeometryVariables;
 		void SetVariable(CoreLib::String name, DynamicVariable value);
@@ -25,7 +25,7 @@ namespace GameEngine
 		template<typename WriteTextureFunc, typename WriteFunc, typename AlignFunc>
 		void FillInstanceUniformBuffer(ModuleInstance * module, const WriteTextureFunc & writeTex, const WriteFunc & write, const AlignFunc & align)
 		{
-			auto& vars = module == MaterialPatternModule.Ptr() ? PatternVariables : GeometryVariables;
+			auto& vars = module == &MaterialPatternModule ? PatternVariables : GeometryVariables;
 			for (auto & mvar : vars)
 			{
 				if (mvar->VarType == DynamicVariableType::Texture)

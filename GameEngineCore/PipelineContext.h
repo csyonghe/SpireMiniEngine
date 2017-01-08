@@ -35,7 +35,7 @@ namespace GameEngine
 		}
 		inline void FlipLeadingByte(unsigned int header)
 		{
-			Key.ModuleIds[0] ^= ((long long)header << 56);
+			Key.ModuleIds[0] ^= ((long long)header << 54);
 		}
 		inline void Append(unsigned int moduleId)
 		{
@@ -54,6 +54,9 @@ namespace GameEngine
 	class ModuleInstance
 	{
 		friend class PipelineContext;
+	public:
+		int ModuleId;
+		//USE_POOL_ALLOCATOR(ModuleInstance, MaxModuleInstances)
 	private:
 		SpireCompilationContext * spireContext = nullptr;
 		SpireModule * module = nullptr;
@@ -63,7 +66,6 @@ namespace GameEngine
 		int currentDescriptor = 0;
 		int frameId = 0;
 	public:
-		int ModuleId = 0;
 		CoreLib::RefPtr<DescriptorSetLayout> DescriptorLayout;
 		CoreLib::List<int> SpecializeParamOffsets;
 		DeviceMemory * UniformMemory = nullptr;
@@ -71,7 +73,8 @@ namespace GameEngine
 		unsigned char * UniformPtr = nullptr;
 		CoreLib::String BindingName;
 		void SetUniformData(void * data, int length);
-		ModuleInstance(SpireCompilationContext * ctx, SpireModule * m)
+		ModuleInstance() = default;
+		void Init(SpireCompilationContext * ctx, SpireModule * m)
 		{
 			spireContext = ctx;
 			module = m;
@@ -87,6 +90,10 @@ namespace GameEngine
 		DescriptorSet * GetCurrentDescriptorSet()
 		{
 			return descriptors[currentDescriptor].Ptr();
+		}
+		operator bool()
+		{
+			return module != nullptr;
 		}
 	};
 
@@ -105,18 +112,22 @@ namespace GameEngine
 	class PipelineContext
 	{
 	private:
+		int modulePtr = 0;
+		ShaderKey lastKey; 
+		unsigned int lastVtxId = 0;
+		bool shaderKeyChanged = true;
 		SpireCompilationContext * spireContext = nullptr;
+		ModuleInstance* modules[32];
 		SpireShader * shader = nullptr;
 		RenderTargetLayout * renderTargetLayout = nullptr;
-		ShaderKey lastKey;
 		PipelineClass * lastPipeline = nullptr;
 		FixedFunctionPipelineStates * fixedFunctionStates = nullptr;
 		CoreLib::EnumerableDictionary<ShaderKey, CoreLib::RefPtr<PipelineClass>> pipelineObjects;
-		CoreLib::Array<ModuleInstance*, 32> modules;
 		ShaderKeyBuilder shaderKeyBuilder;
 		HardwareRenderer * hwRenderer;
 		RenderStat * renderStats = nullptr;
 		CoreLib::Dictionary<int, VertexFormat> vertexFormats;
+		PipelineClass * GetPipelineInternal(MeshVertexFormat * vertFormat, int vtxId);
 		PipelineClass* CreatePipeline(MeshVertexFormat * vertFormat);
 	public:
 		PipelineContext() = default;
@@ -136,45 +147,41 @@ namespace GameEngine
 			shader = pShader;
 			renderTargetLayout = pRenderTargetLayout;
 			fixedFunctionStates = states;
-			shaderKeyBuilder.Clear();
-			shaderKeyBuilder.Append(spShaderGetId(shader));
+			shaderKeyChanged = true;
+			modulePtr = 0;
+			for (int i = 0; i < sizeof(modules) / sizeof(ModuleInstance*); i++)
+				modules[i] = nullptr;
 		}
 		void PushModuleInstance(ModuleInstance * module)
 		{
-			modules.Add(module);
-			shaderKeyBuilder.Append(module->ModuleId);
+			if (!modules[modulePtr] || modules[modulePtr]->ModuleId != module->ModuleId)
+			{
+				shaderKeyChanged = true;
+			}
+			modules[modulePtr] = module;
+			++modulePtr;
+		}
+		void PushModuleInstanceNoShaderChange(ModuleInstance * module)
+		{
+			modules[modulePtr] = module;
+			++modulePtr;
 		}
 		void PopModuleInstance()
 		{
-			modules.SetSize(modules.Count() - 1);
-			shaderKeyBuilder.Pop();
+			--modulePtr;
 		}
 		void GetBindings(DescriptorSetBindingArray & bindings)
 		{
 			bindings.Clear();
-			for (auto m : modules)
-				bindings.Add(m->GetCurrentDescriptorSet());
+			for (int i = 0; i < modulePtr; i++)
+				bindings.Add(modules[i]->GetCurrentDescriptorSet());
 		}
-		__forceinline PipelineClass* GetPipeline(MeshVertexFormat * vertFormat)
+		inline PipelineClass* GetPipeline(MeshVertexFormat * vertFormat)
 		{
 			unsigned int vtxId = (unsigned int)vertFormat->GetTypeId();
-			shaderKeyBuilder.FlipLeadingByte(vtxId);
-			if (shaderKeyBuilder.Key == lastKey)
-			{
-				shaderKeyBuilder.FlipLeadingByte(vtxId);
+			if (!shaderKeyChanged && vtxId == lastVtxId)
 				return lastPipeline;
-			}
-			if (auto pipeline = pipelineObjects.TryGetValue(shaderKeyBuilder.Key))
-			{
-				lastKey = shaderKeyBuilder.Key;
-				lastPipeline = pipeline->Ptr();
-				shaderKeyBuilder.FlipLeadingByte(vtxId);
-				return pipeline->Ptr();
-			}
-			lastKey = shaderKeyBuilder.Key;
-			lastPipeline = CreatePipeline(vertFormat);
-			shaderKeyBuilder.FlipLeadingByte(vtxId);
-			return lastPipeline;
+			return GetPipelineInternal(vertFormat, vtxId);
 		}
 	};
 }

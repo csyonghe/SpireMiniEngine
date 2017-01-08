@@ -58,8 +58,8 @@ namespace GameEngine
 
 		DeviceMemory renderPassUniformMemory;
 		SharedModuleInstances sharedModules;
-		CoreLib::RefPtr<ModuleInstance> forwardBasePassParams, lightingParams;
-		CoreLib::List<CoreLib::RefPtr<ModuleInstance>> shadowViewInstances;
+		ModuleInstance forwardBasePassParams, lightingParams;
+		CoreLib::List<ModuleInstance> shadowViewInstances;
 
 		DrawableSink sink;
 
@@ -125,22 +125,23 @@ namespace GameEngine
 
 			// initialize forwardBasePassModule and lightingModule
 			renderPassUniformMemory.Init(sharedRes->hardwareRenderer.Ptr(), BufferUsage::UniformBuffer, true, 22, sharedRes->hardwareRenderer->UniformBufferAlignment());
-			forwardBasePassParams = sharedRes->CreateModuleInstance(spFindModule(sharedRes->spireContext, "ForwardBasePassParams"), &renderPassUniformMemory);
-			lightingParams = sharedRes->CreateModuleInstance(spFindModule(sharedRes->spireContext, "Lighting"), &renderPassUniformMemory);
+			sharedRes->CreateModuleInstance(forwardBasePassParams, spFindModule(sharedRes->spireContext, "ForwardBasePassParams"), &renderPassUniformMemory);
+			sharedRes->CreateModuleInstance(lightingParams, spFindModule(sharedRes->spireContext, "Lighting"), &renderPassUniformMemory);
 			for (int i = 0; i < DynamicBufferLengthMultiplier; i++)
 			{
-				auto descSet = forwardBasePassParams->GetDescriptorSet(i);
+				auto descSet = forwardBasePassParams.GetDescriptorSet(i);
 				descSet->BeginUpdate();
 				descSet->Update(1, sharedRes->textureSampler.Ptr());
 				descSet->EndUpdate();
-				descSet = lightingParams->GetDescriptorSet(i);
+				descSet = lightingParams.GetDescriptorSet(i);
 				descSet->BeginUpdate();
 				descSet->Update(1, sharedRes->shadowMapResources.shadowMapArray.Ptr(), TextureAspect::Depth);
 				descSet->Update(2, sharedRes->shadowSampler.Ptr());
 				descSet->EndUpdate();
 			}
-			sharedModules.View = forwardBasePassParams.Ptr();
-			sharedModules.Lighting = lightingParams.Ptr();
+			sharedModules.View = &forwardBasePassParams;
+			sharedModules.Lighting = &lightingParams;
+			shadowViewInstances.Reserve(1024);
 		}
 		virtual void Run(FrameRenderTask & task, const RenderProcedureParameters & params) override
 		{
@@ -313,13 +314,14 @@ namespace GameEngine
 								ModuleInstance * shadowMapPassModuleInstance = nullptr;
 								if (shadowMapViewInstancePtr < shadowViewInstances.Count())
 								{
-									shadowMapPassModuleInstance = shadowViewInstances[shadowMapViewInstancePtr++].Ptr();
+									shadowMapPassModuleInstance = &shadowViewInstances[shadowMapViewInstancePtr++];
 								}
 								else
 								{
-									shadowViewInstances.Add(sharedRes->CreateModuleInstance(spFindModule(sharedRes->spireContext, "ForwardBasePassParams"), &renderPassUniformMemory));
+									shadowViewInstances.Add(ModuleInstance());
+									sharedRes->CreateModuleInstance(shadowViewInstances.Last(), spFindModule(sharedRes->spireContext, "ForwardBasePassParams"), &renderPassUniformMemory);
 									shadowMapViewInstancePtr = shadowViewInstances.Count();
-									shadowMapPassModuleInstance = shadowViewInstances.Last().Ptr();
+									shadowMapPassModuleInstance = &shadowViewInstances.Last();
 									for (int j = 0; j < DynamicBufferLengthMultiplier; j++)
 									{
 										auto descSet = shadowMapPassModuleInstance->GetDescriptorSet(j);
@@ -339,13 +341,13 @@ namespace GameEngine
 					lightingData.Add(lightData);
 				}
 			}
-			lightingParams->SetUniformData(lightingData.Buffer(), (int)(lightingData.Count()*sizeof(LightUniforms)));
-			forwardBasePassParams->SetUniformData(&viewUniform, (int)sizeof(viewUniform));
+			lightingParams.SetUniformData(lightingData.Buffer(), (int)(lightingData.Count()*sizeof(LightUniforms)));
+			forwardBasePassParams.SetUniformData(&viewUniform, (int)sizeof(viewUniform));
 			
 			if (deferred)
 			{
 				gBufferRenderPass->Bind();
-				sharedRes->pipelineManager.PushModuleInstance(forwardBasePassParams.Ptr());
+				sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
 				gBufferInstance.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, CullFrustum(camera->GetFrustum(aspect)), sink.GetDrawables());
 				task.renderPasses.Add(gBufferInstance);
 				task.postPasses.Add(deferredLightingPass);
@@ -353,8 +355,8 @@ namespace GameEngine
 			else
 			{
 				forwardRenderPass->Bind();
-				sharedRes->pipelineManager.PushModuleInstance(forwardBasePassParams.Ptr());
-				sharedRes->pipelineManager.PushModuleInstance(lightingParams.Ptr());
+				sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
+				sharedRes->pipelineManager.PushModuleInstance(&lightingParams);
 				forwardBaseInstance.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, CullFrustum(camera->GetFrustum(aspect)), sink.GetDrawables());
 				sharedRes->pipelineManager.PopModuleInstance();
 				task.renderPasses.Add(forwardBaseInstance);

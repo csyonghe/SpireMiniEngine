@@ -18,8 +18,8 @@ namespace GameEngine
 			{
 				unsigned int hasSkinning : 1;
 				unsigned int hasTangent : 1;
-				unsigned int numUVs : 3;
-				unsigned int numColors : 3;
+				unsigned int numUVs : 4;
+				unsigned int numColors : 4;
 			} fields;
 			int typeId;
 		} key;
