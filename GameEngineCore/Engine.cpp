@@ -216,11 +216,13 @@ namespace GameEngine
 		inDataTransfer = false;
 
 		renderer->RenderFrame();
-		uiSystemInterface->ExecuteDrawCommands(syncFences[frameCounter % DynamicBufferLengthMultiplier].Ptr());
-		renderer->GetHardwareRenderer()->Present(uiSystemInterface->GetRenderedImage());
+		
 		stats.CpuTime += CoreLib::Diagnostics::PerformanceCounter::EndSeconds(cpuTimePoint);
+		
+		uiSystemInterface->ExecuteDrawCommands(syncFences[frameCounter % DynamicBufferLengthMultiplier].Ptr());
 		aggregateTime += renderingTimeDelta;
 
+		renderer->GetHardwareRenderer()->Present(uiSystemInterface->GetRenderedImage());
 		
 		if (stats.Divisor >= 100)
 		{
@@ -246,10 +248,10 @@ namespace GameEngine
 	{
 		if (renderer && w > 2 && h > 2)
 		{
-			//renderer->GetHardwareRenderer()->BeginDataTransfer();
-			//renderer->Resize(w, h);
-			//uiSystemInterface->SetResolution(w, h);
-			//renderer->GetHardwareRenderer()->EndDataTransfer();
+			renderer->GetHardwareRenderer()->BeginDataTransfer();
+			renderer->Resize(w, h);
+			uiSystemInterface->SetResolution(w, h);
+			renderer->GetHardwareRenderer()->EndDataTransfer();
 		}
 	}
 

@@ -5,26 +5,22 @@
 #include "HardwareRenderer.h"
 #include "DeviceMemory.h"
 #include "EngineLimits.h"
+#include "Mesh.h"
 
 namespace GameEngine
 {
 	class ShaderKey
 	{
 	public:
-		CoreLib::Array<unsigned short, 8> ModuleIds;
-		int HashCode = 0;
+		long long ModuleIds[2] = {0, 0};
+		int count = 0;
 		inline int GetHashCode()
 		{
-			return HashCode;
+			return (int)(ModuleIds[0] ^ ModuleIds[1]);
 		}
 		bool operator == (const ShaderKey & key)
 		{
-			if (ModuleIds.Count() != key.ModuleIds.Count())
-				return false;
-			for (int i = 0; i < ModuleIds.Count(); i++)
-				if (ModuleIds[i] != key.ModuleIds[i])
-					return false;
-			return true;
+			return ModuleIds[0] == key.ModuleIds[0] && ModuleIds[1] == key.ModuleIds[1];
 		}
 	};
 	class ShaderKeyBuilder
@@ -33,13 +29,23 @@ namespace GameEngine
 		ShaderKey Key;
 		inline void Clear()
 		{
-			Key.ModuleIds.Clear();
-			Key.HashCode = 0;
+			Key.count = 0;
+			Key.ModuleIds[0] = 0;
+			Key.ModuleIds[1] = 0;
 		}
-		void Append(unsigned int moduleId)
+		inline void FlipLeadingByte(unsigned int header)
 		{
-			Key.HashCode ^= (moduleId << ((Key.ModuleIds.Count() & 1) * 16));
-			Key.ModuleIds.Add((unsigned short)moduleId);
+			Key.ModuleIds[0] ^= ((long long)header << 56);
+		}
+		inline void Append(unsigned int moduleId)
+		{
+			Key.ModuleIds[Key.count >> 2] ^= ((long long)moduleId << (Key.count & 3) * 16);
+			Key.count++;
+		}
+		inline void Pop()
+		{
+			Key.count--;
+			Key.ModuleIds[Key.count >> 2] ^= (Key.ModuleIds[Key.count >> 2] & (0xFFFFULL << (Key.count & 3) * 16));
 		}
 	};
 
@@ -57,6 +63,7 @@ namespace GameEngine
 		int currentDescriptor = 0;
 		int frameId = 0;
 	public:
+		int ModuleId = 0;
 		CoreLib::RefPtr<DescriptorSetLayout> DescriptorLayout;
 		CoreLib::List<int> SpecializeParamOffsets;
 		DeviceMemory * UniformMemory = nullptr;
@@ -69,6 +76,7 @@ namespace GameEngine
 			spireContext = ctx;
 			module = m;
 			specializedModule = module;
+			ModuleId = spGetModuleUID(specializedModule);
 		}
 		~ModuleInstance();
 		void SetDescriptorSetLayout(HardwareRenderer * hw, DescriptorSetLayout * layout);
@@ -79,10 +87,6 @@ namespace GameEngine
 		DescriptorSet * GetCurrentDescriptorSet()
 		{
 			return descriptors[currentDescriptor].Ptr();
-		}
-		void GetKey(ShaderKeyBuilder & keyBuilder)
-		{
-			keyBuilder.Append(spGetModuleUID(specializedModule));
 		}
 	};
 
@@ -104,7 +108,8 @@ namespace GameEngine
 		SpireCompilationContext * spireContext = nullptr;
 		SpireShader * shader = nullptr;
 		RenderTargetLayout * renderTargetLayout = nullptr;
-
+		ShaderKey lastKey;
+		PipelineClass * lastPipeline = nullptr;
 		FixedFunctionPipelineStates * fixedFunctionStates = nullptr;
 		CoreLib::EnumerableDictionary<ShaderKey, CoreLib::RefPtr<PipelineClass>> pipelineObjects;
 		CoreLib::Array<ModuleInstance*, 32> modules;
@@ -112,6 +117,7 @@ namespace GameEngine
 		HardwareRenderer * hwRenderer;
 		RenderStat * renderStats = nullptr;
 		CoreLib::Dictionary<int, VertexFormat> vertexFormats;
+		PipelineClass* CreatePipeline(MeshVertexFormat * vertFormat);
 	public:
 		PipelineContext() = default;
 		void Init(SpireCompilationContext * spireCtx, HardwareRenderer * hw, RenderStat * pRenderStats)
@@ -130,14 +136,18 @@ namespace GameEngine
 			shader = pShader;
 			renderTargetLayout = pRenderTargetLayout;
 			fixedFunctionStates = states;
+			shaderKeyBuilder.Clear();
+			shaderKeyBuilder.Append(spShaderGetId(shader));
 		}
 		void PushModuleInstance(ModuleInstance * module)
 		{
 			modules.Add(module);
+			shaderKeyBuilder.Append(module->ModuleId);
 		}
 		void PopModuleInstance()
 		{
 			modules.SetSize(modules.Count() - 1);
+			shaderKeyBuilder.Pop();
 		}
 		void GetBindings(DescriptorSetBindingArray & bindings)
 		{
@@ -145,7 +155,27 @@ namespace GameEngine
 			for (auto m : modules)
 				bindings.Add(m->GetCurrentDescriptorSet());
 		}
-		PipelineClass* GetPipeline(MeshVertexFormat * vertFormat);
+		__forceinline PipelineClass* GetPipeline(MeshVertexFormat * vertFormat)
+		{
+			unsigned int vtxId = (unsigned int)vertFormat->GetTypeId();
+			shaderKeyBuilder.FlipLeadingByte(vtxId);
+			if (shaderKeyBuilder.Key == lastKey)
+			{
+				shaderKeyBuilder.FlipLeadingByte(vtxId);
+				return lastPipeline;
+			}
+			if (auto pipeline = pipelineObjects.TryGetValue(shaderKeyBuilder.Key))
+			{
+				lastKey = shaderKeyBuilder.Key;
+				lastPipeline = pipeline->Ptr();
+				shaderKeyBuilder.FlipLeadingByte(vtxId);
+				return pipeline->Ptr();
+			}
+			lastKey = shaderKeyBuilder.Key;
+			lastPipeline = CreatePipeline(vertFormat);
+			shaderKeyBuilder.FlipLeadingByte(vtxId);
+			return lastPipeline;
+		}
 	};
 }
 

@@ -3747,7 +3747,7 @@ namespace VK
 			vk::CommandBufferAllocateInfo commandBufferAllocateInfo = vk::CommandBufferAllocateInfo()
 				.setCommandPool(RendererState::SwapchainCommandPool())
 				.setLevel(vk::CommandBufferLevel::ePrimary)
-				.setCommandBufferCount((uint32_t)images.Count());
+				.setCommandBufferCount((uint32_t)images.Count() * 2);
 
 			commandBuffers.SetSize(commandBufferAllocateInfo.commandBufferCount);
 			RendererState::Device().allocateCommandBuffers(&commandBufferAllocateInfo, commandBuffers.Buffer());
@@ -3800,7 +3800,7 @@ namespace VK
 			for (int image = 0; image < images.Count(); image++)
 			{
 				//TODO: see if following line is beneficial
-				commandBuffers[image].reset(vk::CommandBufferResetFlags()); // implicitly done by begin
+				//commandBuffers[image].reset(vk::CommandBufferResetFlags()); // implicitly done by begin
 
 				vk::CommandBufferBeginInfo commandBufferBeginInfo = vk::CommandBufferBeginInfo()
 					.setFlags(vk::CommandBufferUsageFlagBits::eSimultaneousUse)
@@ -4185,9 +4185,12 @@ namespace VK
 		{
 			if (images.Count() == 0) return;
 			uint32_t nextImage = RendererState::Device().acquireNextImageKHR(swapchain, UINT64_MAX, imageAvailableSemaphore, vk::Fence()).value;
-
+			static int frameId = 0;
+			frameId++;
 			//TODO: see if following line is beneficial
-			commandBuffers[nextImage].reset(vk::CommandBufferResetFlags()); // implicitly done by begin
+			int nextCmd = nextImage * 2 + (frameId & 1);
+			//TODO: see if following line is beneficial
+			commandBuffers[nextCmd].reset(vk::CommandBufferResetFlags()); // implicitly done by begin
 
 			vk::CommandBufferBeginInfo commandBufferBeginInfo = vk::CommandBufferBeginInfo()
 				.setFlags(vk::CommandBufferUsageFlagBits::eSimultaneousUse)
@@ -4220,8 +4223,8 @@ namespace VK
 				.setImage(images[nextImage])
 				.setSubresourceRange(imageSubresourceRange);
 
-			commandBuffers[nextImage].begin(commandBufferBeginInfo); // start recording
-			commandBuffers[nextImage].pipelineBarrier(
+			commandBuffers[nextCmd].begin(commandBufferBeginInfo); // start recording
+			commandBuffers[nextCmd].pipelineBarrier(
 				vk::PipelineStageFlagBits::eTransfer,
 				vk::PipelineStageFlagBits::eTransfer,
 				vk::DependencyFlags(),
@@ -4233,7 +4236,7 @@ namespace VK
 			if (srcImage == nullptr)
 			{
 				// If no source image, clear to debug purple
-				commandBuffers[nextImage].clearColorImage(
+				commandBuffers[nextCmd].clearColorImage(
 					images[nextImage],
 					vk::ImageLayout::eTransferDstOptimal,
 					vk::ClearColorValue(std::array<float, 4>{ 1.0f, 0.0f, 1.0f, 0.0f }),
@@ -4262,7 +4265,7 @@ namespace VK
 					.setImage(dynamic_cast<Texture2D*>(srcImage)->image)
 					.setSubresourceRange(imageSubresourceRange);
 
-				commandBuffers[nextImage].pipelineBarrier(
+				commandBuffers[nextCmd].pipelineBarrier(
 					vk::PipelineStageFlagBits::eTransfer,
 					vk::PipelineStageFlagBits::eTransfer,
 					vk::DependencyFlags(),
@@ -4293,7 +4296,7 @@ namespace VK
 					.setDstSubresource(subresourceLayers)
 					.setDstOffsets(dstOffsets);
 
-				commandBuffers[nextImage].blitImage(
+				commandBuffers[nextCmd].blitImage(
 					dynamic_cast<VK::Texture2D*>(srcImage)->image,
 					vk::ImageLayout::eTransferSrcOptimal,
 					images[nextImage],
@@ -4302,7 +4305,7 @@ namespace VK
 					vk::Filter::eNearest
 				);
 
-				commandBuffers[nextImage].pipelineBarrier(
+				commandBuffers[nextCmd].pipelineBarrier(
 					vk::PipelineStageFlagBits::eTransfer,
 					vk::PipelineStageFlagBits::eTransfer,
 					vk::DependencyFlags(),
@@ -4312,7 +4315,7 @@ namespace VK
 				);
 			}
 
-			commandBuffers[nextImage].pipelineBarrier(
+			commandBuffers[nextCmd].pipelineBarrier(
 				vk::PipelineStageFlagBits::eTransfer,
 				vk::PipelineStageFlagBits::eBottomOfPipe,
 				vk::DependencyFlags(),
@@ -4320,7 +4323,7 @@ namespace VK
 				nullptr,
 				prePresentBarrier
 			);
-			commandBuffers[nextImage].end(); // stop recording
+			commandBuffers[nextCmd].end(); // stop recording
 
 			vk::PipelineStageFlags waitDstStageMask = vk::PipelineStageFlags(vk::PipelineStageFlagBits::eColorAttachmentOutput);
 
@@ -4329,7 +4332,7 @@ namespace VK
 				.setPWaitSemaphores(&imageAvailableSemaphore)
 				.setPWaitDstStageMask(&waitDstStageMask)
 				.setCommandBufferCount(1)
-				.setPCommandBuffers(&commandBuffers[nextImage])
+				.setPCommandBuffers(&commandBuffers[nextCmd])
 				.setSignalSemaphoreCount(1)
 				.setPSignalSemaphores(&renderingFinishedSemaphore);
 

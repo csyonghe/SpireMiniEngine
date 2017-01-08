@@ -49,26 +49,9 @@ namespace GameEngine
 		stream->Close();
 	}
 
-	union MeshVertexFormatTypeIdConverter
-	{
-		struct Fields
-		{
-			unsigned int hasSkinning : 1;
-			unsigned int hasTangent : 1;
-			unsigned int numUVs : 4;
-			unsigned int numColors : 4;
-		} f;
-		int typeId;
-	};
-
 	MeshVertexFormat::MeshVertexFormat(int typeId)
 	{
-		MeshVertexFormatTypeIdConverter convertor;
-		convertor.typeId = typeId;
-		hasSkinning = convertor.f.hasSkinning;
-		hasTangent = convertor.f.hasTangent;
-		numUVs = (int)convertor.f.numUVs;
-		numColors = (int)convertor.f.numColors;
+		key.typeId = typeId;
 		vertSize = CalcVertexSize();
 	}
 
@@ -79,12 +62,12 @@ namespace GameEngine
 			StringBuilder sb;
 			sb << "module VertexAttributes\n{\n";
 			sb << "public @MeshVertex vec3 vertPos;\n";
-			for (int i = 0; i < numUVs; i++)
+			for (auto i = 0u; i < key.fields.numUVs; i++)
 				sb << "public @MeshVertex vec2 vertUV" << i << ";\n";
-			for (int i = numUVs; i < 8; i++)
+			for (auto i = key.fields.numUVs; i < 8; i++)
 				sb << "public inline vec2 vertUV" << i << " = vec2(0.0);\n";
 			sb << "public vec2 vertUV = vertUV0;\n";
-			if (hasTangent)
+			if (key.fields.hasTangent)
 			{
 				sb << R"(
 				@MeshVertex uint tangentFrame;
@@ -117,11 +100,11 @@ namespace GameEngine
 				public vec3 vertBinormal = vec3(0.0, 0.0, 1.0);
 				)";
 			}
-			for (int i = 0; i < numColors; i++)
+			for (auto i = 0u; i < key.fields.numColors; i++)
 				sb << "public @MeshVertex vec4 vertColor" << i << ";\n";
-			for (int i = numColors; i < 8; i++)
+			for (auto i = key.fields.numColors; i < 8; i++)
 				sb << "public inline vec4 vertColor" << i << " = vec4(0.0);\n";
-			if (hasSkinning)
+			if (key.fields.hasSkinning)
 			{
 				sb << "public @MeshVertex uint boneIds;\n";
 				sb << "public @MeshVertex uint boneWeights;\n";
@@ -136,18 +119,7 @@ namespace GameEngine
 		}
 		return shaderDef;
 	}
-
-	int MeshVertexFormat::GetTypeId()
-	{
-		MeshVertexFormatTypeIdConverter convertor;
-		convertor.typeId = 0;
-		convertor.f.hasSkinning = hasSkinning;
-		convertor.f.hasTangent = hasTangent;
-		convertor.f.numUVs = numUVs;
-		convertor.f.numColors = numColors;
-		return convertor.typeId;
-	}
-
+	
 	struct SkeletonMeshVertex
 	{
 		Vec3 pos;

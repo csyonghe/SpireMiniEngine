@@ -82,8 +82,8 @@ namespace GameEngine
 						{
 							if (rs.Divisor != 0)
 							{
-								sb << String(rs.CpuTime * 1000.0f / rs.Divisor, "%.1f") << "\t" << String(rs.PipelineLookupTime * 1000.0f / rs.Divisor, "%.1f")
-									<< "\t" << String(rs.TotalTime * 1000.0f / rs.Divisor, "%.1f") << "\t" << rs.NumDrawCalls / rs.Divisor << "\n";
+								sb << String(rs.CpuTime * 1000.0f / rs.Divisor, "%.1f") << "\t" << String(rs.TotalTime * 1000.0f / rs.Divisor, "%.1f") 
+									<< "\t" << rs.NumDrawCalls / rs.Divisor << "\n";
 							}
 						}
 						CoreLib::IO::File::WriteAllText(params.RenderStatsDumpFileName, sb.ProduceString());

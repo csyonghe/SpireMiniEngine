@@ -54,19 +54,8 @@ namespace GameEngine
 		return rs;
 	}
 
-	PipelineClass * PipelineContext::GetPipeline(MeshVertexFormat * vertFormat)
+	PipelineClass * PipelineContext::CreatePipeline(MeshVertexFormat * vertFormat)
 	{
-		shaderKeyBuilder.Clear();
-		shaderKeyBuilder.Append(spShaderGetId(shader));
-		shaderKeyBuilder.Append(vertFormat->GetTypeId());
-		for (auto m : modules)
-			m->GetKey(shaderKeyBuilder);
-		if (auto pipeline = pipelineObjects.TryGetValue(shaderKeyBuilder.Key))
-		{
-			auto rs = pipeline->Ptr();
-			return rs;
-		}
-
 		RefPtr<PipelineBuilder> pipelineBuilder = hwRenderer->CreatePipelineBuilder();
 
 		pipelineBuilder->FixedFunctionStates = *fixedFunctionStates;
@@ -125,7 +114,7 @@ namespace GameEngine
 			}
 			pipelineClass->shaders.Add(shaderObj);
 		}
-		
+
 		//String keyStr = key;
 		//pipelineBuilder->SetDebugName(keyStr);
 
@@ -180,6 +169,7 @@ namespace GameEngine
 		if (keyChanged)
 		{
 			specializedModule = spSpecializeModule(spireContext, module, currentSpecializationKey.Buffer(), currentSpecializationKey.Count(), nullptr);
+			ModuleId = spGetModuleUID(specializedModule);
 		}
 		//UniformMemory->GetBuffer()->SetData(BufferOffset, data, CoreLib::Math::Min(length, BufferLength));
 	}
