@@ -75,16 +75,16 @@ namespace GameEngine
 	{
 		if (type != DrawableType::Static)
 			throw InvalidOperationException("cannot update non-static drawable with static transform data.");
-		if (!transformModule.UniformPtr)
+		if (!transformModule->UniformPtr)
 			throw InvalidOperationException("invalid buffer.");
-		transformModule.SetUniformData((void*)&localTransform, sizeof(Matrix4));	
+		transformModule->SetUniformData((void*)&localTransform, sizeof(Matrix4));
 	}
 
 	void Drawable::UpdateTransformUniform(const VectorMath::Matrix4 & localTransform, const Pose & pose)
 	{
 		if (type != DrawableType::Skeletal)
 			throw InvalidOperationException("cannot update static drawable with skeletal transform data.");
-		if (!transformModule.UniformPtr)
+		if (!transformModule->UniformPtr)
 			throw InvalidOperationException("invalid buffer.");
 
 		const int poseMatrixSize = skeleton->Bones.Count() * sizeof(Matrix4);
@@ -98,7 +98,7 @@ namespace GameEngine
 		{
 			Matrix4::Multiply(matrices[i], localTransform, matrices[i]);
 		}
-		transformModule.SetUniformData((void*)matrices.Buffer(), sizeof(Matrix4) * matrices.Count());
+		transformModule->SetUniformData((void*)matrices.Buffer(), sizeof(Matrix4) * matrices.Count());
 	}
     RefPtr<DrawableMesh> SceneResource::CreateDrawableMesh(Mesh * mesh)
     {
@@ -573,41 +573,48 @@ namespace GameEngine
 		}
 		else
 			rs.UniformMemory = nullptr;
-		int paramCount = spModuleGetParameterCount(shaderModule);
-		List<DescriptorLayout> descs;
-		if (rs.UniformMemory)
-			descs.Add(DescriptorLayout(0, BindingType::UniformBuffer));
-		for (int i = 0; i < paramCount; i++)
+		
+		RefPtr<DescriptorSetLayout> layout;
+		if (!descLayouts.TryGetValue((SpireModuleStruct*)shaderModule, layout))
 		{
-			SpireComponentInfo info;
-			spModuleGetParameter(shaderModule, i, &info);
-			if (info.BindableResourceType != SPIRE_NON_BINDABLE)
+			int paramCount = spModuleGetParameterCount(shaderModule);
+			List<DescriptorLayout> descs;
+			if (rs.UniformMemory)
+				descs.Add(DescriptorLayout(0, BindingType::UniformBuffer));
+			for (int i = 0; i < paramCount; i++)
 			{
-				DescriptorLayout layout;
-				layout.Location = descs.Count();
-				switch (info.BindableResourceType)
+				SpireComponentInfo info;
+				spModuleGetParameter(shaderModule, i, &info);
+				if (info.BindableResourceType != SPIRE_NON_BINDABLE)
 				{
-				case SPIRE_TEXTURE:
-					layout.Type = BindingType::Texture;
-					break;
-				case SPIRE_UNIFORM_BUFFER:
-					layout.Type = BindingType::UniformBuffer;
-					break;
-				case SPIRE_SAMPLER:
-					layout.Type = BindingType::Sampler;
-					break;
-				case SPIRE_STORAGE_BUFFER:
-					layout.Type = BindingType::StorageBuffer;
-					break;
+					DescriptorLayout layout;
+					layout.Location = descs.Count();
+					switch (info.BindableResourceType)
+					{
+					case SPIRE_TEXTURE:
+						layout.Type = BindingType::Texture;
+						break;
+					case SPIRE_UNIFORM_BUFFER:
+						layout.Type = BindingType::UniformBuffer;
+						break;
+					case SPIRE_SAMPLER:
+						layout.Type = BindingType::Sampler;
+						break;
+					case SPIRE_STORAGE_BUFFER:
+						layout.Type = BindingType::StorageBuffer;
+						break;
+					}
+					descs.Add(layout);
 				}
-				descs.Add(layout);
+				if (info.Specialize)
+				{
+					rs.SpecializeParamOffsets.Add(info.Offset);
+				}
 			}
-			if (info.Specialize)
-			{
-				rs.SpecializeParamOffsets.Add(info.Offset);
-			}
+			layout = hardwareRenderer->CreateDescriptorSetLayout(descs.GetArrayView());
+			descLayouts[(SpireModuleStruct*)shaderModule] = layout;
 		}
-		rs.SetDescriptorSetLayout(hardwareRenderer.Ptr(), hardwareRenderer->CreateDescriptorSetLayout(descs.GetArrayView()));
+		rs.SetDescriptorSetLayout(hardwareRenderer.Ptr(), layout.Ptr());
 		if (rs.UniformMemory)
 		{
 			for (int i = 0; i < DynamicBufferLengthMultiplier; i++)
@@ -687,6 +694,7 @@ namespace GameEngine
 		textureSampler = nullptr;
 		nearestSampler = nullptr;
 		linearSampler = nullptr;
+		descLayouts = CoreLib::EnumerableDictionary<SpireModuleStruct*, CoreLib::RefPtr<GameEngine::DescriptorSetLayout>>();
 		renderTargets = CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<RenderTarget>>();
 		fullScreenQuadVertBuffer = nullptr;
 		//ModuleInstance::ClosePool();

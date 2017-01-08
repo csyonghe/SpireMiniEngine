@@ -210,7 +210,6 @@ namespace GameEngine
 
 	void ModuleInstance::SetDescriptorSetLayout(HardwareRenderer * hw, DescriptorSetLayout * layout)
 	{
-		this->DescriptorLayout = layout;
 		descriptors.Clear();
 		for (int i = 0; i < descriptors.GetCapacity(); i++)
 			descriptors.Add(hw->CreateDescriptorSet(layout));

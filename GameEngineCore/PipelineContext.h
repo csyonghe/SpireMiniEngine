@@ -66,7 +66,6 @@ namespace GameEngine
 		int currentDescriptor = 0;
 		int frameId = 0;
 	public:
-		CoreLib::RefPtr<DescriptorSetLayout> DescriptorLayout;
 		CoreLib::List<int> SpecializeParamOffsets;
 		DeviceMemory * UniformMemory = nullptr;
 		int BufferOffset = 0, BufferLength = 0;

@@ -113,7 +113,7 @@ namespace GameEngine
 		MeshVertexFormat vertFormat;
 		CoreLib::RefPtr<DrawableMesh> mesh = nullptr;
 		Material * material = nullptr;
-		ModuleInstance transformModule;
+		CoreLib::RefPtr<ModuleInstance> transformModule;
 
 		Skeleton * skeleton = nullptr;
 		CoreLib::Array<PipelineClass*, MaxWorldRenderPasses> pipelineCache;
@@ -129,11 +129,12 @@ namespace GameEngine
 			pipelineCache.SetSize(pipelineCache.GetCapacity());
 			for (auto & p : pipelineCache)
 				p = nullptr;
+			transformModule = new ModuleInstance();
 		}
 		PipelineClass * GetPipeline(int passId, PipelineContext & pipelineManager);
 		inline ModuleInstance * GetTransformModule()
 		{
-			return &transformModule;
+			return transformModule.Ptr();
 		}
 		inline DrawableMesh * GetMesh()
 		{
@@ -257,7 +258,10 @@ namespace GameEngine
 	};
 
 	CoreLib::String GetSpireOutput(SpireDiagnosticSink * sink);
-	
+	struct SpireModuleStruct
+	{
+		int dummy;
+	};
 	class RendererSharedResource
 	{
 	private:
@@ -267,6 +271,7 @@ namespace GameEngine
 		RenderStat renderStats;
 		CoreLib::RefPtr<HardwareRenderer> hardwareRenderer;
 		CoreLib::RefPtr<TextureSampler> textureSampler, nearestSampler, linearSampler, shadowSampler;
+		CoreLib::EnumerableDictionary<SpireModuleStruct*, CoreLib::RefPtr<DescriptorSetLayout>> descLayouts;
 		SpireCompilationContext * spireContext = nullptr;
 		void * viewUniformPtr = nullptr;
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<RenderTarget>> renderTargets;
