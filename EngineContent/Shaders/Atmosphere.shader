@@ -517,7 +517,7 @@ shader AtmospherePostPass targets StandardPipeline
             vec3 colorIn = colorTex.Sample(nearestSampler, vertUV).xyz;
             vec3 extinction;
             vec3 inscatter = atmosphere.AtmosphericScatterSceneGeometry(cameraPos*0.01 +
-                 atmosphere.earthPos, t*atmosphericFogScale, v, z, worldSunDir, extinction);
+                 atmosphere.earthPos, 0.1+t*atmosphericFogScale, v, z, worldSunDir, extinction);
             inscatter = hdr(inscatter);
             vec3 finalColor = colorIn * extinction + inscatter;
             result = vec4(finalColor, 1.0);

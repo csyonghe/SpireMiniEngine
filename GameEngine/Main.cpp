@@ -128,75 +128,80 @@ int wWinMain(
 	{
 		EngineInitArguments args;
 		AppLaunchParameters appParams;
-
-
-		args.API = RenderAPI::OpenGL;
-		args.GpuId = 0;
-		args.RecompileShaders = false;
-
-		CommandLineParser parser(Application::GetCommandLine());
-		if(parser.OptionExists("-vk"))
-			args.API = RenderAPI::Vulkan;
-		if (parser.OptionExists("-vk1"))
-			args.API = RenderAPI::VulkanSingle;
-		if (parser.OptionExists("-dir"))
-			args.GameDirectory = RemoveQuote(parser.GetOptionValue("-dir"));
-		if (parser.OptionExists("-enginedir"))
-			args.EngineDirectory = RemoveQuote(parser.GetOptionValue("-enginedir"));
-		if (parser.OptionExists("-gpu"))
-			args.GpuId = StringToInt(parser.GetOptionValue("-gpu"));
-		if (parser.OptionExists("-recompileshaders"))
-			args.RecompileShaders = true;
-		if (parser.OptionExists("-level"))
-			args.StartupLevelName = parser.GetOptionValue("-level");
-		if (parser.OptionExists("-recdir"))
+		try
 		{
-			appParams.EnableVideoCapture = true;
-			appParams.Directory = RemoveQuote(parser.GetOptionValue("-recdir"));
-		}
-		if (parser.OptionExists("-reclen"))
-		{
-			appParams.EnableVideoCapture = true;
-			appParams.Length = (float)StringToDouble(parser.GetOptionValue("-reclen"));
-		}
-		if (parser.OptionExists("-recfps"))
-		{
-			appParams.EnableVideoCapture = true;
-			appParams.FramesPerSecond = (int)StringToInt(parser.GetOptionValue("-recfps"));
-		}
-        if (parser.OptionExists("-no_console"))
-            args.NoConsole = true;
-		if (parser.OptionExists("-runforframes"))
-			appParams.RunForFrames = (int)StringToInt(parser.GetOptionValue("-runforframes"));
-		if (parser.OptionExists("-dumpstat"))
-		{
-			appParams.DumpRenderStats = true;
-			appParams.RenderStatsDumpFileName = RemoveQuote(parser.GetOptionValue("-dumpstat"));
-		}
-		auto form = new MainForm(appParams);
-		Application::SetMainLoopEventHandler(new CoreLib::WinForm::NotifyEvent(form, &MainForm::MainLoop));
 
-		args.Width = form->GetClientWidth();
-		args.Height = form->GetClientHeight();
-		args.Window = (WindowHandle)form->GetHandle();
-		
-		RegisterTestUserActor();
+			args.API = RenderAPI::OpenGL;
+			args.GpuId = 0;
+			args.RecompileShaders = false;
 
-		Engine::Init(args);
-		
-		if (parser.OptionExists("-pipelinecache"))
-		{
-			Engine::Instance()->GetGraphicsSettings().UsePipelineCache = ((int)StringToInt(parser.GetOptionValue("-pipelinecache")) == 1);
+			CommandLineParser parser(Application::GetCommandLine());
+			if (parser.OptionExists("-vk"))
+				args.API = RenderAPI::Vulkan;
+			if (parser.OptionExists("-vk1"))
+				args.API = RenderAPI::VulkanSingle;
+			if (parser.OptionExists("-dir"))
+				args.GameDirectory = RemoveQuote(parser.GetOptionValue("-dir"));
+			if (parser.OptionExists("-enginedir"))
+				args.EngineDirectory = RemoveQuote(parser.GetOptionValue("-enginedir"));
+			if (parser.OptionExists("-gpu"))
+				args.GpuId = StringToInt(parser.GetOptionValue("-gpu"));
+			if (parser.OptionExists("-recompileshaders"))
+				args.RecompileShaders = true;
+			if (parser.OptionExists("-level"))
+				args.StartupLevelName = parser.GetOptionValue("-level");
+			if (parser.OptionExists("-recdir"))
+			{
+				appParams.EnableVideoCapture = true;
+				appParams.Directory = RemoveQuote(parser.GetOptionValue("-recdir"));
+			}
+			if (parser.OptionExists("-reclen"))
+			{
+				appParams.EnableVideoCapture = true;
+				appParams.Length = (float)StringToDouble(parser.GetOptionValue("-reclen"));
+			}
+			if (parser.OptionExists("-recfps"))
+			{
+				appParams.EnableVideoCapture = true;
+				appParams.FramesPerSecond = (int)StringToInt(parser.GetOptionValue("-recfps"));
+			}
+			if (parser.OptionExists("-no_console"))
+				args.NoConsole = true;
+			if (parser.OptionExists("-runforframes"))
+				appParams.RunForFrames = (int)StringToInt(parser.GetOptionValue("-runforframes"));
+			if (parser.OptionExists("-dumpstat"))
+			{
+				appParams.DumpRenderStats = true;
+				appParams.RenderStatsDumpFileName = RemoveQuote(parser.GetOptionValue("-dumpstat"));
+			}
+			auto form = new MainForm(appParams);
+			Application::SetMainLoopEventHandler(new CoreLib::WinForm::NotifyEvent(form, &MainForm::MainLoop));
+
+			args.Width = form->GetClientWidth();
+			args.Height = form->GetClientHeight();
+			args.Window = (WindowHandle)form->GetHandle();
+
+			RegisterTestUserActor();
+
+			Engine::Init(args);
+
+			if (parser.OptionExists("-pipelinecache"))
+			{
+				Engine::Instance()->GetGraphicsSettings().UsePipelineCache = ((int)StringToInt(parser.GetOptionValue("-pipelinecache")) == 1);
+			}
+
+			if (appParams.EnableVideoCapture)
+			{
+				Engine::Instance()->SetTimingMode(GameEngine::TimingMode::Fixed);
+				Engine::Instance()->SetFrameDuration(1.0f / appParams.FramesPerSecond);
+			}
+
+			Application::Run(form, true);
 		}
-
-		if (appParams.EnableVideoCapture)
+		catch (const Exception & e)
 		{
-			Engine::Instance()->SetTimingMode(GameEngine::TimingMode::Fixed);
-			Engine::Instance()->SetFrameDuration(1.0f / appParams.FramesPerSecond);
+			MessageBoxW(NULL, e.Message.ToWString(), NULL, NULL);
 		}
-
-		Application::Run(form, true);
-		
 		Engine::Destroy();
 	}
 	Application::Dispose();
