@@ -4069,12 +4069,11 @@ namespace VKO
 			primaryBuffer.begin(primaryBeginInfo);
 			if (prePassCommandBuffers.Count() > 0)
 				primaryBuffer.executeCommands(prePassCommandBuffers.Count(), prePassCommandBuffers.Buffer());
-			{ // BEGIN RenderPass
+			if (renderPassCommandBuffers.Count() > 0) {
 				primaryBuffer.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eSecondaryCommandBuffers);
-				if (renderPassCommandBuffers.Count() > 0)
-					primaryBuffer.executeCommands(renderPassCommandBuffers.Count(), renderPassCommandBuffers.Buffer());
+				primaryBuffer.executeCommands(renderPassCommandBuffers.Count(), renderPassCommandBuffers.Buffer());
 				primaryBuffer.endRenderPass();
-			} // END RenderPass
+			}
 			if (postPassCommandBuffers.Count() > 0)
 				primaryBuffer.executeCommands(postPassCommandBuffers.Count(), postPassCommandBuffers.Buffer());
 
