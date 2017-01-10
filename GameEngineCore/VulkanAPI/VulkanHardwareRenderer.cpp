@@ -4219,6 +4219,7 @@ namespace VK
 			uint32_t nextImage = RendererState::Device().acquireNextImageKHR(swapchain, UINT64_MAX, imageAvailableSemaphore, vk::Fence()).value;
 			static int frameId = 0;
 			frameId++;
+
 			//TODO: see if following line is beneficial
 			int nextCmd = nextImage * 2 + (frameId & 1);
 			//TODO: see if following line is beneficial

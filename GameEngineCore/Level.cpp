@@ -72,8 +72,12 @@ namespace GameEngine
 	}
 	Mesh * Level::LoadMesh(CoreLib::String name, Mesh m)
 	{
-		RefPtr<Mesh> result = new Mesh(_Move(m));
-		Meshes.Add(_Move(name), result);
+		RefPtr<Mesh> result = nullptr;
+		if (!Meshes.TryGetValue(name, result))
+		{
+			result = new Mesh(_Move(m));
+			Meshes.Add(_Move(name), result);
+		}
 		return result.Ptr();
 	}
 	Skeleton * Level::LoadSkeleton(const CoreLib::String & fileName)

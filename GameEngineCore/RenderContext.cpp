@@ -749,16 +749,20 @@ namespace GameEngine
 		pipelineManager.GetBindings(bindings);
 		for (int i = 0; i < bindings.Count(); i++)
 			cmdBuf->BindDescriptorSet(i, bindings[i]);
+
 		numDrawCalls = 0;
 		Array<DescriptorSet*, 32> boundSets;
 		boundSets.SetSize(boundSets.GetCapacity());
+		DrawableMesh * lastMesh = nullptr;
 		if (drawables.Count())
 		{
 			Material* lastMaterial = drawables[0]->GetMaterial();
 
+			cmdBuf->BindIndexBuffer(drawables[0]->GetMesh()->GetIndexBuffer(), 0);
 			pipelineManager.PushModuleInstance(&lastMaterial->MaterialGeometryModule);
 			pipelineManager.PushModuleInstance(&lastMaterial->MaterialPatternModule);
-
+			BindDescSet(boundSets.Buffer(), cmdBuf, bindings.Count(), lastMaterial->MaterialGeometryModule.GetCurrentDescriptorSet());
+			BindDescSet(boundSets.Buffer(), cmdBuf, bindings.Count() + 1, lastMaterial->MaterialPatternModule.GetCurrentDescriptorSet());
 			for (auto obj : drawables)
 			{
 				if (!frustum.IsBoxInFrustum(obj->Bounds))
@@ -771,20 +775,26 @@ namespace GameEngine
 					pipelineManager.PopModuleInstance();
 					pipelineManager.PushModuleInstance(&newMaterial->MaterialGeometryModule);
 					pipelineManager.PushModuleInstance(&newMaterial->MaterialPatternModule);
-					lastMaterial = newMaterial;
 				}
 				pipelineManager.PushModuleInstanceNoShaderChange(obj->GetTransformModule());
 				if (auto pipelineInst = obj->GetPipeline(renderPassId, pipelineManager))
 				{
 					auto mesh = obj->GetMesh();
 					cmdBuf->BindPipeline(pipelineInst->pipeline.Ptr());
-					BindDescSet(boundSets.Buffer(), cmdBuf, bindings.Count(), newMaterial->MaterialGeometryModule.GetCurrentDescriptorSet());
-					BindDescSet(boundSets.Buffer(), cmdBuf, bindings.Count() + 1, newMaterial->MaterialPatternModule.GetCurrentDescriptorSet());
+					if (newMaterial != lastMaterial)
+					{
+						BindDescSet(boundSets.Buffer(), cmdBuf, bindings.Count(), newMaterial->MaterialGeometryModule.GetCurrentDescriptorSet());
+						BindDescSet(boundSets.Buffer(), cmdBuf, bindings.Count() + 1, newMaterial->MaterialPatternModule.GetCurrentDescriptorSet());
+					}
 					BindDescSet(boundSets.Buffer(), cmdBuf, bindings.Count() + 2, obj->GetTransformModule()->GetCurrentDescriptorSet());
-					cmdBuf->BindIndexBuffer(mesh->GetIndexBuffer(), mesh->indexBufferOffset);
-					cmdBuf->BindVertexBuffer(mesh->GetVertexBuffer(), mesh->vertexBufferOffset);
-					cmdBuf->DrawIndexed(0, mesh->indexCount);
+					if (mesh != lastMesh)
+					{
+						cmdBuf->BindVertexBuffer(mesh->GetVertexBuffer(), mesh->vertexBufferOffset);
+						lastMesh = mesh;
+					}
+					cmdBuf->DrawIndexed(mesh->indexBufferOffset / sizeof(int), mesh->indexCount);
 				}
+				lastMaterial = newMaterial;
 				pipelineManager.PopModuleInstance();
 			}
 			pipelineManager.PopModuleInstance();

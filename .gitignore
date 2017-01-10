@@ -263,3 +263,5 @@ paket-files/
 /ExampleGame/Cache/Shaders/temp.vert
 /ExampleGame/Cache/Shaders/temp.frag
 /Factory
+/ExampleGame/Models/factory
+/ExampleGame/Levels/factory.level
