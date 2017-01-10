@@ -14,6 +14,7 @@ namespace GameEngine
 	public:
 		CoreLib::String Name;
 		CoreLib::String ShaderFile;
+		int Id = 0;
 		bool ParameterDirty = true;
 		ModuleInstance MaterialPatternModule, MaterialGeometryModule;
 		CoreLib::EnumerableDictionary<CoreLib::String, DynamicVariable> Variables;
@@ -21,7 +22,7 @@ namespace GameEngine
 		void SetVariable(CoreLib::String name, DynamicVariable value);
 		void Parse(CoreLib::Text::TokenReader & parser);
 		void LoadFromFile(const CoreLib::String & fullFileName);
-
+		Material();
 		template<typename WriteTextureFunc, typename WriteFunc, typename AlignFunc>
 		void FillInstanceUniformBuffer(ModuleInstance * module, const WriteTextureFunc & writeTex, const WriteFunc & write, const AlignFunc & align)
 		{

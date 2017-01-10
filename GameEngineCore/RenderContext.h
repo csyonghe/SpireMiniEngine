@@ -120,7 +120,7 @@ namespace GameEngine
 		SceneResource * scene = nullptr;
 	public:
 		CoreLib::Graphics::BBox Bounds;
-		void * ReorderKey = nullptr;
+		unsigned int ReorderKey = 0;
 		Drawable(SceneResource * sceneRes)
 		{
 			scene = sceneRes;

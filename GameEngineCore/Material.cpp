@@ -3,6 +3,13 @@
 
 namespace GameEngine
 {
+	Material::Material()
+	{
+		static int idAlloc = 0;
+		Id = idAlloc;
+		Id++;
+	}
+
 	void Material::SetVariable(CoreLib::String name, DynamicVariable value)
 	{
 		ParameterDirty = true;

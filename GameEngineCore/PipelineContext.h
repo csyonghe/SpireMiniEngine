@@ -99,6 +99,7 @@ namespace GameEngine
 	class PipelineClass
 	{
 	public:
+		int Id = 0;
 		CoreLib::List<CoreLib::RefPtr<Shader>> shaders;
 		CoreLib::RefPtr<Pipeline> pipeline;
 		CoreLib::List<CoreLib::RefPtr<DescriptorSetLayout>> descriptorSetLayouts;

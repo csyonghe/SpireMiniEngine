@@ -222,10 +222,13 @@ namespace GameEngine
 				hardwareRenderer->ExecuteCommandBuffers(pass.renderOutput->GetFrameBuffer(), MakeArrayView(pass.commandBuffer->GetBuffer()), nullptr);
 				sharedRes.renderStats.NumPasses++;
 				sharedRes.renderStats.NumDrawCalls += pass.numDrawCalls;
+				//hardwareRenderer->Wait();
 			}
-
 			for (auto pass : frameTask.postPasses)
+			{
 				pass->Execute(frameTask.sharedModuleInstances);
+				//hardwareRenderer->Wait();
+			}
 		}
 		virtual RendererSharedResource * GetSharedResource() override
 		{

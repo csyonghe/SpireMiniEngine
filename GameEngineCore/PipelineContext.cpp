@@ -118,6 +118,9 @@ namespace GameEngine
 		spDestroyCompilationResult(compileRs);
 
 		RefPtr<PipelineClass> pipelineClass = new PipelineClass();
+		static int pipelineClassId = 0;
+		pipelineClassId++;
+		pipelineClass->Id = pipelineClassId;
 
 		for (auto& compiledShader : rs.Shaders)
 		{
@@ -157,6 +160,7 @@ namespace GameEngine
 		pipelineBuilder->SetBindingLayout(From(descSetLayouts).Select([](auto x) {return x.Ptr(); }).ToList().GetArrayView());
 		pipelineClass->pipeline = pipelineBuilder->ToPipeline(renderTargetLayout);
 		pipelineObjects[shaderKeyBuilder.Key] = pipelineClass;
+		Print("Pipeline created. total pipelines: %d\n", pipelineObjects.Count());
 		return pipelineClass.Ptr();
 	}
 

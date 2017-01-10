@@ -804,7 +804,7 @@ namespace GameEngine
 
 			for (auto obj : drawables)
 			{
-				obj->ReorderKey = nullptr;
+				obj->ReorderKey = 0;
 				if (!frustum.IsBoxInFrustum(obj->Bounds))
 					continue;
 				auto newMaterial = obj->GetMaterial();
@@ -817,7 +817,7 @@ namespace GameEngine
 					lastMaterial = newMaterial;
 				}
 				pipelineManager.PushModuleInstanceNoShaderChange(obj->GetTransformModule());
-				obj->ReorderKey = obj->GetPipeline(renderPassId, pipelineManager);
+				obj->ReorderKey = (obj->GetPipeline(renderPassId, pipelineManager)->Id << 18) + newMaterial->Id;
 				pipelineManager.PopModuleInstance();
 
 				reorderBuffer.Add(obj);
