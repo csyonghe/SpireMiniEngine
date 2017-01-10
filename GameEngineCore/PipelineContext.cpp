@@ -154,7 +154,7 @@ namespace GameEngine
 			if (descSet.Key == "NoAnimation")
 			{
 				for (auto & desc : descSet.Value.Descriptors)
-					desc.Stages = StageFlags::sfVertex;
+					desc.Stages = (StageFlags)(StageFlags::sfVertex | StageFlags::sfFragment);
 			}
 			auto layout = hwRenderer->CreateDescriptorSetLayout(descSet.Value.Descriptors.GetArrayView());
 			if (descSet.Value.BindingPoint >= descSetLayouts.Count())
