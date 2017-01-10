@@ -1191,6 +1191,7 @@ namespace VK
 		}
 		~Texture()
 		{
+			RendererState::Device().waitIdle();
 			if (memory) RendererState::Device().freeMemory(memory);
 			for (auto view : views) RendererState::Device().destroyImageView(view);
 			if (image) RendererState::Device().destroyImage(image);
@@ -3249,11 +3250,24 @@ namespace VK
 			RendererState::DestroyCommandBuffer(pool, buffer);
 		}
 
+		Buffer* lastVertBuffer = nullptr;
+		int lastVertBufferOffset = 0;
+		Buffer * lastIndexBuffer = nullptr;
+		int lastIndexBufferOffset = 0;
+
+		void ResetInternalState()
+		{
+			curPipeline = nullptr;
+			lastVertBuffer = nullptr;
+			lastIndexBuffer = nullptr;
+			lastVertBufferOffset = 0;
+			lastIndexBufferOffset = 0;
+		}
 		inline void BeginRecording()
 		{
 			inRenderPass = false;
 
-			curPipeline = nullptr;
+			ResetInternalState();
 			pendingOffsets.Clear();
 			pendingDescSets.Clear();
 
@@ -3276,7 +3290,8 @@ namespace VK
 		{
 			inRenderPass = true;
 
-			curPipeline = nullptr;
+			ResetInternalState();
+
 			pendingOffsets.Clear();
 			pendingDescSets.Clear();
 
@@ -3312,12 +3327,22 @@ namespace VK
 
 		virtual void BindVertexBuffer(Buffer* vertexBuffer, int byteOffset) override
 		{
-			buffer.bindVertexBuffers(0, reinterpret_cast<VK::BufferObject*>(vertexBuffer)->buffer, { (vk::DeviceSize)byteOffset });
+			if (byteOffset != lastVertBufferOffset || vertexBuffer != lastVertBuffer)
+			{
+				buffer.bindVertexBuffers(0, reinterpret_cast<VK::BufferObject*>(vertexBuffer)->buffer, { (vk::DeviceSize)byteOffset });
+				lastVertBuffer = vertexBuffer;
+				lastVertBufferOffset = byteOffset;
+			}
 		}
 		virtual void BindIndexBuffer(Buffer* indexBuffer, int byteOffset) override
 		{
-			//TODO: Can make index buffer use 16 bit ints if possible?
-			buffer.bindIndexBuffer(reinterpret_cast<VK::BufferObject*>(indexBuffer)->buffer, { (vk::DeviceSize)byteOffset }, vk::IndexType::eUint32);
+			if (byteOffset != lastIndexBufferOffset || indexBuffer != lastIndexBuffer)
+			{
+				//TODO: Can make index buffer use 16 bit ints if possible?
+				buffer.bindIndexBuffer(reinterpret_cast<VK::BufferObject*>(indexBuffer)->buffer, { (vk::DeviceSize)byteOffset }, vk::IndexType::eUint32);
+				lastIndexBuffer = indexBuffer;
+				lastIndexBufferOffset = byteOffset;
+			}
 		}
 		virtual void BindDescriptorSet(int binding, GameEngine::DescriptorSet* descSet) override
 		{
@@ -4354,7 +4379,7 @@ namespace VK
 				.setPImageIndices(&nextImage)
 				.setPResults(nullptr);
 
-			RendererState::PresentQueue().presentKHR(presentInfo);
+			RendererState::RenderQueue().presentKHR(presentInfo);
 		}
 
 		virtual BufferObject* CreateBuffer(BufferUsage usage, int size) override

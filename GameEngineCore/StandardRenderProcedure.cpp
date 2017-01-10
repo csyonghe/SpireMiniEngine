@@ -90,7 +90,7 @@ namespace GameEngine
 		virtual void Init(Renderer * renderer) override
 		{
 			sharedRes = renderer->GetSharedResource();
-			deferred = Engine::Instance()->GetGraphicsSettings().UseDeferredRenderer;
+			deferred = false;// Engine::Instance()->GetGraphicsSettings().UseDeferredRenderer;
 			shadowRenderPass = CreateShadowRenderPass();
 			renderer->RegisterWorldRenderPass(shadowRenderPass);
 			if (deferred)

@@ -14,7 +14,7 @@
 // Only execute actions of DEBUG_ONLY in DEBUG mode
 #if _DEBUG
 #define DEBUG_ONLY(x) do { x; } while(0)
-//#define USE_VALIDATION_LAYER 1
+#define USE_VALIDATION_LAYER 1
 #else
 #define DEBUG_ONLY(x) do {    } while(0)
 #endif
@@ -28,7 +28,7 @@ namespace VKO
 {
 	const int TargetVulkanVersion_Major = 1;
 	const int TargetVulkanVersion_Minor = 0;
-	const int numCommandBuffers = 128;
+	const int numCommandBuffers = 256;
 
 	unsigned int GpuId = 0;
 
@@ -1197,6 +1197,7 @@ namespace VKO
 		}
 		~Texture()
 		{
+			RendererState::Device().waitIdle();
 			if (memory) RendererState::Device().freeMemory(memory);
 			for (auto view : views) RendererState::Device().destroyImageView(view);
 			if (image) RendererState::Device().destroyImage(image);
@@ -4239,11 +4240,14 @@ namespace VKO
 		virtual void Present(GameEngine::Texture2D* srcImage) override
 		{
 			if (images.Count() == 0) return;
-			uint32_t nextImage = RendererState::Device().acquireNextImageKHR(swapchain, UINT64_MAX, imageAvailableSemaphore, vk::Fence()).value;
+			auto result = RendererState::Device().acquireNextImageKHR(swapchain, UINT64_MAX, imageAvailableSemaphore, vk::Fence());
+			uint32_t nextImage = result.value;
+			if (result.result != vk::Result::eSuccess)
+				throw HardwareRendererException();
 			static int frameId = 0;
 			frameId++;
 			//TODO: see if following line is beneficial
-			int nextCmd = nextImage * 2 + (frameId & 1);
+			int nextCmd = nextImage;// *2 + (frameId & 1);
 			commandBuffers[nextCmd].reset(vk::CommandBufferResetFlags()); // implicitly done by begin
 
 			vk::CommandBufferBeginInfo commandBufferBeginInfo = vk::CommandBufferBeginInfo()
