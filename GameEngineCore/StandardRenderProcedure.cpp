@@ -68,6 +68,7 @@ namespace GameEngine
 
 		List<Drawable*> reorderBuffer;
 
+		AtmosphereParameters lastAtmosphereParams;
 		bool useAtmosphere = false;
 
 	public:
@@ -215,8 +216,12 @@ namespace GameEngine
 				{
 					useAtmosphere = true;
 					auto atmosphere = dynamic_cast<AtmosphereActor*>(actor.Value.Ptr());
-					atmosphere->Parameters.SunDir = atmosphere->Parameters.SunDir.Normalize();
-					atmospherePass->SetParameters(&atmosphere->Parameters, sizeof(atmosphere->Parameters));
+					if (!(lastAtmosphereParams == atmosphere->Parameters))
+					{
+						atmosphere->Parameters.SunDir = atmosphere->Parameters.SunDir.Normalize();
+						atmospherePass->SetParameters(&atmosphere->Parameters, sizeof(atmosphere->Parameters));
+						lastAtmosphereParams = atmosphere->Parameters;
+					}
 				}
 			}
 

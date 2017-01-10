@@ -730,10 +730,10 @@ namespace GraphicsUI
 			pipeBuilder->FixedFunctionStates.BlendMode = BlendMode::AlphaBlend;
 			pipeBuilder->FixedFunctionStates.DepthCompareFunc = CompareFunc::Disabled;
 
-			uniformBuffer = rendererApi->CreateBuffer(BufferUsage::UniformBuffer, sizeof(orthoMatrix));
-			primitiveBuffer = rendererApi->CreateBuffer(BufferUsage::StorageBuffer, primitiveBufferSize * DynamicBufferLengthMultiplier);
-			vertexBuffer = rendererApi->CreateBuffer(BufferUsage::ArrayBuffer, vertexBufferSize * DynamicBufferLengthMultiplier);
-			indexBuffer = rendererApi->CreateBuffer(BufferUsage::ArrayBuffer, indexBufferSize * DynamicBufferLengthMultiplier);
+			uniformBuffer = rendererApi->CreateMappedBuffer(BufferUsage::UniformBuffer, sizeof(orthoMatrix));
+			primitiveBuffer = rendererApi->CreateMappedBuffer(BufferUsage::StorageBuffer, primitiveBufferSize * DynamicBufferLengthMultiplier);
+			vertexBuffer = rendererApi->CreateMappedBuffer(BufferUsage::ArrayBuffer, vertexBufferSize * DynamicBufferLengthMultiplier);
+			indexBuffer = rendererApi->CreateMappedBuffer(BufferUsage::ArrayBuffer, indexBufferSize * DynamicBufferLengthMultiplier);
 
 			Array<AttachmentLayout, 1> frameBufferLayout;
 			frameBufferLayout.Add(AttachmentLayout(TextureUsage::SampledColorAttachment, StorageFormat::RGBA_8));
@@ -791,9 +791,9 @@ namespace GraphicsUI
 		void EndUIDrawing(Texture2D * baseTexture)
 		{
 			frameId = frameId % DynamicBufferLengthMultiplier;
-			indexBuffer->SetData(frameId * indexBufferSize, indexStream.Buffer(), sizeof(int) * indexStream.Count());
-			vertexBuffer->SetData(frameId * vertexBufferSize, vertexStream.Buffer(), sizeof(UberVertex) * vertexStream.Count());
-			primitiveBuffer->SetData(frameId * primitiveBufferSize, uniformFields.Buffer(), sizeof(UniformField) * uniformFields.Count());
+			indexBuffer->SetDataAsync(frameId * indexBufferSize, indexStream.Buffer(), sizeof(int) * indexStream.Count());
+			vertexBuffer->SetDataAsync(frameId * vertexBufferSize, vertexStream.Buffer(), sizeof(UberVertex) * vertexStream.Count());
+			primitiveBuffer->SetDataAsync(frameId * primitiveBufferSize, uniformFields.Buffer(), sizeof(UniformField) * uniformFields.Count());
 			
 			auto cmdBuf = blitCmdBuffer->BeginRecording();
 			cmdBuf->Blit(uiOverlayTexture.Ptr(), baseTexture);

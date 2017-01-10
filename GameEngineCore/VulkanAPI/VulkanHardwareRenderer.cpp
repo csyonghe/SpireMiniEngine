@@ -4399,8 +4399,8 @@ namespace VK
 
 		virtual BufferObject* CreateBuffer(BufferUsage usage, int size) override
 		{
-			return CreateMappedBuffer(usage, size);
-			//return new BufferObject(TranslateUsageFlags(usage), size, vk::MemoryPropertyFlagBits::eDeviceLocal);
+			//return CreateMappedBuffer(usage, size);
+			return new BufferObject(TranslateUsageFlags(usage), size, vk::MemoryPropertyFlagBits::eDeviceLocal);
 		}
 
 		virtual BufferObject* CreateMappedBuffer(BufferUsage usage, int size) override

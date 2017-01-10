@@ -1106,6 +1106,8 @@ namespace GLL
 #endif
 		bool persistentMapping = false;
 		GLuint BindTarget;
+		void * mappedPtr = nullptr;
+
 		static float CheckBufferData(int bufferHandle)
 		{
 			float buffer;
@@ -1124,7 +1126,10 @@ namespace GLL
 			if (!*isInTransfer)
 				throw HardwareRendererException("Renderer not in data-transfer mode.");
 #endif
-			SetData(0, data, sizeInBytes);
+			if (mappedPtr)
+				memcpy(mappedPtr, data, sizeInBytes);
+			else
+				SetData(0, data, sizeInBytes);
 		}
 		void SetDataAsync(int offset, void * data, int size)
 		{
@@ -1132,7 +1137,10 @@ namespace GLL
 			if (!*isInTransfer)
 				throw HardwareRendererException("Renderer not in data-transfer mode.");
 #endif
-			glNamedBufferSubData(Handle, (GLintptr)offset, (GLsizeiptr)size, data);
+			if (mappedPtr)
+				memcpy(mappedPtr, data, size);
+			else
+				glNamedBufferSubData(Handle, (GLintptr)offset, (GLsizeiptr)size, data);
 		}
 		void SetData(int offset, void * data, int size)
 		{
@@ -1140,16 +1148,29 @@ namespace GLL
 			if (!*isInTransfer)
 				throw HardwareRendererException("Renderer not in data-transfer mode.");
 #endif
-			glNamedBufferSubData(Handle, (GLintptr)offset, (GLsizeiptr)size, data);
+			if (mappedPtr)
+				memcpy((char*)mappedPtr + offset, data, size);
+			else 
+				glNamedBufferSubData(Handle, (GLintptr)offset, (GLsizeiptr)size, data);
 		}
 		void BufferStorage(int size, void * data, int flags)
 		{
 			glNamedBufferStorage(Handle, (GLsizeiptr)size, data, flags);
+			if (persistentMapping)
+				Map();
 		}
 		void * Map(BufferAccess access, int offset, int len)
 		{
 			if (persistentMapping)
-				return glMapNamedBufferRange(Handle, offset, len, GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_COHERENT_BIT);
+			{
+				if (mappedPtr)
+					return mappedPtr;
+				else
+				{
+					mappedPtr = glMapNamedBufferRange(Handle, offset, len, GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_COHERENT_BIT);
+					return mappedPtr;
+				}
+			}
 			else
 				return glMapNamedBufferRange(Handle, offset, len, TranslateBufferAccess(access));
 		}
@@ -1163,6 +1184,7 @@ namespace GLL
 		}
 		void Unmap()
 		{
+			mappedPtr = nullptr;
 			glUnmapNamedBuffer(Handle);
 		}
 		void Flush(int /*offset*/, int /*size*/)
@@ -3188,6 +3210,9 @@ namespace GLL
 #ifdef _DEBUG
 			rs->isInTransfer = &isInDataTransfer;
 #endif
+			if (storageFlags | GL_MAP_PERSISTENT_BIT)
+				rs->persistentMapping = true;
+
 			rs->BindTarget = TranslateBufferUsage(usage);
 			if (glCreateBuffers)
 				glCreateBuffers(1, &rs->Handle);
@@ -3207,7 +3232,6 @@ namespace GLL
 		BufferObject* CreateMappedBuffer(BufferUsage usage, int bufferSize)
 		{
 			auto result = CreateBuffer(usage, bufferSize, GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_COHERENT_BIT);
-			result->persistentMapping = true;
 			return result;
 		}
 
