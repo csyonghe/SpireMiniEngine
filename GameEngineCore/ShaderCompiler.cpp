@@ -49,7 +49,7 @@ namespace GameEngine
 			setInfo.BindingName = spParameterSetGetBindingName(descSet);
 			setInfo.BindingPoint = spParameterSetGetBindingIndex(descSet);
 			if (spParameterSetGetBufferSize(descSet) != 0)
-				setInfo.Descriptors.Add(DescriptorLayout(0, BindingType::UniformBuffer, spParameterSetGetUniformBufferLegacyBindingPoint(descSet)));
+				setInfo.Descriptors.Add(DescriptorLayout(sfGraphics, 0, BindingType::UniformBuffer, spParameterSetGetUniformBufferLegacyBindingPoint(descSet)));
 			int numDescs = spParameterSetGetBindingSlotCount(descSet);
 			for (int j = 0; j < numDescs; j++)
 			{

@@ -584,7 +584,7 @@ namespace GameEngine
 			int paramCount = spModuleGetParameterCount(shaderModule);
 			List<DescriptorLayout> descs;
 			if (rs.UniformMemory)
-				descs.Add(DescriptorLayout(0, BindingType::UniformBuffer));
+				descs.Add(DescriptorLayout(sfGraphics, 0, BindingType::UniformBuffer));
 			for (int i = 0; i < paramCount; i++)
 			{
 				SpireComponentInfo info;

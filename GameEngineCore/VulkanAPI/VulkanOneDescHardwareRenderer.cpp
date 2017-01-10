@@ -906,6 +906,19 @@ namespace VKO
 		}
 	}
 
+	vk::ShaderStageFlags TranslateStageFlags(StageFlags flag)
+	{
+		switch (flag)
+		{
+		case StageFlags::sfVertex: return vk::ShaderStageFlagBits::eVertex;
+		case StageFlags::sfFragment: return vk::ShaderStageFlagBits::eFragment;
+			//case StageFlags::sfGraphics:return vk::ShaderStageFlagBits::eAllGraphics;
+		case StageFlags::sfGraphics: return vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;//TODO: replace with above if graphics is more complex
+		case StageFlags::sfCompute: return vk::ShaderStageFlagBits::eCompute;
+		default: throw CoreLib::NotImplementedException("TranslateStageFlags");
+		}
+	}
+
 	vk::ImageLayout LayoutFromUsage(TextureUsage usage)
 	{
 		//TODO: fix this function to deal with the mask correctly
@@ -3018,7 +3031,7 @@ namespace VKO
 							.setBinding(desc.LegacyBindingPoints[0])
 							.setDescriptorType(TranslateBindingType(desc.Type))
 							.setDescriptorCount(1)
-							.setStageFlags(vk::ShaderStageFlagBits::eAllGraphics)//TODO: improve
+							.setStageFlags(TranslateStageFlags(desc.Stages))
 							.setPImmutableSamplers(nullptr)
 						);
 					}

@@ -163,18 +163,6 @@ namespace GameEngine
 		SampledDepthStencilAttachment = 0x8 | 0x4 | 0x1,
 	};
 
-	struct AttachmentLayout
-	{
-		TextureUsage Usage;
-		StorageFormat ImageFormat;
-		AttachmentLayout() {}
-		AttachmentLayout(TextureUsage usage, StorageFormat format)
-		{
-			Usage = usage;
-			ImageFormat = format;
-		}
-	};
-
 	inline constexpr TextureUsage operator&(TextureUsage lhs, TextureUsage rhs)
 	{
 		return static_cast<TextureUsage>(static_cast<int>(lhs) & static_cast<int>(rhs));
@@ -189,6 +177,18 @@ namespace GameEngine
 	{
 		return x == TextureUsage::Unused;
 	}
+
+	struct AttachmentLayout
+	{
+		TextureUsage Usage;
+		StorageFormat ImageFormat;
+		AttachmentLayout() {}
+		AttachmentLayout(TextureUsage usage, StorageFormat format)
+		{
+			Usage = usage;
+			ImageFormat = format;
+		}
+	};
 
 	enum class WrapMode
 	{
@@ -576,7 +576,7 @@ namespace GameEngine
 		Buffer* buffer;
 		int offset;
 		int range;
-	};
+	}; 
 
 	enum StageFlags
 	{
@@ -586,14 +586,15 @@ namespace GameEngine
 	struct DescriptorLayout
 	{
 		int Location; //> location in the descritpor set
-		StageFlags Stages;
+		StageFlags Stages = sfGraphics;
 		BindingType Type; //< type of the resource binding this descriptor is about
 						  // LegacyBindingPoint is used by OpenGL renderer so that it knows what actual binding point this descriptor maps to.
 						  // This information is provided by the shader compiler.
 		CoreLib::List<int> LegacyBindingPoints;
-		DescriptorLayout() = default;
-		DescriptorLayout(int loc, BindingType type, int legacyBinding = -1)
+		DescriptorLayout() {}
+		DescriptorLayout(StageFlags stage,int loc, BindingType type, int legacyBinding = -1)
 		{
+			Stages = stage;
 			Location = loc;
 			Type = type;
 			if (legacyBinding != -1)

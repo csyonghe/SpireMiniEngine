@@ -720,9 +720,10 @@ namespace GraphicsUI
 			vformat.Attributes.Add(VertexAttributeDesc(DataType::Int, 0, 16, 2));
 			pipeBuilder->SetVertexLayout(vformat);
 			auto binding = compileResult.BindingLayouts.First().Value;
-			RefPtr<DescriptorSetLayout> descLayout = rendererApi->CreateDescriptorSetLayout(MakeArray(DescriptorLayout(0, BindingType::UniformBuffer, binding.Descriptors[0].LegacyBindingPoints.First()),
-				DescriptorLayout(1, BindingType::StorageBuffer, binding.Descriptors[1].LegacyBindingPoints.First()),
-				DescriptorLayout(2, BindingType::StorageBuffer, binding.Descriptors[2].LegacyBindingPoints.First())).GetArrayView());
+			RefPtr<DescriptorSetLayout> descLayout = rendererApi->CreateDescriptorSetLayout(MakeArray(
+				DescriptorLayout(sfGraphics, 0, BindingType::UniformBuffer, binding.Descriptors[0].LegacyBindingPoints.First()),
+				DescriptorLayout(sfGraphics, 1, BindingType::StorageBuffer, binding.Descriptors[1].LegacyBindingPoints.First()),
+				DescriptorLayout(sfGraphics, 2, BindingType::StorageBuffer, binding.Descriptors[2].LegacyBindingPoints.First())).GetArrayView());
 			pipeBuilder->SetBindingLayout(MakeArrayView(descLayout.Ptr()));
 			pipeBuilder->FixedFunctionStates.PrimitiveRestartEnabled = true;
 			pipeBuilder->FixedFunctionStates.PrimitiveTopology = PrimitiveType::TriangleFans;
