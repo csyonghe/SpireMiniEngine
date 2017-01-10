@@ -15,7 +15,7 @@ using namespace GameEngine;
 
 void ConvertTexture(const String & fileName, TextureStorageFormat format)
 {
-	if (format == TextureStorageFormat::BC1 || format == TextureStorageFormat::BC5)
+	if (format == TextureStorageFormat::BC1 || format == TextureStorageFormat::BC5 || format == TextureStorageFormat::BC3)
 	{
 		Bitmap bmp(fileName);
 		List<unsigned int> pixelsInversed;
@@ -29,6 +29,8 @@ void ConvertTexture(const String & fileName, TextureStorageFormat format)
 		CoreLib::Graphics::TextureFile texFile;
 		if (format == TextureStorageFormat::BC1)
 			TextureCompressor::CompressRGBA_BC1(texFile, MakeArrayView((unsigned char*)pixelsInversed.Buffer(), pixelsInversed.Count() * 4), bmp.GetWidth(), bmp.GetHeight());
+		else if (format == TextureStorageFormat::BC3)
+			TextureCompressor::CompressRGBA_BC3(texFile, MakeArrayView((unsigned char*)pixelsInversed.Buffer(), pixelsInversed.Count() * 4), bmp.GetWidth(), bmp.GetHeight());
 		else
 			TextureCompressor::CompressRG_BC5(texFile, MakeArrayView((unsigned char*)pixelsInversed.Buffer(), pixelsInversed.Count() * 4), bmp.GetWidth(), bmp.GetHeight());
 		texFile.SaveToFile(Path::ReplaceExt(fileName, "texture"));
@@ -56,6 +58,8 @@ int wmain(int argc, const wchar_t ** argv)
 				format = TextureStorageFormat::BC1;
 			if (String::FromWString(argv[i]) == "-bc5")
 				format = TextureStorageFormat::BC5;
+			if (String::FromWString(argv[i]) == "-bc3")
+				format = TextureStorageFormat::BC3;
 			if (String::FromWString(argv[i]) == "-r8")
 				format = TextureStorageFormat::R8;
 			if (String::FromWString(argv[i]) == "-rg8")

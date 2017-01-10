@@ -10,6 +10,7 @@ namespace GameEngine
 	{
 	public:
 		static void CompressRGBA_BC1(CoreLib::Graphics::TextureFile & result, const CoreLib::ArrayView<unsigned char> & rgbaPixels, int width, int height);
+		static void CompressRGBA_BC3(CoreLib::Graphics::TextureFile & result, const CoreLib::ArrayView<unsigned char> & rgbaPixels, int width, int height);
 		static void CompressRG_BC5(CoreLib::Graphics::TextureFile & result, const CoreLib::ArrayView<unsigned char> & rgbaPixels, int width, int height);
 	};
 }

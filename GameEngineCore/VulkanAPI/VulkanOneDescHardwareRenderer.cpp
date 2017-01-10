@@ -800,6 +800,8 @@ namespace VKO
 		case StorageFormat::RGBA_I16: return vk::Format::eR16G16B16A16Uint;
 		case StorageFormat::RGBA_I32_Raw: return vk::Format::eR32G32B32A32Sint;//
 		case StorageFormat::BC1: return vk::Format::eBc1RgbaUnormBlock;//
+		case StorageFormat::BC3: return vk::Format::eBc3UnormBlock;
+		case StorageFormat::BC5: return vk::Format::eBc5UnormBlock;
 		case StorageFormat::RGBA_Compressed: return vk::Format::eBc7UnormBlock;//
 		case StorageFormat::R11F_G11F_B10F: return vk::Format::eB10G11R11UfloatPack32; // need to swizzle?
 		case StorageFormat::RGB10_A2: return vk::Format::eA2R10G10B10UnormPack32;//
@@ -1356,10 +1358,10 @@ namespace VKO
 				// Copy data to staging image
 				void* stagingMappedMemory = RendererState::Device().mapMemory(stagingMemory, 0, VK_WHOLE_SIZE, vk::MemoryMapFlags());
 
-				if (format == StorageFormat::BC1 || format == StorageFormat::BC5)
+				if (format == StorageFormat::BC1 || format == StorageFormat::BC5 || format == StorageFormat::BC3)
 				{
 					int blocks = (int)(ceil(pwidth / 4.0f) * ceil(pheight / 4.0f));
-					int bufferSize = format == StorageFormat::BC5 ? blocks * 16 : blocks * 8;
+					int bufferSize = format == StorageFormat::BC1 ? blocks * 8 : blocks * 16;
 					memcpy(stagingMappedMemory, data, bufferSize);
 				}
 				else
@@ -1462,10 +1464,10 @@ namespace VKO
 			{
 				// Set up staging buffer and copy data to new image
 				int bufferSize = pwidth * pheight * pdepth * layerCount * dataTypeSize;
-				if (format == StorageFormat::BC1 || format == StorageFormat::BC5)
+				if (format == StorageFormat::BC1 || format == StorageFormat::BC5 || format == StorageFormat::BC3)
 				{
 					int blocks = (int)(ceil(pwidth / 4.0f) * ceil(pheight / 4.0f));
-					bufferSize = format == StorageFormat::BC5 ? blocks * 16 : blocks * 8;
+					bufferSize = format == StorageFormat::BC1 ? blocks * 8 : blocks * 16;
 					bufferSize *= layerCount;
 				}
 
@@ -1591,10 +1593,10 @@ namespace VKO
 		{
 			// Set up staging buffer and copy data to new image
 			int bufferSize = 0;
-			if (format == StorageFormat::BC1 || format == StorageFormat::BC5)
+			if (format == StorageFormat::BC1 || format == StorageFormat::BC5 || format == StorageFormat::BC3)
 			{
 				int blocks = (int)(ceil(width / 4.0f) * ceil(height / 4.0f));
-				bufferSize = format == StorageFormat::BC5 ? blocks * 16 : blocks * 8;
+				bufferSize = format == StorageFormat::BC1 ? blocks * 8 : blocks * 16;
 			}
 			else
 			{

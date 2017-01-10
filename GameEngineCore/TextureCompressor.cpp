@@ -54,7 +54,28 @@ namespace GameEngine
 			h = nh;
 			level++;
 		}
-		
+	}
+
+	void TextureCompressor::CompressRGBA_BC3(TextureFile & result, const CoreLib::ArrayView<unsigned char> & rgbaPixels, int width, int height)
+	{
+		List<unsigned char> input;
+		input.AddRange(rgbaPixels.Buffer(), rgbaPixels.Count());
+		int w = width;
+		int h = height;
+		int level = 0;
+		while (w >= 1 || h >= 1)
+		{
+			List<unsigned char> data;
+			data.SetSize((int)(ceil(w / 4.0f) * ceil(h / 4.0f) * 16));
+			squish::CompressImage(input.Buffer(), w, h, data.Buffer(), squish::kDxt3);
+			result.SetData(TextureStorageFormat::BC3, w, h, level, data.GetArrayView());
+			if (w == 1 && h == 1) break;
+			int nw, nh;
+			input = Resample(input, w, h, nw, nh);
+			w = nw;
+			h = nh;
+			level++;
+		}
 	}
 
 	void CompressBlockBC5(unsigned char * block, unsigned char * input)

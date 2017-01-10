@@ -165,6 +165,9 @@ namespace GLL
 		case StorageFormat::BC5:
 			internalFormat = GL_COMPRESSED_RG_RGTC2;
 			break;
+		case StorageFormat::BC3:
+			internalFormat = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
+			break;
 		case StorageFormat::Depth24:
 			internalFormat = GL_DEPTH_COMPONENT24;
 			break;
@@ -2957,14 +2960,14 @@ namespace GLL
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8.0f);
-			if (storageFormat == StorageFormat::BC1 || storageFormat == StorageFormat::BC5)
+			if (storageFormat == StorageFormat::BC1 || storageFormat == StorageFormat::BC5 || storageFormat == StorageFormat::BC3)
 			{
 				for (int level = 0; level < mipLevelCount; level++)
 				{
 					int wl = Math::Max(w >> level, 1);
 					int hl = Math::Max(h >> level, 1);
 					int blocks = (int)(ceil(wl / 4.0f) * ceil(hl / 4.0f));
-					int bufferSize = storageFormat == StorageFormat::BC5 ? blocks * 16 : blocks * 8;
+					int bufferSize = storageFormat == StorageFormat::BC1 ? blocks * 8 : blocks * 16;
 					glCompressedTexImage2D(GL_TEXTURE_2D, level, internalformat, wl, hl, 0, bufferSize, mipLevelData[level]);
 				}
 			}

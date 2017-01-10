@@ -39,6 +39,7 @@ namespace CoreLib
 			case TextureStorageFormat::BC1:
 				return 0.5f;
 			case TextureStorageFormat::BC5:
+			case TextureStorageFormat::BC3:
 				return 1;
 			default:
 				return 0;
@@ -69,7 +70,7 @@ namespace CoreLib
 		void TextureFile::SetData(TextureStorageFormat storageFormat, int w, int h, int level, CoreLib::Basic::ArrayView<unsigned char> data)
 		{
 			auto pixelSize = GetPixelSize(storageFormat);
-			if (storageFormat == TextureStorageFormat::BC1 || storageFormat == TextureStorageFormat::BC5)
+			if (storageFormat == TextureStorageFormat::BC1 || storageFormat == TextureStorageFormat::BC5 || storageFormat == TextureStorageFormat::BC3)
 			{
 				if (data.Count() != (int)(ceil(w / 4.0f) * ceil(h / 4.0f) * 16 * pixelSize))
 					throw InvalidOperationException("Data size does not match texture format.");

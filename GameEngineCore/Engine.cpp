@@ -182,18 +182,19 @@ namespace GameEngine
 		if (enableInput && !uiEntry->KeyInputConsumed)
 			inputDispatcher->DispatchInput();
 
-		if (level)
-		{
-			for (auto & actor : level->Actors)
-				actor.Value->Tick();
-		}
-		else
+		if (!level)
 		{
 			if (levelToLoad.Length())
 			{
 				Print("loading %S\n", levelToLoad.ToWString());
 				LoadLevel(levelToLoad);
+				levelToLoad = "";
 			}
+		}
+		else
+		{
+			for (auto & actor : level->Actors)
+				actor.Value->Tick();
 		}
 		lastGameLogicTime = thisGameLogicTime;
 		auto &stats = renderer->GetStats();

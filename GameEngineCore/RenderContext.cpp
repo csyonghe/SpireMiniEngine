@@ -173,6 +173,9 @@ namespace GameEngine
 		case CoreLib::Graphics::TextureStorageFormat::BC1:
 			format = StorageFormat::BC1;
 			break;
+		case CoreLib::Graphics::TextureStorageFormat::BC3:
+			format = StorageFormat::BC3;
+			break;
 		case CoreLib::Graphics::TextureStorageFormat::BC5:
 			format = StorageFormat::BC5;
 			break;
@@ -183,7 +186,7 @@ namespace GameEngine
 		auto hw = rendererResource->hardwareRenderer.Ptr();
 
 		GameEngine::Texture2D* rs;
-		if (format == StorageFormat::BC1 || format == StorageFormat::BC5)
+		if (format == StorageFormat::BC1 || format == StorageFormat::BC5 || format == StorageFormat::BC3)
 		{
 			Array<void*, 32> mipData;
 			for(int level = 0; level < data.GetMipLevels(); level++)
