@@ -151,6 +151,11 @@ namespace GameEngine
 		List<RefPtr<DescriptorSetLayout>> descSetLayouts;
 		for (auto & descSet : rs.BindingLayouts)
 		{
+			if (descSet.Key == "NoAnimation")
+			{
+				for (auto & desc : descSet.Value.Descriptors)
+					desc.Stages = StageFlags::sfVertex;
+			}
 			auto layout = hwRenderer->CreateDescriptorSetLayout(descSet.Value.Descriptors.GetArrayView());
 			if (descSet.Value.BindingPoint >= descSetLayouts.Count())
 				descSetLayouts.SetSize(descSet.Value.BindingPoint + 1);

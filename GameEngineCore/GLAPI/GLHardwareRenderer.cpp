@@ -160,7 +160,7 @@ namespace GLL
 #endif
 			break;
 		case StorageFormat::BC1:
-			internalFormat = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
+			internalFormat = GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
 			break;
 		case StorageFormat::BC5:
 			internalFormat = GL_COMPRESSED_RG_RGTC2;

@@ -200,6 +200,7 @@
     <ClCompile Include="SpireSource.cpp" />
     <ClCompile Include="StandardRenderProcedure.cpp" />
     <ClCompile Include="StaticMeshActor.cpp" />
+    <ClCompile Include="TerrainActor.cpp" />
     <ClCompile Include="TextureCompressor.cpp" />
     <ClCompile Include="TextureTool\LibSquish.cpp" />
     <ClCompile Include="UISystem_Windows.cpp" />
@@ -257,6 +258,7 @@
     <ClInclude Include="Spire\Spire.h" />
     <ClInclude Include="Spire\SpireAllSource.h" />
     <ClInclude Include="StaticMeshActor.h" />
+    <ClInclude Include="TerrainActor.h" />
     <ClInclude Include="TextureCompressor.h" />
     <ClInclude Include="TextureTool\LibSquish.h" />
     <ClInclude Include="UISystem_Windows.h" />

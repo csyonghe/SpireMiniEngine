@@ -578,9 +578,15 @@ namespace GameEngine
 		int range;
 	};
 
+	enum StageFlags
+	{
+		sfGraphics = 3, sfVertex = 1, sfFragment = 2, sfCompute = 8
+	};
+
 	struct DescriptorLayout
 	{
 		int Location; //> location in the descritpor set
+		StageFlags Stages;
 		BindingType Type; //< type of the resource binding this descriptor is about
 						  // LegacyBindingPoint is used by OpenGL renderer so that it knows what actual binding point this descriptor maps to.
 						  // This information is provided by the shader compiler.

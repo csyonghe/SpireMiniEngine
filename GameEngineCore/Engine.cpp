@@ -372,6 +372,9 @@ namespace GameEngine
 		case ResourceType::Material:
 			subDirName = "Materials";
 			break;
+		case ResourceType::Landscape:
+			subDirName = "Landscapes";
+			break;
 		case ResourceType::Settings:
 			subDirName = "Settings";
 			break;
