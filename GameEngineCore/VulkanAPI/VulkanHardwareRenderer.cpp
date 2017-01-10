@@ -189,6 +189,7 @@ namespace VK
 		int renderQueueIndex;
 		int transferQueueIndex;
 		vk::Queue presentQueue;
+		vk::Queue computeQueue;
 		vk::Queue renderQueue;
 		vk::Queue transferQueue;
 
@@ -313,8 +314,10 @@ namespace VK
 			renderQueuePriorities.Add(1.0f);
 
 			std::vector<vk::QueueFamilyProperties> queueFamilyProperties = PhysicalDevice().getQueueFamilyProperties();
-			if (queueFamilyProperties[0].queueCount >= 2)
+			if (queueFamilyProperties[0].queueCount >= 4)
 			{
+				renderQueuePriorities.Add(1.0f);
+				renderQueuePriorities.Add(1.0f);
 				renderQueuePriorities.Add(1.0f);
 			}
 			//transferQueuePriorities.Add(1.0f);
@@ -394,6 +397,7 @@ namespace VK
 
 			State().presentQueue = State().device.getQueue(renderQueueFamilyIndex, 0);
 			State().renderQueue = State().device.getQueue(renderQueueFamilyIndex, 1);
+			State().computeQueue = State().device.getQueue(renderQueueFamilyIndex, 2);
 			State().transferQueue = State().device.getQueue(transferQueueFamilyIndex, renderQueuePriorities.Count() - 1);//TODO: Change the index if changing family
 		}
 
@@ -571,6 +575,11 @@ namespace VK
 		static const vk::Queue& RenderQueue()
 		{
 			return State().renderQueue;
+		}
+
+		static const vk::Queue& ComputeQueue()
+		{
+			return State().computeQueue;
 		}
 
 		static const vk::Queue& PresentQueue()
@@ -2959,8 +2968,7 @@ namespace VK
 					fragPresent = true;
 					break;
 				case vk::ShaderStageFlagBits::eCompute:
-					assert(computePresent == false);
-					computePresent = true;
+					throw HardwareRendererException("Can't use compute shader in graphics pipeline");
 					break;
 				default:
 					throw HardwareRendererException("Unknown shader stage");
