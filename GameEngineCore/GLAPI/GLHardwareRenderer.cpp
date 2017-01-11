@@ -1138,7 +1138,7 @@ namespace GLL
 				throw HardwareRendererException("Renderer not in data-transfer mode.");
 #endif
 			if (mappedPtr)
-				memcpy(mappedPtr, data, size);
+				memcpy((char*)mappedPtr + offset, data, size);
 			else
 				glNamedBufferSubData(Handle, (GLintptr)offset, (GLsizeiptr)size, data);
 		}
@@ -2835,7 +2835,7 @@ namespace GLL
 		virtual void EndDataTransfer() override
 		{
 			isInDataTransfer = false;
-			//glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
+			glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
 		}
 
 		Program CreateTransformFeedbackProgram(const Shader &vertexShader, const List<String> & varyings, FeedbackStorageMode format)
