@@ -3282,7 +3282,7 @@ namespace VKO
 			boundPipeline = nullptr;
 			for (int i = 0; i < boundDescSets.Count(); i++)
 				boundDescSets[i] = nullptr;
-
+			buffer.reset(vk::CommandBufferResetFlags());
 			vk::CommandBufferInheritanceInfo inheritanceInfo = vk::CommandBufferInheritanceInfo()
 				.setRenderPass(vk::RenderPass())
 				.setSubpass(0)

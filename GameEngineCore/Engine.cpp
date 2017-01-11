@@ -51,6 +51,7 @@ namespace GameEngine
 			renderer->GetHardwareRenderer()->EndDataTransfer();
 			uiSystemInterface->ExecuteDrawCommands(nullptr);
 			renderer->GetHardwareRenderer()->Present(uiSystemInterface->GetRenderedImage());
+			renderer->Wait();
 		}
 	}
 

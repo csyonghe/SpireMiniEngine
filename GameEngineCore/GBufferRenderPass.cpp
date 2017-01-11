@@ -22,9 +22,12 @@ namespace GameEngine
 				public using VertexTransform;
 				public using materialModule;
 				vec3 lightParam = vec3(roughness, metallic, specular);
-				public out @Fragment vec4 outputAlbedo = vec4(albedo, opacity);
+				public out @Fragment vec4 outputAlbedo
+				{	 
+					if (opacity < 0.01f) discard;
+					return vec4(albedo, opacity);
+				}
 				public out @Fragment vec4 outputPbr = vec4(lightParam, opacity);
-				float doDiscard { if (opacity < 0.01f) discard; return 0.0f; }
 				public out @Fragment vec3 outputNormal = TangentSpaceToWorldSpace(vec3(normal.x, -normal.y, normal.z)) * 0.5 + 0.5;
 			};
 		)";

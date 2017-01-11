@@ -68,7 +68,7 @@ namespace GameEngine
 		List<DirectionalLightActor*> directionalLights;
 		List<LightUniforms> lightingData;
 
-		List<Drawable*> reorderBuffer;
+		List<Drawable*> reorderBuffer, drawableBuffer;
 	
 		AtmosphereParameters lastAtmosphereParams;
 		bool useAtmosphere = false;
@@ -350,8 +350,10 @@ namespace GameEngine
 								}
 								shadowMapPassModuleInstance->SetUniformData(&shadowMapView, sizeof(shadowMapView));
 								sharedRes->pipelineManager.PushModuleInstance(shadowMapPassModuleInstance);
-								pass.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, CullFrustum(shadowMapView.InvViewProjTransform), sink.GetDrawables(true));
-								pass.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, CullFrustum(shadowMapView.InvViewProjTransform), sink.GetDrawables(false));
+								drawableBuffer.Clear();
+								drawableBuffer.AddRange(sink.GetDrawables(true));
+								drawableBuffer.AddRange(sink.GetDrawables(false));
+								pass.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, CullFrustum(shadowMapView.InvViewProjTransform), drawableBuffer.GetArrayView());
 								sharedRes->pipelineManager.PopModuleInstance();
 								task.renderPasses.Add(pass);
 							}

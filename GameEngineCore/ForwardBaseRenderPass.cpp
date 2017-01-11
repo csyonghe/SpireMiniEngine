@@ -28,8 +28,11 @@ namespace GameEngine
 				public using materialModule;
 				vec3 lightParam = vec3(roughness, metallic, specular);
 				using lighting = lightingModule(TangentSpaceToWorldSpace(vec3(normal.x, -normal.y, normal.z)));
-				public out @Fragment vec4 outputColor = vec4(lighting.result, opacity);
-				float doDiscard { if (opacity < 0.01f) discard; return 0.0f; }
+				public out @Fragment vec4 outputColor
+				{
+					if (opacity < 0.01f) discard;
+					return vec4(lighting.result, opacity);
+				}
 				
 			};
 		)";
