@@ -114,6 +114,12 @@ namespace GameEngine
 			auto outputFileName = Path::ReplaceExt(actualFilename, "spire");
 			Print("Spire source written to %S\n", outputFileName.ToWString());
 			File::WriteAllText(outputFileName, shaderSrc);
+			for (int i = 0; i < spGetDiagnosticCount(diagSink); i++)
+			{
+				SpireDiagnostic diag;
+				spGetDiagnosticByIndex(diagSink, i, &diag);
+				Print("%S\n", String(diag.Message).ToWString());
+			}
 			spDestroyDiagnosticSink(diagSink);
 			spDestroyCompilationResult(compileResult);
 

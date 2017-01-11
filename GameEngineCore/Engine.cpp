@@ -208,6 +208,7 @@ namespace GameEngine
 
 		inDataTransfer = true;
 		syncFences[frameCounter % DynamicBufferLengthMultiplier]->Wait();
+		renderer->Wait();
 		auto cpuTimePoint = CoreLib::Diagnostics::PerformanceCounter::Start();
 		renderer->GetHardwareRenderer()->BeginDataTransfer();
 		renderer->TakeSnapshot();
@@ -249,8 +250,8 @@ namespace GameEngine
 		if (renderer && w > 2 && h > 2)
 		{
 			renderer->GetHardwareRenderer()->BeginDataTransfer();
-			//renderer->Resize(w, h);
-			//uiSystemInterface->SetResolution(w, h);
+			renderer->Resize(w, h);
+			uiSystemInterface->SetResolution(w, h);
 			renderer->GetHardwareRenderer()->EndDataTransfer();
 		}
 	}

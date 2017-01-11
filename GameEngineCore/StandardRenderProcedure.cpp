@@ -392,24 +392,28 @@ namespace GameEngine
 			task.sharedModuleInstances = sharedModules;
 			
 			// transparency pass
-			if (useAtmosphere)
-				transparentPassInstance = forwardRenderPass->CreateInstance(transparentAtmosphereOutput, false);
-			else
-				transparentPassInstance = forwardRenderPass->CreateInstance(forwardBaseOutput, false);
-
-			forwardRenderPass->Bind();
-			sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
-			sharedRes->pipelineManager.PushModuleInstance(&lightingParams);
 			reorderBuffer.Clear();
 			for (auto drawable : sink.GetDrawables(true))
 			{
 				reorderBuffer.Add(drawable);
 			}
-			reorderBuffer.Sort([=](Drawable* d1, Drawable* d2) { return d1->Bounds.Distance(camera->GetPosition()) > d2->Bounds.Distance(camera->GetPosition()); });
-			transparentPassInstance.SetFixedOrderDrawContent(sharedRes->pipelineManager, CullFrustum(camera->GetFrustum(aspect)), reorderBuffer.GetArrayView());
-			sharedRes->pipelineManager.PopModuleInstance();
-			sharedRes->pipelineManager.PopModuleInstance();
-			task.renderPasses.Add(transparentPassInstance);
+			if (reorderBuffer.Count())
+			{
+				reorderBuffer.Sort([=](Drawable* d1, Drawable* d2) { return d1->Bounds.Distance(camera->GetPosition()) > d2->Bounds.Distance(camera->GetPosition()); });
+				if (useAtmosphere)
+					transparentPassInstance = forwardRenderPass->CreateInstance(transparentAtmosphereOutput, false);
+				else
+					transparentPassInstance = forwardRenderPass->CreateInstance(forwardBaseOutput, false);
+
+				forwardRenderPass->Bind();
+				sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
+				sharedRes->pipelineManager.PushModuleInstance(&lightingParams);
+
+				transparentPassInstance.SetFixedOrderDrawContent(sharedRes->pipelineManager, CullFrustum(camera->GetFrustum(aspect)), reorderBuffer.GetArrayView());
+				sharedRes->pipelineManager.PopModuleInstance();
+				sharedRes->pipelineManager.PopModuleInstance();
+				task.renderPasses.Add(transparentPassInstance);
+			}
 		}
 
 		virtual void ResizeFrame(int w, int h) override

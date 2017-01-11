@@ -180,7 +180,6 @@ namespace GameEngine
 			currentDescriptor++;
 			currentDescriptor = currentDescriptor % DynamicBufferLengthMultiplier;
 			int alternateBufferOffset = currentDescriptor * BufferLength;
-			//memcpy((char*)UniformMemory->BufferPtr() + BufferOffset + alternateBufferOffset, data, length);
 			UniformMemory->SetDataAsync(BufferOffset + alternateBufferOffset, data, length);
 			//currentDescriptor = frameId;
 		}

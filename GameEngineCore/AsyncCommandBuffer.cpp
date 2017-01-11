@@ -11,7 +11,7 @@ namespace GameEngine
 	CommandBuffer * AsyncCommandBuffer::BeginRecording(FrameBuffer * frameBuffer)
 	{
 		framePtr++;
-		framePtr %= DynamicBufferLengthMultiplier;
+		framePtr %= CommandBufferMultiplier;
 		auto rs = commandBuffers[framePtr].Ptr();
 		rs->BeginRecording(frameBuffer);
 		return rs;
@@ -20,7 +20,7 @@ namespace GameEngine
 	CommandBuffer * AsyncCommandBuffer::BeginRecording()
 	{
 		framePtr++;
-		framePtr %= DynamicBufferLengthMultiplier;
+		framePtr %= CommandBufferMultiplier;
 		auto rs = commandBuffers[framePtr].Ptr();
 		rs->BeginRecording();
 		return rs;

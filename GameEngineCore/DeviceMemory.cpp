@@ -47,7 +47,7 @@ namespace GameEngine
 	{
 		memcpy(bufferPtr + offset, data, length);
 		if (!isMapped)
-			buffer->SetDataAsync(offset, data, length);
+			buffer->SetDataAsync(offset, bufferPtr + offset, length);
 	}
 
 }
