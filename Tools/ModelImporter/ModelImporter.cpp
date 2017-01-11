@@ -345,7 +345,7 @@ void Export(ExportArguments args)
 					String compName = mesh->mName.C_Str();
 					meshName = meshName + String((int)mi);
 					if (compName.Length() != 0)
-						meshName = meshName + compName;
+						meshName = meshName + "_" + compName;
 					outName = Path::Combine(Path::GetDirectoryName(outFileName), meshName + ".mesh");
 				}
 				
