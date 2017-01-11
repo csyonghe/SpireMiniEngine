@@ -969,6 +969,16 @@ namespace VKO
 		}
 	}
 
+	vk::CullModeFlags TranslateCullMode(CullMode mode)
+	{
+		switch (mode)
+		{
+		case CullMode::CullBackFace: return vk::CullModeFlagBits::eBack;
+		case CullMode::CullFrontFace: return vk::CullModeFlagBits::eFront;
+		case CullMode::Disabled: return vk::CullModeFlagBits::eNone;
+		}
+	}
+
 	vk::PrimitiveTopology TranslatePrimitiveTopology(PrimitiveType ptype)
 	{
 		switch (ptype)
@@ -3111,7 +3121,7 @@ namespace VKO
 			.setDepthClampEnable(VK_FALSE)
 			.setRasterizerDiscardEnable(VK_FALSE)
 			.setPolygonMode(vk::PolygonMode::eFill)
-			.setCullMode(vk::CullModeFlagBits::eBack)
+			.setCullMode(TranslateCullMode(pipelineBuilder->FixedFunctionStates.CullMode))
 			.setFrontFace(vk::FrontFace::eClockwise)
 			.setDepthBiasEnable(pipelineBuilder->FixedFunctionStates.EnablePolygonOffset)
 			.setDepthBiasConstantFactor(pipelineBuilder->FixedFunctionStates.PolygonOffsetUnits)
