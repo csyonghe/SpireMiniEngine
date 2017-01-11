@@ -359,8 +359,8 @@ namespace GameEngine
 		: rendererResource(resource), spireContext(spireCtx)
 	{
 		auto hwRenderer = resource->hardwareRenderer.Ptr();
-		instanceUniformMemory.Init(hwRenderer, BufferUsage::UniformBuffer, true, 24, hwRenderer->UniformBufferAlignment());
-		transformMemory.Init(hwRenderer, BufferUsage::UniformBuffer, true, 25, hwRenderer->UniformBufferAlignment());
+		instanceUniformMemory.Init(hwRenderer, BufferUsage::UniformBuffer, false, 24, hwRenderer->UniformBufferAlignment());
+		transformMemory.Init(hwRenderer, BufferUsage::UniformBuffer, false, 25, hwRenderer->UniformBufferAlignment());
 		spPushContext(spireContext);
 		Clear();
 	}

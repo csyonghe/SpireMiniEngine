@@ -180,7 +180,8 @@ namespace GameEngine
 			currentDescriptor++;
 			currentDescriptor = currentDescriptor % DynamicBufferLengthMultiplier;
 			int alternateBufferOffset = currentDescriptor * BufferLength;
-			memcpy((char*)UniformMemory->BufferPtr() + BufferOffset + alternateBufferOffset, data, length);
+			//memcpy((char*)UniformMemory->BufferPtr() + BufferOffset + alternateBufferOffset, data, length);
+			UniformMemory->SetDataAsync(BufferOffset + alternateBufferOffset, data, length);
 			//currentDescriptor = frameId;
 		}
 		bool keyChanged = false;
@@ -206,7 +207,6 @@ namespace GameEngine
 			specializedModule = spSpecializeModule(spireContext, module, currentSpecializationKey.Buffer(), currentSpecializationKey.Count(), nullptr);
 			ModuleId = spGetModuleUID(specializedModule);
 		}
-		//UniformMemory->GetBuffer()->SetData(BufferOffset, data, CoreLib::Math::Min(length, BufferLength));
 	}
 
 	//IMPL_POOL_ALLOCATOR(ModuleInstance, MaxModuleInstances)

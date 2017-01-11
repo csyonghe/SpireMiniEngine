@@ -242,9 +242,9 @@ void Export(ExportArguments args)
 
 		if (args.ExportMesh && scene->mNumMeshes > 0)
 		{
-			for (auto i = 0u; i < scene->mNumMeshes; i++)
+			for (auto mi = 0u; mi < scene->mNumMeshes; mi++)
 			{
-				auto mesh = scene->mMeshes[i];
+				auto mesh = scene->mMeshes[mi];
 				RefPtr<Mesh> meshOut = new Mesh();
 				meshOut->Bounds.Init();
 				meshOut->SetVertexFormat(MeshVertexFormat((int)mesh->GetNumColorChannels(), (int)mesh->GetNumUVChannels(), true, mesh->HasBones()));
@@ -338,17 +338,17 @@ void Export(ExportArguments args)
 					}
 				}
 				auto outName = outFileName;
+				String meshName = mesh->mName.C_Str();
 				if (scene->mNumMeshes > 1)
 				{
-					String meshName = mesh->mName.C_Str();
 					if (meshName.Length() == 0)
 						meshName = "mesh_";
-					meshName = meshName + String((int)i);
+					meshName = meshName + String((int)mi);
 					outName = Path::Combine(Path::GetDirectoryName(outFileName), meshName + ".mesh");
 				}
 				
 				meshOut->SaveToFile(Path::ReplaceExt(outName, "mesh"));
-				wprintf(L"mesh converted. faces: %d, vertices: %d, bones: %d.\n", mesh->mNumFaces, mesh->mNumVertices, mesh->mNumBones);
+				wprintf(L"mesh converted: %s faces: %d, vertices: %d, bones: %d.\n", meshName.ToWString(), mesh->mNumFaces, mesh->mNumVertices, mesh->mNumBones);
 			}
 		}
 
