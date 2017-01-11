@@ -49,11 +49,13 @@ namespace GameEngine
 		PostRenderPass * deferredLightingPass = nullptr;
 
 		RenderOutput * forwardBaseOutput = nullptr;
+		RenderOutput * transparentAtmosphereOutput = nullptr;
+
 		RenderOutput * gBufferOutput = nullptr;
 		RenderOutput * deferredLightingOutput = nullptr;
 		StandardViewUniforms viewUniform;
 
-		RenderPassInstance forwardBaseInstance;
+		RenderPassInstance forwardBaseInstance, transparentPassInstance;
 		RenderPassInstance gBufferInstance;
 
 		DeviceMemory renderPassUniformMemory;
@@ -67,7 +69,7 @@ namespace GameEngine
 		List<LightUniforms> lightingData;
 
 		List<Drawable*> reorderBuffer;
-
+	
 		AtmosphereParameters lastAtmosphereParams;
 		bool useAtmosphere = false;
 
@@ -80,6 +82,9 @@ namespace GameEngine
 				sharedRes->DestroyRenderOutput(gBufferOutput);
 			if (deferredLightingOutput)
 				sharedRes->DestroyRenderOutput(deferredLightingOutput);
+			if (transparentAtmosphereOutput)
+				sharedRes->DestroyRenderOutput(transparentAtmosphereOutput);
+
 		}
 		virtual RenderTarget* GetOutput() override
 		{
@@ -109,18 +114,20 @@ namespace GameEngine
 				);
 				gBufferInstance = gBufferRenderPass->CreateInstance(gBufferOutput, true);
 			}
-			else
-			{
-				forwardRenderPass = CreateForwardBaseRenderPass();
-				renderer->RegisterWorldRenderPass(forwardRenderPass);
-				forwardBaseOutput = sharedRes->CreateRenderOutput(
-					forwardRenderPass->GetRenderTargetLayout(),
-					sharedRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8),
-					sharedRes->LoadSharedRenderTarget("depthBuffer", DepthBufferFormat)
-				);
-				forwardBaseInstance = forwardRenderPass->CreateInstance(forwardBaseOutput, true);
-			}
-
+			
+			forwardRenderPass = CreateForwardBaseRenderPass();
+			renderer->RegisterWorldRenderPass(forwardRenderPass);
+			forwardBaseOutput = sharedRes->CreateRenderOutput(
+				forwardRenderPass->GetRenderTargetLayout(),
+				sharedRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8),
+				sharedRes->LoadSharedRenderTarget("depthBuffer", DepthBufferFormat)
+			);
+			transparentAtmosphereOutput = sharedRes->CreateRenderOutput(
+				forwardRenderPass->GetRenderTargetLayout(),
+				sharedRes->LoadSharedRenderTarget("litAtmosphereColor", StorageFormat::RGBA_8),
+				sharedRes->LoadSharedRenderTarget("depthBuffer", DepthBufferFormat)
+			);
+			
 			atmospherePass = CreateAtmospherePostRenderPass();
 			renderer->RegisterPostRenderPass(atmospherePass);
 
@@ -154,9 +161,15 @@ namespace GameEngine
 			}
 			else if (gBufferRenderPass)
 			{
-				gBufferRenderPass->ResetInstancePool();
 				gBufferOutput->GetSize(w, h);
 			}
+			
+			if (!deferred)
+			{
+				forwardBaseInstance = forwardRenderPass->CreateInstance(forwardBaseOutput, true);
+			}
+
+
 			shadowRenderPass->ResetInstancePool();
 			
 			auto shadowMapRes = params.renderer->GetSharedResource()->shadowMapResources;
@@ -337,7 +350,8 @@ namespace GameEngine
 								}
 								shadowMapPassModuleInstance->SetUniformData(&shadowMapView, sizeof(shadowMapView));
 								sharedRes->pipelineManager.PushModuleInstance(shadowMapPassModuleInstance);
-								pass.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, CullFrustum(shadowMapView.InvViewProjTransform), sink.GetDrawables());
+								pass.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, CullFrustum(shadowMapView.InvViewProjTransform), sink.GetDrawables(true));
+								pass.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, CullFrustum(shadowMapView.InvViewProjTransform), sink.GetDrawables(false));
 								sharedRes->pipelineManager.PopModuleInstance();
 								task.renderPasses.Add(pass);
 							}
@@ -353,26 +367,47 @@ namespace GameEngine
 			{
 				gBufferRenderPass->Bind();
 				sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
-				gBufferInstance.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, CullFrustum(camera->GetFrustum(aspect)), sink.GetDrawables());
+				gBufferInstance.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, CullFrustum(camera->GetFrustum(aspect)), sink.GetDrawables(false));
+				sharedRes->pipelineManager.PopModuleInstance();
 				task.renderPasses.Add(gBufferInstance);
-				task.postPasses.Add(deferredLightingPass);
+				task.renderPasses.Add(deferredLightingPass->CreateInstance(sharedModules));
 			}
 			else
 			{
 				forwardRenderPass->Bind();
 				sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
 				sharedRes->pipelineManager.PushModuleInstance(&lightingParams);
-				forwardBaseInstance.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, CullFrustum(camera->GetFrustum(aspect)), sink.GetDrawables());
+				forwardBaseInstance.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, CullFrustum(camera->GetFrustum(aspect)), sink.GetDrawables(false));
+				sharedRes->pipelineManager.PopModuleInstance();
 				sharedRes->pipelineManager.PopModuleInstance();
 				task.renderPasses.Add(forwardBaseInstance);
 			}
-			sharedRes->pipelineManager.PopModuleInstance();
 
 			if (useAtmosphere)
 			{
-				task.postPasses.Add(atmospherePass);
+				task.renderPasses.Add(atmospherePass->CreateInstance(sharedModules));
 			}
 			task.sharedModuleInstances = sharedModules;
+			
+			// transparency pass
+			if (useAtmosphere)
+				transparentPassInstance = forwardRenderPass->CreateInstance(transparentAtmosphereOutput, false);
+			else
+				transparentPassInstance = forwardRenderPass->CreateInstance(forwardBaseOutput, false);
+
+			forwardRenderPass->Bind();
+			sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
+			sharedRes->pipelineManager.PushModuleInstance(&lightingParams);
+			reorderBuffer.Clear();
+			for (auto drawable : sink.GetDrawables(true))
+			{
+				reorderBuffer.Add(drawable);
+			}
+			reorderBuffer.Sort([=](Drawable* d1, Drawable* d2) { return d1->Bounds.Distance(camera->GetPosition()) > d2->Bounds.Distance(camera->GetPosition()); });
+			transparentPassInstance.SetFixedOrderDrawContent(sharedRes->pipelineManager, CullFrustum(camera->GetFrustum(aspect)), reorderBuffer.GetArrayView());
+			sharedRes->pipelineManager.PopModuleInstance();
+			sharedRes->pipelineManager.PopModuleInstance();
+			task.renderPasses.Add(transparentPassInstance);
 		}
 
 		virtual void ResizeFrame(int w, int h) override

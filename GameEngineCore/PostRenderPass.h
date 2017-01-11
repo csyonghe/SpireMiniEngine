@@ -39,6 +39,7 @@ namespace GameEngine
 		virtual void AcquireRenderTargets() = 0;
 	public:
 		void Execute(SharedModuleInstances sharedModules);
+		RenderPassInstance CreateInstance(SharedModuleInstances sharedModules);
 		virtual void Resize(int screenWidth, int screenHeight);
 		virtual void SetParameters(void * data, int count) = 0;
 	};

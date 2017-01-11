@@ -19,6 +19,7 @@ namespace GameEngine
 				public using VertexTransform;
 				public using materialModule;
 				out @Fragment vec3 ocolor = vec3(1.0);
+				float doDiscard { if (opacity < 0.8f) discard; return 0.0f; }
 			};
 		)";
 	protected:

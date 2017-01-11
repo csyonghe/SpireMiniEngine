@@ -110,6 +110,7 @@ namespace GameEngine
 		friend class RendererServiceImpl;
 	private:
 		DrawableType type = DrawableType::Static;
+		bool isTransparent = false;
 		MeshVertexFormat vertFormat;
 		CoreLib::RefPtr<DrawableMesh> mesh = nullptr;
 		Material * material = nullptr;
@@ -135,6 +136,10 @@ namespace GameEngine
 		inline ModuleInstance * GetTransformModule()
 		{
 			return transformModule.Ptr();
+		}
+		inline bool IsTransparent()
+		{
+			return isTransparent;
 		}
 		inline DrawableMesh * GetMesh()
 		{
@@ -188,6 +193,14 @@ namespace GameEngine
 		}
 	};
 
+	class SharedModuleInstances
+	{
+	public:
+		ModuleInstance * View;
+		ModuleInstance * Lighting;
+	};
+
+
 	class RenderPassInstance
 	{
 		friend class WorldRenderPass;
@@ -196,10 +209,14 @@ namespace GameEngine
 	private:
 		int renderPassId = -1;
 		int numDrawCalls = 0;
-		Viewport viewport;
+
+		PostRenderPass * postPass = nullptr;
+		SharedModuleInstances sharedModules;
+	
 		AsyncCommandBuffer * commandBuffer = nullptr;
 		RenderOutput * renderOutput = nullptr;
 		FixedFunctionPipelineStates * fixedFunctionStates = nullptr;
+		Viewport viewport;
 		bool clearOutput = false;
 	public:
 		void SetFixedOrderDrawContent(PipelineContext & pipelineManager, CullFrustum frustum, CoreLib::ArrayView<Drawable*> drawables);
@@ -217,17 +234,9 @@ namespace GameEngine
 		RendererService * rendererService;
 	};
 
-	class SharedModuleInstances
-	{
-	public:
-		ModuleInstance * View;
-		ModuleInstance * Lighting;
-	};
-
 	struct FrameRenderTask
 	{
 		CoreLib::List<RenderPassInstance> renderPasses;
-		CoreLib::List<PostRenderPass*> postPasses;
 		SharedModuleInstances sharedModuleInstances;
 		void Clear();
 	};
@@ -357,20 +366,26 @@ namespace GameEngine
 	class DrawableSink
 	{
 	private:
-		CoreLib::List<Drawable*> drawables;
+		CoreLib::List<Drawable*> opaqueDrawables;
+		CoreLib::List<Drawable*> transparentDrawables;
+
 	public:
 		void AddDrawable(Drawable * drawable)
 		{
+			if (drawable->IsTransparent())
+				transparentDrawables.Add(drawable);
+			else
+				opaqueDrawables.Add(drawable);
 			drawable->UpdateMaterialUniform();
-			drawables.Add(drawable);
 		}
 		void Clear()
 		{
-			drawables.Clear();
+			opaqueDrawables.Clear();
+			transparentDrawables.Clear();
 		}
-		CoreLib::ArrayView<Drawable*> GetDrawables()
+		CoreLib::ArrayView<Drawable*> GetDrawables(bool transparent)
 		{
-			return drawables.GetArrayView();
+			return transparent ? transparentDrawables.GetArrayView() : opaqueDrawables.GetArrayView();
 		}
 	};
 }

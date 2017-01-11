@@ -74,6 +74,14 @@ namespace GameEngine
 		hwRenderer->ExecuteCommandBuffers(frameBuffer.Ptr(), MakeArrayView(cmdBuf), nullptr);
 	}
 
+	RenderPassInstance PostRenderPass::CreateInstance(SharedModuleInstances sharedModules)
+	{
+		RenderPassInstance rs;
+		rs.postPass = this;
+		rs.sharedModules = sharedModules;
+		return rs;
+	}
+
 	void PostRenderPass::Resize(int screenWidth, int screenHeight)
 	{
 		width = screenWidth;

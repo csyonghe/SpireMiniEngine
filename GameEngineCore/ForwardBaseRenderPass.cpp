@@ -28,7 +28,7 @@ namespace GameEngine
 				public using materialModule;
 				vec3 lightParam = vec3(roughness, metallic, specular);
 				using lighting = lightingModule(TangentSpaceToWorldSpace(vec3(normal.x, -normal.y, normal.z)));
-				public out @Fragment vec4 outputColor = vec4(lighting.result, 1.0);
+				public out @Fragment vec4 outputColor = vec4(lighting.result, opacity);
 				float doDiscard { if (opacity < 0.01f) discard; return 0.0f; }
 				
 			};
@@ -43,6 +43,11 @@ namespace GameEngine
 			return hwRenderer->CreateRenderTargetLayout(MakeArray(
 				AttachmentLayout(TextureUsage::ColorAttachment, StorageFormat::RGBA_8),
 				AttachmentLayout(TextureUsage::DepthAttachment, DepthBufferFormat)).GetArrayView());
+		}
+		virtual void SetPipelineStates(FixedFunctionPipelineStates & state)
+		{
+			state.BlendMode = BlendMode::AlphaBlend;
+			state.DepthCompareFunc = CompareFunc::Less;
 		}
 		virtual char * GetName() override
 		{

@@ -79,6 +79,10 @@ namespace GameEngine
 			ModuleId = spGetModuleUID(specializedModule);
 		}
 		~ModuleInstance();
+		SpireModule * GetModule()
+		{
+			return module;
+		}
 		void SetDescriptorSetLayout(HardwareRenderer * hw, DescriptorSetLayout * layout);
 		DescriptorSet * GetDescriptorSet(int i)
 		{

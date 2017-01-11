@@ -3210,7 +3210,7 @@ namespace GLL
 #ifdef _DEBUG
 			rs->isInTransfer = &isInDataTransfer;
 #endif
-			if (storageFlags | GL_MAP_PERSISTENT_BIT)
+			if (storageFlags & GL_MAP_PERSISTENT_BIT)
 				rs->persistentMapping = true;
 
 			rs->BindTarget = TranslateBufferUsage(usage);

@@ -49,6 +49,7 @@ namespace GameEngine
                 else
                     rs->mesh = sceneResources->CreateDrawableMesh(mesh);
 				rs->material = material;
+				rs->isTransparent = spModuleHasAttrib(material->MaterialPatternModule.GetModule(), "Transparent") != 0;
 				return rs;
 			}
 		public:
@@ -63,9 +64,9 @@ namespace GameEngine
 
 			virtual CoreLib::RefPtr<Drawable> CreateStaticDrawable(Mesh * mesh, Material * material, bool cacheMesh) override
 			{
-				RefPtr<Drawable> rs = CreateDrawableShared(mesh, material, cacheMesh);
 				if (!material->MaterialPatternModule)
 					renderer->sceneRes->RegisterMaterial(material);
+				RefPtr<Drawable> rs = CreateDrawableShared(mesh, material, cacheMesh);
 				rs->type = DrawableType::Static;
 				CreateTransformModuleInstance(*rs->transformModule, "NoAnimation", (int)(sizeof(Vec4) * 7));
 				rs->vertFormat = mesh->GetVertexFormat();
@@ -73,9 +74,9 @@ namespace GameEngine
 			}
 			virtual CoreLib::RefPtr<Drawable> CreateSkeletalDrawable(Mesh * mesh, Skeleton * skeleton, Material * material, bool cacheMesh) override
 			{
-				RefPtr<Drawable> rs = CreateDrawableShared(mesh, material, cacheMesh);
 				if (!material->MaterialPatternModule)
 					renderer->sceneRes->RegisterMaterial(material);
+				RefPtr<Drawable> rs = CreateDrawableShared(mesh, material, cacheMesh);
 				rs->type = DrawableType::Skeletal;
 				rs->skeleton = skeleton;
 				int poseMatrixSize = skeleton->Bones.Count() * (sizeof(Vec4) * 7);
@@ -219,15 +220,15 @@ namespace GameEngine
 			
 			for (auto & pass : frameTask.renderPasses)
 			{
-				hardwareRenderer->ExecuteCommandBuffers(pass.renderOutput->GetFrameBuffer(), MakeArrayView(pass.commandBuffer->GetBuffer()), nullptr);
-				sharedRes.renderStats.NumPasses++;
-				sharedRes.renderStats.NumDrawCalls += pass.numDrawCalls;
-				//hardwareRenderer->Wait();
-			}
-			for (auto pass : frameTask.postPasses)
-			{
-				pass->Execute(frameTask.sharedModuleInstances);
-				//hardwareRenderer->Wait();
+				if (pass.postPass)
+					pass.postPass->Execute(pass.sharedModules);
+				else
+				{
+					hardwareRenderer->ExecuteCommandBuffers(pass.renderOutput->GetFrameBuffer(), MakeArrayView(pass.commandBuffer->GetBuffer()), nullptr);
+					sharedRes.renderStats.NumPasses++;
+					sharedRes.renderStats.NumDrawCalls += pass.numDrawCalls;
+					//hardwareRenderer->Wait();
+				}
 			}
 		}
 		virtual RendererSharedResource * GetSharedResource() override
