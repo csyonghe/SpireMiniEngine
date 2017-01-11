@@ -338,12 +338,14 @@ void Export(ExportArguments args)
 					}
 				}
 				auto outName = outFileName;
-				String meshName = mesh->mName.C_Str();
+				String meshName;
 				if (scene->mNumMeshes > 1)
 				{
-					if (meshName.Length() == 0)
-						meshName = "mesh_";
+					meshName = Path::GetFileNameWithoutEXT(fileName) + "_";
+					String compName = mesh->mName.C_Str();
 					meshName = meshName + String((int)mi);
+					if (compName.Length() != 0)
+						meshName = meshName + compName;
 					outName = Path::Combine(Path::GetDirectoryName(outFileName), meshName + ".mesh");
 				}
 				
