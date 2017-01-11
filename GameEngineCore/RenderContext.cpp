@@ -836,7 +836,6 @@ namespace GameEngine
 					pipelineManager.PopModuleInstance();
 					pipelineManager.PushModuleInstance(&newMaterial->MaterialGeometryModule);
 					pipelineManager.PushModuleInstance(&newMaterial->MaterialPatternModule);
-					pipelineManager.SetCullMode(newMaterial->IsDoubleSided ? CullMode::Disabled : CullMode::CullBackFace);
 					lastMaterial = newMaterial;
 				}
 				pipelineManager.PushModuleInstanceNoShaderChange(obj->GetTransformModule());
