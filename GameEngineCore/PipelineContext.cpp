@@ -84,7 +84,7 @@ namespace GameEngine
 	{
 		RefPtr<PipelineBuilder> pipelineBuilder = hwRenderer->CreatePipelineBuilder();
 
-		pipelineBuilder->FixedFunctionStates = *fixedFunctionStates;
+		pipelineBuilder->FixedFunctionStates = fixedFunctionStates;
 
 		// Set vertex layout
 		pipelineBuilder->SetVertexLayout(LoadVertexFormat(*vertFormat));

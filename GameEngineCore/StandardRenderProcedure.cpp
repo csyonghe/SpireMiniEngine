@@ -24,7 +24,7 @@ namespace GameEngine
 		VectorMath::Vec3 lightColor; float pad1 = 0.0f;
 		int numCascades = 0;
 		int shadowMapId = -1;
-		int pad2 = 0, pad3 = 0;
+		int padding2 = 0, pad3 = 0;
 		VectorMath::Matrix4 lightMatrix[MaxShadowCascades];
 		float zPlanes[MaxShadowCascades];
 		LightUniforms()

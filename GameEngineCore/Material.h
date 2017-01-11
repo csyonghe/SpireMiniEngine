@@ -16,6 +16,8 @@ namespace GameEngine
 		CoreLib::String ShaderFile;
 		int Id = 0;
 		bool ParameterDirty = true;
+		bool IsTransparent = false;
+		bool IsDoubleSided = false;
 		ModuleInstance MaterialPatternModule, MaterialGeometryModule;
 		CoreLib::EnumerableDictionary<CoreLib::String, DynamicVariable> Variables;
 		CoreLib::List<DynamicVariable*> PatternVariables, GeometryVariables;

@@ -123,7 +123,7 @@ namespace GameEngine
 		SpireShader * shader = nullptr;
 		RenderTargetLayout * renderTargetLayout = nullptr;
 		PipelineClass * lastPipeline = nullptr;
-		FixedFunctionPipelineStates * fixedFunctionStates = nullptr;
+		FixedFunctionPipelineStates fixedFunctionStates;
 		CoreLib::EnumerableDictionary<ShaderKey, CoreLib::RefPtr<PipelineClass>> pipelineObjects;
 		ShaderKeyBuilder shaderKeyBuilder;
 		HardwareRenderer * hwRenderer;
@@ -148,11 +148,15 @@ namespace GameEngine
 		{
 			shader = pShader;
 			renderTargetLayout = pRenderTargetLayout;
-			fixedFunctionStates = states;
+			fixedFunctionStates = *states;
 			shaderKeyChanged = true;
 			modulePtr = 0;
 			for (int i = 0; i < sizeof(modules) / sizeof(ModuleInstance*); i++)
 				modules[i] = nullptr;
+		}
+		void SetCullMode(CullMode mode)
+		{
+			fixedFunctionStates.CullMode = mode;
 		}
 		void PushModuleInstance(ModuleInstance * module)
 		{

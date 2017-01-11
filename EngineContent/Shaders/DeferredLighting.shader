@@ -21,10 +21,11 @@ shader DeferredLighting targets StandardPipeline
 	public vec4 projCoord = vec4(vertPos.xy, 0.0, 1.0);
 
 	public vec3 normal = normalTex.Sample(nearestSampler, vertUV).xyz * 2.0 - 1.0;
-	public vec3 pbr = pbrTex.Sample(nearestSampler, vertUV).xyz;
+	public vec4 pbr = pbrTex.Sample(nearestSampler, vertUV);
 	public float roughness = pbr.x;
 	public float metallic = pbr.y;
 	public float specular = pbr.z;
+	public float ao = pbr.w;
 	public vec3 albedo = albedoTex.Sample(nearestSampler, vertUV).xyz;
 	public float selfShadow(vec3 x) { return 1.0; }
     vec3 lightParam = vec3(roughness, metallic, specular);

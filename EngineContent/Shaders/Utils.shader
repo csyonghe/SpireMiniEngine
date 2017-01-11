@@ -378,20 +378,35 @@ module Lighting
     require vec3 normal;   
     require vec3 albedo;
     require vec3 lightParam;
+    require float ao;
     require vec3 pos;
     require vec3 cameraPos;
     require float selfShadow(vec3 lightDir);
     require mat4 viewTransform;
-    
+    require bool isDoubleSided;
+    vec3 lNormal
+    {
+		vec3 result;
+        if (isDoubleSided)
+        {
+            result = dot(normal, view) < 0 ? -normal : normal;
+        }
+        else
+        {
+            result = normal;
+        }
+		return result;
+    }
+
     vec3 view = normalize(cameraPos - pos);
     inline float roughness_in = lightParam.x;
     inline float metallic_in = lightParam.y;
     inline float specular_in = lightParam.z;
     vec3 L = lightDir;
     vec3 H = normalize(view+L);
-    float dotNL = clamp(dot(normal,L), 0.01, 0.99);
+    float dotNL = clamp(dot(lNormal,L), 0.01, 0.99);
     float dotLH = clamp(dot(L,H), 0.01, 0.99);
-    float dotNH = clamp(dot(normal,H), 0.01, 0.99);
+    float dotNH = clamp(dot(lNormal,H), 0.01, 0.99);
     
     float Pow4(float x)
     {
@@ -451,7 +466,7 @@ module Lighting
         return result;
     }
     
-    float brightness = clamp(dot(lightDir, normal), 0.0, 1.0) * shadow;
+    float brightness = clamp(dot(lightDir, lNormal), 0.0, 1.0) * shadow;
 
     float highlight_phongStandard
     {
@@ -469,9 +484,9 @@ module Lighting
         return specular;
     }
     float highlight = highlight_GGXstandard;
-    public vec3 result = lightColor * 
-                        (albedo * (brightness + 0.4)*(1.0-metallic_in) + 
-                        mix(albedo, vec3(1.0), 1.0 - metallic_in) * (highlight * shadow));
+    public vec3 result = (lightColor * 
+                         (albedo * (brightness + 0.4)*(1.0-metallic_in) + 
+                        mix(albedo, vec3(1.0), 1.0 - metallic_in) * (highlight * shadow)))*ao;
 }
 
 module ForwardBasePassParams
@@ -493,6 +508,8 @@ interface IMaterialPattern
     float metallic = 0.3;
     float specular = 0.4;
     float opacity = 1.0;
+    float ao = 1.0;
+    bool isDoubleSided = false;
     float selfShadow(vec3 lightDir)
     {
         return 1.0;        

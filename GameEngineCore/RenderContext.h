@@ -110,7 +110,6 @@ namespace GameEngine
 		friend class RendererServiceImpl;
 	private:
 		DrawableType type = DrawableType::Static;
-		bool isTransparent = false;
 		MeshVertexFormat vertFormat;
 		CoreLib::RefPtr<DrawableMesh> mesh = nullptr;
 		Material * material = nullptr;
@@ -137,10 +136,7 @@ namespace GameEngine
 		{
 			return transformModule.Ptr();
 		}
-		inline bool IsTransparent()
-		{
-			return isTransparent;
-		}
+		bool IsTransparent();
 		inline DrawableMesh * GetMesh()
 		{
 			return mesh.Ptr();

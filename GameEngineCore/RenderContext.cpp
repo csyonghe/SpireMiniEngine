@@ -33,6 +33,11 @@ namespace GameEngine
 		return pipelineCache[passId];
 	}
 
+	bool Drawable::IsTransparent()
+	{
+		return material->IsTransparent;
+	}
+
 	void Drawable::UpdateMaterialUniform()
 	{
 		if (material->ParameterDirty)
@@ -353,6 +358,9 @@ namespace GameEngine
 			if (!material->MaterialGeometryModule)
 				throw InvalidOperationException("failed to load default material.");
 		}
+		material->IsDoubleSided = spModuleHasAttrib(material->MaterialPatternModule.GetModule(), "DoubleSided") != 0;
+		material->IsTransparent = spModuleHasAttrib(material->MaterialPatternModule.GetModule(), "Transparent") != 0;
+
 	}
 	
 	SceneResource::SceneResource(RendererSharedResource * resource, SpireCompilationContext * spireCtx)
@@ -827,6 +835,7 @@ namespace GameEngine
 					pipelineManager.PopModuleInstance();
 					pipelineManager.PushModuleInstance(&newMaterial->MaterialGeometryModule);
 					pipelineManager.PushModuleInstance(&newMaterial->MaterialPatternModule);
+					pipelineManager.SetCullMode(newMaterial->IsDoubleSided ? CullMode::Disabled : CullMode::CullBackFace);
 					lastMaterial = newMaterial;
 				}
 				pipelineManager.PushModuleInstanceNoShaderChange(obj->GetTransformModule());

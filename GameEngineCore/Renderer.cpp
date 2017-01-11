@@ -49,7 +49,6 @@ namespace GameEngine
                 else
                     rs->mesh = sceneResources->CreateDrawableMesh(mesh);
 				rs->material = material;
-				rs->isTransparent = spModuleHasAttrib(material->MaterialPatternModule.GetModule(), "Transparent") != 0;
 				return rs;
 			}
 		public:
