@@ -768,6 +768,7 @@ namespace GameEngine
 		if (drawables.Count())
 		{
 			Material* lastMaterial = drawables[0]->GetMaterial();
+			pipelineManager.SetCullMode(lastMaterial->IsDoubleSided ? CullMode::Disabled : CullMode::CullBackFace);
 
 			cmdBuf->BindIndexBuffer(drawables[0]->GetMesh()->GetIndexBuffer(), 0);
 			pipelineManager.PushModuleInstance(&lastMaterial->MaterialGeometryModule);
