@@ -13,6 +13,10 @@ namespace GameEngine
 		{
 			SunDir = VectorMath::Vec3::Create(1.0f, 1.0f, 0.5f).Normalize();
 		}
+		bool operator == (const AtmosphereParameters & other) const
+		{
+			return const_cast<Vec3&>(SunDir) == other.SunDir && AtmosphericFogScaleFactor == other.AtmosphericFogScaleFactor;
+		}
 	};
 }
 
