@@ -45,7 +45,16 @@ namespace GameEngine
 
 	void DrawCallStatForm::SetFrameRenderTime(float val)
 	{
-		lblFps->SetText(CoreLib::String((int)(1.0f / val)) + " fps (" + CoreLib::String(val * 1000.0f, "%.1f") + "ms)");
+		static int i = 0;
+		if (i < 10)
+		{
+			maxMs = 0.0f;
+			minMs = 100.0f;
+			++i;
+		}
+		if (val > maxMs) maxMs = val;
+		if (val < minMs) minMs = val;
+		lblFps->SetText(CoreLib::String((int)(1.0f / val)) + " fps (" + CoreLib::String(val * 1000.0f, "%.1f") + "ms)" + " [" + CoreLib::String(minMs * 1000.0f, "%.1f") + " - " + CoreLib::String(maxMs * 1000.0f, "%.1f") + "ms]");
 	}
 
 }

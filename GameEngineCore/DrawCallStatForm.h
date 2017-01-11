@@ -8,6 +8,8 @@ namespace GameEngine
 	class DrawCallStatForm : public GraphicsUI::Form
 	{
 	private:
+		float minMs;
+		float maxMs;
 		GraphicsUI::Label * lblNumDrawCalls;
 		GraphicsUI::Label * lblNumWorldPasses;
 		GraphicsUI::Label * lblFps;
