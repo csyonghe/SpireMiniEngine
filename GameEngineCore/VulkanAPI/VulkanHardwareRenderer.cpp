@@ -970,6 +970,7 @@ namespace VK
 		case CullMode::CullBackFace: return vk::CullModeFlagBits::eBack;
 		case CullMode::CullFrontFace: return vk::CullModeFlagBits::eFront;
 		case CullMode::Disabled: return vk::CullModeFlagBits::eNone;
+		default: throw CoreLib::NotImplementedException("TranslateCullMode");
 		}
 	}
 
