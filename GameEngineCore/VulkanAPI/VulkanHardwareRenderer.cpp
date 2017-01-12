@@ -3262,11 +3262,11 @@ namespace VK
 		const vk::CommandPool& pool;
 		vk::CommandBuffer buffer;
 		Pipeline* curPipeline;
-		CoreLib::Array<uint32_t, 32> pendingOffsets;
 		CoreLib::Array<vk::DescriptorSet, 32> pendingDescSets;
 
 		CommandBuffer(const vk::CommandPool& commandPool) : pool(commandPool)
 		{
+			pendingDescSets.SetSize(32);
 			buffer = RendererState::CreateCommandBuffer(pool, vk::CommandBufferLevel::eSecondary);
 		}
 		CommandBuffer() : CommandBuffer(RendererState::RenderCommandPool()) {}
@@ -3294,8 +3294,9 @@ namespace VK
 			inRenderPass = false;
 
 			ResetInternalState();
-			pendingOffsets.Clear();
-			pendingDescSets.Clear();
+
+			for (int k = 0; k < 32; k++)
+				pendingDescSets[k] = vk::DescriptorSet();
 
 			vk::CommandBufferInheritanceInfo inheritanceInfo = vk::CommandBufferInheritanceInfo()
 				.setRenderPass(vk::RenderPass())
@@ -3318,8 +3319,8 @@ namespace VK
 
 			ResetInternalState();
 
-			pendingOffsets.Clear();
-			pendingDescSets.Clear();
+			for (int k = 0; k < pendingDescSets.Count(); k++)
+				pendingDescSets[k] = vk::DescriptorSet();
 
 			vk::CommandBufferInheritanceInfo inheritanceInfo = vk::CommandBufferInheritanceInfo()
 				.setRenderPass(reinterpret_cast<VK::RenderTargetLayout*>(renderTargetLayout)->renderPass)
@@ -3375,8 +3376,7 @@ namespace VK
 			VK::DescriptorSet* internalDescriptorSet = reinterpret_cast<VK::DescriptorSet*>(descSet);
 			if (curPipeline == nullptr)
 			{
-				pendingDescSets.Add(internalDescriptorSet->descriptorSet);
-				pendingOffsets.Add(binding);
+				pendingDescSets[binding] = (internalDescriptorSet->descriptorSet);
 			}
 			else
 			{
@@ -3389,19 +3389,40 @@ namespace VK
 #if _DEBUG
 			if (inRenderPass == false)
 				throw HardwareRendererException("RenderTargetLayout and FrameBuffer must be specified at BeginRecording for BindPipeline");
+			//TODO:
+			// So there are a few things to check here
+			// First off, make sure that the layouts of any descriptor sets that have had
+			//    their bindings deferred are compatible with the layouts given at pipeline
+			//    creation time.
+			// Secondly, either allow deferred descriptor set binding in the vulkan backend,
+			//    or if we disallow it, throw an exception in BindDescriptorSet when current
+			//    bound pipeline is nullptr.
+			//
+			// Why?
+			//   If you have a prior descriptor set to bind, and then you want to preemptively
+			//   bind it to the renderer, you need to defer the actual binding until we know 
+			//   the pipeline it is being bound to. However if the descriptor set layout is
+			//   invalid, and the engine has missed this fact due to something like a material
+			//   being skipped in frustum culling, then we will crash trying to bind a descriptor
+			//   that is incompatible with the currently bound pipeline.
 #endif
 			auto newPipeline = reinterpret_cast<VK::Pipeline*>(pipeline);
 			if (curPipeline == nullptr)
 			{
-				for(int k = 0; k < pendingDescSets.Count(); k++)
-					buffer.bindDescriptorSets(
-						vk::PipelineBindPoint::eGraphics,
-						newPipeline->pipelineLayout,
-						pendingOffsets[k],
-						pendingDescSets[k],
-						nullptr);
-				pendingOffsets.Clear();
-				pendingDescSets.Clear();
+				for (int k = 0; k < pendingDescSets.Count(); k++)
+				{
+					if (pendingDescSets[k])
+					{
+						buffer.bindDescriptorSets(
+							vk::PipelineBindPoint::eGraphics,
+							newPipeline->pipelineLayout,
+							k,
+							pendingDescSets[k],
+							nullptr);
+					}
+
+					pendingDescSets[k] = vk::DescriptorSet();
+				}
 			}
 			if (curPipeline != newPipeline)
 			{
