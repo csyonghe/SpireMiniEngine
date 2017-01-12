@@ -243,6 +243,7 @@
     <ClInclude Include="TerrainActor.h">
       <Filter>Actors</Filter>
     </ClInclude>
+    <ClInclude Include="TextureTool\stb_dxt.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Spire">

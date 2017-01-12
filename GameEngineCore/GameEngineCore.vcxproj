@@ -261,6 +261,7 @@
     <ClInclude Include="TerrainActor.h" />
     <ClInclude Include="TextureCompressor.h" />
     <ClInclude Include="TextureTool\LibSquish.h" />
+    <ClInclude Include="TextureTool\stb_dxt.h" />
     <ClInclude Include="UISystem_Windows.h" />
     <ClInclude Include="VulkanAPI\vkel.h" />
     <ClInclude Include="VulkanAPI\vulkan.hpp" />
