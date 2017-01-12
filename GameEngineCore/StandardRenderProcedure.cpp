@@ -151,6 +151,17 @@ namespace GameEngine
 			sharedModules.Lighting = &lightingParams;
 			shadowViewInstances.Reserve(1024);
 		}
+
+		ArrayView<Drawable*> GetDrawable(DrawableSink * objSink, bool transparent, CullFrustum cf, bool append = false)
+		{
+			if (!append)
+				drawableBuffer.Clear();
+			for (auto obj : objSink->GetDrawables(transparent))
+				if (cf.IsBoxInFrustum(obj->Bounds))
+					drawableBuffer.Add(obj);
+			return drawableBuffer.GetArrayView();
+		}
+
 		virtual void Run(FrameRenderTask & task, const RenderProcedureParameters & params) override
 		{
 			int w = 0, h = 0;
@@ -351,9 +362,10 @@ namespace GameEngine
 								shadowMapPassModuleInstance->SetUniformData(&shadowMapView, sizeof(shadowMapView));
 								sharedRes->pipelineManager.PushModuleInstance(shadowMapPassModuleInstance);
 								drawableBuffer.Clear();
-								drawableBuffer.AddRange(sink.GetDrawables(true));
-								drawableBuffer.AddRange(sink.GetDrawables(false));
-								pass.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, CullFrustum(shadowMapView.InvViewProjTransform), drawableBuffer.GetArrayView());
+								auto cullFrustum = CullFrustum(shadowMapView.InvViewProjTransform);
+								GetDrawable(&sink, true, cullFrustum);
+								GetDrawable(&sink, false, cullFrustum, true);
+								pass.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, drawableBuffer.GetArrayView());
 								sharedRes->pipelineManager.PopModuleInstance();
 								task.renderPasses.Add(pass);
 							}
@@ -365,11 +377,13 @@ namespace GameEngine
 			lightingParams.SetUniformData(lightingData.Buffer(), (int)(lightingData.Count()*sizeof(LightUniforms)));
 			forwardBasePassParams.SetUniformData(&viewUniform, (int)sizeof(viewUniform));
 			
+			auto cameraCullFrustum = CullFrustum(camera->GetFrustum(aspect));
+
 			if (deferred)
 			{
 				gBufferRenderPass->Bind();
 				sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
-				gBufferInstance.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, CullFrustum(camera->GetFrustum(aspect)), sink.GetDrawables(false));
+				gBufferInstance.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, GetDrawable(&sink, false, cameraCullFrustum));
 				sharedRes->pipelineManager.PopModuleInstance();
 				task.renderPasses.Add(gBufferInstance);
 				task.renderPasses.Add(deferredLightingPass->CreateInstance(sharedModules));
@@ -379,7 +393,7 @@ namespace GameEngine
 				forwardRenderPass->Bind();
 				sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
 				sharedRes->pipelineManager.PushModuleInstance(&lightingParams);
-				forwardBaseInstance.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, CullFrustum(camera->GetFrustum(aspect)), sink.GetDrawables(false));
+				forwardBaseInstance.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, GetDrawable(&sink, false, cameraCullFrustum));
 				sharedRes->pipelineManager.PopModuleInstance();
 				sharedRes->pipelineManager.PopModuleInstance();
 				task.renderPasses.Add(forwardBaseInstance);
@@ -393,7 +407,7 @@ namespace GameEngine
 			
 			// transparency pass
 			reorderBuffer.Clear();
-			for (auto drawable : sink.GetDrawables(true))
+			for (auto drawable : GetDrawable(&sink, true, cameraCullFrustum))
 			{
 				reorderBuffer.Add(drawable);
 			}
@@ -409,7 +423,7 @@ namespace GameEngine
 				sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
 				sharedRes->pipelineManager.PushModuleInstance(&lightingParams);
 
-				transparentPassInstance.SetFixedOrderDrawContent(sharedRes->pipelineManager, CullFrustum(camera->GetFrustum(aspect)), reorderBuffer.GetArrayView());
+				transparentPassInstance.SetFixedOrderDrawContent(sharedRes->pipelineManager, reorderBuffer.GetArrayView());
 				sharedRes->pipelineManager.PopModuleInstance();
 				sharedRes->pipelineManager.PopModuleInstance();
 				task.renderPasses.Add(transparentPassInstance);

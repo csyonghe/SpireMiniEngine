@@ -749,7 +749,7 @@ namespace GameEngine
 		}
 	}
 
-	void RenderPassInstance::SetFixedOrderDrawContent(PipelineContext & pipelineManager, CullFrustum frustum, CoreLib::ArrayView<Drawable*> drawables)
+	void RenderPassInstance::SetFixedOrderDrawContent(PipelineContext & pipelineManager, CoreLib::ArrayView<Drawable*> drawables)
 	{
 		renderOutput->GetSize(viewport.Width, viewport.Height);
 		auto cmdBuf = commandBuffer->BeginRecording(renderOutput->GetFrameBuffer());
@@ -777,8 +777,6 @@ namespace GameEngine
 			BindDescSet(boundSets.Buffer(), cmdBuf, bindings.Count() + 1, lastMaterial->MaterialPatternModule.GetCurrentDescriptorSet());
 			for (auto obj : drawables)
 			{
-				if (!frustum.IsBoxInFrustum(obj->Bounds))
-					continue;
 				numDrawCalls++;
 				auto newMaterial = obj->GetMaterial();
 				if (newMaterial != lastMaterial)
@@ -787,7 +785,7 @@ namespace GameEngine
 					pipelineManager.PopModuleInstance();
 					pipelineManager.PushModuleInstance(&newMaterial->MaterialGeometryModule);
 					pipelineManager.PushModuleInstance(&newMaterial->MaterialPatternModule);
-					pipelineManager.SetCullMode(newMaterial->IsDoubleSided ? CullMode::Disabled : CullMode::CullBackFace);
+					//pipelineManager.SetCullMode(newMaterial->IsDoubleSided ? CullMode::Disabled : CullMode::CullBackFace);
 				}
 				pipelineManager.PushModuleInstanceNoShaderChange(obj->GetTransformModule());
 				if (auto pipelineInst = obj->GetPipeline(renderPassId, pipelineManager))
@@ -815,7 +813,7 @@ namespace GameEngine
 		}
 		cmdBuf->EndRecording();
 	}
-	void RenderPassInstance::SetDrawContent(PipelineContext & pipelineManager, CoreLib::List<Drawable*>& reorderBuffer, CullFrustum frustum, CoreLib::ArrayView<Drawable*> drawables)
+	void RenderPassInstance::SetDrawContent(PipelineContext & pipelineManager, CoreLib::List<Drawable*>& reorderBuffer, CoreLib::ArrayView<Drawable*> drawables)
 	{
 		reorderBuffer.Clear();
 		if (drawables.Count() != 0)
@@ -828,8 +826,6 @@ namespace GameEngine
 			for (auto obj : drawables)
 			{
 				obj->ReorderKey = 0;
-				if (!frustum.IsBoxInFrustum(obj->Bounds))
-					continue;
 				auto newMaterial = obj->GetMaterial();
 				if (newMaterial != lastMaterial)
 				{
@@ -851,7 +847,7 @@ namespace GameEngine
 			reorderBuffer.Sort([](Drawable* d1, Drawable* d2) {return d1->ReorderKey < d2->ReorderKey; });
 		}
 
-		SetFixedOrderDrawContent(pipelineManager, frustum, reorderBuffer.GetArrayView());
+		SetFixedOrderDrawContent(pipelineManager, reorderBuffer.GetArrayView());
 	}
 	void FrameRenderTask::Clear()
 	{

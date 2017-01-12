@@ -215,8 +215,8 @@ namespace GameEngine
 		Viewport viewport;
 		bool clearOutput = false;
 	public:
-		void SetFixedOrderDrawContent(PipelineContext & pipelineManager, CullFrustum frustum, CoreLib::ArrayView<Drawable*> drawables);
-		void SetDrawContent(PipelineContext & pipelineManager, CoreLib::List<Drawable*> & reorderBuffer, CullFrustum frustum, CoreLib::ArrayView<Drawable*> drawables);
+		void SetFixedOrderDrawContent(PipelineContext & pipelineManager, CoreLib::ArrayView<Drawable*> drawables);
+		void SetDrawContent(PipelineContext & pipelineManager, CoreLib::List<Drawable*> & reorderBuffer, CoreLib::ArrayView<Drawable*> drawables);
 	};
 
 	class RendererService;
