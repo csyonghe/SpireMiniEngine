@@ -799,7 +799,7 @@ namespace VKO
 		case StorageFormat::RGBA_I8: return vk::Format::eR8G8B8A8Uint;
 		case StorageFormat::RGBA_I16: return vk::Format::eR16G16B16A16Uint;
 		case StorageFormat::RGBA_I32_Raw: return vk::Format::eR32G32B32A32Sint;//
-		case StorageFormat::BC1: return vk::Format::eBc1RgbaUnormBlock;//
+		case StorageFormat::BC1: return vk::Format::eBc1RgbUnormBlock;//
 		case StorageFormat::BC3: return vk::Format::eBc3UnormBlock;
 		case StorageFormat::BC5: return vk::Format::eBc5UnormBlock;
 		case StorageFormat::RGBA_Compressed: return vk::Format::eBc7UnormBlock;//
