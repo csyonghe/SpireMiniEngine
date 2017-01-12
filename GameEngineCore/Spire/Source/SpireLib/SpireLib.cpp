@@ -463,10 +463,10 @@ namespace SpireLib
 		{
 			List<CompileUnit> moduleUnits;
 			HashSet<String> processedModuleUnits;
-			EnumerableDictionary<String, SpireModule> modules;
+			EnumerableDictionary<String, RefPtr<SpireModule>> modules;
 			int errorCount = 0;
 		};
-		List<State> states;
+		Array<State, 128> states;
 		List<RefPtr<Spire::Compiler::CompilationContext>> compileContext;
 		RefPtr<ShaderCompiler> compiler;
 
@@ -521,7 +521,11 @@ namespace SpireLib
 
 		SpireModule * FindModule(CoreLib::String moduleName)
 		{
-			return states.Last().modules.TryGetValue(moduleName);
+			auto ptr = states.Last().modules.TryGetValue(moduleName);
+			if (ptr)
+				return ptr->Ptr();
+			else
+				return nullptr;
 		}
 
 		StringBuilder moduleKeyBuilder;
@@ -542,7 +546,7 @@ namespace SpireLib
 				}
 			}
 			if (auto smodule = states.Last().modules.TryGetValue(moduleKeyBuilder.Buffer()))
-				return smodule;
+				return smodule->Ptr();
 			RefPtr<ShaderSymbol> originalModule;
 			compileContext.Last()->Symbols.Shaders.TryGetValue(module->Name, originalModule);
 			CompileUnit unit;
@@ -593,7 +597,8 @@ namespace SpireLib
 			{
 				if (!states.Last().modules.ContainsKey(shader.Key))
 				{
-					SpireModule meta;
+					RefPtr<SpireModule> newModule = new SpireModule();
+					auto & meta = *newModule;
 					meta.Id = SpireModule::IdAllocator++;
 					meta.Name = shader.Key;
 					int offset = 0;
@@ -631,7 +636,7 @@ namespace SpireLib
 						else
 							meta.Parameters.Add(compMeta);
 					}
-					states.Last().modules.Add(shader.Key, _Move(meta));
+					states.Last().modules.Add(shader.Key, newModule);
 				}
 			}
 			if (sink)
