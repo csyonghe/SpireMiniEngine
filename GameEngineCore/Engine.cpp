@@ -96,12 +96,13 @@ namespace GameEngine
 
 			uiCommandForm = new CommandForm(uiEntry.Ptr());
 			uiCommandForm->OnCommand.Bind(this, &Engine::OnCommand);
-            if (!args.NoConsole)
-                uiEntry->ShowWindow(uiCommandForm);
-            else
-                uiEntry->CloseWindow(uiCommandForm);
 			drawCallStatForm = new DrawCallStatForm(uiEntry.Ptr());
 			drawCallStatForm->Posit(args.Width - drawCallStatForm->GetWidth() - 10, 10, drawCallStatForm->GetWidth(), drawCallStatForm->GetHeight());
+			if (args.NoConsole)
+			{
+				uiEntry->CloseWindow(drawCallStatForm);
+                uiEntry->CloseWindow(uiCommandForm);
+			}
 			renderStats.SetSize(4);
 
 			switch (args.API)
