@@ -166,7 +166,7 @@ namespace GLL
 			internalFormat = GL_COMPRESSED_RG_RGTC2;
 			break;
 		case StorageFormat::BC3:
-			internalFormat = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
+			internalFormat = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
 			break;
 		case StorageFormat::Depth24:
 			internalFormat = GL_DEPTH_COMPONENT24;
