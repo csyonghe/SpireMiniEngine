@@ -249,6 +249,7 @@
     <ClInclude Include="SSAO.h">
       <Filter>Renderer</Filter>
     </ClInclude>
+    <ClInclude Include="TextureTool\stb_dxt.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Spire">
