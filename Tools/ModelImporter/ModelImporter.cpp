@@ -245,6 +245,7 @@ void Export(ExportArguments args)
 			for (auto mi = 0u; mi < scene->mNumMeshes; mi++)
 			{
 				auto mesh = scene->mMeshes[mi];
+				
 				RefPtr<Mesh> meshOut = new Mesh();
 				meshOut->Bounds.Init();
 				meshOut->SetVertexFormat(MeshVertexFormat((int)mesh->GetNumColorChannels(), (int)mesh->GetNumUVChannels(), true, mesh->HasBones()));

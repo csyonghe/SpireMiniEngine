@@ -12,8 +12,6 @@ namespace GameEngine
 		if (parser.LookAhead("mesh"))
 		{
 			parser.ReadToken();
-			Random rd(1238);
-
 			if (parser.LookAhead("{"))
 			{
 				static int meshCounter = 0;
@@ -29,19 +27,10 @@ namespace GameEngine
 					float x1 = parser.ReadFloat();
 					float y1 = parser.ReadFloat();
 					float z1 = parser.ReadFloat();
-					
 					mb.AddBox(Vec3::Create(x0, y0, z0), Vec3::Create(x1, y1, z1));
-					
 				}
 				parser.Read("}");
-				if (meshCounter > 200)
-				{
-					Mesh = level->LoadMesh("immMesh" + String(rd.Next(0, 200)), mb.ToMesh());
-
-				}
-				else
-					Mesh = level->LoadMesh("immMesh" + String(meshCounter++), mb.ToMesh());
-
+				Mesh = level->LoadMesh("immMesh" + String(meshCounter++), mb.ToMesh());
 			}
 			else
 			{

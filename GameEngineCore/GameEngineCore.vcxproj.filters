@@ -125,6 +125,9 @@
     <ClCompile Include="TerrainActor.cpp">
       <Filter>Actors</Filter>
     </ClCompile>
+    <ClCompile Include="SSAO.cpp">
+      <Filter>Renderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
@@ -242,6 +245,9 @@
     </ClInclude>
     <ClInclude Include="TerrainActor.h">
       <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="SSAO.h">
+      <Filter>Renderer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

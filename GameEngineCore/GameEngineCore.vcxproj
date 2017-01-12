@@ -198,6 +198,7 @@
     <ClCompile Include="SkeletalMeshActor.cpp" />
     <ClCompile Include="Skeleton.cpp" />
     <ClCompile Include="SpireSource.cpp" />
+    <ClCompile Include="SSAO.cpp" />
     <ClCompile Include="StandardRenderProcedure.cpp" />
     <ClCompile Include="StaticMeshActor.cpp" />
     <ClCompile Include="TerrainActor.cpp" />
@@ -257,6 +258,7 @@
     <ClInclude Include="Skeleton.h" />
     <ClInclude Include="Spire\Spire.h" />
     <ClInclude Include="Spire\SpireAllSource.h" />
+    <ClInclude Include="SSAO.h" />
     <ClInclude Include="StaticMeshActor.h" />
     <ClInclude Include="TerrainActor.h" />
     <ClInclude Include="TextureCompressor.h" />

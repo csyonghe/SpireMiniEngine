@@ -67,7 +67,7 @@ namespace GameEngine
 				if (params.EnableVideoCapture)
 				{
 					auto image = instance->GetRenderResult(true);
-					Engine::SaveImage(image, CoreLib::IO::Path::Combine(params.Directory, String(frameId) + ".bmp"));
+					Engine::SaveImage(image, CoreLib::IO::Path::Combine(params.Directory, String(frameId) + ".png"));
 					if (Engine::Instance()->GetTime() >= params.Length)
 						Close();
 				}
@@ -130,6 +130,8 @@ int wWinMain(
 		AppLaunchParameters appParams;
 		try
 		{
+			int w = 1920;
+			int h = 1080;
 
 			args.API = RenderAPI::OpenGL;
 			args.GpuId = 0;
@@ -174,8 +176,19 @@ int wWinMain(
 				appParams.DumpRenderStats = true;
 				appParams.RenderStatsDumpFileName = RemoveQuote(parser.GetOptionValue("-dumpstat"));
 			}
+			if (parser.OptionExists("-width"))
+			{
+				w = StringToInt(parser.GetOptionValue("-width"));
+			}
+			if (parser.OptionExists("-height"))
+			{
+				h = StringToInt(parser.GetOptionValue("-height"));
+			}
+
 			auto form = new MainForm(appParams);
 			Application::SetMainLoopEventHandler(new CoreLib::WinForm::NotifyEvent(form, &MainForm::MainLoop));
+			form->SetClientWidth(w);
+			form->SetClientHeight(h);
 
 			args.Width = form->GetClientWidth();
 			args.Height = form->GetClientHeight();
