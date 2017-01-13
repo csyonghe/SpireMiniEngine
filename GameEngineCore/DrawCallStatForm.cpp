@@ -11,6 +11,8 @@ namespace GameEngine
 		lblFps = new Label(this);
 		lblNumDrawCalls = new Label(this);
 		lblNumWorldPasses = new Label(this);
+		lblNumShaders = new Label(this);
+		lblNumMaterials = new Label(this);
 		lblCpuTime = new Label(this);
 		lblPipelineLookupTime = new Label(this);
 
@@ -19,13 +21,25 @@ namespace GameEngine
 		lblNumDrawCalls->Posit(emToPixel(0.5f), emToPixel(2.5f), emToPixel(20.0f), emToPixel(1.5f));
 		lblCpuTime->Posit(emToPixel(0.5f), emToPixel(3.5f), emToPixel(20.0f), emToPixel(1.5f));
 		lblPipelineLookupTime->Posit(emToPixel(0.5f), emToPixel(4.5f), emToPixel(20.0f), emToPixel(1.5f));
+		lblNumShaders->Posit(emToPixel(0.5f), emToPixel(5.5f), emToPixel(20.0f), emToPixel(1.5f));
+		lblNumMaterials->Posit(emToPixel(0.5f), emToPixel(6.5f), emToPixel(20.0f), emToPixel(1.5f));
 		SetWidth(emToPixel(14.0f));
-		SetHeight(emToPixel(8.2f));
+		SetHeight(emToPixel(10.2f));
 	}
 
 	void DrawCallStatForm::SetNumDrawCalls(int val)
 	{
 		lblNumDrawCalls->SetText("Draw Calls: " + CoreLib::String(val));
+	}
+
+	void DrawCallStatForm::SetNumMaterials(int val)
+	{
+		lblNumMaterials->SetText("Materials: " + CoreLib::String(val));
+	}
+
+	void DrawCallStatForm::SetNumShaders(int val)
+	{
+		lblNumShaders->SetText("Shaders: " + CoreLib::String(val));
 	}
 
 	void DrawCallStatForm::SetNumWorldPasses(int val)
@@ -46,7 +60,7 @@ namespace GameEngine
 	void DrawCallStatForm::SetFrameRenderTime(float val)
 	{
 		static int i = 0;
-		if (i < 10)
+		if (i < 2)
 		{
 			maxMs = 0.0f;
 			minMs = 100.0f;

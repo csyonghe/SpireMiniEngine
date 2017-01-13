@@ -226,7 +226,13 @@ namespace GameEngine
 		aggregateTime += renderingTimeDelta;
 
 		renderer->GetHardwareRenderer()->Present(uiSystemInterface->GetRenderedImage());
-		
+
+		if (aggregateTime > 0.4f)
+		{
+			drawCallStatForm->SetNumShaders(stats.NumShaders);
+			drawCallStatForm->SetNumMaterials(stats.NumMaterials);
+		}
+
 		if (stats.Divisor >= 100)
 		{
 			if (aggregateTime > 1.0f)

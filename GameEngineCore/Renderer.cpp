@@ -216,7 +216,9 @@ namespace GameEngine
 		virtual void RenderFrame() override
 		{
 			if (!level) return;
-			
+
+			sharedRes.renderStats.NumMaterials = 0;
+			sharedRes.renderStats.NumShaders = 0;
 			for (auto & pass : frameTask.renderPasses)
 			{
 				if (pass.postPass)
@@ -226,6 +228,8 @@ namespace GameEngine
 					hardwareRenderer->ExecuteCommandBuffers(pass.renderOutput->GetFrameBuffer(), MakeArrayView(pass.commandBuffer->GetBuffer()), nullptr);
 					sharedRes.renderStats.NumPasses++;
 					sharedRes.renderStats.NumDrawCalls += pass.numDrawCalls;
+					sharedRes.renderStats.NumMaterials += pass.numMaterials;
+					sharedRes.renderStats.NumShaders += pass.numShaders;
 					//hardwareRenderer->Wait();
 				}
 			}

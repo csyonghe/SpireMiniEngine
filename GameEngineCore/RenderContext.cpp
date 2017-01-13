@@ -762,6 +762,8 @@ namespace GameEngine
 			cmdBuf->BindDescriptorSet(i, bindings[i]);
 
 		numDrawCalls = 0;
+		numMaterials = 0;
+		numShaders = 0;
 		Array<DescriptorSet*, 32> boundSets;
 		boundSets.SetSize(boundSets.GetCapacity());
 		DrawableMesh * lastMesh = nullptr;
@@ -781,6 +783,7 @@ namespace GameEngine
 				auto newMaterial = obj->GetMaterial();
 				if (newMaterial != lastMaterial)
 				{
+					numMaterials++;
 					pipelineManager.PopModuleInstance();
 					pipelineManager.PopModuleInstance();
 					pipelineManager.PushModuleInstance(&newMaterial->MaterialGeometryModule);

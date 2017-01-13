@@ -35,6 +35,8 @@ namespace GameEngine
 		int Divisor = 0;
 		int NumDrawCalls = 0;
 		int NumPasses = 0;
+		int NumShaders = 0;
+		int NumMaterials = 0;
 		float CpuTime = 0.0f;
 		float PipelineLookupTime = 0.0f;
 		CoreLib::Diagnostics::TimePoint StartTime;
@@ -43,6 +45,8 @@ namespace GameEngine
 			Divisor = 0;
 			NumDrawCalls = 0;
 			NumPasses = 0;
+			NumShaders = 0;
+			NumMaterials = 0;
 			CpuTime = 0.0f;
 			PipelineLookupTime = 0.0f;
 		}
@@ -205,6 +209,8 @@ namespace GameEngine
 	private:
 		int renderPassId = -1;
 		int numDrawCalls = 0;
+		int numMaterials = 0;
+		int numShaders = 0;
 
 		PostRenderPass * postPass = nullptr;
 		SharedModuleInstances sharedModules;
