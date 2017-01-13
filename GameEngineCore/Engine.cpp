@@ -233,7 +233,7 @@ namespace GameEngine
 			drawCallStatForm->SetNumMaterials(stats.NumMaterials);
 		}
 
-		if (stats.Divisor >= 100)
+		if (stats.Divisor >= 400)
 		{
 			if (aggregateTime > 1.0f)
 			{

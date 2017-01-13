@@ -287,7 +287,7 @@ namespace SpireLib
 		writer << "name " << MetaData.ShaderName << EndLine;
 		for (auto & ublock : MetaData.ParameterSets)
 		{
-			writer << "paramset \"" << ublock.Key << "\" size " << ublock.Value->BufferSize 
+			writer << "paramset \"" << ublock.Key << "\" size " << ublock.Value->BufferSize
 				<< " binding " << ublock.Value->DescriptorSetId << "\n{\n";
 			for (auto & entry : ublock.Value->Parameters)
 			{
@@ -613,7 +613,7 @@ namespace SpireLib
 							continue;
 						ComponentMetaData compMeta;
 						compMeta.Name = comp.Key;
-                        compMeta.Type = comp.Value->Type->DataType;
+						compMeta.Type = comp.Value->Type->DataType;
 						compMeta.TypeName = compMeta.Type->ToString();
 						if (auto specialize = impl->SyntaxNode->FindSpecializeModifier())
 						{
@@ -765,7 +765,7 @@ namespace SpireLib
 				PopContext();
 				return false;
 			}
-		
+
 			Spire::Compiler::CompileResult cresult;
 			compiler->Compile(cresult, *compileContext.Last(), units, Options);
 			result.Sources = cresult.CompiledSource;
@@ -984,8 +984,8 @@ int spModuleGetRequiredComponents(SpireModule * module, SpireComponentInfo * buf
 	{
 		buffer[ptr].Name = comp.Name.Buffer();
 		buffer[ptr].TypeName = comp.TypeName.Buffer();
-		buffer[ptr].Alignment = (int) GetTypeAlignment(comp.Type.Ptr());
-		buffer[ptr].Size = (int) GetTypeSize(comp.Type.Ptr());
+		buffer[ptr].Alignment = (int)GetTypeAlignment(comp.Type.Ptr());
+		buffer[ptr].Size = (int)GetTypeSize(comp.Type.Ptr());
 		buffer[ptr].Offset = comp.Offset;
 		ptr++;
 	}
@@ -997,7 +997,7 @@ void spDestroyShader(SpireShader * shader)
 	delete SHADER(shader);
 }
 
-SpireCompilationResult * spCompileShader(SpireCompilationContext * ctx, SpireShader * shader, 
+SpireCompilationResult * spCompileShader(SpireCompilationContext * ctx, SpireShader * shader,
 	SpireModule** args,
 	int argCount,
 	const char * additionalSource,
