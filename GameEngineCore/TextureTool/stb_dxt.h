@@ -81,7 +81,7 @@ static void stb__From16Bit(unsigned char *out, unsigned short v)
 
 static unsigned short stb__As16Bit(int r, int g, int b)
 {
-   return (stb__Mul8Bit(r,31) << 11) + (stb__Mul8Bit(g,63) << 5) + stb__Mul8Bit(b,31);
+   return (unsigned short)((stb__Mul8Bit(r,31) << 11) + (stb__Mul8Bit(g,63) << 5) + stb__Mul8Bit(b,31));
 }
 
 // linear interpolation at 1/3 point between a and b, using desired rounding type
@@ -100,9 +100,9 @@ static int stb__Lerp13(int a, int b)
 // lerp RGB color
 static void stb__Lerp13RGB(unsigned char *out, unsigned char *p1, unsigned char *p2)
 {
-   out[0] = stb__Lerp13(p1[0], p2[0]);
-   out[1] = stb__Lerp13(p1[1], p2[1]);
-   out[2] = stb__Lerp13(p1[2], p2[2]);
+   out[0] = (unsigned char)(stb__Lerp13(p1[0], p2[0]));
+   out[1] = (unsigned char)(stb__Lerp13(p1[1], p2[1]));
+   out[2] = (unsigned char)(stb__Lerp13(p1[2], p2[2]));
 }
 
 /****************************************************************************/
@@ -127,8 +127,8 @@ static void stb__PrepareOptTable(unsigned char *Table,const unsigned char *expan
             
             if(err < bestErr)
             { 
-               Table[i*2+0] = mx;
-               Table[i*2+1] = mn;
+               Table[i*2+0] = (unsigned char)mx;
+               Table[i*2+1] = (unsigned char)mn;
                bestErr = err;
             }
          }
@@ -449,13 +449,13 @@ static int stb__RefineBlock(unsigned char *block, unsigned short *pmax16, unsign
       fg = frb * 63.0f / 31.0f;
 
       // solve.
-      max16 =   stb__sclamp((At1_r*yy - At2_r*xy)*frb+0.5f,0,31) << 11;
-      max16 |=  stb__sclamp((At1_g*yy - At2_g*xy)*fg +0.5f,0,63) << 5;
-      max16 |=  stb__sclamp((At1_b*yy - At2_b*xy)*frb+0.5f,0,31) << 0;
+      max16 =  (unsigned short)(stb__sclamp((At1_r*yy - At2_r*xy)*frb+0.5f,0,31) << 11);
+      max16 |= (unsigned short)(stb__sclamp((At1_g*yy - At2_g*xy)*fg +0.5f,0,63) << 5);
+      max16 |= (unsigned short)(stb__sclamp((At1_b*yy - At2_b*xy)*frb+0.5f,0,31) << 0);
 
-      min16 =   stb__sclamp((At2_r*xx - At1_r*xy)*frb+0.5f,0,31) << 11;
-      min16 |=  stb__sclamp((At2_g*xx - At1_g*xy)*fg +0.5f,0,63) << 5;
-      min16 |=  stb__sclamp((At2_b*xx - At1_b*xy)*frb+0.5f,0,31) << 0;
+      min16 = (unsigned short)(stb__sclamp((At2_r*xx - At1_r*xy)*frb+0.5f,0,31) << 11);
+      min16 |= (unsigned short)(stb__sclamp((At2_g*xx - At1_g*xy)*fg +0.5f,0,63) << 5);
+      min16 |= (unsigned short)(stb__sclamp((At2_b*xx - At1_b*xy)*frb+0.5f,0,31) << 0);
    }
 
    *pmin16 = min16;
@@ -538,7 +538,7 @@ static void stb__CompressColorBlock(unsigned char *dest, unsigned char *block, i
 }
 
 // Alpha block compression (this is easy for a change)
-static void stb__CompressAlphaBlock(unsigned char *dest,unsigned char *src,int mode)
+static void stb__CompressAlphaBlock(unsigned char *dest,unsigned char *src,int /*mode*/)
 {
    int i,dist,bias,dist4,dist2,bits,mask;
 
@@ -553,8 +553,8 @@ static void stb__CompressAlphaBlock(unsigned char *dest,unsigned char *src,int m
    }
 
    // encode them
-   ((unsigned char *)dest)[0] = mx;
-   ((unsigned char *)dest)[1] = mn;
+   ((unsigned char *)dest)[0] = (unsigned char)mx;
+   ((unsigned char *)dest)[1] = (unsigned char)mn;
    dest += 2;
 
    // determine bias and emit color indices
@@ -583,7 +583,7 @@ static void stb__CompressAlphaBlock(unsigned char *dest,unsigned char *src,int m
       // write index
       mask |= ind << bits;
       if((bits += 3) >= 8) {
-         *dest++ = mask;
+         *dest++ = (unsigned char)mask;
          mask >>= 8;
          bits -= 8;
       }
@@ -594,10 +594,10 @@ static void stb__InitDXT()
 {
    int i;
    for(i=0;i<32;i++)
-      stb__Expand5[i] = (i<<3)|(i>>2);
+      stb__Expand5[i] = (unsigned char)((i<<3)|(i>>2));
 
    for(i=0;i<64;i++)
-      stb__Expand6[i] = (i<<2)|(i>>4);
+      stb__Expand6[i] = (unsigned char)((i<<2)|(i>>4));
 
    for(i=0;i<256+16;i++)
    {

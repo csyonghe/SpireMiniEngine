@@ -5,7 +5,7 @@
 
 namespace GameEngine
 {
-	class FrameRenderTask;
+	struct FrameRenderTask;
 	class SSAOImpl;
 
 	class SSAO
