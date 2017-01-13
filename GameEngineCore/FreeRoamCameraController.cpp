@@ -45,6 +45,8 @@ namespace GameEngine
 		Engine::Instance()->GetInputDispatcher()->BindActionHandler("MoveUp", ActionInputHandlerFunc(this, &FreeRoamCameraControllerActor::MoveUp));
 		Engine::Instance()->GetInputDispatcher()->BindActionHandler("TurnRight", ActionInputHandlerFunc(this, &FreeRoamCameraControllerActor::TurnRight));
 		Engine::Instance()->GetInputDispatcher()->BindActionHandler("TurnUp", ActionInputHandlerFunc(this, &FreeRoamCameraControllerActor::TurnUp));
+		Engine::Instance()->GetInputDispatcher()->BindActionHandler("dumpcam", ActionInputHandlerFunc(this, &FreeRoamCameraControllerActor::DumpCamera));
+
 	}
 	void FreeRoamCameraControllerActor::OnUnload()
 	{
@@ -53,6 +55,8 @@ namespace GameEngine
 		Engine::Instance()->GetInputDispatcher()->UnbindActionHandler("MoveUp", ActionInputHandlerFunc(this, &FreeRoamCameraControllerActor::MoveUp));
 		Engine::Instance()->GetInputDispatcher()->UnbindActionHandler("TurnRight", ActionInputHandlerFunc(this, &FreeRoamCameraControllerActor::TurnRight));
 		Engine::Instance()->GetInputDispatcher()->UnbindActionHandler("TurnUp", ActionInputHandlerFunc(this, &FreeRoamCameraControllerActor::TurnUp));
+		Engine::Instance()->GetInputDispatcher()->UnbindActionHandler("dumpcam", ActionInputHandlerFunc(this, &FreeRoamCameraControllerActor::DumpCamera));
+
 	}
 	EngineActorType FreeRoamCameraControllerActor::GetEngineType()
 	{
@@ -115,5 +119,15 @@ namespace GameEngine
 			return true;
 		}
 		return false;
+	}
+	bool FreeRoamCameraControllerActor::DumpCamera(const CoreLib::String & /*axisName*/, float /*scale*/)
+	{
+		FindTargetCamera();
+		if (targetCamera)
+		{
+			Print("Orientation [%.3f %.3f %.3f]\nPosition [%.2f %.2f %.2f]\n", targetCamera->GetYaw(), targetCamera->GetPitch(), targetCamera->GetRoll(),
+				targetCamera->GetPosition().x, targetCamera->GetPosition().y, targetCamera->GetPosition().z);
+		}
+		return true;
 	}
 }

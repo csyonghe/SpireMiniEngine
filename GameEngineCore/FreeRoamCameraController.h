@@ -30,6 +30,7 @@ namespace GameEngine
 		bool MoveUp(const CoreLib::String & axisName, float scale);
 		bool TurnRight(const CoreLib::String & axisName, float scale);
 		bool TurnUp(const CoreLib::String & axisName, float scale);
+		bool DumpCamera(const CoreLib::String & axisName, float scale);
 
 	};
 }

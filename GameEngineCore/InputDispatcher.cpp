@@ -75,8 +75,12 @@ namespace GameEngine
 	void InputDispatcher::BindActionHandler(const CoreLib::String & axisName, ActionInputHandlerFunc handlerFunc)
 	{
 		auto list = actionHandlers.TryGetValue(axisName);
-		if (list)
-			list->Add(handlerFunc);
+		if (!list)
+		{
+			actionHandlers.Add(axisName, List<ActionInputHandlerFunc>());
+			list = actionHandlers.TryGetValue(axisName);
+		}
+		list->Add(handlerFunc);
 	}
 	void InputDispatcher::UnbindActionHandler(const CoreLib::String & axisName, ActionInputHandlerFunc func)
 	{

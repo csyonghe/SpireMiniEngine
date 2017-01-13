@@ -7,7 +7,7 @@ namespace GameEngine
 	{
 		static int idAlloc = 0;
 		Id = idAlloc;
-		Id++;
+		idAlloc++;
 	}
 
 	void Material::SetVariable(CoreLib::String name, DynamicVariable value)

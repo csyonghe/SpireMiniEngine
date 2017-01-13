@@ -32,6 +32,7 @@ namespace GameEngine
 				}
 			}
 		}
+		Print("Num materials: %d\n", Materials.Count());
 	}
 	Level::~Level()
 	{

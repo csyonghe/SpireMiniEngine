@@ -423,7 +423,7 @@ namespace GameEngine
 				sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
 				sharedRes->pipelineManager.PushModuleInstance(&lightingParams);
 
-				//transparentPassInstance.SetFixedOrderDrawContent(sharedRes->pipelineManager, reorderBuffer.GetArrayView());
+				transparentPassInstance.SetFixedOrderDrawContent(sharedRes->pipelineManager, reorderBuffer.GetArrayView());
 				sharedRes->pipelineManager.PopModuleInstance();
 				sharedRes->pipelineManager.PopModuleInstance();
 				task.renderPasses.Add(transparentPassInstance);
