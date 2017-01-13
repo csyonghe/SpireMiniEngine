@@ -125,7 +125,7 @@ namespace GameEngine
 		FindTargetCamera();
 		if (targetCamera)
 		{
-			Print("Orientation [%.3f %.3f %.3f]\nPosition [%.2f %.2f %.2f]\n", targetCamera->GetYaw(), targetCamera->GetPitch(), targetCamera->GetRoll(),
+			Print("orientation [%.3f %.3f %.3f]\nposition [%.2f %.2f %.2f]\n", targetCamera->GetYaw(), targetCamera->GetPitch(), targetCamera->GetRoll(),
 				targetCamera->GetPosition().x, targetCamera->GetPosition().y, targetCamera->GetPosition().z);
 		}
 		return true;
