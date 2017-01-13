@@ -227,7 +227,7 @@ namespace GameEngine
 
 		renderer->GetHardwareRenderer()->Present(uiSystemInterface->GetRenderedImage());
 
-		if (aggregateTime > 0.4f)
+		if (aggregateTime > 0.5f)
 		{
 			drawCallStatForm->SetNumShaders(stats.NumShaders);
 			drawCallStatForm->SetNumMaterials(stats.NumMaterials);

@@ -230,7 +230,6 @@ namespace GameEngine
 					sharedRes.renderStats.NumDrawCalls += pass.numDrawCalls;
 					sharedRes.renderStats.NumMaterials += pass.numMaterials;
 					sharedRes.renderStats.NumShaders += pass.numShaders;
-					//hardwareRenderer->Wait();
 				}
 			}
 		}

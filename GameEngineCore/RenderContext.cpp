@@ -760,7 +760,7 @@ namespace GameEngine
 		pipelineManager.GetBindings(bindings);
 		for (int i = 0; i < bindings.Count(); i++)
 			cmdBuf->BindDescriptorSet(i, bindings[i]);
-
+		PipelineClass * lastPipeline = nullptr;
 		numDrawCalls = 0;
 		numMaterials = 0;
 		numShaders = 0;
@@ -793,6 +793,11 @@ namespace GameEngine
 				pipelineManager.PushModuleInstanceNoShaderChange(obj->GetTransformModule());
 				if (auto pipelineInst = obj->GetPipeline(renderPassId, pipelineManager))
 				{
+					if (pipelineInst != lastPipeline)
+					{
+						lastPipeline = pipelineInst;
+						numShaders++;
+					}
 					auto mesh = obj->GetMesh();
 					cmdBuf->BindPipeline(pipelineInst->pipeline.Ptr());
 					if (newMaterial != lastMaterial)
@@ -848,9 +853,9 @@ namespace GameEngine
 			pipelineManager.PopModuleInstance();
 			pipelineManager.PopModuleInstance();
 			reorderBuffer.Sort([](Drawable* d1, Drawable* d2) {return d1->ReorderKey < d2->ReorderKey; });
+			SetFixedOrderDrawContent(pipelineManager, reorderBuffer.GetArrayView());
 		}
 
-		SetFixedOrderDrawContent(pipelineManager, reorderBuffer.GetArrayView());
 	}
 	void FrameRenderTask::Clear()
 	{
