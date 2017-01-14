@@ -435,6 +435,13 @@ namespace GameEngine
 		virtual void SetData(int mipLevel, int xOffset, int yOffset, int zOffset, int width, int height, int depth, DataType inputType, void * data) = 0;
 	};
 
+	class TextureCube : public Texture
+	{
+	protected:
+		TextureCube() {};
+	public:
+	};
+
 	class TextureSampler : public CoreLib::RefObject
 	{
 	protected:
@@ -708,6 +715,7 @@ namespace GameEngine
 		// Populates the created texture with the data supplied for each mipLevel
 		virtual Texture2D* CreateTexture2D(TextureUsage usage, int width, int height, int mipLevelCount, StorageFormat format, DataType type, CoreLib::ArrayView<void*> mipLevelData) = 0;
 		virtual Texture2DArray* CreateTexture2DArray(TextureUsage usage, int width, int height, int layers, int mipLevelCount, StorageFormat format) = 0;
+		virtual TextureCube* CreateTextureCube(TextureUsage usage, int size, int mipLevelCount, StorageFormat format) = 0;
 		virtual Texture3D* CreateTexture3D(TextureUsage usage, int width, int height, int depth, int mipLevelCount, StorageFormat format) = 0;
 		virtual TextureSampler* CreateTextureSampler() = 0;
 		virtual Shader* CreateShader(ShaderType stage, const char* data, int size) = 0;

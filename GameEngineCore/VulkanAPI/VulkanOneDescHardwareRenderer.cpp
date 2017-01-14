@@ -1100,7 +1100,7 @@ namespace VKO
 		CoreLib::List<vk::ImageView> views;
 		vk::DeviceMemory memory;
 		vk::ImageLayout currentLayout;
-		Texture(TextureUsage usage, int width, int height, int depth, int mipLevels, int arrayLayers, int numSamples, StorageFormat format)
+		Texture(TextureUsage usage, int width, int height, int depth, int mipLevels, int arrayLayers, int numSamples, StorageFormat format, vk::ImageCreateFlags createFlags = vk::ImageCreateFlags())
 		{
 			this->usage = usage;
 			this->format = format;
@@ -1168,10 +1168,23 @@ namespace VKO
 					.setBaseArrayLayer(i)
 					.setLayerCount(i == 0 ? arrayLayers : 1);
 
+				vk::ImageViewType viewType = vk::ImageViewType::e2D;
+				if (depth == 1)
+				{
+					if (arrayLayers != 1)
+					{
+						if (i == 0 && createFlags & vk::ImageCreateFlagBits::eCubeCompatible)
+							viewType = vk::ImageViewType::eCube;
+						else
+							viewType = vk::ImageViewType::e2DArray;
+					}
+				}
+				else viewType = vk::ImageViewType::e3D;
+
 				vk::ImageViewCreateInfo imageViewCreateInfo = vk::ImageViewCreateInfo()
 					.setFlags(vk::ImageViewCreateFlags())
 					.setImage(image)
-					.setViewType(depth == 1 ? (arrayLayers == 1 ? vk::ImageViewType::e2D : vk::ImageViewType::e2DArray) : vk::ImageViewType::e3D)
+					.setViewType(viewType)
 					.setFormat(imageCreateInfo.format)
 					.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA))//
 					.setSubresourceRange(imageSubresourceRange);
@@ -1910,7 +1923,6 @@ namespace VKO
 	class Texture2DArray : public VKO::Texture, public GameEngine::Texture2DArray
 	{
 	public:
-	public:
 		Texture2DArray(TextureUsage usage, int width, int height, int mipLevels, int arrayLayers, StorageFormat newFormat)
 			: VKO::Texture(usage, width, height, 1, mipLevels, arrayLayers, 1, newFormat) {};
 
@@ -1932,9 +1944,15 @@ namespace VKO
 		}
 	};
 
+	class TextureCube : public VKO::Texture, public GameEngine::TextureCube
+	{
+	public:
+		TextureCube(TextureUsage usage, int size, int mipLevels, StorageFormat format)
+			: VKO::Texture(usage, size, size, 1, mipLevels, 6, 1, format, vk::ImageCreateFlagBits::eCubeCompatible) {};
+	};
+
 	class Texture3D : public VKO::Texture, public GameEngine::Texture3D
 	{
-	private:
 	public:
 		Texture3D(TextureUsage usage, int width, int height, int depth, int mipLevels, StorageFormat newFormat)
 			: VKO::Texture(usage, width, height, depth, mipLevels, 1, 1, newFormat) {};
@@ -4475,6 +4493,13 @@ namespace VKO
 		Texture2DArray * CreateTexture2DArray(TextureUsage usage, int w, int h, int layers, int mipLevelCount, StorageFormat format)
 		{
 			Texture2DArray* res = new Texture2DArray(usage, w, h, mipLevelCount, layers, format);
+			res->TransferLayout(LayoutFromUsage(usage));
+			return res;
+		}
+
+		TextureCube * CreateTextureCube(TextureUsage usage, int size, int mipLevelCount, StorageFormat format)
+		{
+			TextureCube* res = new TextureCube(usage, size, mipLevelCount, format);
 			res->TransferLayout(LayoutFromUsage(usage));
 			return res;
 		}

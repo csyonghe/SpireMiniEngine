@@ -809,7 +809,7 @@ namespace GLL
 		}
 	};
 
-	class TextureCube : public Texture
+	class TextureCube : public Texture, public GameEngine::TextureCube
 	{
 	public:
 		TextureCube()
@@ -3057,7 +3057,7 @@ namespace GLL
 		}
 
 
-		TextureCube CreateTextureCube()
+		virtual TextureCube* CreateTextureCube(TextureUsage /*usage*/, int size, int mipLevelCount, StorageFormat format) override
 		{
 			GLuint handle = 0;
 			if (glCreateTextures)
@@ -3068,15 +3068,16 @@ namespace GLL
 				glBindTexture(GL_TEXTURE_CUBE_MAP, handle);
 			}
 			glBindTexture(GL_TEXTURE_CUBE_MAP, handle);
-
 			glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 			glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-			//glTexParameterf(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8.0f);
+			glTexParameterf(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8.0f);
+			glTextureStorage3D(handle, mipLevelCount, TranslateStorageFormat(format), size, size, 6);
 			glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 
-			auto rs = TextureCube();
-			rs.Handle = handle;
-			rs.BindTarget = GL_TEXTURE_CUBE_MAP;
+			auto rs = new TextureCube();
+			rs->Handle = handle;
+			rs->storageFormat = format;
+			rs->BindTarget = GL_TEXTURE_CUBE_MAP;
 			return rs;
 		}
 

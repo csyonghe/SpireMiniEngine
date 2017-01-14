@@ -209,7 +209,7 @@ namespace GameEngine
 
 		inDataTransfer = true;
 		syncFences[frameCounter % DynamicBufferLengthMultiplier]->Wait();
-		renderer->Wait();
+		//renderer->Wait();
 		auto cpuTimePoint = CoreLib::Diagnostics::PerformanceCounter::Start();
 		renderer->GetHardwareRenderer()->BeginDataTransfer();
 		renderer->TakeSnapshot();
