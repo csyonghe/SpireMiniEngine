@@ -12,7 +12,11 @@
 #include "FrustumCulling.h"
 #include "PipelineContext.h"
 #include "AsyncCommandBuffer.h"
-#include "EngineLimits.h"
+#include "Drawable.h"
+#include "ViewResource.h"
+#include "View.h"
+#include "ViewResource.h"
+#include "Renderer.h"
 #include "CoreLib/PerformanceCounter.h"
 
 namespace GameEngine
@@ -57,31 +61,7 @@ namespace GameEngine
 		VectorMath::Matrix4 TransformMatrix;
 		VectorMath::Vec4 NormalMatrix[3];
 	};
-
-	enum class RenderAPI
-	{
-		OpenGL, Vulkan, VulkanSingle
-	};
-
-	class DrawableMesh : public CoreLib::RefObject
-	{
-	private:
-		RendererSharedResource * renderRes;
-	public:
-		VertexFormat vertexFormat;
-		int vertexBufferOffset;
-		int indexBufferOffset;
-		int vertexCount = 0;
-		int indexCount = 0;
-		Buffer * GetVertexBuffer();
-		Buffer * GetIndexBuffer();
-		DrawableMesh(RendererSharedResource * pRenderRes)
-		{
-			renderRes = pRenderRes;
-		}
-		~DrawableMesh();
-	};
-
+	
 	struct Viewport
 	{
 		int X, Y, Width, Height;
@@ -102,104 +82,12 @@ namespace GameEngine
 		}
 	};
 
-	enum class DrawableType
-	{
-		Static, Skeletal
-	};
-	
-	class Drawable : public CoreLib::RefObject
-	{
-		friend class RendererImpl;
-		friend class SceneResource;
-		friend class RendererServiceImpl;
-	private:
-		DrawableType type = DrawableType::Static;
-		MeshVertexFormat vertFormat;
-		CoreLib::RefPtr<DrawableMesh> mesh = nullptr;
-		Material * material = nullptr;
-		CoreLib::RefPtr<ModuleInstance> transformModule;
-
-		Skeleton * skeleton = nullptr;
-		CoreLib::Array<PipelineClass*, MaxWorldRenderPasses> pipelineCache;
-		SceneResource * scene = nullptr;
-	public:
-		CoreLib::Graphics::BBox Bounds;
-		unsigned int ReorderKey = 0;
-		Drawable(SceneResource * sceneRes)
-		{
-			scene = sceneRes;
-			Bounds.Min = VectorMath::Vec3::Create(-1e9f);
-			Bounds.Max = VectorMath::Vec3::Create(1e9f);
-			pipelineCache.SetSize(pipelineCache.GetCapacity());
-			for (auto & p : pipelineCache)
-				p = nullptr;
-			transformModule = new ModuleInstance();
-		}
-		PipelineClass * GetPipeline(int passId, PipelineContext & pipelineManager);
-		inline ModuleInstance * GetTransformModule()
-		{
-			return transformModule.Ptr();
-		}
-		bool IsTransparent();
-		inline DrawableMesh * GetMesh()
-		{
-			return mesh.Ptr();
-		}
-		inline Material* GetMaterial()
-		{
-			return material;
-		}
-		MeshVertexFormat & GetVertexFormat()
-		{
-			return vertFormat;
-		}
-		void UpdateMaterialUniform();
-		void UpdateTransformUniform(const VectorMath::Matrix4 & localTransform);
-		void UpdateTransformUniform(const VectorMath::Matrix4 & localTransform, const Pose & pose);
-	};
-
-	class RenderTarget : public CoreLib::RefObject
-	{
-	public:
-		GameEngine::StorageFormat Format;
-		CoreLib::RefPtr<Texture2D> Texture;
-		CoreLib::RefPtr<Texture2DArray> TextureArray;
-		int Layer = 0;
-		float ResolutionScale = 1.0f;
-		bool UseFixedResolution = false;
-		int FixedWidth = 1024, FixedHeight = 1024;
-		int Width = 0, Height = 0;
-		RenderTarget() = default;
-		RenderTarget(GameEngine::StorageFormat format, CoreLib::RefPtr<Texture2DArray> texArray, int layer, int w, int h);
-	};
-
-	class RenderOutput : public CoreLib::RefObject
-	{
-		friend class RendererSharedResource;
-	private:
-		CoreLib::RefPtr<FrameBuffer> frameBuffer;
-		CoreLib::List<CoreLib::RefPtr<RenderTarget>> bindings;
-		RenderTargetLayout * renderTargetLayout = nullptr;
-		RenderOutput() {}
-	public:
-		void GetSize(int &w, int &h)
-		{
-			w = bindings.First()->Width;
-			h = bindings.First()->Height;
-		}
-		FrameBuffer * GetFrameBuffer()
-		{
-			return frameBuffer.Ptr();
-		}
-	};
-
 	class SharedModuleInstances
 	{
 	public:
 		ModuleInstance * View;
 		ModuleInstance * Lighting;
 	};
-
 
 	class RenderPassInstance
 	{
@@ -231,7 +119,7 @@ namespace GameEngine
 	{
 		Renderer * renderer;
 		RenderStat * renderStats;
-		CoreLib::ArrayView<CameraActor *> cameras;
+		View view;
 		Level * level;
 		RendererService * rendererService;
 	};
@@ -246,10 +134,16 @@ namespace GameEngine
 	class IRenderProcedure : public CoreLib::RefObject
 	{
 	public:
-		virtual void Init(Renderer * renderer) = 0;
-		virtual void ResizeFrame(int width, int height) = 0;
+		virtual void Init(Renderer * renderer, ViewResource * pViewRes) = 0;
 		virtual void Run(FrameRenderTask & task, const RenderProcedureParameters & params) = 0;
 		virtual RenderTarget* GetOutput() = 0;
+	};
+
+	CoreLib::String GetSpireOutput(SpireDiagnosticSink * sink);
+	
+	struct SpireModuleStruct
+	{
+		int dummy;
 	};
 
 	class ShadowMapResource
@@ -257,6 +151,7 @@ namespace GameEngine
 	private:
 		int shadowMapArraySize;
 		CoreLib::IntSet shadowMapArrayFreeBits;
+		CoreLib::RefPtr<ViewResource> shadowView;
 	public:
 		CoreLib::RefPtr<Texture2DArray> shadowMapArray;
 		CoreLib::RefPtr<RenderTargetLayout> shadowMapRenderTargetLayout;
@@ -268,11 +163,6 @@ namespace GameEngine
 		void Reset();
 	};
 
-	CoreLib::String GetSpireOutput(SpireDiagnosticSink * sink);
-	struct SpireModuleStruct
-	{
-		int dummy;
-	};
 	class RendererSharedResource
 	{
 	private:
@@ -284,44 +174,13 @@ namespace GameEngine
 		CoreLib::RefPtr<TextureSampler> textureSampler, nearestSampler, linearSampler, shadowSampler;
 		CoreLib::EnumerableDictionary<SpireModuleStruct*, CoreLib::RefPtr<DescriptorSetLayout>> descLayouts;
 		SpireCompilationContext * spireContext = nullptr;
-		void * viewUniformPtr = nullptr;
-		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<RenderTarget>> renderTargets;
 		ShadowMapResource shadowMapResources;
-		CoreLib::List<CoreLib::RefPtr<RenderOutput>> renderOutputs;
-		void UpdateRenderResultFrameBuffer(RenderOutput * output);
 		void CreateModuleInstance(ModuleInstance & mInst, SpireModule * shaderModule, DeviceMemory * uniformMemory, int uniformBufferSize = 0);
 	public:
 		CoreLib::RefPtr<Buffer> fullScreenQuadVertBuffer;
 		DeviceMemory indexBufferMemory, vertexBufferMemory;
 		PipelineContext pipelineManager;
 	public:
-		int screenWidth = 0, screenHeight = 0;
-		CoreLib::RefPtr<RenderTarget> LoadSharedRenderTarget(CoreLib::String name, StorageFormat format, float ratio = 1.0f, int w0 = 1024, int h0 = 1024);
-		template<typename ...TRenderTargets>
-		RenderOutput * CreateRenderOutput(RenderTargetLayout * renderTargetLayout, TRenderTargets ... renderTargets)
-		{
-			RefPtr<RenderOutput> result = new RenderOutput();
-			typename FirstType<TRenderTargets...>::type targets[] = { renderTargets... };
-			for (auto & target : targets)
-			{
-				result->bindings.Add(target);
-			}
-			result->renderTargetLayout = renderTargetLayout;
-			renderOutputs.Add(result);
-			UpdateRenderResultFrameBuffer(result.Ptr());
-			return result.Ptr();
-		}
-		void DestroyRenderOutput(RenderOutput * output)
-		{
-			int id = renderOutputs.IndexOf(output);
-			if (id != -1)
-			{
-				renderOutputs[id] = nullptr;
-				renderOutputs.FastRemoveAt(id);
-			}
-		}
-		void Resize(int w, int h);
-
 		RendererSharedResource(RenderAPI pAPI)
 		{
 			this->api = pAPI;
@@ -356,39 +215,6 @@ namespace GameEngine
 			spPopContext(spireContext);
 		}
 		void Clear();
-	};
-
-	class RendererService : public CoreLib::Object
-	{
-	public:
-		virtual CoreLib::RefPtr<Drawable> CreateStaticDrawable(Mesh * mesh, Material * material, bool cacheMesh = true) = 0;
-		virtual CoreLib::RefPtr<Drawable> CreateSkeletalDrawable(Mesh * mesh, Skeleton * skeleton, Material * material, bool cacheMesh = true) = 0;
-	};
-
-	class DrawableSink
-	{
-	private:
-		CoreLib::List<Drawable*> opaqueDrawables;
-		CoreLib::List<Drawable*> transparentDrawables;
-
-	public:
-		void AddDrawable(Drawable * drawable)
-		{
-			if (drawable->IsTransparent())
-				transparentDrawables.Add(drawable);
-			else
-				opaqueDrawables.Add(drawable);
-			drawable->UpdateMaterialUniform();
-		}
-		void Clear()
-		{
-			opaqueDrawables.Clear();
-			transparentDrawables.Clear();
-		}
-		CoreLib::ArrayView<Drawable*> GetDrawables(bool transparent)
-		{
-			return transparent ? transparentDrawables.GetArrayView() : opaqueDrawables.GetArrayView();
-		}
 	};
 }
 #endif

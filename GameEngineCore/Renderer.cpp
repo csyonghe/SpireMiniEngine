@@ -1,6 +1,6 @@
 #include "Renderer.h"
 #include "HardwareRenderer.h"
-
+#include "Level.h"
 #include "Engine.h"
 #include "SkeletalMeshActor.h"
 #include "CoreLib/Graphics/TextureFile.h"
@@ -87,6 +87,7 @@ namespace GameEngine
 	private:
 		RendererSharedResource sharedRes;
 		RefPtr<SceneResource> sceneRes;
+		RefPtr<ViewResource> mainView;
 		RefPtr<RendererServiceImpl> renderService;
 		RefPtr<IRenderProcedure> renderProcedure;
 		List<RefPtr<WorldRenderPass>> worldRenderPasses;
@@ -106,11 +107,13 @@ namespace GameEngine
 			postPassInstances.Clear();
 			RenderProcedureParameters params;
 			params.renderStats = &sharedRes.renderStats;
-            Array<CameraActor*, 8> cameras;
-            cameras.Add(level->CurrentCamera.Ptr());
 			params.level = level;
 			params.renderer = this;
-            params.cameras = cameras.GetArrayView();
+			auto curCam = level->CurrentCamera.Ptr();
+			if (curCam)
+				params.view = curCam->GetView();
+			else
+				params.view = View();
 			params.rendererService = renderService.Ptr();
 			frameTask.Clear();
 			renderProcedure->Run(frameTask, params);
@@ -140,16 +143,22 @@ namespace GameEngine
 			uniformBufferAlignment = hardwareRenderer->UniformBufferAlignment();
 			storageBufferAlignment = hardwareRenderer->StorageBufferAlignment();
 			
-			renderProcedure = CreateStandardRenderProcedure();
-			renderProcedure->Init(this);
-			
 			sceneRes = new SceneResource(&sharedRes, sharedRes.spireContext);
 			renderService = new RendererServiceImpl(this);
+			mainView = new ViewResource(hardwareRenderer);
+			mainView->Resize(1024, 1024);
+			renderProcedure = CreateStandardRenderProcedure();
+			renderProcedure->Init(this, mainView.Ptr());
+
 			hardwareRenderer->EndDataTransfer();
 		}
 		~RendererImpl()
 		{
+			for (auto & postPass : postRenderPasses)
+				postPass = nullptr;
+
 			renderProcedure = nullptr;
+			mainView = nullptr;
 			sceneRes = nullptr;
 			sharedRes.Destroy();
 		}
@@ -189,6 +198,12 @@ namespace GameEngine
 
 			sceneRes->Clear();
 			level = pLevel;
+			hardwareRenderer->BeginDataTransfer();
+			RunRenderProcedure();
+			hardwareRenderer->EndDataTransfer();
+			RenderFrame();
+			Wait();
+			sharedRes.renderStats.Clear();
 		}
 		virtual void TakeSnapshot() override
 		{
@@ -247,9 +262,7 @@ namespace GameEngine
 		}
 		virtual void Resize(int w, int h) override
 		{
-			sharedRes.Resize(w, h);
-			renderProcedure->ResizeFrame(w, h);
-			
+			mainView->Resize(w, h);
 			hardwareRenderer->Resize(w, h);
 		}
 		Texture2D * GetRenderedImage()

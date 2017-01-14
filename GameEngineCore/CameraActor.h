@@ -10,32 +10,31 @@ namespace GameEngine
 	class CameraActor : public Actor
 	{
 	private:
-		float yaw = 0.0f, pitch = 0.0f, roll = 0.0f;
+		View view;
 		float collisionRadius = 50.0f;
-		VectorMath::Vec3 position;
-	public:
-		float ZNear = 40.0f, ZFar = 400000.0f;
-		float FOV = 75.0f;
 	protected:
 		virtual bool ParseField(CoreLib::Text::TokenReader & parser, bool & isInvalid) override;
 	public:
 		CameraActor()
 		{
-			position.SetZero();
+			view.Position.SetZero();
 		}
 		VectorMath::Vec3 GetPosition()
 		{
-			return position;
+			return view.Position;
 		}
 		void SetPosition(const VectorMath::Vec3 & value);
-		float GetYaw() { return yaw; }
-		float GetPitch() { return pitch; }
-		float GetRoll() { return roll; }
+		float GetYaw() { return view.Yaw; }
+		float GetPitch() { return view.Pitch; }
+		float GetRoll() { return view.Roll; }
 		void SetYaw(float value);
 		void SetPitch(float value);
 		void SetRoll(float value);
 		void SetOrientation(float pYaw, float pPitch, float pRoll);
-		VectorMath::Vec3 GetDirection();
+		View GetView()
+		{
+			return view;
+		}
 		float GetCollisionRadius() { return collisionRadius; }
 		void SetCollisionRadius(float value);
 		CoreLib::Graphics::ViewFrustum GetFrustum(float aspect);

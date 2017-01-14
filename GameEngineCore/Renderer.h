@@ -1,7 +1,7 @@
 #ifndef GAME_ENGINE_RENDERER_H
 #define GAME_ENGINE_RENDERER_H
 
-#include "Level.h"
+#include "CoreLib/Basic.h"
 #include "OS.h"
 
 namespace GameEngine
@@ -14,6 +14,8 @@ namespace GameEngine
 	class SceneResource;
 	class Material;
 	class ModuleInstance;
+	class Level;
+	class RenderStat;
 
 	class Renderer : public CoreLib::Object
 	{

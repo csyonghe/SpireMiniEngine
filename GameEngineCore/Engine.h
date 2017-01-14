@@ -4,7 +4,6 @@
 #include "CoreLib/Basic.h"
 #include "CoreLib/PerformanceCounter.h"
 #include "Level.h"
-#include "Renderer.h"
 #include "CoreLib/Tokenizer.h"
 #include "InputDispatcher.h"
 #include "CoreLib/LibUI/LibUI.h"
@@ -16,6 +15,7 @@
 
 namespace GameEngine
 {
+
 	class EngineInitArguments
 	{
 	public:
@@ -64,7 +64,7 @@ namespace GameEngine
 		CoreLib::RefPtr<RenderTargetLayout> uiFrameBufferLayout;
 		CoreLib::RefPtr<GraphicsUI::UIEntry> uiEntry;
 
-		CoreLib::Array<RenderStat, 4> renderStats;
+		CoreLib::Array<RenderStat, 8> renderStats;
 		GraphicsUI::CommandForm * uiCommandForm = nullptr;
 		DrawCallStatForm * drawCallStatForm = nullptr;
 		CoreLib::RefPtr<GraphicsUI::UIWindowsSystemInterface> uiSystemInterface;

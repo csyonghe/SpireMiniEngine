@@ -16,11 +16,11 @@ namespace GameEngine
 	public:
 		virtual void AcquireRenderTargets() override
 		{
-			baseColorBuffer = sharedRes->LoadSharedRenderTarget("baseColorBuffer", StorageFormat::RGBA_8);
-			depthBuffer = sharedRes->LoadSharedRenderTarget("depthBuffer", DepthBufferFormat);
-			pbrBuffer = sharedRes->LoadSharedRenderTarget("pbrBuffer", StorageFormat::RGBA_8);
-			normalBuffer = sharedRes->LoadSharedRenderTarget("normalBuffer", StorageFormat::RGB10_A2);
-			litColorBuffer = sharedRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8);
+			baseColorBuffer = viewRes->LoadSharedRenderTarget("baseColorBuffer", StorageFormat::RGBA_8);
+			depthBuffer = viewRes->LoadSharedRenderTarget("depthBuffer", DepthBufferFormat);
+			pbrBuffer = viewRes->LoadSharedRenderTarget("pbrBuffer", StorageFormat::RGBA_8);
+			normalBuffer = viewRes->LoadSharedRenderTarget("normalBuffer", StorageFormat::RGB10_A2);
+			litColorBuffer = viewRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8);
 		}
 		virtual void SetupPipelineBindingLayout(PipelineBuilder * pipelineBuilder, List<AttachmentLayout> & renderTargets) override
 		{
@@ -59,10 +59,14 @@ namespace GameEngine
 		}
 		virtual void SetParameters(void * /*data*/, int /*count*/) override
 		{}
+	public:
+		DeferredLightingPostRenderPass(ViewResource * viewRes)
+			: PostRenderPass(viewRes)
+		{}
 	};
 
-	PostRenderPass * CreateDeferredLightingPostRenderPass()
+	PostRenderPass * CreateDeferredLightingPostRenderPass(ViewResource * viewRes)
 	{
-		return new DeferredLightingPostRenderPass();
+		return new DeferredLightingPostRenderPass(viewRes);
 	}
 }

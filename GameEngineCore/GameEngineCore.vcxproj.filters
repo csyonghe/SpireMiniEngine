@@ -128,6 +128,12 @@
     <ClCompile Include="SSAO.cpp">
       <Filter>Renderer</Filter>
     </ClCompile>
+    <ClCompile Include="Drawable.cpp">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="ViewResource.cpp">
+      <Filter>Renderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
@@ -250,6 +256,18 @@
       <Filter>Renderer</Filter>
     </ClInclude>
     <ClInclude Include="TextureTool\stb_dxt.h" />
+    <ClInclude Include="View.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="ViewResource.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Drawable.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="RendererService.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Spire">

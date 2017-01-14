@@ -55,6 +55,17 @@ namespace GameEngine
 		AcquireRenderTargets();
 	}
 
+	PostRenderPass::PostRenderPass(ViewResource * view)
+	{
+		viewRes = view;
+		viewRes->Resized.Bind(this, &PostRenderPass::Resized);
+	}
+
+	PostRenderPass::~PostRenderPass()
+	{
+		viewRes->Resized.Unbind(this, &PostRenderPass::Resized);
+	}
+
 	void PostRenderPass::Execute(SharedModuleInstances sharedModules)
 	{
 		auto cmdBuf = commandBuffer->BeginRecording(frameBuffer.Ptr());
@@ -64,7 +75,7 @@ namespace GameEngine
 		DescriptorSetBindings descBindings;
 		UpdateDescriptorSetBinding(sharedModules, descBindings);
 
-		cmdBuf->SetViewport(0, 0, width, height);
+		cmdBuf->SetViewport(0, 0, viewRes->GetWidth(), viewRes->GetHeight());
 		cmdBuf->BindPipeline(pipeline.Ptr());
 		cmdBuf->BindVertexBuffer(sharedRes->fullScreenQuadVertBuffer.Ptr(), 0);
 		for (auto & binding : descBindings.bindings)
@@ -82,10 +93,8 @@ namespace GameEngine
 		return rs;
 	}
 
-	void PostRenderPass::Resize(int screenWidth, int screenHeight)
+	void PostRenderPass::Resized()
 	{
-		width = screenWidth;
-		height = screenHeight;
 		RenderAttachments renderAttachments;
 		UpdateRenderAttachments(renderAttachments);
 		frameBuffer = renderTargetLayout->CreateFrameBuffer(renderAttachments);

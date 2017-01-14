@@ -2826,8 +2826,8 @@ namespace GLL
 		virtual void BeginDataTransfer() override
 		{
 #ifdef _DEBUG
-			if (isInDataTransfer)
-				throw HardwareRendererException("Renderer is already in data transfer mode.");
+			//if (isInDataTransfer)
+			//	throw HardwareRendererException("Renderer is already in data transfer mode.");
 #endif
 			isInDataTransfer = true;
 		}

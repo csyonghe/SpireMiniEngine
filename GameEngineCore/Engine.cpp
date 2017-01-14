@@ -103,7 +103,7 @@ namespace GameEngine
 				uiEntry->CloseWindow(drawCallStatForm);
                 uiEntry->CloseWindow(uiCommandForm);
 			}
-			renderStats.SetSize(4);
+			renderStats.SetSize(renderStats.GetCapacity());
 
 			switch (args.API)
 			{
@@ -181,7 +181,7 @@ namespace GameEngine
 		auto thisGameLogicTime = PerformanceCounter::Start();
 		gameLogicTimeDelta = PerformanceCounter::EndSeconds(lastGameLogicTime);
 
-		if (enableInput && !uiEntry->KeyInputConsumed)
+		if (enableInput && !uiEntry->KeyInputConsumed && frameCounter > 2)
 			inputDispatcher->DispatchInput();
 
 		if (!level)
@@ -332,7 +332,9 @@ namespace GameEngine
 		{
 			auto actualFileName = FindFile(fileName, ResourceType::Level);
 			level = new GameEngine::Level(actualFileName);
+			inDataTransfer = true;
 			renderer->InitializeLevel(level.Ptr());
+			inDataTransfer = false;
 		}
 		catch (const Exception & e)
 		{

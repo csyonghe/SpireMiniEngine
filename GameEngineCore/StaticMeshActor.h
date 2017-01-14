@@ -2,7 +2,7 @@
 #define GAME_ENGINE_STATIC_ACTOR_H
 
 #include "Actor.h"
-#include "RenderContext.h"
+#include "RendererService.h"
 
 namespace GameEngine
 {

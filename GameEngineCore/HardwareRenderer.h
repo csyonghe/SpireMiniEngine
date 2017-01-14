@@ -126,6 +126,11 @@ namespace GameEngine
 		Depth24, Depth32, Depth24Stencil8
 	};
 
+	enum class CubemapFace
+	{
+		PosX, NegX, PosY, NegY, PosZ, NegZ
+	};
+
 	inline bool isDepthFormat(StorageFormat format)
 	{
 		switch (format)

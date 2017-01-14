@@ -27,36 +27,39 @@ namespace GameEngine
 
 	void CameraActor::SetPosition(const VectorMath::Vec3 & value)
 	{
-		position = value;
+		view.Position = value;
 		UpdatePosition(localTransform, value);
+		view.Transform = localTransform;
 	}
 
 	void CameraActor::SetYaw(float value)
 	{
-		yaw = value;
-		TransformFromCamera(localTransform, yaw, pitch, roll, position);
+		view.Yaw = value;
+		TransformFromCamera(localTransform, view.Yaw, view.Pitch, view.Roll, view.Position);
+		view.Transform = localTransform;
 	}
 	void CameraActor::SetPitch(float value)
 	{
-		pitch = value;
-		TransformFromCamera(localTransform, yaw, pitch, roll, position);
+		view.Pitch = value;
+		TransformFromCamera(localTransform, view.Yaw, view.Pitch, view.Roll, view.Position);
+		view.Transform = localTransform;
 	}
 	void CameraActor::SetRoll(float value)
 	{
-		roll = value;
-		TransformFromCamera(localTransform, yaw, pitch, roll, position);
+		view.Roll = value;
+		TransformFromCamera(localTransform, view.Yaw, view.Pitch, view.Roll, view.Position);
+		view.Transform = localTransform;
+
 	}
 	void CameraActor::SetOrientation(float pYaw, float pPitch, float pRoll)
 	{
-		yaw = pYaw;
-		pitch = pPitch;
-		roll = pRoll;
-		TransformFromCamera(localTransform, yaw, pitch, roll, position);
+		view.Yaw = pYaw;
+		view.Pitch = pPitch;
+		view.Roll = pRoll;
+		TransformFromCamera(localTransform, view.Yaw, view.Pitch, view.Roll, view.Position);
+		view.Transform = localTransform;
 	}
-	VectorMath::Vec3 CameraActor::GetDirection()
-	{
-		return VectorMath::Vec3::Create(-localTransform.m[0][2], -localTransform.m[1][2], -localTransform.m[2][2]);
-	}
+	
 	void CameraActor::SetCollisionRadius(float value)
 	{
 		collisionRadius = value;
@@ -64,7 +67,7 @@ namespace GameEngine
 	CoreLib::Graphics::ViewFrustum CameraActor::GetFrustum(float aspect)
 	{
 		CoreLib::Graphics::ViewFrustum result;
-		result.FOV = FOV;
+		result.FOV = view.FOV;
 		result.Aspect = aspect;
 		result.CamDir.x = -localTransform.m[0][2];
 		result.CamDir.y = -localTransform.m[1][2];
@@ -72,9 +75,9 @@ namespace GameEngine
 		result.CamUp.x = localTransform.m[0][1];
 		result.CamUp.y = localTransform.m[1][1];
 		result.CamUp.z = localTransform.m[2][1];
-		result.CamPos = position;
-		result.zMin = ZNear;
-		result.zMax = ZFar;
+		result.CamPos = view.Position;
+		result.zMin = view.ZNear;
+		result.zMax = view.ZFar;
 		return result;
 	}
 	bool CameraActor::ParseField(CoreLib::Text::TokenReader & parser, bool & isInvalid)
@@ -84,36 +87,38 @@ namespace GameEngine
 		if (parser.LookAhead("position"))
 		{
 			parser.ReadToken();
-			position = ParseVec3(parser);
-			TransformFromCamera(localTransform, yaw, pitch, roll, position);
+			view.Position = ParseVec3(parser);
+			TransformFromCamera(localTransform, view.Yaw, view.Pitch, view.Roll, view.Position);
+			view.Transform = localTransform;
 			return true;
 		}
 		if (parser.LookAhead("orientation"))
 		{
 			parser.ReadToken();
 			auto orientation = ParseVec3(parser);
-			yaw = orientation.x;
-			pitch = orientation.y;
-			roll = orientation.z;
-			TransformFromCamera(localTransform, yaw, pitch, roll, position);
+			view.Yaw = orientation.x;
+			view.Pitch = orientation.y;
+			view.Roll = orientation.z;
+			TransformFromCamera(localTransform, view.Yaw, view.Pitch, view.Roll, view.Position);
+			view.Transform = localTransform;
 			return true;
 		}
 		if (parser.LookAhead("znear"))
 		{
 			parser.ReadToken();
-			ZNear = (float)parser.ReadDouble();
+			view.ZNear = (float)parser.ReadDouble();
 			return true;
 		}
 		if (parser.LookAhead("zfar"))
 		{
 			parser.ReadToken();
-			ZFar = (float)parser.ReadDouble();
+			view.ZFar = (float)parser.ReadDouble();
 			return true;
 		}
 		if (parser.LookAhead("fov"))
 		{
 			parser.ReadToken();
-			FOV = (float)parser.ReadDouble();
+			view.FOV = (float)parser.ReadDouble();
 			return true;
 		}
 		if (parser.LookAhead("radius"))

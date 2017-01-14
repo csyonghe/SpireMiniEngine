@@ -81,9 +81,9 @@ namespace GameEngine
 		}
 		virtual void AcquireRenderTargets() override
 		{
-			colorBuffer = sharedRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8);
-			depthBuffer = sharedRes->LoadSharedRenderTarget("depthBuffer", DepthBufferFormat);
-			colorOutBuffer = sharedRes->LoadSharedRenderTarget("litAtmosphereColor", StorageFormat::RGBA_8);
+			colorBuffer = viewRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8);
+			depthBuffer = viewRes->LoadSharedRenderTarget("depthBuffer", DepthBufferFormat);
+			colorOutBuffer = viewRes->LoadSharedRenderTarget("litAtmosphereColor", StorageFormat::RGBA_8);
 		}
 		virtual void SetupPipelineBindingLayout(PipelineBuilder * pipelineBuilder, List<AttachmentLayout> & renderTargets) override
 		{
@@ -128,10 +128,14 @@ namespace GameEngine
 			assert(count == sizeof(AtmosphereParameters));
 			parameterBuffer->SetData(data, count);
 		}
+	public:
+		AtmospherePostRenderPass(ViewResource * viewRes)
+			: PostRenderPass(viewRes)
+		{}
 	};
 
-	PostRenderPass * CreateAtmospherePostRenderPass()
+	PostRenderPass * CreateAtmospherePostRenderPass(ViewResource * viewRes)
 	{
-		return new AtmospherePostRenderPass();
+		return new AtmospherePostRenderPass(viewRes);
 	}
 }

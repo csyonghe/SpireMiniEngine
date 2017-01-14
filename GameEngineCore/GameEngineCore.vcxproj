@@ -168,6 +168,7 @@
     <ClCompile Include="DeferredLightingPostRenderPass.cpp" />
     <ClCompile Include="DeviceMemory.cpp" />
     <ClCompile Include="DirectionalLightActor.cpp" />
+    <ClCompile Include="Drawable.cpp" />
     <ClCompile Include="DrawCallStatForm.cpp" />
     <ClCompile Include="DynamicVariable.cpp" />
     <ClCompile Include="Engine.cpp" />
@@ -205,6 +206,7 @@
     <ClCompile Include="TextureCompressor.cpp" />
     <ClCompile Include="TextureTool\LibSquish.cpp" />
     <ClCompile Include="UISystem_Windows.cpp" />
+    <ClCompile Include="ViewResource.cpp" />
     <ClCompile Include="VulkanAPI\vkel.c" />
     <ClCompile Include="VulkanAPI\VulkanHardwareRenderer.cpp" />
     <ClCompile Include="VulkanAPI\VulkanOneDescHardwareRenderer.cpp" />
@@ -227,6 +229,7 @@
     <ClInclude Include="AtmosphereActor.h" />
     <ClInclude Include="CameraActor.h" />
     <ClInclude Include="CatmullSpline.h" />
+    <ClInclude Include="Drawable.h" />
     <ClInclude Include="EngineLimits.h" />
     <ClInclude Include="DeviceMemory.h" />
     <ClInclude Include="DirectionalLightActor.h" />
@@ -252,6 +255,7 @@
     <ClInclude Include="PostRenderPass.h" />
     <ClInclude Include="RenderContext.h" />
     <ClInclude Include="Renderer.h" />
+    <ClInclude Include="RendererService.h" />
     <ClInclude Include="RenderPass.h" />
     <ClInclude Include="ShaderCompiler.h" />
     <ClInclude Include="SkeletalMeshActor.h" />
@@ -265,6 +269,8 @@
     <ClInclude Include="TextureTool\LibSquish.h" />
     <ClInclude Include="TextureTool\stb_dxt.h" />
     <ClInclude Include="UISystem_Windows.h" />
+    <ClInclude Include="View.h" />
+    <ClInclude Include="ViewResource.h" />
     <ClInclude Include="VulkanAPI\vkel.h" />
     <ClInclude Include="VulkanAPI\vulkan.hpp" />
     <ClInclude Include="WorldRenderPass.h" />

@@ -5,6 +5,8 @@
 
 namespace GameEngine
 {
+	class ViewResource;
+
 	struct DescriptorSetBindings
 	{
 		struct Binding
@@ -21,8 +23,8 @@ namespace GameEngine
 
 	class PostRenderPass : public RenderPass
 	{
-	private:
-		int width, height;
+	protected:
+		ViewResource * viewRes = nullptr;
 	protected:
 		bool clearFrameBuffer = false;
 		CoreLib::RefPtr<RenderOutput> renderOutput;
@@ -37,10 +39,12 @@ namespace GameEngine
 		virtual CoreLib::String GetShaderFileName() = 0;
 		virtual void Create() override;
 		virtual void AcquireRenderTargets() = 0;
+		void Resized();
 	public:
+		PostRenderPass(ViewResource * view);
+		~PostRenderPass();
 		void Execute(SharedModuleInstances sharedModules);
 		RenderPassInstance CreateInstance(SharedModuleInstances sharedModules);
-		virtual void Resize(int screenWidth, int screenHeight);
 		virtual void SetParameters(void * data, int count) = 0;
 	};
 }
