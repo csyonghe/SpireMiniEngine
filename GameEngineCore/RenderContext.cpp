@@ -844,7 +844,7 @@ namespace GameEngine
 					lastMaterial = newMaterial;
 				}
 				pipelineManager.PushModuleInstanceNoShaderChange(obj->GetTransformModule());
-				obj->ReorderKey = /*(obj->GetPipeline(renderPassId, pipelineManager)->Id << 18) +*/ newMaterial->Id;
+				obj->ReorderKey = (obj->GetPipeline(renderPassId, pipelineManager)->Id << 18) + newMaterial->Id;
 				pipelineManager.PopModuleInstance();
 
 				reorderBuffer.Add(obj);
