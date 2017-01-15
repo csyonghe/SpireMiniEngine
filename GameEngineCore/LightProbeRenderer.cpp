@@ -154,6 +154,7 @@ namespace GameEngine
 	ShaderSet CompileShader(PipelineBuilder * pb, HardwareRenderer * hw, const char * src)
 	{
 		SpireCompilationContext * ctx = spCreateCompilationContext("");
+		spSetCodeGenTarget(ctx, hw->GetSpireTarget());
 		auto rs = spCompileShaderFromSource(ctx, (String(spirePipeline) + src).Buffer(), "", nullptr);
 		int vsLen, fsLen;
 		auto vs = spGetShaderStageSource(rs, nullptr, "vs", &vsLen);
