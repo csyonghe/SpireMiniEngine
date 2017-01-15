@@ -2746,6 +2746,37 @@ namespace VKO
 
 				result->attachmentImageViews.Add(RendererState::Device().createImageView(imageViewCreateInfo));
 			}
+			else if (attachment.handle.texCube)
+			{
+				auto tex = dynamic_cast<TextureCube*>(attachment.handle.texCube);
+
+				vk::ImageAspectFlags aspectFlags;
+				if (isDepthFormat(tex->format))
+				{
+					aspectFlags = vk::ImageAspectFlagBits::eDepth;
+					if (tex->format == StorageFormat::Depth24Stencil8)
+						aspectFlags |= vk::ImageAspectFlagBits::eStencil;
+				}
+				else
+					aspectFlags = vk::ImageAspectFlagBits::eColor;
+
+				vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
+					.setAspectMask(aspectFlags)
+					.setBaseMipLevel(attachment.layer)
+					.setLevelCount(1)
+					.setBaseArrayLayer((int)attachment.face)
+					.setLayerCount(1);
+
+				vk::ImageViewCreateInfo imageViewCreateInfo = vk::ImageViewCreateInfo()
+					.setFlags(vk::ImageViewCreateFlags())
+					.setImage(tex->image)
+					.setViewType(vk::ImageViewType::e2D)
+					.setFormat(TranslateStorageFormat(tex->format))
+					.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA))//
+					.setSubresourceRange(imageSubresourceRange);
+
+				result->attachmentImageViews.Add(RendererState::Device().createImageView(imageViewCreateInfo));
+			}
 		}
 
 		vk::FramebufferCreateInfo framebufferCreateInfo = vk::FramebufferCreateInfo()
