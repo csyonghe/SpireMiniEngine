@@ -15,6 +15,12 @@ FreeRoamCameraController
     Speed 100.0
 }
 
+ToneMapping
+{
+    name "tonemap"
+    Exposure 0.4    
+}
+
 Atmosphere
 {
     SunDir [-0.5 0.8 0.4]
