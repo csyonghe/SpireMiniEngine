@@ -374,6 +374,9 @@ module Lighting
     public param vec4[2] zPlanes;
     public param Texture2DArrayShadow shadowMapArray;
     public param SamplerComparisonState shadowMapSampler;
+    
+    public param TextureCube envMap;
+    public param SamplerState nearestSampler;
 
     require vec3 normal;   
     require vec3 albedo;
@@ -484,9 +487,17 @@ module Lighting
         return specular;
     }
     float highlight = highlight_GGXstandard;
-    public vec3 result = (lightColor * 
+    public vec3 result
+    {
+       vec3 rs = (lightColor * 
                          (albedo * (brightness + 0.4)*(1.0-metallic_in) + 
                         mix(albedo, vec3(1.0), 1.0 - metallic_in) * (highlight * shadow)))*ao;
+        if (metallic_in == 1.0)
+        {
+            rs = envMap.Sample(nearestSampler, reflect(-view, lNormal)).xyz;            
+        }
+        return rs;
+    }
 }
 
 module ForwardBasePassParams

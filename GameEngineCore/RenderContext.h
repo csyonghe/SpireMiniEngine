@@ -136,6 +136,7 @@ namespace GameEngine
 	{
 	public:
 		virtual void Init(Renderer * renderer, ViewResource * pViewRes) = 0;
+		virtual void UpdateSharedResourceBinding() = 0;
 		virtual void Run(FrameRenderTask & task, const RenderProcedureParameters & params) = 0;
 		virtual RenderTarget* GetOutput() = 0;
 	};
@@ -178,6 +179,7 @@ namespace GameEngine
 		ShadowMapResource shadowMapResources;
 		void CreateModuleInstance(ModuleInstance & mInst, SpireModule * shaderModule, DeviceMemory * uniformMemory, int uniformBufferSize = 0);
 	public:
+		CoreLib::RefPtr<TextureCube> envMap;
 		CoreLib::RefPtr<Buffer> fullScreenQuadVertBuffer;
 		DeviceMemory indexBufferMemory, vertexBufferMemory;
 		PipelineContext pipelineManager;
@@ -202,7 +204,6 @@ namespace GameEngine
 		CoreLib::RefPtr<DrawableMesh> LoadDrawableMesh(Mesh * mesh);
         CoreLib::RefPtr<DrawableMesh> CreateDrawableMesh(Mesh * mesh);
 
-		CoreLib::RefPtr<TextureCube> envMap;
 		Texture2D* LoadTexture2D(const CoreLib::String & name, CoreLib::Graphics::TextureFile & data);
 		Texture2D* LoadTexture(const CoreLib::String & filename);
 	public:

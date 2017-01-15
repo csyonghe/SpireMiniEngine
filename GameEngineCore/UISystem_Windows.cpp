@@ -796,7 +796,8 @@ namespace GraphicsUI
 			primitiveBuffer->SetDataAsync(frameId * primitiveBufferSize, uniformFields.Buffer(), sizeof(UniformField) * uniformFields.Count());
 			
 			auto cmdBuf = blitCmdBuffer->BeginRecording();
-			cmdBuf->Blit(uiOverlayTexture.Ptr(), baseTexture);
+			if (baseTexture)
+				cmdBuf->Blit(uiOverlayTexture.Ptr(), baseTexture);
 			cmdBuf->EndRecording();
 
 			cmdBuf = cmdBuffer->BeginRecording(frameBuffer.Ptr());

@@ -134,7 +134,8 @@ namespace GameEngine
 			hardwareRenderer->BindWindow(window, 640, 480);
 			hardwareRenderer->BeginDataTransfer();
 			sharedRes.Init(hardwareRenderer);
-			
+			sharedRes.envMap = hardwareRenderer->CreateTextureCube(TextureUsage::SampledColorAttachment, 256, 8, StorageFormat::RGBA_F16);
+
 			// Fetch uniform buffer alignment requirements
 			uniformBufferAlignment = hardwareRenderer->UniformBufferAlignment();
 			storageBufferAlignment = hardwareRenderer->StorageBufferAlignment();
@@ -204,9 +205,11 @@ namespace GameEngine
 			hardwareRenderer->EndDataTransfer();
 
 			LightProbeRenderer lpRenderer(this, renderService.Ptr(), cubemapRenderProc.Ptr(), cubemapRenderView.Ptr());
-			sceneRes->envMap = lpRenderer.RenderLightProbe(level, Vec3::Create(0.0f, 1000.0f, 0.0f));
 
+			sharedRes.envMap = lpRenderer.RenderLightProbe(level, Vec3::Create(0.0f, 1000.0f, 0.0f));
+			
 			hardwareRenderer->BeginDataTransfer();
+			renderProcedure->UpdateSharedResourceBinding();
 			RunRenderProcedure();
 			hardwareRenderer->EndDataTransfer();
 			RenderFrame();
@@ -239,10 +242,9 @@ namespace GameEngine
 		virtual void RenderFrame() override
 		{
 			if (!level) return;
-
-
-			LightProbeRenderer lpRenderer(this, renderService.Ptr(), cubemapRenderProc.Ptr(), cubemapRenderView.Ptr());
-			sceneRes->envMap = lpRenderer.RenderLightProbe(level, Vec3::Create(0.0f, 1000.0f, 0.0f));
+			
+			//LightProbeRenderer lpRenderer(this, renderService.Ptr(), cubemapRenderProc.Ptr(), cubemapRenderView.Ptr());
+			//sceneRes->envMap = lpRenderer.RenderLightProbe(level, Vec3::Create(0.0f, 1000.0f, 0.0f));
 
 			sharedRes.renderStats.NumMaterials = 0;
 			sharedRes.renderStats.NumShaders = 0;
@@ -274,7 +276,9 @@ namespace GameEngine
 		}
 		Texture2D * GetRenderedImage()
 		{
-			return renderProcedure->GetOutput()->Texture.Ptr();
+			if (renderProcedure)
+				return renderProcedure->GetOutput()->Texture.Ptr();
+			return nullptr;
 		}
 	};
 

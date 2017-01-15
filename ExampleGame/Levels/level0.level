@@ -35,6 +35,20 @@ DirectionalLight
 
 StaticMesh
 {
+    name "sphere"
+    mesh "sphere.mesh"
+    material
+    {
+        shader "Reflective.shader"        
+    }
+    transform [1.0 0.0 0.0 0.0
+               0.0 1.0 0.0 0.0
+               0.0 0.0 1.0 0.0
+               10.0 100.0 -50.0 1.0] 
+}
+
+StaticMesh
+{
     name "couch"
     mesh "SM_Couch.mesh"
     material

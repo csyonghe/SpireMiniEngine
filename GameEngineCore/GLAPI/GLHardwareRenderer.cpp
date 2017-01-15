@@ -3099,6 +3099,7 @@ namespace GLL
 			glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 			glTexParameterf(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8.0f);
 			glTexStorage2D(GL_TEXTURE_CUBE_MAP, mipLevelCount, TranslateStorageFormat(format), size, size);
+			glClearTexSubImage(handle, 0, 0, 0, 0, size, size, 6, GL_RGBA, GL_FLOAT, nullptr);
 			glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 
 			auto rs = new TextureCube(size);

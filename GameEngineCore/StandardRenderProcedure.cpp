@@ -94,6 +94,23 @@ namespace GameEngine
 			else
 				return viewRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8).Ptr();
 		}
+		virtual void UpdateSharedResourceBinding() override
+		{
+			for (int i = 0; i < DynamicBufferLengthMultiplier; i++)
+			{
+				auto descSet = forwardBasePassParams.GetDescriptorSet(i);
+				descSet->BeginUpdate();
+				descSet->Update(1, sharedRes->textureSampler.Ptr());
+				descSet->EndUpdate();
+				descSet = lightingParams.GetDescriptorSet(i);
+				descSet->BeginUpdate();
+				descSet->Update(1, sharedRes->shadowMapResources.shadowMapArray.Ptr(), TextureAspect::Depth);
+				descSet->Update(2, sharedRes->shadowSampler.Ptr());
+				descSet->Update(3, sharedRes->envMap.Ptr(), TextureAspect::Color);
+				descSet->Update(4, sharedRes->nearestSampler.Ptr());
+				descSet->EndUpdate();
+			}
+		}
 		virtual void Init(Renderer * renderer, ViewResource * pViewRes) override
 		{
 			viewRes = pViewRes;
@@ -137,18 +154,7 @@ namespace GameEngine
 			renderPassUniformMemory.Init(sharedRes->hardwareRenderer.Ptr(), BufferUsage::UniformBuffer, true, 22, sharedRes->hardwareRenderer->UniformBufferAlignment());
 			sharedRes->CreateModuleInstance(forwardBasePassParams, spFindModule(sharedRes->spireContext, "ForwardBasePassParams"), &renderPassUniformMemory);
 			sharedRes->CreateModuleInstance(lightingParams, spFindModule(sharedRes->spireContext, "Lighting"), &renderPassUniformMemory);
-			for (int i = 0; i < DynamicBufferLengthMultiplier; i++)
-			{
-				auto descSet = forwardBasePassParams.GetDescriptorSet(i);
-				descSet->BeginUpdate();
-				descSet->Update(1, sharedRes->textureSampler.Ptr());
-				descSet->EndUpdate();
-				descSet = lightingParams.GetDescriptorSet(i);
-				descSet->BeginUpdate();
-				descSet->Update(1, sharedRes->shadowMapResources.shadowMapArray.Ptr(), TextureAspect::Depth);
-				descSet->Update(2, sharedRes->shadowSampler.Ptr());
-				descSet->EndUpdate();
-			}
+			UpdateSharedResourceBinding();
 			sharedModules.View = &forwardBasePassParams;
 			sharedModules.Lighting = &lightingParams;
 			shadowViewInstances.Reserve(1024);
