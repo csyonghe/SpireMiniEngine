@@ -44,7 +44,7 @@ namespace GameEngine
 		RenderTargetLayout * CreateRenderTargetLayout() override
 		{
 			return hwRenderer->CreateRenderTargetLayout(MakeArray(
-				AttachmentLayout(TextureUsage::ColorAttachment, StorageFormat::RGBA_8),
+				AttachmentLayout(TextureUsage::ColorAttachment, StorageFormat::RGBA_F16),
 				AttachmentLayout(TextureUsage::DepthAttachment, DepthBufferFormat)).GetArrayView());
 		}
 		virtual void SetPipelineStates(FixedFunctionPipelineStates & state)
