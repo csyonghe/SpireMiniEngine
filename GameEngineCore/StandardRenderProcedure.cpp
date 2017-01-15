@@ -107,7 +107,6 @@ namespace GameEngine
 				descSet->Update(1, sharedRes->shadowMapResources.shadowMapArray.Ptr(), TextureAspect::Depth);
 				descSet->Update(2, sharedRes->shadowSampler.Ptr());
 				descSet->Update(3, sharedRes->envMap.Ptr(), TextureAspect::Color);
-				descSet->Update(4, sharedRes->nearestSampler.Ptr());
 				descSet->EndUpdate();
 			}
 		}

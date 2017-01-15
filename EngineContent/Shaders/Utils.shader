@@ -376,7 +376,7 @@ module Lighting
     public param SamplerComparisonState shadowMapSampler;
     
     public param TextureCube envMap;
-    public param SamplerState nearestSampler;
+    require SamplerState textureSampler;
 
     require vec3 normal;   
     require vec3 albedo;
@@ -494,7 +494,7 @@ module Lighting
                         mix(albedo, vec3(1.0), 1.0 - metallic_in) * (highlight * shadow)))*ao;
         if (metallic_in == 1.0)
         {
-            rs = envMap.Sample(nearestSampler, reflect(-view, lNormal)).xyz;            
+            rs = envMap.SampleLevel(textureSampler, reflect(-view, lNormal), 6.0).xyz;            
         }
         return rs;
     }

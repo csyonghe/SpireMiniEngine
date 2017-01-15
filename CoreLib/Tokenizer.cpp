@@ -14,7 +14,7 @@ namespace CoreLib
 
 		enum class State
 		{
-			Start, Identifier, Operator, Int, Fixed, Double, Char, String, MultiComment, SingleComment
+			Start, Identifier, Operator, Int, Hex, Fixed, Double, Char, String, MultiComment, SingleComment
 		};
 
 		enum class LexDerivative
@@ -33,7 +33,7 @@ namespace CoreLib
 				auto InsertToken = [&](TokenType type, const String & ct)
 				{
 					tokens.Add(Token(type, ct, line, col + pos, pos + startPos, fileName, tokenFlags));
-                    tokenFlags = 0;
+					tokenFlags = 0;
 				};
 				switch (curChar)
 				{
@@ -240,8 +240,17 @@ namespace CoreLib
 					InsertToken(TokenType::At, "@");
 					pos++;
 					break;
-                case '#':
-                    InsertToken(TokenType::Pound, "#");
+				case '#':
+					if (nextChar == '#')
+					{
+						InsertToken(TokenType::PoundPound, "##");
+						pos += 2;
+					}
+					else
+					{
+						InsertToken(TokenType::Pound, "#");
+						pos++;
+					}
 					pos++;
 					break;
 				case ':':
@@ -302,12 +311,12 @@ namespace CoreLib
 			int tokenLine, tokenCol;
 			List<Token> tokenList;
 			LexDerivative derivative = LexDerivative::None;
-            TokenFlags tokenFlags = TokenFlag::AtStartOfLine;
+			TokenFlags tokenFlags = TokenFlag::AtStartOfLine;
 			auto InsertToken = [&](TokenType type)
 			{
 				derivative = LexDerivative::None;
 				tokenList.Add(Token(type, tokenBuilder.ToString(), tokenLine, tokenCol, pos, file, tokenFlags));
-                tokenFlags = 0;
+				tokenFlags = 0;
 				tokenBuilder.Clear();
 			};
 			auto ProcessTransferChar = [&](char nextChar)
@@ -381,16 +390,16 @@ namespace CoreLib
 						tokenLine = line;
 						tokenCol = col;
 					}
-                    else if (curChar == '\r' || curChar == '\n')
-                    {
-                        tokenFlags |= TokenFlag::AtStartOfLine | TokenFlag::AfterWhitespace;
-                        pos++;
-                    }
-					else if (curChar == ' ' || curChar == '\t' || curChar == -62 || curChar== -96) // -62/-96:non-break space
-                    {
-                        tokenFlags |= TokenFlag::AfterWhitespace;
+					else if (curChar == '\r' || curChar == '\n')
+					{
+						tokenFlags |= TokenFlag::AtStartOfLine | TokenFlag::AfterWhitespace;
 						pos++;
-                    }
+					}
+					else if (curChar == ' ' || curChar == '\t' || curChar == -62 || curChar == -96) // -62/-96:non-break space
+					{
+						tokenFlags |= TokenFlag::AfterWhitespace;
+						pos++;
+					}
 					else if (curChar == '/' && nextChar == '/')
 					{
 						state = State::SingleComment;
@@ -484,6 +493,12 @@ namespace CoreLib
 						}
 						pos++;
 					}
+					else if (curChar == 'x')
+					{
+						state = State::Hex;
+						tokenBuilder.Append(curChar);
+						pos++;
+					}
 					else
 					{
 						if (derivative == LexDerivative::Line)
@@ -497,6 +512,18 @@ namespace CoreLib
 						{
 							InsertToken(TokenType::IntLiterial);
 						}
+						state = State::Start;
+					}
+					break;
+				case State::Hex:
+					if (IsDigit(curChar) || (curChar >= 'a' && curChar <= 'f') || (curChar >= 'A' && curChar <= 'F'))
+					{
+						tokenBuilder.Append(curChar);
+						pos++;
+					}
+					else
+					{
+						InsertToken(TokenType::IntLiterial);
 						state = State::Start;
 					}
 					break;
@@ -705,18 +732,20 @@ namespace CoreLib
 		{
 			switch (type)
 			{
+			case TokenType::EndOfFile:
+				return "end of file";
 			case TokenType::Unknown:
 				return "UnknownToken";
 			case TokenType::Identifier:
-				return "Identifier";
+				return "identifier";
 			case TokenType::IntLiterial:
-				return "Int Literia";
+				return "integer literal";
 			case TokenType::DoubleLiterial:
-				return "Double Literia";
+				return "floating-point literal";
 			case TokenType::StringLiterial:
-				return "String Literia";
+				return "string literal";
 			case TokenType::CharLiterial:
-				return "CharLiteria";
+				return "character literal";
 			case TokenType::QuestionMark:
 				return "'?'";
 			case TokenType::Colon:
@@ -793,6 +822,10 @@ namespace CoreLib
 				return "'++'";
 			case TokenType::OpDec:
 				return "'--'";
+			case TokenType::Pound:
+				return "'#'";
+			case TokenType::PoundPound:
+				return "'##'";
 			default:
 				return "";
 			}

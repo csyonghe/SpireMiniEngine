@@ -17,7 +17,7 @@ namespace CoreLib
 		}
 		String operator+(const char * op1, const String & op2)
 		{
-			if(!op2.buffer)
+			if (!op2.buffer)
 				return String(op1);
 
 			return StringConcat(op1, (int)strlen(op1), op2.buffer.Ptr(), op2.length);
@@ -25,7 +25,7 @@ namespace CoreLib
 
 		String operator+(const String & op1, const char * op2)
 		{
-			if(!op1.buffer)
+			if (!op1.buffer)
 				return String(op2);
 
 			return StringConcat(op1.buffer.Ptr(), op1.length, op2, (int)strlen(op2));
@@ -33,11 +33,11 @@ namespace CoreLib
 
 		String operator+(const String & op1, const String & op2)
 		{
-			if(!op1.buffer && !op2.buffer)
+			if (!op1.buffer && !op2.buffer)
 				return String();
-			else if(!op1.buffer)
+			else if (!op1.buffer)
 				return String(op2);
-			else if(!op2.buffer)
+			else if (!op2.buffer)
 				return String(op1);
 
 			return StringConcat(op1.buffer.Ptr(), op1.length, op2.buffer.Ptr(), op2.length);
@@ -45,11 +45,17 @@ namespace CoreLib
 
 		int StringToInt(const String & str, int radix)
 		{
-			return (int)strtol(str.Buffer(), NULL, radix);
+			if (str.StartsWith("0x"))
+				return (int)strtoll(str.Buffer(), NULL, 16);
+			else
+				return (int)strtoll(str.Buffer(), NULL, radix);
 		}
 		unsigned int StringToUInt(const String & str, int radix)
 		{
-			return (unsigned int)strtoul(str.Buffer(), NULL, radix);
+			if (str.StartsWith("0x"))
+				return (unsigned int)strtoull(str.Buffer(), NULL, 16);
+			else
+				return (unsigned int)strtoull(str.Buffer(), NULL, radix);
 		}
 		double StringToDouble(const String & str)
 		{

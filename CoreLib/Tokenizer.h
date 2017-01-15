@@ -32,7 +32,7 @@ namespace CoreLib
 				ch == '!' || ch == '^' || ch == '&' || ch == '(' || ch == ')' ||
 				ch == '=' || ch == '{' || ch == '}' || ch == '[' || ch == ']' ||
 				ch == '|' || ch == ';' || ch == ',' || ch == '.' || ch == '<' ||
-                ch == '>' || ch == '~' || ch == '@' || ch == ':' || ch == '?' || ch == '#';
+				ch == '>' || ch == '~' || ch == '@' || ch == ':' || ch == '?' || ch == '#';
 		}
 
 		inline bool IsWhiteSpace(char ch)
@@ -74,7 +74,7 @@ namespace CoreLib
 
 		enum class TokenType
 		{
-            EndOfFile = -1,
+			EndOfFile = -1,
 			// illegal
 			Unknown,
 			// identifier
@@ -89,17 +89,17 @@ namespace CoreLib
 			OpInc, OpDec, OpAddAssign, OpSubAssign, OpMulAssign, OpDivAssign, OpModAssign,
 			OpShlAssign, OpShrAssign, OpOrAssign, OpAndAssign, OpXorAssign,
 
-			QuestionMark, Colon, RightArrow, At, Pound,
+			QuestionMark, Colon, RightArrow, At, Pound, PoundPound,
 		};
 
 		String TokenTypeToString(TokenType type);
 
-        enum TokenFlag : unsigned int
-        {
-            AtStartOfLine   = 1 << 0,
-            AfterWhitespace = 1 << 1,
-        };
-        typedef unsigned int TokenFlags;
+		enum TokenFlag : unsigned int
+		{
+			AtStartOfLine = 1 << 0,
+			AfterWhitespace = 1 << 1,
+		};
+		typedef unsigned int TokenFlags;
 
 		class Token
 		{
@@ -107,10 +107,10 @@ namespace CoreLib
 			TokenType Type = TokenType::Unknown;
 			String Content;
 			CodePosition Position;
-            TokenFlags flags = 0;
+			TokenFlags flags = 0;
 			Token() = default;
 			Token(TokenType type, const String & content, int line, int col, int pos, String fileName, TokenFlags flags = 0)
-                : flags(flags)
+				: flags(flags)
 			{
 				Type = type;
 				Content = content;
@@ -126,7 +126,7 @@ namespace CoreLib
 		List<Token> TokenizeText(const String & fileName, const String & text, Procedure<TokenizeErrorType, CodePosition> errorHandler);
 		List<Token> TokenizeText(const String & fileName, const String & text);
 		List<Token> TokenizeText(const String & text);
-		
+
 		String EscapeStringLiteral(String str);
 		String UnescapeStringLiteral(String str);
 
@@ -154,7 +154,7 @@ namespace CoreLib
 					else
 						return StringToInt(token.Content);
 				}
-				throw TextFormatException("Text parsing error: int expected at " + token.Position.ToString() + ".");
+				throw TextFormatException("Text parsing error: int expected.");
 			}
 			unsigned int ReadUInt()
 			{
@@ -163,7 +163,7 @@ namespace CoreLib
 				{
 					return StringToUInt(token.Content);
 				}
-				throw TextFormatException("Text parsing error: int expected at " + token.Position.ToString() + ".");
+				throw TextFormatException("Text parsing error: int expected.");
 			}
 			double ReadDouble()
 			{
@@ -181,7 +181,7 @@ namespace CoreLib
 					else
 						return StringToDouble(token.Content);
 				}
-				throw TextFormatException("Text parsing error: floating point value expected at " + token.Position.ToString() + ".");
+				throw TextFormatException("Text parsing error: floating point value expected.");
 			}
 			float ReadFloat()
 			{
@@ -194,7 +194,7 @@ namespace CoreLib
 				{
 					return token.Content;
 				}
-				throw TextFormatException("Text parsing error: identifier expected at " + token.Position.ToString() + ".");
+				throw TextFormatException("Text parsing error: identifier expected.");
 			}
 			String Read(const char * expectedStr)
 			{
@@ -203,7 +203,7 @@ namespace CoreLib
 				{
 					return token.Content;
 				}
-				throw TextFormatException("Text parsing error: \'" + String(expectedStr) + "\' expected at " + token.Position.ToString() + ".");
+				throw TextFormatException("Text parsing error: \'" + String(expectedStr) + "\' expected.");
 			}
 			String Read(String expectedStr)
 			{
@@ -212,9 +212,9 @@ namespace CoreLib
 				{
 					return token.Content;
 				}
-				throw TextFormatException("Text parsing error: \'" + expectedStr + "\' expected at " + token.Position.ToString() + ".");
+				throw TextFormatException("Text parsing error: \'" + expectedStr + "\' expected.");
 			}
-			
+
 			String ReadStringLiteral()
 			{
 				auto token = ReadToken();
@@ -222,7 +222,7 @@ namespace CoreLib
 				{
 					return token.Content;
 				}
-				throw TextFormatException("Text parsing error: string literal expected at " + token.Position.ToString() + ".");
+				throw TextFormatException("Text parsing error: string literal expected.");
 			}
 			void Back(int count)
 			{

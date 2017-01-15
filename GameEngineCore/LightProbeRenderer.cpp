@@ -75,6 +75,77 @@ namespace GameEngine
 				}
 			}
 		)";
+	const char * prefilterShader = R"(
+		module PrefilterParams
+		{
+			public param vec4 origin;
+			public param vec4 s;
+			public param vec4 t;
+			public param vec4 r;
+			public param float roughness;
+			public param TextureCube envMap;
+			public param SamplerState nearestSampler;
+		}
+
+		float radicalInverse_VdC(uint bits)
+		{
+			 bits = (bits << 16) | (bits >> 16);
+			 bits = ((bits & 0x55555555) << 1) | ((bits & 0xAAAAAAAA) >> 1);
+			 bits = ((bits & 0x33333333) << 2) | ((bits & 0xCCCCCCCC) >> 2);
+			 bits = ((bits & 0x0F0F0F0F) << 4) | ((bits & 0xF0F0F0F0) >> 4);
+			 bits = ((bits & 0x00FF00FF) << 8) | ((bits & 0xFF00FF00) >> 8);
+			 return float(bits) * 2.3283064365386963e-10; // / 0x100000000
+		 }
+
+		 vec2 hammersley(uint i, uint N)
+		 {
+			 return vec2(float(i)/float(N), radicalInverse_VdC(i));
+		 }
+
+		vec3 importanceSampleGGX(vec2 xi, float roughness, vec3 N)
+		{
+			float a = roughness * roughness;
+			float phi = 2 * 3.1415926f * xi.x;
+			float cosTheta = sqrt( (1-xi.y)/(1+(a*a-1)*xi.y));
+			float sinTheta = sqrt(1-cosTheta*cosTheta);
+			vec3 H = vec3(sinTheta * cos(phi), sinTheta*sin(phi), cosTheta);
+			vec3 upVector = abs(N.z) < 0.999 ? vec3(0,0,1) : vec3(1, 0 , 0);
+			vec3 tangentX = normalize(cross(upVector, N));
+			vec3 tangentY = cross(N, tangentX);
+			return tangentX * H.x + tangentY * H.y + N * H.z;
+		}
+
+		shader Prefilter
+		{
+			[Binding: "0"]
+			public using PrefilterParams;
+			@rootVert vec2 vert_pos;
+			@rootVert vec2 vert_uv;
+			public vec4 projCoord = vec4(vert_pos, 0.0, 1.0);
+			public out @fs vec3 color
+			{
+				vec3 coord = origin.xyz + s.xyz * vert_uv.x * 2.0 + t.xyz * vert_uv.y * 2.0;
+				vec3 N = coord;
+				vec3 V = coord;
+				vec3 prefilteredColor = vec3(0.0);
+				int numSamples = 1024;
+				float totalWeight = 0.0;
+				for (int i = 0; i < numSamples; i++)
+				{
+					vec2 xi = hammersley(uint(i), uint(numSamples));
+					vec3 h = importanceSampleGGX(xi, roughness, N);
+					vec3 L = h * (2.0*dot(V, h)) - V;
+					float NoL = clamp(dot(N,L), 0.0f, 1.0f);
+					if (NoL > 0)
+					{
+						prefilteredColor += envMap.Sample(nearestSampler, L).xyz * NoL;
+						totalWeight += NoL;
+					}            
+				}
+				return prefilteredColor / totalWeight;
+			}
+		}
+		)";
 	class ShaderSet
 	{
 	public:
@@ -96,12 +167,19 @@ namespace GameEngine
 		return set;
 	}
 
+	struct PrefilterUniform
+	{
+		Vec4 origin;
+		Vec4 s, t, r;
+		float roughness;
+	};
+
 	RefPtr<TextureCube> LightProbeRenderer::RenderLightProbe(Level * level, VectorMath::Vec3 position)
 	{
 		HardwareRenderer * hw = renderer->GetHardwareRenderer();
 		int resolution = viewRes->GetWidth();
-
-		RefPtr<TextureCube> rs = hw->CreateTextureCube(TextureUsage::SampledColorAttachment, resolution, Math::Log2Ceil(resolution), StorageFormat::RGBA_F16);
+		int numLevels = Math::Log2Ceil(resolution);
+		RefPtr<TextureCube> env0 = hw->CreateTextureCube(TextureUsage::SampledColorAttachment, resolution, numLevels, StorageFormat::RGBA_F16);
 		viewRes->Resize(resolution, resolution);
 		RenderStat stat;
 		FrameRenderTask task;
@@ -122,15 +200,17 @@ namespace GameEngine
 		quadVert.Attributes.Add(VertexAttributeDesc(DataType::Float2, 0, 0, 0));
 		quadVert.Attributes.Add(VertexAttributeDesc(DataType::Float2, 0, 8, 1));
 		pb->SetVertexLayout(quadVert);
-		RefPtr<DescriptorSetLayout> copyPassLayout = hw->CreateDescriptorSetLayout(MakeArray(DescriptorLayout(StageFlags::sfGraphics, 0, BindingType::Texture, 0),
-			DescriptorLayout(StageFlags::sfGraphics, 0, BindingType::Sampler, 1)).GetArrayView());
+		RefPtr<DescriptorSetLayout> copyPassLayout = hw->CreateDescriptorSetLayout(MakeArray(
+			DescriptorLayout(StageFlags::sfGraphics, 0, BindingType::Texture, 0),
+			DescriptorLayout(StageFlags::sfGraphics, 1, BindingType::Sampler, renderer->GetHardwareRenderer()->GetSpireTarget()==SPIRE_GLSL?0:1)).GetArrayView());
 		pb->SetBindingLayout(copyPassLayout.Ptr());
 		auto copyShaderSet = CompileShader(pb.Ptr(), hw, copyPixelShader);
 		RefPtr<RenderTargetLayout> copyRTLayout = hw->CreateRenderTargetLayout(MakeArrayView(AttachmentLayout(TextureUsage::ColorAttachment, StorageFormat::RGBA_F16)));
 		RefPtr<Pipeline> copyPipeline = pb->ToPipeline(copyRTLayout.Ptr());
 		RefPtr<DescriptorSet> copyDescSet = hw->CreateDescriptorSet(copyPassLayout.Ptr());
 		RefPtr<FrameBuffer> frameBuffers[6];
-		RefPtr<CommandBuffer> cmdBuffers[6];
+		List<RefPtr<CommandBuffer>> commandBuffers;
+
 		for (int f = 0; f < 6; f++)
 		{
 			Matrix4 viewMatrix;
@@ -190,11 +270,10 @@ namespace GameEngine
 			copyDescSet->Update(1, sharedRes->nearestSampler.Ptr());
 			copyDescSet->EndUpdate();
 			RenderAttachments attachments;
-			attachments.SetAttachment(0, rs.Ptr(), (TextureCubeFace)f, 0);
+			attachments.SetAttachment(0, env0.Ptr(), (TextureCubeFace)f, 0);
 			RefPtr<FrameBuffer> fb = copyRTLayout->CreateFrameBuffer(attachments);
 			frameBuffers[f] = fb;
-			cmdBuffers[f] = hw->CreateCommandBuffer();
-			auto cmdBuffer = cmdBuffers[f].Ptr();
+			auto cmdBuffer = hw->CreateCommandBuffer();
 			cmdBuffer->BeginRecording();
 			cmdBuffer->SetViewport(0, 0, resolution, resolution);
 			cmdBuffer->BindPipeline(copyPipeline.Ptr());
@@ -202,8 +281,96 @@ namespace GameEngine
 			cmdBuffer->BindVertexBuffer(sharedRes->fullScreenQuadVertBuffer.Ptr(), 0);
 			cmdBuffer->Draw(0, 4);
 			cmdBuffer->EndRecording();
+			commandBuffers.Add(cmdBuffer);
 			hw->ExecuteCommandBuffers(fb.Ptr(), MakeArrayView(cmdBuffer), nullptr);
 			hw->Wait();
+		}
+
+
+		// prefilter
+		RefPtr<PipelineBuilder> pb2 = hw->CreatePipelineBuilder();
+		pb2->FixedFunctionStates.PrimitiveTopology = PrimitiveType::TriangleFans;
+		pb2->SetVertexLayout(quadVert);
+		RefPtr<DescriptorSetLayout> prefilterPassLayout = hw->CreateDescriptorSetLayout(MakeArray(
+			DescriptorLayout(StageFlags::sfGraphics, 0, BindingType::UniformBuffer, 0),
+			DescriptorLayout(StageFlags::sfGraphics, 1, BindingType::Texture, renderer->GetHardwareRenderer()->GetSpireTarget() == SPIRE_GLSL ? 0 : 1),
+			DescriptorLayout(StageFlags::sfGraphics, 2, BindingType::Sampler, renderer->GetHardwareRenderer()->GetSpireTarget() == SPIRE_GLSL ? 0 : 2)).GetArrayView());
+		RefPtr<Buffer> uniformBuffer = hw->CreateMappedBuffer(BufferUsage::UniformBuffer, sizeof(PrefilterUniform));
+		pb2->SetBindingLayout(prefilterPassLayout.Ptr());
+		auto prefilterShaderSet = CompileShader(pb2.Ptr(), hw, prefilterShader);
+		RefPtr<RenderTargetLayout> prefilterRTLayout = hw->CreateRenderTargetLayout(MakeArrayView(AttachmentLayout(TextureUsage::ColorAttachment, StorageFormat::RGBA_F16)));
+		RefPtr<Pipeline> prefilterPipeline = pb2->ToPipeline(prefilterRTLayout.Ptr());
+		RefPtr<DescriptorSet> prefilterDescSet = hw->CreateDescriptorSet(prefilterPassLayout.Ptr());
+		prefilterDescSet->BeginUpdate();
+		prefilterDescSet->Update(0, uniformBuffer.Ptr());
+		prefilterDescSet->Update(1, env0.Ptr(), TextureAspect::Color);
+		prefilterDescSet->Update(2, sharedRes->nearestSampler.Ptr());
+		prefilterDescSet->EndUpdate();
+		RefPtr<TextureCube> rs = hw->CreateTextureCube(TextureUsage::SampledColorAttachment, resolution, numLevels, StorageFormat::RGBA_F16);
+		for (int f = 0; f < 6; f++)
+		{
+			PrefilterUniform params;
+			switch (f)
+			{
+			case 0:
+				params.origin = Vec4::Create(1.0f, 1.0f, 1.0f, 0.0f);
+				params.r = Vec4::Create(1.0f, 0.0f, 0.0f, 0.0f);
+				params.s = Vec4::Create(0.0f, 0.0f, -1.0f, 0.0f);
+				params.t = Vec4::Create(0.0f, -1.0f, 0.0f, 0.0f);
+				break;
+			case 1:
+				params.origin = Vec4::Create(-1.0f, 1.0f, -1.0f, 0.0f);
+				params.r = Vec4::Create(1.0f, 0.0f, 0.0f, 0.0f);
+				params.s = Vec4::Create(0.0f, 0.0f, 1.0f, 0.0f);
+				params.t = Vec4::Create(0.0f, -1.0f, 0.0f, 0.0f);
+				break;
+			case 2:
+				params.origin = Vec4::Create(-1.0f, 1.0f, -1.0f, 0.0f);
+				params.r = Vec4::Create(0.0f, 1.0f, 0.0f, 0.0f);
+				params.s = Vec4::Create(1.0f, 0.0f, 0.0f, 0.0f);
+				params.t = Vec4::Create(0.0f, 0.0f, 1.0f, 0.0f);
+				break;
+			case 3:
+				params.origin = Vec4::Create(-1.0f, -1.0f, 1.0f, 0.0f);
+				params.r = Vec4::Create(0.0f, -1.0f, 0.0f, 0.0f);
+				params.s = Vec4::Create(1.0f, 0.0f, 0.0f, 0.0f);
+				params.t = Vec4::Create(0.0f, 0.0f, -1.0f, 0.0f);
+				break;
+			case 4:
+				params.origin = Vec4::Create(-1.0f, 1.0f, 1.0f, 0.0f);
+				params.r = Vec4::Create(0.0f, 0.0f, 1.0f, 0.0f);
+				params.s = Vec4::Create(1.0f, 0.0f, 0.0f, 0.0f);
+				params.t = Vec4::Create(0.0f, -1.0f, 0.0f, 0.0f);
+				break;
+			case 5:
+				params.origin = Vec4::Create(1.0f, 1.0f, -1.0f, 0.0f);
+				params.r = Vec4::Create(0.0f, 0.0f, -1.0f, 0.0f);
+				params.s = Vec4::Create(-1.0f, 0.0f, 0.0f, 0.0f);
+				params.t = Vec4::Create(0.0f, -1.0f, 0.0f, 0.0f);
+				break;
+			}
+			for (int l = 0; l < numLevels; l++)
+			{
+				params.roughness = (l / (float)(numLevels - 1));
+				hw->BeginDataTransfer();
+				uniformBuffer->SetData(&params, sizeof(params));
+				hw->EndDataTransfer();
+
+				RenderAttachments attachments;
+				attachments.SetAttachment(0, rs.Ptr(), (TextureCubeFace)f, l);
+				RefPtr<FrameBuffer> fb = prefilterRTLayout->CreateFrameBuffer(attachments);
+				auto cmdBuffer = hw->CreateCommandBuffer();
+				cmdBuffer->BeginRecording();
+				cmdBuffer->SetViewport(0, 0, resolution >> l, resolution >> l);
+				cmdBuffer->BindPipeline(prefilterPipeline.Ptr());
+				cmdBuffer->BindDescriptorSet(0, prefilterDescSet.Ptr());
+				cmdBuffer->BindVertexBuffer(sharedRes->fullScreenQuadVertBuffer.Ptr(), 0);
+				cmdBuffer->Draw(0, 4);
+				cmdBuffer->EndRecording();
+				commandBuffers.Add(cmdBuffer);
+				hw->ExecuteCommandBuffers(fb.Ptr(), cmdBuffer, nullptr);
+				hw->Wait();
+			}
 		}
 		return rs;
 	}
