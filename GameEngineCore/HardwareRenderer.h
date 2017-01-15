@@ -576,6 +576,7 @@ namespace GameEngine
 			if (width == -1 && height == -1)
 			{
 				attachment->GetSize(width);
+				width >>= 1;
 				height = width;
 			}
 #if _DEBUG
@@ -584,6 +585,7 @@ namespace GameEngine
 				int thiswidth;
 				int thisheight;
 				attachment->GetSize(thiswidth);
+				thiswidth >>= 1;
 				thisheight = thiswidth;
 				if (thiswidth != width || thisheight != height)
 					throw HardwareRendererException("Attachment images must have the same dimensions.");
