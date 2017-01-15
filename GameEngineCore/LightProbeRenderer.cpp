@@ -274,7 +274,7 @@ namespace GameEngine
 			RefPtr<FrameBuffer> fb = copyRTLayout->CreateFrameBuffer(attachments);
 			frameBuffers[f] = fb;
 			auto cmdBuffer = hw->CreateCommandBuffer();
-			cmdBuffer->BeginRecording();
+			cmdBuffer->BeginRecording(fb.Ptr());
 			cmdBuffer->SetViewport(0, 0, resolution, resolution);
 			cmdBuffer->BindPipeline(copyPipeline.Ptr());
 			cmdBuffer->BindDescriptorSet(0, copyDescSet.Ptr());
@@ -360,7 +360,7 @@ namespace GameEngine
 				attachments.SetAttachment(0, rs.Ptr(), (TextureCubeFace)f, l);
 				RefPtr<FrameBuffer> fb = prefilterRTLayout->CreateFrameBuffer(attachments);
 				auto cmdBuffer = hw->CreateCommandBuffer();
-				cmdBuffer->BeginRecording();
+				cmdBuffer->BeginRecording(fb.Ptr());
 				cmdBuffer->SetViewport(0, 0, resolution >> l, resolution >> l);
 				cmdBuffer->BindPipeline(prefilterPipeline.Ptr());
 				cmdBuffer->BindDescriptorSet(0, prefilterDescSet.Ptr());
