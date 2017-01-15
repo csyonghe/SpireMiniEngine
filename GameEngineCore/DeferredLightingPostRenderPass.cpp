@@ -29,7 +29,7 @@ namespace GameEngine
 		}
 		virtual void SetupPipelineBindingLayout(PipelineBuilder * pipelineBuilder, List<AttachmentLayout> & renderTargets) override
 		{
-			renderTargets.Add(AttachmentLayout(TextureUsage::ColorAttachment, StorageFormat::RGBA_8));
+			renderTargets.Add(AttachmentLayout(TextureUsage::ColorAttachment, StorageFormat::RGBA_F16));
 			pipelineBuilder->SetDebugName("deferred_lighting");
 			deferredDescSet = hwRenderer->CreateDescriptorSet(descLayouts[0].Ptr());
 		}
