@@ -1947,8 +1947,13 @@ namespace VKO
 	class TextureCube : public VKO::Texture, public GameEngine::TextureCube
 	{
 	public:
-		TextureCube(TextureUsage usage, int size, int mipLevels, StorageFormat format)
-			: VKO::Texture(usage, size, size, 1, mipLevels, 6, 1, format, vk::ImageCreateFlagBits::eCubeCompatible) {};
+		TextureCube(TextureUsage usage, int psize, int mipLevels, StorageFormat format)
+			: VKO::Texture(usage, psize, psize, 1, mipLevels, 6, 1, format, vk::ImageCreateFlagBits::eCubeCompatible), size(psize) {};
+		int size = 0;
+		virtual void GetSize(int & psize) override
+		{
+			psize = size;
+		}
 	};
 
 	class Texture3D : public VKO::Texture, public GameEngine::Texture3D

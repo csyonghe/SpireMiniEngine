@@ -1941,8 +1941,13 @@ namespace VK
 	class TextureCube : public VK::Texture, public GameEngine::TextureCube
 	{
 	public:
-		TextureCube(TextureUsage usage, int size, int mipLevels, StorageFormat format)
-			: VK::Texture(usage, size, size, 1, mipLevels, 6, 1, format, vk::ImageCreateFlagBits::eCubeCompatible) {};
+		TextureCube(TextureUsage usage, int psize, int mipLevels, StorageFormat format)
+			: VK::Texture(usage, psize, psize, 1, mipLevels, 6, 1, format, vk::ImageCreateFlagBits::eCubeCompatible), size(psize) {};
+		int size = 0;
+		virtual void GetSize(int & psize) override
+		{
+			psize = size;
+		}
 	};
 
 	class Texture3D : public VK::Texture, public GameEngine::Texture3D
@@ -2723,6 +2728,37 @@ namespace VK
 					.setBaseMipLevel(0)
 					.setLevelCount(1)
 					.setBaseArrayLayer(attachment.layer)
+					.setLayerCount(1);
+
+				vk::ImageViewCreateInfo imageViewCreateInfo = vk::ImageViewCreateInfo()
+					.setFlags(vk::ImageViewCreateFlags())
+					.setImage(tex->image)
+					.setViewType(vk::ImageViewType::e2D)
+					.setFormat(TranslateStorageFormat(tex->format))
+					.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA))//
+					.setSubresourceRange(imageSubresourceRange);
+
+				result->attachmentImageViews.Add(RendererState::Device().createImageView(imageViewCreateInfo));
+			}
+			else if (attachment.handle.texCube)
+			{
+				auto tex = dynamic_cast<TextureCube*>(attachment.handle.texCube);
+
+				vk::ImageAspectFlags aspectFlags;
+				if (isDepthFormat(tex->format))
+				{
+					aspectFlags = vk::ImageAspectFlagBits::eDepth;
+					if (tex->format == StorageFormat::Depth24Stencil8)
+						aspectFlags |= vk::ImageAspectFlagBits::eStencil;
+				}
+				else
+					aspectFlags = vk::ImageAspectFlagBits::eColor;
+
+				vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
+					.setAspectMask(aspectFlags)
+					.setBaseMipLevel(attachment.layer)
+					.setLevelCount(1)
+					.setBaseArrayLayer((int)attachment.face)
 					.setLayerCount(1);
 
 				vk::ImageViewCreateInfo imageViewCreateInfo = vk::ImageViewCreateInfo()

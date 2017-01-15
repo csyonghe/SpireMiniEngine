@@ -111,6 +111,7 @@ namespace GameEngine
 	public:
 		void SetFixedOrderDrawContent(PipelineContext & pipelineManager, CoreLib::ArrayView<Drawable*> drawables);
 		void SetDrawContent(PipelineContext & pipelineManager, CoreLib::List<Drawable*> & reorderBuffer, CoreLib::ArrayView<Drawable*> drawables);
+		void Execute(HardwareRenderer * hwRenderer);
 	};
 
 	class RendererService;
@@ -158,7 +159,7 @@ namespace GameEngine
 		CoreLib::List<CoreLib::RefPtr<RenderOutput>> shadowMapRenderOutputs;
 		int AllocShadowMaps(int count);
 		void FreeShadowMaps(int id, int count);
-		void Init(HardwareRenderer * hwRenderer, RendererSharedResource * res);
+		void Init(HardwareRenderer * hwRenderer);
 		void Destroy();
 		void Reset();
 	};
@@ -201,6 +202,7 @@ namespace GameEngine
 		CoreLib::RefPtr<DrawableMesh> LoadDrawableMesh(Mesh * mesh);
         CoreLib::RefPtr<DrawableMesh> CreateDrawableMesh(Mesh * mesh);
 
+		CoreLib::RefPtr<TextureCube> envMap;
 		Texture2D* LoadTexture2D(const CoreLib::String & name, CoreLib::Graphics::TextureFile & data);
 		Texture2D* LoadTexture(const CoreLib::String & filename);
 	public:

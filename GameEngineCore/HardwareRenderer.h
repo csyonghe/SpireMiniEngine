@@ -126,11 +126,6 @@ namespace GameEngine
 		Depth24, Depth32, Depth24Stencil8
 	};
 
-	enum class CubemapFace
-	{
-		PosX, NegX, PosY, NegY, PosZ, NegZ
-	};
-
 	inline bool isDepthFormat(StorageFormat format)
 	{
 		switch (format)
@@ -445,6 +440,7 @@ namespace GameEngine
 	protected:
 		TextureCube() {};
 	public:
+		virtual void GetSize(int & size) = 0;
 	};
 
 	class TextureSampler : public CoreLib::RefObject
@@ -492,8 +488,10 @@ namespace GameEngine
 			{
 				GameEngine::Texture2D* tex2D = nullptr;
 				GameEngine::Texture2DArray* tex2DArray = nullptr;
+				GameEngine::TextureCube * texCube = nullptr;
 			} handle;
 			int layer = -1;
+			TextureCubeFace face = TextureCubeFace::NegativeX;
 			Attachment(GameEngine::Texture2D * tex)
 			{
 				handle.tex2D = tex;
@@ -503,6 +501,12 @@ namespace GameEngine
 			{
 				handle.tex2DArray = texArr;
 				layer = l;
+			}
+			Attachment(GameEngine::TextureCube* texCube, TextureCubeFace pface, int level)
+			{
+				handle.texCube = texCube;
+				face = pface;
+				layer = level;
 			}
 			Attachment() = default;
 		};
@@ -566,6 +570,28 @@ namespace GameEngine
 			Resize(binding + 1);
 
 			attachments[binding] = attachment;
+		}
+		void SetAttachment(int binding, GameEngine::TextureCube* attachment, TextureCubeFace face, int level)
+		{
+			if (width == -1 && height == -1)
+			{
+				attachment->GetSize(width);
+				height = width;
+			}
+#if _DEBUG
+			else
+			{
+				int thiswidth;
+				int thisheight;
+				attachment->GetSize(thiswidth);
+				thisheight = thiswidth;
+				if (thiswidth != width || thisheight != height)
+					throw HardwareRendererException("Attachment images must have the same dimensions.");
+			}
+#endif
+			Resize(binding + 1);
+
+			attachments[binding] = Attachment(attachment, face, level);
 		}
 	};
 

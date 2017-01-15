@@ -107,6 +107,7 @@ namespace GameEngine
 		SpireCompilationResult * compileResult;
 
 		shaderSrc = File::ReadAllText(actualFilename);
+		spSetShaderToCompile(spireCtx, "");
 		compileResult = spCompileShaderFromSource(spireCtx, shaderSrc.Buffer(), actualFilename.Buffer(), diagSink);
 
 		if (spDiagnosticSinkHasAnyErrors(diagSink))

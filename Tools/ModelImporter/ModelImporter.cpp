@@ -147,15 +147,16 @@ void Export(ExportArguments args)
 	auto outFileName = Path::ReplaceExt(fileName, "out");
 	printf("loading %S...\n", fileName.ToWString());
 	Assimp::Importer importer;
-	int process = aiProcess_CalcTangentSpace;
+	/*int process = aiProcess_CalcTangentSpace;
 	if (args.FlipUV)
 		process |= aiProcess_FlipUVs;
 	if (args.FlipWindingOrder)
-		process |= aiProcess_FlipWindingOrder;
+		process |= aiProcess_FlipWindingOrder;*/
+	int process = 0;
 	auto scene = importer.ReadFile(fileName.Buffer(), process);
 	if (scene)
 	{
-		importer.ApplyPostProcessing(aiProcess_JoinIdenticalVertices | aiProcess_OptimizeMeshes | aiProcess_ImproveCacheLocality | aiProcess_LimitBoneWeights);
+		//importer.ApplyPostProcessing(aiProcess_JoinIdenticalVertices | aiProcess_OptimizeMeshes | aiProcess_ImproveCacheLocality | aiProcess_LimitBoneWeights);
 		wprintf(L"input file contains %d meshes, %d animations.\n", scene->mNumMeshes, scene->mNumAnimations);
 		if ((args.ExportSkeleton || args.ExportMesh) && scene->mNumMeshes == 0)
 		{

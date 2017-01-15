@@ -551,6 +551,11 @@ namespace GLL
 			storageFormat = StorageFormat::RGBA_I8;
 			type = GL_UNSIGNED_BYTE;
 		}
+		~Texture()
+		{
+			if (Handle)
+				glDeleteTextures(1, &Handle);
+		}
 		bool operator == (const Texture &t) const
 		{
 			return Handle == t.Handle;
@@ -812,10 +817,13 @@ namespace GLL
 	class TextureCube : public Texture, public GameEngine::TextureCube
 	{
 	public:
-		TextureCube()
+		int size = 0;
+		TextureCube(int psize)
 		{
+			size = psize;
 			BindTarget = GL_TEXTURE_CUBE_MAP;
 		}
+	
 		StorageFormat GetFormat()
 		{
 			return storageFormat;
@@ -862,6 +870,11 @@ namespace GLL
 			glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 			glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 		}
+
+		virtual void GetSize(int & psize) override
+		{
+			psize = size;
+		}
 	};
 
 	class FrameBuffer : public GL_Object
@@ -876,10 +889,10 @@ namespace GLL
 		{
 			glNamedFramebufferTextureLayer(Handle, GL_COLOR_ATTACHMENT0 + attachmentPoint, texture.Handle, level, layer);
 		}
-		void SetColorRenderTarget(int attachmentPoint, const TextureCube &texture, TextureCubeFace face)
+		void SetColorRenderTarget(int attachmentPoint, const TextureCube &texture, TextureCubeFace face, int level)
 		{
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Handle);
-			glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attachmentPoint, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (int)face, texture.Handle, 0);
+			glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attachmentPoint, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (int)face, texture.Handle, level);
 		}
 		void SetColorRenderTarget(int attachmentPoint, const RenderBuffer &buffer)
 		{
@@ -986,8 +999,10 @@ namespace GLL
 			{
 				GLL::Texture2D* tex2D = nullptr;
 				GLL::Texture2DArray* tex2DArray = nullptr;
+				GLL::TextureCube* texCube = nullptr;
 			} handle;
 			int layer = -1;
+			TextureCubeFace face;
 			Attachment(GLL::Texture2D * tex)
 			{
 				handle.tex2D = tex;
@@ -997,6 +1012,12 @@ namespace GLL
 			{
 				handle.tex2DArray = texArr;
 				layer = l;
+			}
+			Attachment(GLL::TextureCube* texCube, TextureCubeFace pface, int l)
+			{
+				handle.texCube = texCube;
+				layer = l;
+				face = pface;
 			}
 			Attachment() = default;
 		};
@@ -1092,6 +1113,8 @@ namespace GLL
 					result->attachments.Add(FrameBufferDescriptor::Attachment(dynamic_cast<GLL::Texture2D*>(renderAttachment.handle.tex2D)));
 				else if (renderAttachment.handle.tex2DArray)
 					result->attachments.Add(FrameBufferDescriptor::Attachment(dynamic_cast<GLL::Texture2DArray*>(renderAttachment.handle.tex2DArray), renderAttachment.layer));
+				else if (renderAttachment.handle.texCube)
+					result->attachments.Add(FrameBufferDescriptor::Attachment(dynamic_cast<GLL::TextureCube*>(renderAttachment.handle.texCube), renderAttachment.face, renderAttachment.layer));
 			}
 
 			return result;
@@ -2181,6 +2204,8 @@ namespace GLL
 						isDepth = isDepthFormat(renderAttachment.handle.tex2D->storageFormat);
 					else if(renderAttachment.handle.tex2DArray)
 						isDepth = isDepthFormat(renderAttachment.handle.tex2DArray->storageFormat);
+					else if (renderAttachment.handle.texCube)
+						isDepth = isDepthFormat(renderAttachment.handle.texCube->storageFormat);
 					if (isDepth)
 					{
 						if (renderAttachment.handle.tex2D)
@@ -2194,6 +2219,8 @@ namespace GLL
 							srcFrameBuffer.SetColorRenderTarget(location, *renderAttachment.handle.tex2D);
 						else if (renderAttachment.handle.tex2DArray)
 							srcFrameBuffer.SetColorRenderTarget(location, *renderAttachment.handle.tex2DArray, renderAttachment.layer);
+						else if (renderAttachment.handle.texCube)
+							srcFrameBuffer.SetColorRenderTarget(location, *renderAttachment.handle.texCube, renderAttachment.face, renderAttachment.layer);
 						mask |= (1 << location);
 					}
 					location++;
@@ -3071,10 +3098,10 @@ namespace GLL
 			glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 			glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 			glTexParameterf(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8.0f);
-			glTextureStorage3D(handle, mipLevelCount, TranslateStorageFormat(format), size, size, 6);
+			glTexStorage2D(GL_TEXTURE_CUBE_MAP, mipLevelCount, TranslateStorageFormat(format), size, size);
 			glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 
-			auto rs = new TextureCube();
+			auto rs = new TextureCube(size);
 			rs->Handle = handle;
 			rs->storageFormat = format;
 			rs->BindTarget = GL_TEXTURE_CUBE_MAP;

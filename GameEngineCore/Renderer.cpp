@@ -7,7 +7,7 @@
 #include "CoreLib/Imaging/Bitmap.h"
 #include "CoreLib/Imaging/TextureData.h"
 #include "CoreLib/WinForm/Debug.h"
-
+#include "LightProbeRenderer.h"
 #include "Spire/Spire.h"
 #include "TextureCompressor.h"
 #include <fstream>
@@ -92,8 +92,6 @@ namespace GameEngine
 		RefPtr<IRenderProcedure> renderProcedure;
 		List<RefPtr<WorldRenderPass>> worldRenderPasses;
 		List<RefPtr<PostRenderPass>> postRenderPasses;
-		List<RenderPassInstance> renderPassInstances;
-		List<PostRenderPass*> postPassInstances;
 		HardwareRenderer * hardwareRenderer = nullptr;
 		Level* level = nullptr;
 		FrameRenderTask frameTask;
@@ -103,8 +101,6 @@ namespace GameEngine
 		void RunRenderProcedure()
 		{
 			if (!level) return;
-			renderPassInstances.Clear();
-			postPassInstances.Clear();
 			RenderProcedureParameters params;
 			params.renderStats = &sharedRes.renderStats;
 			params.level = level;
@@ -149,7 +145,6 @@ namespace GameEngine
 			mainView->Resize(1024, 1024);
 			renderProcedure = CreateStandardRenderProcedure();
 			renderProcedure->Init(this, mainView.Ptr());
-
 			hardwareRenderer->EndDataTransfer();
 		}
 		~RendererImpl()
@@ -192,12 +187,25 @@ namespace GameEngine
 			return hardwareRenderer;
 		}
 
+		RefPtr<ViewResource> cubemapRenderView;
+		RefPtr<IRenderProcedure> cubemapRenderProc;
+
 		virtual void InitializeLevel(Level* pLevel) override
 		{
 			if (!pLevel) return;
 
 			sceneRes->Clear();
 			level = pLevel;
+			hardwareRenderer->BeginDataTransfer();
+			cubemapRenderView = new ViewResource(hardwareRenderer);
+			cubemapRenderView->Resize(256, 256);
+			cubemapRenderProc = CreateStandardRenderProcedure();
+			cubemapRenderProc->Init(this, cubemapRenderView.Ptr());
+			hardwareRenderer->EndDataTransfer();
+
+			LightProbeRenderer lpRenderer(this, renderService.Ptr(), cubemapRenderProc.Ptr(), cubemapRenderView.Ptr());
+			sceneRes->envMap = lpRenderer.RenderLightProbe(level, Vec3::Create(0.0f, 1000.0f, 0.0f));
+
 			hardwareRenderer->BeginDataTransfer();
 			RunRenderProcedure();
 			hardwareRenderer->EndDataTransfer();
@@ -232,20 +240,19 @@ namespace GameEngine
 		{
 			if (!level) return;
 
+
+			LightProbeRenderer lpRenderer(this, renderService.Ptr(), cubemapRenderProc.Ptr(), cubemapRenderView.Ptr());
+			sceneRes->envMap = lpRenderer.RenderLightProbe(level, Vec3::Create(0.0f, 1000.0f, 0.0f));
+
 			sharedRes.renderStats.NumMaterials = 0;
 			sharedRes.renderStats.NumShaders = 0;
 			for (auto & pass : frameTask.renderPasses)
 			{
-				if (pass.postPass)
-					pass.postPass->Execute(pass.sharedModules);
-				else
-				{
-					hardwareRenderer->ExecuteCommandBuffers(pass.renderOutput->GetFrameBuffer(), MakeArrayView(pass.commandBuffer->GetBuffer()), nullptr);
-					sharedRes.renderStats.NumPasses++;
-					sharedRes.renderStats.NumDrawCalls += pass.numDrawCalls;
-					sharedRes.renderStats.NumMaterials += pass.numMaterials;
-					sharedRes.renderStats.NumShaders += pass.numShaders;
-				}
+				pass.Execute(hardwareRenderer);
+				sharedRes.renderStats.NumPasses++;
+				sharedRes.renderStats.NumDrawCalls += pass.numDrawCalls;
+				sharedRes.renderStats.NumMaterials += pass.numMaterials;
+				sharedRes.renderStats.NumShaders += pass.numShaders;
 			}
 		}
 		virtual RendererSharedResource * GetSharedResource() override

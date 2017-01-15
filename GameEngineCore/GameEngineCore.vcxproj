@@ -182,6 +182,7 @@
     <ClCompile Include="HardwareInputInterface.cpp" />
     <ClCompile Include="InputDispatcher.cpp" />
     <ClCompile Include="Level.cpp" />
+    <ClCompile Include="LightProbeRenderer.cpp" />
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="MeshBuilder.cpp" />
@@ -244,6 +245,7 @@
     <ClInclude Include="InputDispatcher.h" />
     <ClInclude Include="Level.h" />
     <ClInclude Include="LightActor.h" />
+    <ClInclude Include="LightProbeRenderer.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="MeshBuilder.h" />

@@ -3,6 +3,7 @@
 #include "Mesh.h"
 #include "Engine.h"
 #include "EngineLimits.h"
+#include "PostRenderPass.h"
 #include "TextureCompressor.h"
 #include "CoreLib/LibIO.h"
 #include "CoreLib/Graphics/TextureFile.h"
@@ -416,7 +417,7 @@ namespace GameEngine
 		return dataType;
 	}
 
-	void ShadowMapResource::Init(HardwareRenderer * hwRenderer, RendererSharedResource * res)
+	void ShadowMapResource::Init(HardwareRenderer * hwRenderer)
 	{
 		auto & graphicsSettings = Engine::Instance()->GetGraphicsSettings();
 
@@ -623,7 +624,7 @@ namespace GameEngine
 		shadowSampler->SetFilter(TextureFilter::Linear);
 		shadowSampler->SetDepthCompare(CompareFunc::LessEqual);
 
-		shadowMapResources.Init(hardwareRenderer.Ptr(), this);
+		shadowMapResources.Init(hardwareRenderer.Ptr());
 
 		spireContext = spCreateCompilationContext("");
 		LoadShaderLibrary();
@@ -791,6 +792,13 @@ namespace GameEngine
 			SetFixedOrderDrawContent(pipelineManager, reorderBuffer.GetArrayView());
 		}
 
+	}
+	void RenderPassInstance::Execute(HardwareRenderer * hwRenderer)
+	{
+		if (postPass)
+			postPass->Execute(sharedModules);
+		else
+			hwRenderer->ExecuteCommandBuffers(renderOutput->GetFrameBuffer(), MakeArrayView(commandBuffer->GetBuffer()), nullptr);
 	}
 	void FrameRenderTask::Clear()
 	{

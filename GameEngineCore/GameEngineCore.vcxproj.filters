@@ -134,6 +134,9 @@
     <ClCompile Include="ViewResource.cpp">
       <Filter>Renderer</Filter>
     </ClCompile>
+    <ClCompile Include="LightProbeRenderer.cpp">
+      <Filter>Renderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
@@ -266,6 +269,9 @@
       <Filter>Renderer</Filter>
     </ClInclude>
     <ClInclude Include="RendererService.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="LightProbeRenderer.h">
       <Filter>Renderer</Filter>
     </ClInclude>
   </ItemGroup>
