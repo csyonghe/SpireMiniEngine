@@ -16,11 +16,16 @@ namespace GameEngine
 	public:
 		virtual void AcquireRenderTargets() override
 		{
-			baseColorBuffer = viewRes->LoadSharedRenderTarget("baseColorBuffer", StorageFormat::RGBA_8);
+			baseColorBuffer = viewRes->LoadSharedRenderTarget(sources[0].Name, sources[0].Format);
+			pbrBuffer = viewRes->LoadSharedRenderTarget(sources[1].Name, sources[1].Format);
+			normalBuffer = viewRes->LoadSharedRenderTarget(sources[2].Name, sources[2].Format);
+			depthBuffer = viewRes->LoadSharedRenderTarget(sources[3].Name, sources[3].Format);
+			litColorBuffer = viewRes->LoadSharedRenderTarget(sources[4].Name, sources[4].Format);
+			/*baseColorBuffer = viewRes->LoadSharedRenderTarget("baseColorBuffer", StorageFormat::RGBA_8);
 			depthBuffer = viewRes->LoadSharedRenderTarget("depthBuffer", DepthBufferFormat);
 			pbrBuffer = viewRes->LoadSharedRenderTarget("pbrBuffer", StorageFormat::RGBA_8);
 			normalBuffer = viewRes->LoadSharedRenderTarget("normalBuffer", StorageFormat::RGB10_A2);
-			litColorBuffer = viewRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8);
+			litColorBuffer = viewRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_F16);*/
 		}
 		virtual void SetupPipelineBindingLayout(PipelineBuilder * pipelineBuilder, List<AttachmentLayout> & renderTargets) override
 		{

@@ -3410,7 +3410,7 @@ extern "C" {
 
 	extern VkBool32 vkelInit(void);
 	extern VkBool32 vkelInstanceInit(VkInstance instance);
-	extern VkBool32 vkelDeviceInit(VkPhysicalDevice physicalDevice, VkDevice device);
+	extern VkBool32 vkelDeviceInit(VkDevice device);
 
 	extern void vkelUninit(void);
 

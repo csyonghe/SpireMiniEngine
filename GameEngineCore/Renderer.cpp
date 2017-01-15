@@ -15,6 +15,7 @@
 #include "DeviceMemory.h"
 #include "WorldRenderPass.h"
 #include "PostRenderPass.h"
+#include "RenderProcedure.h"
 
 using namespace CoreLib;
 using namespace VectorMath;
@@ -31,8 +32,6 @@ namespace GameEngine
 		}
 		return ptr;
 	}
-	
-	IRenderProcedure * CreateStandardRenderProcedure();
 
 	class RendererImpl : public Renderer
 	{
@@ -144,7 +143,7 @@ namespace GameEngine
 			renderService = new RendererServiceImpl(this);
 			mainView = new ViewResource(hardwareRenderer);
 			mainView->Resize(1024, 1024);
-			renderProcedure = CreateStandardRenderProcedure();
+			renderProcedure = CreateStandardRenderProcedure(true);
 			renderProcedure->Init(this, mainView.Ptr());
 			hardwareRenderer->EndDataTransfer();
 		}
@@ -200,7 +199,7 @@ namespace GameEngine
 			hardwareRenderer->BeginDataTransfer();
 			cubemapRenderView = new ViewResource(hardwareRenderer);
 			cubemapRenderView->Resize(256, 256);
-			cubemapRenderProc = CreateStandardRenderProcedure();
+			cubemapRenderProc = CreateStandardRenderProcedure(false);
 			cubemapRenderProc->Init(this, cubemapRenderView.Ptr());
 			hardwareRenderer->EndDataTransfer();
 

@@ -3,9 +3,13 @@
 
 #include "RenderContext.h"
 #include "ViewResource.h"
+#include "RenderProcedure.h"
 
 namespace GameEngine
 {
+	class IRenderProcedure;
+	class Renderer;
+
 	class LightProbeRenderer : public CoreLib::RefObject
 	{
 	private:

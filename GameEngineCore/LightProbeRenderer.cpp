@@ -1,12 +1,12 @@
 #include "LightProbeRenderer.h"
 #include "Engine.h"
 
+
 namespace GameEngine
 {
 	using namespace CoreLib;
 
 	class Renderer;
-	IRenderProcedure * CreateStandardRenderProcedure();
 
 	LightProbeRenderer::LightProbeRenderer(Renderer * prenderer, RendererService * prenderService, IRenderProcedure * pRenderProc, ViewResource * pViewRes)
 	{
@@ -309,51 +309,51 @@ namespace GameEngine
 		RefPtr<TextureCube> rs = hw->CreateTextureCube(TextureUsage::SampledColorAttachment, resolution, numLevels, StorageFormat::RGBA_F16);
 		for (int f = 0; f < 6; f++)
 		{
-			PrefilterUniform params;
+			PrefilterUniform prefilterParams;
 			switch (f)
 			{
 			case 0:
-				params.origin = Vec4::Create(1.0f, 1.0f, 1.0f, 0.0f);
-				params.r = Vec4::Create(1.0f, 0.0f, 0.0f, 0.0f);
-				params.s = Vec4::Create(0.0f, 0.0f, -1.0f, 0.0f);
-				params.t = Vec4::Create(0.0f, -1.0f, 0.0f, 0.0f);
+				prefilterParams.origin = Vec4::Create(1.0f, 1.0f, 1.0f, 0.0f);
+				prefilterParams.r = Vec4::Create(1.0f, 0.0f, 0.0f, 0.0f);
+				prefilterParams.s = Vec4::Create(0.0f, 0.0f, -1.0f, 0.0f);
+				prefilterParams.t = Vec4::Create(0.0f, -1.0f, 0.0f, 0.0f);
 				break;
 			case 1:
-				params.origin = Vec4::Create(-1.0f, 1.0f, -1.0f, 0.0f);
-				params.r = Vec4::Create(1.0f, 0.0f, 0.0f, 0.0f);
-				params.s = Vec4::Create(0.0f, 0.0f, 1.0f, 0.0f);
-				params.t = Vec4::Create(0.0f, -1.0f, 0.0f, 0.0f);
+				prefilterParams.origin = Vec4::Create(-1.0f, 1.0f, -1.0f, 0.0f);
+				prefilterParams.r = Vec4::Create(1.0f, 0.0f, 0.0f, 0.0f);
+				prefilterParams.s = Vec4::Create(0.0f, 0.0f, 1.0f, 0.0f);
+				prefilterParams.t = Vec4::Create(0.0f, -1.0f, 0.0f, 0.0f);
 				break;
 			case 2:
-				params.origin = Vec4::Create(-1.0f, 1.0f, -1.0f, 0.0f);
-				params.r = Vec4::Create(0.0f, 1.0f, 0.0f, 0.0f);
-				params.s = Vec4::Create(1.0f, 0.0f, 0.0f, 0.0f);
-				params.t = Vec4::Create(0.0f, 0.0f, 1.0f, 0.0f);
+				prefilterParams.origin = Vec4::Create(-1.0f, 1.0f, -1.0f, 0.0f);
+				prefilterParams.r = Vec4::Create(0.0f, 1.0f, 0.0f, 0.0f);
+				prefilterParams.s = Vec4::Create(1.0f, 0.0f, 0.0f, 0.0f);
+				prefilterParams.t = Vec4::Create(0.0f, 0.0f, 1.0f, 0.0f);
 				break;
 			case 3:
-				params.origin = Vec4::Create(-1.0f, -1.0f, 1.0f, 0.0f);
-				params.r = Vec4::Create(0.0f, -1.0f, 0.0f, 0.0f);
-				params.s = Vec4::Create(1.0f, 0.0f, 0.0f, 0.0f);
-				params.t = Vec4::Create(0.0f, 0.0f, -1.0f, 0.0f);
+				prefilterParams.origin = Vec4::Create(-1.0f, -1.0f, 1.0f, 0.0f);
+				prefilterParams.r = Vec4::Create(0.0f, -1.0f, 0.0f, 0.0f);
+				prefilterParams.s = Vec4::Create(1.0f, 0.0f, 0.0f, 0.0f);
+				prefilterParams.t = Vec4::Create(0.0f, 0.0f, -1.0f, 0.0f);
 				break;
 			case 4:
-				params.origin = Vec4::Create(-1.0f, 1.0f, 1.0f, 0.0f);
-				params.r = Vec4::Create(0.0f, 0.0f, 1.0f, 0.0f);
-				params.s = Vec4::Create(1.0f, 0.0f, 0.0f, 0.0f);
-				params.t = Vec4::Create(0.0f, -1.0f, 0.0f, 0.0f);
+				prefilterParams.origin = Vec4::Create(-1.0f, 1.0f, 1.0f, 0.0f);
+				prefilterParams.r = Vec4::Create(0.0f, 0.0f, 1.0f, 0.0f);
+				prefilterParams.s = Vec4::Create(1.0f, 0.0f, 0.0f, 0.0f);
+				prefilterParams.t = Vec4::Create(0.0f, -1.0f, 0.0f, 0.0f);
 				break;
 			case 5:
-				params.origin = Vec4::Create(1.0f, 1.0f, -1.0f, 0.0f);
-				params.r = Vec4::Create(0.0f, 0.0f, -1.0f, 0.0f);
-				params.s = Vec4::Create(-1.0f, 0.0f, 0.0f, 0.0f);
-				params.t = Vec4::Create(0.0f, -1.0f, 0.0f, 0.0f);
+				prefilterParams.origin = Vec4::Create(1.0f, 1.0f, -1.0f, 0.0f);
+				prefilterParams.r = Vec4::Create(0.0f, 0.0f, -1.0f, 0.0f);
+				prefilterParams.s = Vec4::Create(-1.0f, 0.0f, 0.0f, 0.0f);
+				prefilterParams.t = Vec4::Create(0.0f, -1.0f, 0.0f, 0.0f);
 				break;
 			}
 			for (int l = 0; l < numLevels; l++)
 			{
-				params.roughness = (l / (float)(numLevels - 1));
+				prefilterParams.roughness = (l / (float)(numLevels - 1));
 				hw->BeginDataTransfer();
-				uniformBuffer->SetData(&params, sizeof(params));
+				uniformBuffer->SetData(&prefilterParams, sizeof(prefilterParams));
 				hw->EndDataTransfer();
 
 				RenderAttachments attachments;

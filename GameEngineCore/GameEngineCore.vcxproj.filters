@@ -65,22 +65,10 @@
     <ClCompile Include="RenderContext.cpp">
       <Filter>Renderer</Filter>
     </ClCompile>
-    <ClCompile Include="ForwardBaseRenderPass.cpp">
-      <Filter>Renderer</Filter>
-    </ClCompile>
-    <ClCompile Include="GBufferRenderPass.cpp">
-      <Filter>Renderer</Filter>
-    </ClCompile>
     <ClCompile Include="WorldRenderPass.cpp">
       <Filter>Renderer</Filter>
     </ClCompile>
     <ClCompile Include="GraphicsSettings.cpp" />
-    <ClCompile Include="PostRenderPass.cpp">
-      <Filter>Renderer</Filter>
-    </ClCompile>
-    <ClCompile Include="DeferredLightingPostRenderPass.cpp">
-      <Filter>Renderer</Filter>
-    </ClCompile>
     <ClCompile Include="SpireSource.cpp">
       <Filter>Spire</Filter>
     </ClCompile>
@@ -88,12 +76,6 @@
       <Filter>Renderer</Filter>
     </ClCompile>
     <ClCompile Include="StandardRenderProcedure.cpp">
-      <Filter>Renderer</Filter>
-    </ClCompile>
-    <ClCompile Include="ShadowRenderPass.cpp">
-      <Filter>Renderer</Filter>
-    </ClCompile>
-    <ClCompile Include="AtmospherePostRenderPass.cpp">
       <Filter>Renderer</Filter>
     </ClCompile>
     <ClCompile Include="AtmosphereActor.cpp">
@@ -135,6 +117,27 @@
       <Filter>Renderer</Filter>
     </ClCompile>
     <ClCompile Include="LightProbeRenderer.cpp">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="AtmospherePostRenderPass.cpp">
+      <Filter>Renderer\PostProcess</Filter>
+    </ClCompile>
+    <ClCompile Include="DeferredLightingPostRenderPass.cpp">
+      <Filter>Renderer\PostProcess</Filter>
+    </ClCompile>
+    <ClCompile Include="PostRenderPass.cpp">
+      <Filter>Renderer\PostProcess</Filter>
+    </ClCompile>
+    <ClCompile Include="ForwardBaseRenderPass.cpp">
+      <Filter>Renderer\WorldPasses</Filter>
+    </ClCompile>
+    <ClCompile Include="GBufferRenderPass.cpp">
+      <Filter>Renderer\WorldPasses</Filter>
+    </ClCompile>
+    <ClCompile Include="ShadowRenderPass.cpp">
+      <Filter>Renderer\WorldPasses</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderProcedure.cpp">
       <Filter>Renderer</Filter>
     </ClCompile>
   </ItemGroup>
@@ -210,9 +213,6 @@
       <Filter>Renderer</Filter>
     </ClInclude>
     <ClInclude Include="GraphicsSettings.h" />
-    <ClInclude Include="PostRenderPass.h">
-      <Filter>Renderer</Filter>
-    </ClInclude>
     <ClInclude Include="Spire\SpireAllSource.h">
       <Filter>Spire</Filter>
     </ClInclude>
@@ -274,6 +274,15 @@
     <ClInclude Include="LightProbeRenderer.h">
       <Filter>Renderer</Filter>
     </ClInclude>
+    <ClInclude Include="ToneMappingPostRenderPass.cpp">
+      <Filter>Renderer\PostProcess</Filter>
+    </ClInclude>
+    <ClInclude Include="PostRenderPass.h">
+      <Filter>Renderer\PostProcess</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderProcedure.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Spire">
@@ -299,6 +308,12 @@
     </Filter>
     <Filter Include="Renderer\RenderAPI\Vulkan API">
       <UniqueIdentifier>{f375156a-adb5-480f-a4fb-48b8eefc1bb7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Renderer\PostProcess">
+      <UniqueIdentifier>{22fb3ee2-66e4-40d0-a2cb-95d89972a04c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Renderer\WorldPasses">
+      <UniqueIdentifier>{c2fc1eaf-971a-4e07-b1d7-27f38f9412b7}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

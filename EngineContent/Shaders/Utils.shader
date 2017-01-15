@@ -364,6 +364,28 @@ module ParallaxOcclusionMapping
     }
 }
 
+ float PhongApprox(float Roughness, float RoL)
+{
+    float a = Roughness * Roughness;	
+    a = max(a, 0.008);					
+    float a2 = a * a;						
+    float rcp_a2 = 1.0/(a2);					
+    float c = 0.72134752 * rcp_a2 + 0.39674113;	
+    float p = rcp_a2 * exp2(c * RoL - c);	
+    // Total 7 instr
+    return min(p, rcp_a2);
+}
+vec3 EnvBRDFApprox( vec3 SpecularColor, float Roughness, float NoV )
+{
+    vec4 c0 = vec4(-1, -0.0275, -0.572, 0.022);
+    vec4 c1 = vec4(1, 0.0425, 1.04, -0.04);
+    vec4 r = Roughness * c0 + c1;
+    float a004 = min( r.x * r.x, exp2( -9.28 * NoV ) ) * r.x + r.y;
+    vec2 AB = vec2( -1.04, 1.04 ) * a004 + r.zw;
+    AB.y *= min(50.0 * SpecularColor.g, 1.0);
+    return SpecularColor * AB.x + AB.y;
+}
+
 module Lighting
 {
     public param vec3 lightDir;
@@ -374,9 +396,7 @@ module Lighting
     public param vec4[2] zPlanes;
     public param Texture2DArrayShadow shadowMapArray;
     public param SamplerComparisonState shadowMapSampler;
-    
     public param TextureCube envMap;
-    require SamplerState textureSampler;
 
     require vec3 normal;   
     require vec3 albedo;
@@ -387,6 +407,8 @@ module Lighting
     require float selfShadow(vec3 lightDir);
     require mat4 viewTransform;
     require bool isDoubleSided;
+    require SamplerState textureSampler;
+    
     vec3 lNormal
     {
 		vec3 result;
@@ -471,32 +493,21 @@ module Lighting
     
     float brightness = clamp(dot(lightDir, lNormal), 0.0, 1.0) * shadow;
 
-    float highlight_phongStandard
-    {
-        float alpha = roughness_in*roughness_in;
-        float p = 6.644/(alpha*alpha) - 6.644;
-        float pi = 3.14159;
-        return dotNL *exp2(p * dotNH - p) / (pi * (alpha*alpha)) * specular_in;
-    }
-    float highlight_GGXstandard
-    {
-        float D = LightingFuncGGX_D(dotNH,roughness_in);
-        vec2 FV_helper = LightingFuncGGX_FV(dotLH,roughness_in);
-        float FV = metallic_in*FV_helper.x + (1.0-metallic_in)*FV_helper.y;
-        float specular = dotNL * D * FV * specular_in;
-        return specular;
-    }
-    float highlight = highlight_GGXstandard;
     public vec3 result
     {
-       vec3 rs = (lightColor * 
-                         (albedo * (brightness + 0.4)*(1.0-metallic_in) + 
-                        mix(albedo, vec3(1.0), 1.0 - metallic_in) * (highlight * shadow)))*ao;
-        if (metallic_in == 1.0)
-        {
-            rs = envMap.SampleLevel(textureSampler, reflect(-view, lNormal), 6.0).xyz;            
-        }
-        return rs;
+        float dielectricSpecluar = 0.02 * specular_in;
+        vec3 diffuseColor = albedo - albedo * metallic_in;
+        vec3 specularColor = vec3(dielectricSpecluar - dielectricSpecluar * metallic_in) + albedo * metallic_in;
+        float NoV = max(dot(lNormal, view), 0.0);
+        specularColor = EnvBRDFApprox(specularColor, roughness_in, NoV);
+        vec3 R = reflect(-view, lNormal);
+        float RoL = max(0, dot(R, lightDir));
+        vec3 color = lightColor * dotNL * (diffuseColor + specularColor * PhongApprox(roughness_in, RoL)) * shadow;
+        vec3 specularIBL = specularColor * envMap.SampleLevel(textureSampler, R, 
+                            clamp(roughness_in, 0.0, 1.0) * 8.0).xyz;
+        color += specularIBL;
+        color *= ao;
+        return color;
     }
 }
 
@@ -517,7 +528,7 @@ interface IMaterialPattern
     vec3 normal = vec3(0.0, 0.0, 1.0);
     float roughness = 0.5;
     float metallic = 0.3;
-    float specular = 0.4;
+    float specular = 0.8;
     float opacity = 1.0;
     float ao = 1.0;
     bool isDoubleSided = false;

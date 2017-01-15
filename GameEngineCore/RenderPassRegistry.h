@@ -13,9 +13,10 @@ namespace GameEngine
 	DECLARE_WORLD_RENDER_PASS(ForwardBase);
 	DECLARE_WORLD_RENDER_PASS(GBuffer);
 	DECLARE_WORLD_RENDER_PASS(Shadow);
+	
 	DECLARE_POST_RENDER_PASS(DeferredLighting);
 	DECLARE_POST_RENDER_PASS(Atmosphere);
-
+	DECLARE_POST_RENDER_PASS(ToneMapping);
 
 }
 

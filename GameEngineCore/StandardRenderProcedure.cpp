@@ -6,6 +6,7 @@
 #include "DirectionalLightActor.h"
 #include "AtmosphereActor.h"
 #include "FrustumCulling.h"
+#include "RenderProcedure.h"
 
 namespace GameEngine
 {
@@ -48,12 +49,13 @@ namespace GameEngine
 		WorldRenderPass * gBufferRenderPass = nullptr;
 		PostRenderPass * atmospherePass = nullptr;
 		PostRenderPass * deferredLightingPass = nullptr;
+		PostRenderPass * toneMappingFromAtmospherePass = nullptr;
+		PostRenderPass * toneMappingFromLitColorPass = nullptr;
 
 		RenderOutput * forwardBaseOutput = nullptr;
 		RenderOutput * transparentAtmosphereOutput = nullptr;
-
 		RenderOutput * gBufferOutput = nullptr;
-		RenderOutput * deferredLightingOutput = nullptr;
+
 		StandardViewUniforms viewUniform;
 
 		RenderPassInstance forwardBaseInstance, transparentPassInstance;
@@ -73,26 +75,36 @@ namespace GameEngine
 	
 		AtmosphereParameters lastAtmosphereParams;
 		bool useAtmosphere = false;
-
+		bool toneMapping = false;
 	public:
+		StandardRenderProcedure(bool pToneMapping)
+		{
+			toneMapping = pToneMapping;
+		}
 		~StandardRenderProcedure()
 		{
 			if (forwardBaseOutput)
 				viewRes->DestroyRenderOutput(forwardBaseOutput);
 			if (gBufferOutput)
 				viewRes->DestroyRenderOutput(gBufferOutput);
-			if (deferredLightingOutput)
-				viewRes->DestroyRenderOutput(deferredLightingOutput);
 			if (transparentAtmosphereOutput)
 				viewRes->DestroyRenderOutput(transparentAtmosphereOutput);
 
 		}
 		virtual RenderTarget* GetOutput() override
 		{
-			if (useAtmosphere)
-				return viewRes->LoadSharedRenderTarget("litAtmosphereColor", StorageFormat::RGBA_8).Ptr();
+			if (toneMapping)
+			{
+				return viewRes->LoadSharedRenderTarget("toneColor", StorageFormat::RGBA_8).Ptr();
+			}
 			else
-				return viewRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8).Ptr();
+			{
+				if (useAtmosphere)
+					return viewRes->LoadSharedRenderTarget("litAtmosphereColor", StorageFormat::RGBA_F16).Ptr();
+				else
+					viewRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_F16).Ptr();
+			}
+			return nullptr;
 		}
 		virtual void UpdateSharedResourceBinding() override
 		{
@@ -122,6 +134,13 @@ namespace GameEngine
 				gBufferRenderPass = CreateGBufferRenderPass();
 				renderer->RegisterWorldRenderPass(gBufferRenderPass);
 				deferredLightingPass = CreateDeferredLightingPostRenderPass(viewRes);
+				deferredLightingPass->SetSource(MakeArray(
+					PostPassSource("baseColorBuffer", StorageFormat::RGBA_8),
+					PostPassSource("pbrBuffer", StorageFormat::RGBA_8),
+					PostPassSource("normalBuffer", StorageFormat::RGB10_A2),
+					PostPassSource("depthBuffer", DepthBufferFormat),
+					PostPassSource("litColor", StorageFormat::RGBA_F16)
+					).GetArrayView());
 				renderer->RegisterPostRenderPass(deferredLightingPass);
 				gBufferOutput = viewRes->CreateRenderOutput(
 					gBufferRenderPass->GetRenderTargetLayout(),
@@ -137,18 +156,40 @@ namespace GameEngine
 			renderer->RegisterWorldRenderPass(forwardRenderPass);
 			forwardBaseOutput = viewRes->CreateRenderOutput(
 				forwardRenderPass->GetRenderTargetLayout(),
-				viewRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8),
+				viewRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_F16),
 				viewRes->LoadSharedRenderTarget("depthBuffer", DepthBufferFormat)
 			);
 			transparentAtmosphereOutput = viewRes->CreateRenderOutput(
 				forwardRenderPass->GetRenderTargetLayout(),
-				viewRes->LoadSharedRenderTarget("litAtmosphereColor", StorageFormat::RGBA_8),
+				viewRes->LoadSharedRenderTarget("litAtmosphereColor", StorageFormat::RGBA_F16),
 				viewRes->LoadSharedRenderTarget("depthBuffer", DepthBufferFormat)
 			);
 			
 			atmospherePass = CreateAtmospherePostRenderPass(viewRes);
+			atmospherePass->SetSource(MakeArray(
+				PostPassSource("litColor", StorageFormat::RGBA_F16),
+				PostPassSource("depthBuffer", DepthBufferFormat),
+				PostPassSource("litAtmosphereColor", StorageFormat::RGBA_F16)
+			).GetArrayView());
 			renderer->RegisterPostRenderPass(atmospherePass);
 
+			toneMappingFromAtmospherePass = CreateToneMappingPostRenderPass(viewRes);
+			toneMappingFromAtmospherePass->SetSource(MakeArray(
+				PostPassSource("litAtmosphereColor", StorageFormat::RGBA_F16),
+				PostPassSource("toneColor", StorageFormat::RGBA_8)
+			).GetArrayView());
+			renderer->RegisterPostRenderPass(toneMappingFromAtmospherePass);
+
+			if (toneMapping)
+			{
+				toneMappingFromLitColorPass = CreateToneMappingPostRenderPass(viewRes);
+				toneMappingFromLitColorPass->SetSource(MakeArray(
+					PostPassSource("litColor", StorageFormat::RGBA_F16),
+					PostPassSource("depthBuffer", DepthBufferFormat),
+					PostPassSource("toneColor", StorageFormat::RGBA_8)
+				).GetArrayView());
+				renderer->RegisterPostRenderPass(toneMappingFromLitColorPass);
+			}
 			// initialize forwardBasePassModule and lightingModule
 			renderPassUniformMemory.Init(sharedRes->hardwareRenderer.Ptr(), BufferUsage::UniformBuffer, true, 22, sharedRes->hardwareRenderer->UniformBufferAlignment());
 			sharedRes->CreateModuleInstance(forwardBasePassParams, spFindModule(sharedRes->spireContext, "ForwardBasePassParams"), &renderPassUniformMemory);
@@ -420,11 +461,22 @@ namespace GameEngine
 				sharedRes->pipelineManager.PopModuleInstance();
 				task.renderPasses.Add(transparentPassInstance);
 			}
+			if (toneMapping)
+			{
+				if (useAtmosphere)
+				{
+					task.renderPasses.Add(toneMappingFromAtmospherePass->CreateInstance(sharedModules));
+				}
+				else
+				{
+					task.renderPasses.Add(toneMappingFromLitColorPass->CreateInstance(sharedModules));
+				}
+			}
 		}
 	};
 
-	IRenderProcedure * CreateStandardRenderProcedure()
+	IRenderProcedure * CreateStandardRenderProcedure(bool toneMapping)
 	{
-		return new StandardRenderProcedure();
+		return new StandardRenderProcedure(toneMapping);
 	}
 }

@@ -497,7 +497,7 @@ extern "C" {
 		return VK_TRUE;
 	}
 
-	VkBool32 vkelDeviceInit(VkPhysicalDevice physicalDevice, VkDevice device)
+	VkBool32 vkelDeviceInit(VkDevice device)
 	{
 		if (!vkelVkLibHandle && !vkelInit())
 			return VK_FALSE;

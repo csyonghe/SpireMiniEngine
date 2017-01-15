@@ -509,7 +509,7 @@ shader AtmospherePostPass targets StandardPipeline
             av.y = max(0.0, av.y);
             av = normalize(av);
             vec3 inscatter = atmosphere.skyRadiance(cameraPos*0.01 + atmosphere.earthPos, av, worldSunDir, extinction);
-            vec3 finalColor = hdr(sunColor * extinction + inscatter);
+            vec3 finalColor = inscatter;
             result = vec4(finalColor, 1.0);
         }
         else
@@ -518,7 +518,7 @@ shader AtmospherePostPass targets StandardPipeline
             vec3 extinction;
             vec3 inscatter = atmosphere.AtmosphericScatterSceneGeometry(cameraPos*0.01 +
                  atmosphere.earthPos, 0.1+t*atmosphericFogScale, v, z, worldSunDir, extinction);
-            inscatter = hdr(inscatter);
+            //inscatter = hdr(inscatter);
             vec3 finalColor = colorIn * extinction + inscatter;
             result = vec4(finalColor, 1.0);
         }

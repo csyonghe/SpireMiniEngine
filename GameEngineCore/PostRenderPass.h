@@ -21,10 +21,23 @@ namespace GameEngine
 		}
 	};
 
+	struct PostPassSource
+	{
+		const char * Name;
+		StorageFormat Format;
+		PostPassSource() = default;
+		PostPassSource(const char * name, StorageFormat format)
+		{
+			Name = name;
+			Format = format;
+		}
+	};
+
 	class PostRenderPass : public RenderPass
 	{
 	protected:
 		ViewResource * viewRes = nullptr;
+		CoreLib::List<PostPassSource> sources;
 	protected:
 		bool clearFrameBuffer = false;
 		CoreLib::RefPtr<RenderOutput> renderOutput;
@@ -36,9 +49,9 @@ namespace GameEngine
 		virtual void SetupPipelineBindingLayout(PipelineBuilder * pipelineBuilder, CoreLib::List<AttachmentLayout> & renderTargets) = 0;
 		virtual void UpdateDescriptorSetBinding(SharedModuleInstances sharedModules, DescriptorSetBindings & binding) = 0;
 		virtual void UpdateRenderAttachments(RenderAttachments & attachments) = 0;
+		virtual void AcquireRenderTargets() = 0;
 		virtual CoreLib::String GetShaderFileName() = 0;
 		virtual void Create() override;
-		virtual void AcquireRenderTargets() = 0;
 		void Resized();
 	public:
 		PostRenderPass(ViewResource * view);
@@ -46,6 +59,7 @@ namespace GameEngine
 		void Execute(SharedModuleInstances sharedModules);
 		RenderPassInstance CreateInstance(SharedModuleInstances sharedModules);
 		virtual void SetParameters(void * data, int count) = 0;
+		void SetSource(CoreLib::ArrayView<PostPassSource> sourceTextures);
 	};
 }
 

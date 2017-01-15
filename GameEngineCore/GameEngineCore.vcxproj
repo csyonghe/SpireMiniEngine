@@ -195,6 +195,7 @@
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="RenderPass.cpp" />
     <ClCompile Include="RenderPassRegistry.h" />
+    <ClCompile Include="RenderProcedure.cpp" />
     <ClCompile Include="ShaderCompiler.cpp" />
     <ClCompile Include="ShadowRenderPass.cpp" />
     <ClCompile Include="SkeletalMeshActor.cpp" />
@@ -259,6 +260,7 @@
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="RendererService.h" />
     <ClInclude Include="RenderPass.h" />
+    <ClInclude Include="RenderProcedure.h" />
     <ClInclude Include="ShaderCompiler.h" />
     <ClInclude Include="SkeletalMeshActor.h" />
     <ClInclude Include="Skeleton.h" />
@@ -270,6 +272,9 @@
     <ClInclude Include="TextureCompressor.h" />
     <ClInclude Include="TextureTool\LibSquish.h" />
     <ClInclude Include="TextureTool\stb_dxt.h" />
+    <ClCompile Include="ToneMappingPostRenderPass.cpp">
+      <FileType>CppCode</FileType>
+    </ClCompile>
     <ClInclude Include="UISystem_Windows.h" />
     <ClInclude Include="View.h" />
     <ClInclude Include="ViewResource.h" />

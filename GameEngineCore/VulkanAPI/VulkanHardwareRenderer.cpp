@@ -393,7 +393,7 @@ namespace VK
 			State().device = State().physicalDevice.createDevice(deviceInfo);
 
 			// Load device level function pointers
-			vkelDeviceInit((VkPhysicalDevice)(State().physicalDevice), (VkDevice)(State().device));
+			vkelDeviceInit((VkDevice)(State().device));
 
 			State().presentQueue = State().device.getQueue(renderQueueFamilyIndex, 0);
 			State().renderQueue = State().device.getQueue(renderQueueFamilyIndex, 1);

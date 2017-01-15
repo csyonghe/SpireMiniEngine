@@ -28,7 +28,7 @@ module SM_CouchPattern implements IMaterialPattern
     public float roughness = mix(mix(mix(0.2, mix(mix(0.659,2.01, specTex.x), 
                                 -0.154, wearFactor), mask.x), 0.0, mask.y), 0.0, aoTex.y);
     public float metallic = mix(0.5,0.1, specTex.x);
-    public float specular = 1.0;
+    public float specular = 0.5;
     public vec3 albedo
     {
 		float ao = aoTex.x * 0.5 + 0.5;

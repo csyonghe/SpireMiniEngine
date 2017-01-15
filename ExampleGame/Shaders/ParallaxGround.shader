@@ -37,7 +37,7 @@ module ParallaxGroundPattern implements IMaterialPattern
     public vec3 normal = normalize(normalMap.Sample(textureSampler, uv).xyz * 2.0 - 1.0);
     public float roughness = 0.5;
     public float metallic = 0.3;
-    public float specular = 1.0;
+    public float specular = 0.4;
     public float selfShadow(vec3 lightDir)
     {
         return pom.selfShadow(WorldSpaceToTangentSpace(lightDir));        

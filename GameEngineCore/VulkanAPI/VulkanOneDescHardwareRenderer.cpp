@@ -392,7 +392,7 @@ namespace VKO
 			State().device = State().physicalDevice.createDevice(deviceInfo);
 
 			// Load device level function pointers
-			vkelDeviceInit((VkPhysicalDevice)(State().physicalDevice), (VkDevice)(State().device));
+			vkelDeviceInit((VkDevice)(State().device));
 
 			State().renderQueue = State().device.getQueue(renderQueueFamilyIndex, 0);
 			State().transferQueue = State().device.getQueue(transferQueueFamilyIndex, renderQueuePriorities.Count() - 1);//TODO: Change the index if changing family

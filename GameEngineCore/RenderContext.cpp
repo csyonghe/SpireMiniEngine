@@ -800,10 +800,6 @@ namespace GameEngine
 		else
 			hwRenderer->ExecuteCommandBuffers(renderOutput->GetFrameBuffer(), MakeArrayView(commandBuffer->GetBuffer()), nullptr);
 	}
-	void FrameRenderTask::Clear()
-	{
-		renderPasses.Clear();
-	}
 }
 
 

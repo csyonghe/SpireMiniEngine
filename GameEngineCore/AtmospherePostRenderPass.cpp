@@ -81,9 +81,9 @@ namespace GameEngine
 		}
 		virtual void AcquireRenderTargets() override
 		{
-			colorBuffer = viewRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_8);
-			depthBuffer = viewRes->LoadSharedRenderTarget("depthBuffer", DepthBufferFormat);
-			colorOutBuffer = viewRes->LoadSharedRenderTarget("litAtmosphereColor", StorageFormat::RGBA_8);
+			colorBuffer = viewRes->LoadSharedRenderTarget(sources[0].Name, sources[0].Format);
+			depthBuffer = viewRes->LoadSharedRenderTarget(sources[1].Name, sources[1].Format);
+			colorOutBuffer = viewRes->LoadSharedRenderTarget(sources[2].Name, sources[2].Format);
 		}
 		virtual void SetupPipelineBindingLayout(PipelineBuilder * pipelineBuilder, List<AttachmentLayout> & renderTargets) override
 		{

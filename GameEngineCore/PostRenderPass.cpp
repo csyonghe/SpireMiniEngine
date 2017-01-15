@@ -52,7 +52,6 @@ namespace GameEngine
 		pipeline = pipelineBuilder->ToPipeline(renderTargetLayout.Ptr());
 		
 		commandBuffer = new AsyncCommandBuffer(hwRenderer);
-		AcquireRenderTargets();
 	}
 
 	PostRenderPass::PostRenderPass(ViewResource * view)
@@ -91,6 +90,13 @@ namespace GameEngine
 		rs.postPass = this;
 		rs.sharedModules = sharedModules;
 		return rs;
+	}
+
+	void PostRenderPass::SetSource(ArrayView<PostPassSource> sourceTextures)
+	{
+		sources.Clear();
+		sources.AddRange(sourceTextures);
+		AcquireRenderTargets();
 	}
 
 	void PostRenderPass::Resized()
