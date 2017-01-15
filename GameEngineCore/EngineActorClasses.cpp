@@ -8,6 +8,7 @@
 #include "DirectionalLightActor.h"
 #include "AtmosphereActor.h"
 #include "TerrainActor.h"
+#include "ToneMappingActor.h"
 
 namespace GameEngine
 {
@@ -23,5 +24,7 @@ namespace GameEngine
 		REGISTER_ACTOR_CLASS(DirectionalLight);
 		REGISTER_ACTOR_CLASS(Atmosphere);
 		REGISTER_ACTOR_CLASS(Terrain);
+		REGISTER_ACTOR_CLASS(ToneMapping);
+
 	}
 }

@@ -1,5 +1,6 @@
 module ToneMappingPassParams
 {
+    public param vec4 hdrExposure;
     public param Texture2D litColor;
     public param SamplerState nearestSampler;
 }
@@ -13,13 +14,12 @@ shader ToneMappingPostPass targets StandardPipeline
     
     vec3 hdr(vec3 L)
     {
-        float hdrExposure = 0.6;
-        L = L * hdrExposure;
+        L = L * hdrExposure.x;
         L.r = L.r < 1.413 ? pow(L.r * 0.38317, 1.0 / 2.2) : 1.0 - exp(-L.r);
         L.g = L.g < 1.413 ? pow(L.g * 0.38317, 1.0 / 2.2) : 1.0 - exp(-L.g);
         L.b = L.b < 1.413 ? pow(L.b * 0.38317, 1.0 / 2.2) : 1.0 - exp(-L.b);
         return L;
-        //return L / (L + 0.187) * 1.0535;
+        //return L / (L + 0.427) * 1.0535;
     }
     
     public vec4 projCoord = vec4(vertPos.xy, 0.0, 1.0);

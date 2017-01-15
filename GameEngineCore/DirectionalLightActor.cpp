@@ -36,6 +36,12 @@ namespace GameEngine
 			TransitionFactor = (float)parser.ReadDouble();
 			return true;
 		}
+		if (parser.LookAhead("Ambient"))
+		{
+			parser.ReadToken();
+			Ambient = (float)parser.ReadDouble();
+			return true;
+		}
 		if (parser.LookAhead("Color"))
 		{
 			parser.ReadToken();

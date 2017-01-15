@@ -5,6 +5,7 @@
 #include "RenderPassRegistry.h"
 #include "DirectionalLightActor.h"
 #include "AtmosphereActor.h"
+#include "ToneMappingActor.h"
 #include "FrustumCulling.h"
 #include "RenderProcedure.h"
 
@@ -22,9 +23,10 @@ namespace GameEngine
 	{
 	public:
 		VectorMath::Vec3 lightDir; float pad0 = 0.0f;
-		VectorMath::Vec3 lightColor; float pad1 = 0.0f;
-		int numCascades = 0;
+		VectorMath::Vec3 lightColor; 
+		float ambient = 0.2f;
 		int shadowMapId = -1;
+		int numCascades = 0;
 		int padding2 = 0, pad3 = 0;
 		VectorMath::Matrix4 lightMatrix[MaxShadowCascades];
 		float zPlanes[MaxShadowCascades];
@@ -74,6 +76,8 @@ namespace GameEngine
 		List<Drawable*> reorderBuffer, drawableBuffer;
 	
 		AtmosphereParameters lastAtmosphereParams;
+		ToneMappingParameters lastToneMappingParams;
+
 		bool useAtmosphere = false;
 		bool toneMapping = false;
 	public:
@@ -185,7 +189,6 @@ namespace GameEngine
 				toneMappingFromLitColorPass = CreateToneMappingPostRenderPass(viewRes);
 				toneMappingFromLitColorPass->SetSource(MakeArray(
 					PostPassSource("litColor", StorageFormat::RGBA_F16),
-					PostPassSource("depthBuffer", DepthBufferFormat),
 					PostPassSource("toneColor", StorageFormat::RGBA_8)
 				).GetArrayView());
 				renderer->RegisterPostRenderPass(toneMappingFromLitColorPass);
@@ -282,6 +285,16 @@ namespace GameEngine
 						lastAtmosphereParams = atmosphere->Parameters;
 					}
 				}
+				else if (toneMapping && actorType == EngineActorType::ToneMapping)
+				{
+					auto toneMappingActor = dynamic_cast<ToneMappingActor*>(actor.Value.Ptr());
+					if (!(lastToneMappingParams == toneMappingActor->Parameters))
+					{
+						toneMappingFromAtmospherePass->SetParameters(&toneMappingActor->Parameters, sizeof(toneMappingActor->Parameters));
+						toneMappingFromLitColorPass->SetParameters(&toneMappingActor->Parameters, sizeof(toneMappingActor->Parameters));
+						lastToneMappingParams = toneMappingActor->Parameters;
+					}
+				}
 			}
 
 			float aspect = w / (float)h;
@@ -295,6 +308,7 @@ namespace GameEngine
 				LightUniforms lightData;
 				lightData.lightColor = dirLight->Color;
 				lightData.lightDir = dirLight->Direction;
+				lightData.ambient = dirLight->Ambient;
 				lightData.numCascades = dirLight->EnableCascadedShadows ? dirLight->NumShadowCascades : 0;
 				float zmax = dirLight->ShadowDistance;
 				if (dirLight->EnableCascadedShadows && dirLight->NumShadowCascades > 0 && dirLight->NumShadowCascades <= MaxShadowCascades)

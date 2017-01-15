@@ -207,6 +207,7 @@
     <ClCompile Include="TerrainActor.cpp" />
     <ClCompile Include="TextureCompressor.cpp" />
     <ClCompile Include="TextureTool\LibSquish.cpp" />
+    <ClCompile Include="ToneMappingActor.cpp" />
     <ClCompile Include="UISystem_Windows.cpp" />
     <ClCompile Include="ViewResource.cpp" />
     <ClCompile Include="VulkanAPI\vkel.c" />
@@ -275,6 +276,8 @@
     <ClCompile Include="ToneMappingPostRenderPass.cpp">
       <FileType>CppCode</FileType>
     </ClCompile>
+    <ClInclude Include="ToneMapping.h" />
+    <ClInclude Include="ToneMappingActor.h" />
     <ClInclude Include="UISystem_Windows.h" />
     <ClInclude Include="View.h" />
     <ClInclude Include="ViewResource.h" />

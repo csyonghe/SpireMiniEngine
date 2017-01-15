@@ -14,6 +14,7 @@ namespace GameEngine
 		float TransitionFactor = 0.8f;
 		VectorMath::Vec3 Direction = Vec3::Create(0.0f, 1.0f, 0.0f);
 		VectorMath::Vec3 Color = Vec3::Create(1.0f, 1.0f, 1.0f);
+		float Ambient = 0.2f;
 		virtual CoreLib::String GetTypeName() override
 		{
 			return "DirectionalLight";

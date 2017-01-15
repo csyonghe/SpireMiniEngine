@@ -390,6 +390,7 @@ module Lighting
 {
     public param vec3 lightDir;
     public param vec3 lightColor;
+    public param float ambient;
     public param int shadowMapId;
     public param int numCascades;
     public param mat4[8] lightMatrix;
@@ -408,7 +409,7 @@ module Lighting
     require mat4 viewTransform;
     require bool isDoubleSided;
     require SamplerState textureSampler;
-    
+
     vec3 lNormal
     {
 		vec3 result;
@@ -505,7 +506,9 @@ module Lighting
         vec3 color = lightColor * dotNL * (diffuseColor + specularColor * PhongApprox(roughness_in, RoL)) * shadow;
         vec3 specularIBL = specularColor * envMap.SampleLevel(textureSampler, R, 
                             clamp(roughness_in, 0.0, 1.0) * 8.0).xyz;
-        color += specularIBL;
+        vec3 diffuseIBL = diffuseColor * envMap.SampleLevel(textureSampler, lNormal, 
+                            8.0).xyz * ambient;
+        color += specularIBL + diffuseIBL;
         color *= ao;
         return color;
     }

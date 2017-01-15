@@ -140,6 +140,9 @@
     <ClCompile Include="RenderProcedure.cpp">
       <Filter>Renderer</Filter>
     </ClCompile>
+    <ClCompile Include="ToneMappingActor.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
@@ -222,9 +225,6 @@
     <ClInclude Include="LightActor.h">
       <Filter>Actors</Filter>
     </ClInclude>
-    <ClInclude Include="Atmosphere.h">
-      <Filter>Renderer</Filter>
-    </ClInclude>
     <ClInclude Include="AtmosphereActor.h">
       <Filter>Actors</Filter>
     </ClInclude>
@@ -282,6 +282,15 @@
     </ClInclude>
     <ClInclude Include="RenderProcedure.h">
       <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="ToneMappingActor.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="Atmosphere.h">
+      <Filter>Renderer\PostProcess</Filter>
+    </ClInclude>
+    <ClInclude Include="ToneMapping.h">
+      <Filter>Renderer\PostProcess</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
