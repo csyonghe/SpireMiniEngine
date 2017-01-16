@@ -50,6 +50,7 @@ namespace GameEngine
 		CoreLib::String Name;
 		CoreLib::Graphics::BBox Bounds;
 		CoreLib::List<CoreLib::RefPtr<Actor>> SubComponents;
+		bool CastShadow = true;
 		virtual void Tick() { }
 		virtual EngineActorType GetEngineType() = 0;
 		virtual void OnLoad() {};

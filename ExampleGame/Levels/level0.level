@@ -43,6 +43,7 @@ StaticMesh
 {
     name "sphere"
     mesh "sphere.mesh"
+    CastShadow false
     material
     {
         shader "Reflective.shader"        
@@ -50,7 +51,7 @@ StaticMesh
     transform [1.0 0.0 0.0 0.0
                0.0 1.0 0.0 0.0
                0.0 0.0 1.0 0.0
-               10.0 100.0 -50.0 1.0] 
+               10.0 100.0 -500.0 1.0] 
 }
 
 StaticMesh

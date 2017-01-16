@@ -75,6 +75,7 @@ namespace GameEngine
 	{
 		if (!drawable)
 			drawable = params.rendererService->CreateStaticDrawable(Mesh, MaterialInstance);
+		drawable->CastShadow = CastShadow;
 		if (localTransformChanged)
 		{
 			drawable->UpdateTransformUniform(localTransform);

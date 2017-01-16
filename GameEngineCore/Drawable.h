@@ -56,6 +56,7 @@ namespace GameEngine
 		SceneResource * scene = nullptr;
 	public:
 		CoreLib::Graphics::BBox Bounds;
+		bool CastShadow = true;
 		unsigned int ReorderKey = 0;
 		Drawable(SceneResource * sceneRes);
 		~Drawable();

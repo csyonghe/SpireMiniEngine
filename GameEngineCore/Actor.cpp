@@ -122,6 +122,12 @@ namespace GameEngine
 			SubComponents.Add(Engine::Instance()->ParseActor(level, parser));
 			return true;
 		}
+		else if (parser.LookAhead("CastShadow"))
+		{
+			parser.ReadToken();
+			CastShadow = ParseBool(parser);
+			return true;
+		}
 		return false;
 	}
 	void Actor::SerializeFields(CoreLib::StringBuilder & sb)
