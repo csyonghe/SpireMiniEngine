@@ -64,7 +64,7 @@ namespace GameEngine
 		CoreLib::RefPtr<RenderTargetLayout> uiFrameBufferLayout;
 		CoreLib::RefPtr<GraphicsUI::UIEntry> uiEntry;
 
-		CoreLib::Array<RenderStat, 8> renderStats;
+		CoreLib::Array<RenderStat, 16> renderStats;
 		GraphicsUI::CommandForm * uiCommandForm = nullptr;
 		DrawCallStatForm * drawCallStatForm = nullptr;
 		CoreLib::RefPtr<GraphicsUI::UIWindowsSystemInterface> uiSystemInterface;

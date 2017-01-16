@@ -504,6 +504,16 @@ namespace GameEngine
 			return val + alignment - r;
 	}
 
+	SpireShader * RendererSharedResource::LoadSpireShader(const char * key, const char * source)
+	{
+		SpireShader * rs = nullptr;
+		if (entryPointShaders.TryGetValue(key, rs))
+			return rs;
+		rs = spCreateShaderFromSource(spireContext, source);
+		entryPointShaders[key] = rs;
+		return rs;
+	}
+
 	void RendererSharedResource::CreateModuleInstance(ModuleInstance & rs, SpireModule * shaderModule, DeviceMemory * uniformMemory, int uniformBufferSize)
 	{
 		rs.Init(spireContext, shaderModule);

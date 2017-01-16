@@ -227,27 +227,24 @@ namespace GameEngine
 
 		renderer->GetHardwareRenderer()->Present(uiSystemInterface->GetRenderedImage());
 
-		if (aggregateTime > 0.5f)
+		if (aggregateTime > 1.0f)
 		{
 			drawCallStatForm->SetNumShaders(stats.NumShaders);
 			drawCallStatForm->SetNumMaterials(stats.NumMaterials);
 		}
 
-		if (stats.Divisor >= 400)
+		if (stats.Divisor >= 500)
 		{
-			if (aggregateTime > 1.0f)
-			{
-				drawCallStatForm->SetFrameRenderTime(aggregateTime / stats.Divisor);
-				drawCallStatForm->SetNumDrawCalls(stats.NumDrawCalls / stats.Divisor);
-				drawCallStatForm->SetNumWorldPasses(stats.NumPasses / stats.Divisor);
-				drawCallStatForm->SetCpuTime(stats.CpuTime / stats.Divisor, stats.PipelineLookupTime / stats.Divisor);
-				static int ptr = 0;
-				stats.TotalTime = CoreLib::Diagnostics::PerformanceCounter::EndSeconds(stats.StartTime);
-				renderStats[ptr%renderStats.Count()] = stats;
-				ptr++;
-				stats.Clear();
-				aggregateTime = 0.0f;
-			}
+			drawCallStatForm->SetFrameRenderTime(aggregateTime / stats.Divisor);
+			drawCallStatForm->SetNumDrawCalls(stats.NumDrawCalls / stats.Divisor);
+			drawCallStatForm->SetNumWorldPasses(stats.NumPasses / stats.Divisor);
+			drawCallStatForm->SetCpuTime(stats.CpuTime / stats.Divisor, stats.PipelineLookupTime / stats.Divisor);
+			static int ptr = 0;
+			stats.TotalTime = CoreLib::Diagnostics::PerformanceCounter::EndSeconds(stats.StartTime);
+			renderStats[ptr%renderStats.Count()] = stats;
+			ptr++;
+			stats.Clear();
+			aggregateTime = 0.0f;
 		}
 		frameCounter++;
 	}

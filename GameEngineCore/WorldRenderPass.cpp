@@ -40,7 +40,7 @@ namespace GameEngine
 	void WorldRenderPass::Create()
 	{
 		renderTargetLayout = CreateRenderTargetLayout();
-		shader = spCreateShaderFromSource(sharedRes->spireContext, GetShaderSource());
+		shader = sharedRes->LoadSpireShader(GetName(), GetShaderSource());
 		SetPipelineStates(fixedFunctionStates);
 	}
 	WorldRenderPass::~WorldRenderPass()

@@ -143,6 +143,7 @@ namespace GameEngine
 	private:
 		RenderAPI api;
 		void LoadShaderLibrary();
+		CoreLib::Dictionary<CoreLib::String, SpireShader*> entryPointShaders;
 	public:
 		RenderStat renderStats;
 		CoreLib::RefPtr<HardwareRenderer> hardwareRenderer;
@@ -150,6 +151,7 @@ namespace GameEngine
 		CoreLib::EnumerableDictionary<SpireModuleStruct*, CoreLib::RefPtr<DescriptorSetLayout>> descLayouts;
 		SpireCompilationContext * spireContext = nullptr;
 		ShadowMapResource shadowMapResources;
+		SpireShader * LoadSpireShader(const char * key, const char * source);
 		void CreateModuleInstance(ModuleInstance & mInst, SpireModule * shaderModule, DeviceMemory * uniformMemory, int uniformBufferSize = 0);
 	public:
 		CoreLib::RefPtr<TextureCube> envMap;
