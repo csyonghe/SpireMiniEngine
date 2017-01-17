@@ -45,8 +45,6 @@ namespace GameEngine
 	}
 	WorldRenderPass::~WorldRenderPass()
 	{
-		if (shader)
-			spDestroyShader(shader);
 	}
 }
 

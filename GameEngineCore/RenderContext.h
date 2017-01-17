@@ -143,7 +143,7 @@ namespace GameEngine
 	private:
 		RenderAPI api;
 		void LoadShaderLibrary();
-		CoreLib::Dictionary<CoreLib::String, SpireShader*> entryPointShaders;
+		CoreLib::EnumerableDictionary<CoreLib::String, SpireShader*> entryPointShaders;
 	public:
 		RenderStat renderStats;
 		CoreLib::RefPtr<HardwareRenderer> hardwareRenderer;
