@@ -17,15 +17,18 @@ namespace CoreLib
 		}
 		String operator+(const char * op1, const String & op2)
 		{
-			if (!op2.buffer)
+			if(!op2.buffer)		// no string 2 - return first
 				return String(op1);
+
+            if (!op1)			// no base string?!  return the second string
+                return op2;
 
 			return StringConcat(op1, (int)strlen(op1), op2.buffer.Ptr(), op2.length);
 		}
 
 		String operator+(const String & op1, const char * op2)
 		{
-			if (!op1.buffer)
+			if(!op1.buffer)
 				return String(op2);
 
 			return StringConcat(op1.buffer.Ptr(), op1.length, op2, (int)strlen(op2));
@@ -33,11 +36,11 @@ namespace CoreLib
 
 		String operator+(const String & op1, const String & op2)
 		{
-			if (!op1.buffer && !op2.buffer)
+			if(!op1.buffer && !op2.buffer)
 				return String();
-			else if (!op1.buffer)
+			else if(!op1.buffer)
 				return String(op2);
-			else if (!op2.buffer)
+			else if(!op2.buffer)
 				return String(op1);
 
 			return StringConcat(op1.buffer.Ptr(), op1.length, op2.buffer.Ptr(), op2.length);
