@@ -5,14 +5,14 @@ namespace GameEngine
 	class SSAOImpl
 	{
 	public:
-		void Init(RendererSharedResource * sharedRes, const char * depthSource)
+		void Init(RendererSharedResource * /*sharedRes*/, const char * /*depthSource*/)
 		{
 
 		}
-		void Resize(int w, int h)
+		void Resize(int /*w*/, int /*h*/)
 		{
 		}
-		void RegisterWork(FrameRenderTask & task)
+		void RegisterWork(FrameRenderTask & /*task*/)
 		{
 		}
 		char * GetResultName()

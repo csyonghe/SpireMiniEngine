@@ -31,7 +31,7 @@ namespace GameEngine
 
     }
 
-	bool Engine::OnToggleConsoleAction(const CoreLib::String & /*actionName*/, float /*val*/)
+	bool Engine::OnToggleConsoleAction(const CoreLib::String & /*actionName*/, ActionInput /*val*/)
 	{
 		if (uiCommandForm)
 			if (uiCommandForm->Visible)
@@ -288,7 +288,11 @@ namespace GameEngine
 		}
 		else
 		{
-			inputDispatcher->DispatchAction(parser.ReadWord());
+			auto word = parser.ReadToken();
+			List<String> args;
+			while (!parser.IsEnd())
+				args.Add(parser.ReadWord());
+			inputDispatcher->DispatchAction(word.Content, args.GetArrayView(), 1.0f);
 		}
 	}
 

@@ -2,6 +2,7 @@
 #define GAME_ENGINE_FREE_ROAM_CAMERA_CONTROLLER_H
 
 #include "Actor.h"
+#include "InputDispatcher.h"
 
 namespace GameEngine
 {
@@ -25,12 +26,12 @@ namespace GameEngine
 			return "FreeRoamCameraController";
 		}
 	public:
-		bool MoveForward(const CoreLib::String & axisName, float scale);
-		bool MoveRight(const CoreLib::String & axisName, float scale);
-		bool MoveUp(const CoreLib::String & axisName, float scale);
-		bool TurnRight(const CoreLib::String & axisName, float scale);
-		bool TurnUp(const CoreLib::String & axisName, float scale);
-		bool DumpCamera(const CoreLib::String & axisName, float scale);
+		bool MoveForward(const CoreLib::String & axisName, ActionInput scale);
+		bool MoveRight(const CoreLib::String & axisName, ActionInput scale);
+		bool MoveUp(const CoreLib::String & axisName, ActionInput scale);
+		bool TurnRight(const CoreLib::String & axisName, ActionInput scale);
+		bool TurnUp(const CoreLib::String & axisName, ActionInput scale);
+		bool DumpCamera(const CoreLib::String & axisName, ActionInput scale);
 
 	};
 }

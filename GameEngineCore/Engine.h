@@ -69,7 +69,7 @@ namespace GameEngine
 		DrawCallStatForm * drawCallStatForm = nullptr;
 		CoreLib::RefPtr<GraphicsUI::UIWindowsSystemInterface> uiSystemInterface;
 
-		bool OnToggleConsoleAction(const CoreLib::String & actionName, float val);
+		bool OnToggleConsoleAction(const CoreLib::String & actionName, ActionInput input);
 		void RefreshUI();
 		Engine() {};
 		void InternalInit(const EngineInitArguments & args);

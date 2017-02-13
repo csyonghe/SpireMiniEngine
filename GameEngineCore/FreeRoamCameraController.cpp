@@ -62,65 +62,65 @@ namespace GameEngine
 	{
 		return EngineActorType::UserController;
 	}
-	bool FreeRoamCameraControllerActor::MoveForward(const CoreLib::String & /*axisName*/, float scale)
+	bool FreeRoamCameraControllerActor::MoveForward(const CoreLib::String & /*axisName*/, ActionInput input)
 	{
 		FindTargetCamera();
 		if (targetCamera)
 		{
 			Vec3 moveDir = -Vec3::Create(targetCamera->GetLocalTransform().values[2], targetCamera->GetLocalTransform().values[6], targetCamera->GetLocalTransform().values[10]);
 			float dTime = Engine::Instance()->GetTimeDelta(EngineThread::GameLogic);
-			targetCamera->SetPosition(targetCamera->GetPosition() + moveDir * (scale * dTime * cameraSpeed));
+			targetCamera->SetPosition(targetCamera->GetPosition() + moveDir * (input.AxisValue * dTime * cameraSpeed));
 			return true;
 		}
 		return false;
 	}
-	bool FreeRoamCameraControllerActor::MoveRight(const CoreLib::String & /*axisName*/, float scale)
+	bool FreeRoamCameraControllerActor::MoveRight(const CoreLib::String & /*axisName*/, ActionInput input)
 	{
 		FindTargetCamera();
 		if (targetCamera)
 		{
 			Vec3 moveDir = Vec3::Create(targetCamera->GetLocalTransform().values[0], targetCamera->GetLocalTransform().values[4], targetCamera->GetLocalTransform().values[8]);
 			float dTime = Engine::Instance()->GetTimeDelta(EngineThread::GameLogic);
-			targetCamera->SetPosition(targetCamera->GetPosition() + moveDir * (scale * dTime * cameraSpeed));
+			targetCamera->SetPosition(targetCamera->GetPosition() + moveDir * (input.AxisValue * dTime * cameraSpeed));
 			return true;
 		}
 		return false;
 	}
-	bool FreeRoamCameraControllerActor::MoveUp(const CoreLib::String & /*axisName*/, float scale)
+	bool FreeRoamCameraControllerActor::MoveUp(const CoreLib::String & /*axisName*/, ActionInput input)
 	{
 		FindTargetCamera();
 		if (targetCamera)
 		{
 			Vec3 moveDir = Vec3::Create(targetCamera->GetLocalTransform().values[1], targetCamera->GetLocalTransform().values[5], targetCamera->GetLocalTransform().values[9]);
 			float dTime = Engine::Instance()->GetTimeDelta(EngineThread::GameLogic);
-			targetCamera->SetPosition(targetCamera->GetPosition() + moveDir * (scale * dTime * cameraSpeed));
+			targetCamera->SetPosition(targetCamera->GetPosition() + moveDir * (input.AxisValue * dTime * cameraSpeed));
 			return true;
 		}
 		return false;
 	}
-	bool FreeRoamCameraControllerActor::TurnRight(const CoreLib::String & /*axisName*/, float scale)
+	bool FreeRoamCameraControllerActor::TurnRight(const CoreLib::String & /*axisName*/, ActionInput input)
 	{
 		FindTargetCamera();
 		if (targetCamera)
 		{
 			float dTime = Engine::Instance()->GetTimeDelta(EngineThread::GameLogic);
-			targetCamera->SetYaw(targetCamera->GetYaw() + scale * dTime * turnPrecision);
+			targetCamera->SetYaw(targetCamera->GetYaw() + input.AxisValue * dTime * turnPrecision);
 			return true;
 		}
 		return false;
 	}
-	bool FreeRoamCameraControllerActor::TurnUp(const CoreLib::String & /*axisName*/, float scale)
+	bool FreeRoamCameraControllerActor::TurnUp(const CoreLib::String & /*axisName*/, ActionInput input)
 	{
 		FindTargetCamera();
 		if (targetCamera)
 		{
 			float dTime = Engine::Instance()->GetTimeDelta(EngineThread::GameLogic);
-			targetCamera->SetPitch(targetCamera->GetPitch() - scale * dTime * turnPrecision);
+			targetCamera->SetPitch(targetCamera->GetPitch() - input.AxisValue * dTime * turnPrecision);
 			return true;
 		}
 		return false;
 	}
-	bool FreeRoamCameraControllerActor::DumpCamera(const CoreLib::String & /*axisName*/, float /*scale*/)
+	bool FreeRoamCameraControllerActor::DumpCamera(const CoreLib::String & /*axisName*/, ActionInput /*input*/)
 	{
 		FindTargetCamera();
 		if (targetCamera)

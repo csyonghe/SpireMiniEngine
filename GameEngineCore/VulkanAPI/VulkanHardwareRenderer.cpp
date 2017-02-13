@@ -3012,7 +3012,6 @@ namespace VK
 			bool tescEvalPresent = false;
 			bool geometryPresent = false;
 			bool fragPresent = false;
-			bool computePresent = false;
 #endif
 			for (auto shader : shaders)
 			{

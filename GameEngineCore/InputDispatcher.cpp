@@ -118,7 +118,7 @@ namespace GameEngine
 		{
 			if (inputInterface->QueryKeyState(binding.Key).HasPressed)
 			{
-				DispatchAction(binding.Value.ActionName, binding.Value.Value);
+				DispatchAction(binding.Value.ActionName, ArrayView<String>(), binding.Value.Value);
 			}
 		}
 
@@ -126,17 +126,20 @@ namespace GameEngine
 		{
 			if (inputInterface->QueryKeyState(binding.Key).IsDown)
 			{
-				DispatchAction(binding.Value.ActionName, binding.Value.Value);
+				DispatchAction(binding.Value.ActionName, ArrayView<String>(), binding.Value.Value);
 			}
 		}
 	}
-	void InputDispatcher::DispatchAction(CoreLib::String actionName, float actionValue)
+	void InputDispatcher::DispatchAction(CoreLib::String actionName, ArrayView<String> args, float actionValue)
 	{
 		auto handlers = actionHandlers.TryGetValue(actionName);
 		if (handlers)
 		{
+			ActionInput input;
+			input.AxisValue = actionValue;
+			input.Arguments = args;
 			for (auto & handler : *handlers)
-				if (handler(actionName, actionValue))
+				if (handler(actionName, input))
 					break;
 		}
 	}
