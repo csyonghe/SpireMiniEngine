@@ -5,8 +5,24 @@
 
 namespace GameEngine
 {
-	typedef CoreLib::Func<bool, const CoreLib::String &, float> ActionInputHandlerFunc;
-	typedef CoreLib::Func<bool, const CoreLib::String &, float> ActorMouseInputHandlerFunc;
+	enum class MouseButton
+	{
+		None, Left, Middle, Right
+	};
+	struct MouseInput
+	{
+		MouseButton Button;
+		int X, Y, Delta;
+	};
+
+	struct ActionInput
+	{
+		float AxisValue = 0.0f;
+		CoreLib::ArrayView<CoreLib::String> Arguments;
+	};
+	
+	typedef CoreLib::Func<bool, const CoreLib::String &, ActionInput> ActionInputHandlerFunc;
+	typedef CoreLib::Func<bool, const CoreLib::String &, MouseInput> ActorMouseInputHandlerFunc;
 
 	struct InputMappingValue
 	{
@@ -30,6 +46,7 @@ namespace GameEngine
 		void BindMouseInputHandler(ActorMouseInputHandlerFunc handlerFunc);
 		void UnbindMouseInputHandler(ActorMouseInputHandlerFunc handlerFunc);
 		void DispatchInput();
+		void DispatchAction(CoreLib::String actionName, CoreLib::ArrayView<CoreLib::String> args, float actionValue);
 	};
 }
 

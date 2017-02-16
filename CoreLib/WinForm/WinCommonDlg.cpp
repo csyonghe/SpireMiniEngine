@@ -63,8 +63,8 @@ namespace CoreLib
 				{
 					for (int i=0; i<Filter.Length(); i++)
 					{
-						if (Filter[i]==L'|')
-							filterBuf[i] = L'\0';
+						if (Filter[i]=='|')
+							filterBuf[i] = '\0';
 						else
 							filterBuf[i] = Filter[i];
 					}
@@ -75,12 +75,12 @@ namespace CoreLib
 			}
 			if (DefaultEXT.Length())
 			{
-				fn.lpstrDefExt = DefaultEXT.Buffer();
+				fn.lpstrDefExt = DefaultEXT.ToWString();
 			}
 			else
 				fn.lpstrDefExt = 0;
 			initDir = Path::GetDirectoryName(FileName);
-			fn.lpstrInitialDir = initDir.Buffer();
+			fn.lpstrInitialDir = initDir.ToWString();
 			
 			fn.Flags = OFN_EXPLORER|OFN_ENABLEHOOK;
 			if (MultiSelect)
@@ -118,11 +118,19 @@ namespace CoreLib
 			StringBuilder cFileName;
 			bool zero = false;
 			FileNames.Clear();
-			for (int i=0; i<FileBufferSize; i++)
+			int i = 0;
+			char * strPtr = (char*)fn.lpstrFile;
+			while (i < FileBufferSize * sizeof(wchar_t))
 			{
-				if (fn.lpstrFile[i] != L'\0')
+				int codePoint = CoreLib::IO::GetUnicodePointFromUTF16([&](int)
 				{
-					cFileName<<fn.lpstrFile[i];
+					return strPtr[i++];
+				});
+				if (codePoint != 0)
+				{
+					char buf[5];
+					int len = CoreLib::IO::EncodeUnicodePointToUTF8(buf, codePoint);
+					cFileName.Append(buf, len);
 					zero = false;
 				}
 				else

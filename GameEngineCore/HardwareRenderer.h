@@ -33,7 +33,7 @@ namespace GameEngine
 		Read, Write, ReadWrite, ReadWritePersistent
 	};
 
-	enum class BufferStorageFlag
+	enum BufferStorageFlag
 	{
 		DynamicStorage = 0x1,
 		MapRead = 0x2,
@@ -65,7 +65,7 @@ namespace GameEngine
 
 	enum class BindingType
 	{
-		Unused, UniformBuffer, StorageBuffer, Texture
+		Unused, UniformBuffer, StorageBuffer, Texture, Sampler
 	};
 
 	enum class DataType
@@ -114,18 +114,30 @@ namespace GameEngine
 
 	enum class StorageFormat
 	{
-		Int8, Int16, Int32_Raw,
-		Float16, Float32,
-		RG_I8, RG_I16, RG_I32_Raw,
+		Invalid = -1,
+		R_8, R_I8, R_16, R_I16, Int32_Raw,
+		R_F16, R_F32,
+		RG_8, RG_16, RG_I8, RG_I16, RG_I32_Raw,
 		RG_F16, RG_F32,
-		RGB_I8, RGB_I16, RGB_I32_Raw,
-		RGB_F16, RGB_F32,
-		RGBA_8, RGBA_I8, RGBA_I16, RGBA_I32_Raw,
+		RGBA_8, RGBA_I8, RGBA_16, RGBA_I16, RGBA_I32_Raw,
 		RGBA_F16, RGBA_F32,
 		RGBA_Compressed, R11F_G11F_B10F, RGB10_A2,
-		BC1, BC5,
-		Depth32, Depth24Stencil8
+		BC1, BC3, BC5,
+		Depth24, Depth32, Depth24Stencil8
 	};
+
+	inline bool isDepthFormat(StorageFormat format)
+	{
+		switch (format)
+		{
+		case StorageFormat::Depth24:
+		case StorageFormat::Depth24Stencil8:
+		case StorageFormat::Depth32:
+			return true;
+		default:
+			return false;
+		}
+	}
 
 	enum class TextureCubeFace
 	{
@@ -142,9 +154,13 @@ namespace GameEngine
 		Unused = 0x0,
 		Sampled = 0x1,
 		ColorAttachment = 0x2,
-		SampledColorAttachment = 0x3,
+		SampledColorAttachment = 0x2 | 0x1,
 		DepthAttachment = 0x4,
-		SampledDepthAttachment = 0x5
+		SampledDepthAttachment = 0x4 | 0x1,
+		StencilAttachment = 0x8,
+		SampledStencilAttachment = 0x8 | 0x1,
+		DepthStencilAttachment = 0x8 | 0x4,
+		SampledDepthStencilAttachment = 0x8 | 0x4 | 0x1,
 	};
 
 	inline constexpr TextureUsage operator&(TextureUsage lhs, TextureUsage rhs)
@@ -162,6 +178,18 @@ namespace GameEngine
 		return x == TextureUsage::Unused;
 	}
 
+	struct AttachmentLayout
+	{
+		TextureUsage Usage;
+		StorageFormat ImageFormat;
+		AttachmentLayout() {}
+		AttachmentLayout(TextureUsage usage, StorageFormat format)
+		{
+			Usage = usage;
+			ImageFormat = format;
+		}
+	};
+
 	enum class WrapMode
 	{
 		Repeat, Clamp, Mirror
@@ -177,51 +205,44 @@ namespace GameEngine
 		Store, DontCare
 	};
 
-
-
 	// Helper Functions
 	// Returns size in bytes of a StorageFormat
 	inline int StorageFormatSize(StorageFormat format)
 	{
 		switch (format)
 		{
-		case StorageFormat::Int8:
+		case StorageFormat::R_8:
+		case StorageFormat::R_I8:
 			return 1;
 		case StorageFormat::RG_I8:
-		case StorageFormat::Int16:
-		case StorageFormat::Float16:
+		case StorageFormat::RG_8:
+		case StorageFormat::R_F16:
 			return 2;
-		case StorageFormat::RGB_I8:
-			return 3;
 		case StorageFormat::RGBA_8:
 		case StorageFormat::RGBA_I8:
+		case StorageFormat::RG_16:
 		case StorageFormat::RG_F16:
 		case StorageFormat::RG_I16:
 		case StorageFormat::Int32_Raw:
-		case StorageFormat::Float32:
+		case StorageFormat::R_F32:
 		case StorageFormat::R11F_G11F_B10F:
 		case StorageFormat::RGB10_A2:
 		case StorageFormat::Depth32:
 		case StorageFormat::Depth24Stencil8:
 			return 4;
-		case StorageFormat::RGB_I16:
-		case StorageFormat::RGB_F16:
-			return 6;
 		case StorageFormat::RGBA_I16:
 		case StorageFormat::RGBA_F16:
+		case StorageFormat::RGBA_16:
 		case StorageFormat::RG_I32_Raw:
 		case StorageFormat::RG_F32:
 			return 8;
-		case StorageFormat::RGB_I32_Raw:
-		case StorageFormat::RGB_F32:
-			return 12;
 		case StorageFormat::RGBA_I32_Raw:
 		case StorageFormat::RGBA_F32:
 			return 16;
 		case StorageFormat::BC1:
 		case StorageFormat::BC5:
 		case StorageFormat::RGBA_Compressed:
-		default: throw HardwareRendererException(L"Unsupported storage format.");
+		default: throw HardwareRendererException("Unsupported storage format.");
 		}
 	}
 	// Returns size in bytes of a DataType
@@ -268,7 +289,7 @@ namespace GameEngine
 		case DataType::Float4:
 			return 16;
 		default:
-			throw HardwareRendererException(L"Unsupported data type.");
+			throw HardwareRendererException("Unsupported data type.");
 		}
 	}
 
@@ -312,7 +333,7 @@ namespace GameEngine
 		case DataType::Float4:
 			return 4;
 		default:
-			throw HardwareRendererException(L"Unsupported data type.");
+			throw HardwareRendererException("Unsupported data type.");
 		}
 	}
 
@@ -343,16 +364,23 @@ namespace GameEngine
 	{
 	public:
 		CoreLib::List<VertexAttributeDesc> Attributes;
+		inline int Size()
+		{
+			if (Attributes.Count())
+				return Attributes.Last().StartOffset + DataTypeSize(Attributes.Last().Type);
+			return 0;
+		}
 	};
 
 	/*
 	 * Object Classes
 	 */
-	class Buffer : public CoreLib::Object
+	class Buffer : public CoreLib::RefObject
 	{
 	protected:
 		Buffer() {};
 	public:
+		virtual void SetDataAsync(int offset, void * data, int size) = 0;
 		virtual void SetData(int offset, void* data, int size) = 0;
 		virtual void SetData(void* data, int size) = 0;
 		//virtual void GetData(int offset, int size) = 0;
@@ -365,20 +393,57 @@ namespace GameEngine
 		virtual void Unmap() = 0;
 	};
 
-	class Texture2D : public CoreLib::Object
+	enum class TextureAspect
+	{
+		Color, Depth, Stencil
+	};
+
+	class Texture : public CoreLib::RefObject
+	{
+	protected:
+		Texture() {};
+	};
+
+	class Texture2D : public Texture
 	{
 	protected:
 		Texture2D() {};
 	public:
 		virtual void GetSize(int& width, int& height) = 0;
-		virtual void Resize(int width, int height, int samples, int miplevels = 1, bool preserveData = false) = 0;
-		virtual void SetData(StorageFormat format, int level, int width, int height, int samples, DataType inputType, void* data, bool mipmapped = true) = 0;
-		virtual void SetData(StorageFormat format, int width, int height, int samples, DataType inputType, void* data, bool mipmapped = true) = 0;
+		virtual void SetData(int level, int width, int height, int samples, DataType inputType, void* data) = 0;
+		virtual void SetData(int width, int height, int samples, DataType inputType, void* data) = 0;
 		virtual void GetData(int mipLevel, void* data, int bufSize) = 0;
 		virtual void BuildMipmaps() = 0;
 	};
 
-	class TextureSampler : public CoreLib::Object
+	class Texture2DArray : public Texture
+	{
+	protected:
+		Texture2DArray() {};
+	public:
+		virtual void GetSize(int &width, int &height, int &layers) = 0;
+		virtual void SetData(int mipLevel, int xOffset, int yOffset, int layerOffset, int width, int height, int layerCount, DataType inputType, void * data) = 0;
+		virtual void BuildMipmaps() = 0;
+	};
+
+	class Texture3D : public Texture
+	{
+	protected:
+		Texture3D() {};
+	public:
+		virtual void GetSize(int &width, int &height, int &depth) = 0;
+		virtual void SetData(int mipLevel, int xOffset, int yOffset, int zOffset, int width, int height, int depth, DataType inputType, void * data) = 0;
+	};
+
+	class TextureCube : public Texture
+	{
+	protected:
+		TextureCube() {};
+	public:
+		virtual void GetSize(int & size) = 0;
+	};
+
+	class TextureSampler : public CoreLib::RefObject
 	{
 	protected:
 		TextureSampler() {};
@@ -391,16 +456,25 @@ namespace GameEngine
 		virtual void SetDepthCompare(CompareFunc op) = 0;
 	};
 
-	class Shader : public CoreLib::Object
+	class Shader : public CoreLib::RefObject
 	{
 	protected:
 		Shader() {};
 	};
 
-	class FrameBuffer : public CoreLib::Object
+	class FrameBuffer : public CoreLib::RefObject
 	{
 	protected:
 		FrameBuffer() {};
+	};
+
+	class Fence : public CoreLib::RefObject 
+	{
+	protected:
+		Fence() {}
+	public:
+		virtual void Reset() = 0;
+		virtual void Wait() = 0;
 	};
 
 	class RenderAttachments
@@ -408,7 +482,35 @@ namespace GameEngine
 	public:
 		int width = -1;
 		int height = -1;
-		CoreLib::List<Texture2D*> attachments;
+		struct Attachment
+		{
+			struct
+			{
+				GameEngine::Texture2D* tex2D = nullptr;
+				GameEngine::Texture2DArray* tex2DArray = nullptr;
+				GameEngine::TextureCube * texCube = nullptr;
+			} handle;
+			int layer = -1;
+			TextureCubeFace face = TextureCubeFace::NegativeX;
+			Attachment(GameEngine::Texture2D * tex)
+			{
+				handle.tex2D = tex;
+				layer = -1;
+			}
+			Attachment(GameEngine::Texture2DArray* texArr, int l)
+			{
+				handle.tex2DArray = texArr;
+				layer = l;
+			}
+			Attachment(GameEngine::TextureCube* texCube, TextureCubeFace pface, int level)
+			{
+				handle.texCube = texCube;
+				face = pface;
+				layer = level;
+			}
+			Attachment() = default;
+		};
+		CoreLib::List<Attachment> attachments;
 	private:
 		void Resize(int size)
 		{
@@ -421,8 +523,33 @@ namespace GameEngine
 		RenderAttachments() {}
 		RenderAttachments(CoreLib::ArrayView<Texture2D*> pAttachments)
 		{
-			attachments.AddRange(pAttachments.Buffer(), pAttachments.Count());
-			attachments[0]->GetSize(width, height);
+			for (auto tex : pAttachments)
+			{
+				attachments.Add(Attachment(tex));
+			}
+			attachments[0].handle.tex2D->GetSize(width, height);
+		}
+		void SetAttachment(int binding, GameEngine::Texture2DArray * attachment, int layer)
+		{
+			if (width == -1 && height == -1)
+			{
+				int layers = 0;
+				attachment->GetSize(width, height, layers);
+			}
+#if _DEBUG
+			else
+			{
+				int thiswidth;
+				int thisheight;
+				int thislayers;
+				attachment->GetSize(thiswidth, thisheight, thislayers);
+				if (thiswidth != width || thisheight != height)
+					throw HardwareRendererException("Attachment images must have the same dimensions.");
+			}
+#endif
+			Resize(binding + 1);
+
+			attachments[binding] = Attachment(attachment, layer);
 		}
 		void SetAttachment(int binding, GameEngine::Texture2D* attachment)
 		{
@@ -435,18 +562,42 @@ namespace GameEngine
 			{
 				int thiswidth;
 				int thisheight;
-				dynamic_cast<Texture2D*>(attachment)->GetSize(thiswidth, thisheight);
+				attachment->GetSize(thiswidth, thisheight);
 				if (thiswidth != width || thisheight != height)
-					throw HardwareRendererException(L"Attachment images must have the same dimensions.");
+					throw HardwareRendererException("Attachment images must have the same dimensions.");
 			}
 #endif
 			Resize(binding + 1);
 
 			attachments[binding] = attachment;
 		}
+		void SetAttachment(int binding, GameEngine::TextureCube* attachment, TextureCubeFace face, int level)
+		{
+			if (width == -1 && height == -1)
+			{
+				attachment->GetSize(width);
+				width >>= level;
+				height = width;
+			}
+#if _DEBUG
+			else
+			{
+				int thiswidth;
+				int thisheight;
+				attachment->GetSize(thiswidth);
+				thiswidth >>= level;
+				thisheight = thiswidth;
+				if (thiswidth != width || thisheight != height)
+					throw HardwareRendererException("Attachment images must have the same dimensions.");
+			}
+#endif
+			Resize(binding + 1);
+
+			attachments[binding] = Attachment(attachment, face, level);
+		}
 	};
 
-	class RenderTargetLayout : public CoreLib::Object
+	class RenderTargetLayout : public CoreLib::RefObject
 	{
 	protected:
 		RenderTargetLayout() {}
@@ -456,113 +607,74 @@ namespace GameEngine
 
 	struct TextureBinding
 	{
-		Texture2D* texture;
+		Texture* texture;
 		TextureSampler* sampler;
 	};
+
 	struct BufferBinding
 	{
 		Buffer* buffer;
 		int offset;
 		int range;
-	};
-	struct BindingDescription
+	}; 
+
+	enum StageFlags
 	{
-		BindingType type;
-		int location;
-		union
-		{
-			TextureBinding tex;
-			BufferBinding buf;
-		};
+		sfGraphics = 3, sfVertex = 1, sfFragment = 2, sfCompute = 8
 	};
 
-	class PipelineBinding
+	struct DescriptorLayout
 	{
-	private:		
-		CoreLib::List<BindingDescription> bindings;
-
-	public:
-		const CoreLib::List<BindingDescription>& GetBindings() const
+		int Location; //> location in the descritpor set
+		StageFlags Stages = sfGraphics;
+		BindingType Type; //< type of the resource binding this descriptor is about
+						  // LegacyBindingPoint is used by OpenGL renderer so that it knows what actual binding point this descriptor maps to.
+						  // This information is provided by the shader compiler.
+		CoreLib::List<int> LegacyBindingPoints;
+		DescriptorLayout() {}
+		DescriptorLayout(StageFlags stage,int loc, BindingType type, int legacyBinding = -1)
 		{
-			return bindings;
-		}
-
-		void BindUniformBuffer(int binding, Buffer* buffer, int offset, int range)
-		{
-			BindingDescription description;
-			description.type = BindingType::UniformBuffer;
-			description.location = binding;
-			description.buf.buffer = buffer;
-			description.buf.offset = offset;
-			description.buf.range = range;
-
-			bindings.Add(description);
-		}
-		void BindUniformBuffer(int binding, Buffer* buffer)
-		{
-			BindingDescription description;
-			description.type = BindingType::UniformBuffer;
-			description.location = binding;
-			description.buf.buffer = buffer;
-			description.buf.offset = 0;
-			description.buf.range = 0;
-
-			bindings.Add(description);
-		}
-		void BindStorageBuffer(int binding, Buffer* buffer, int offset, int range)
-		{
-			BindingDescription description;
-			description.type = BindingType::StorageBuffer;
-			description.location = binding;
-			description.buf.buffer = buffer;
-			description.buf.offset = offset;
-			description.buf.range = range;
-
-			bindings.Add(description);
-		}
-		void BindStorageBuffer(int binding, Buffer* buffer)
-		{
-			BindingDescription description;
-			description.type = BindingType::StorageBuffer;
-			description.location = binding;
-			description.buf.buffer = buffer;
-			description.buf.offset = 0;
-			description.buf.range = 0;
-
-			bindings.Add(description);
-		}
-		void BindTexture(int binding, Texture2D* texture, TextureSampler* sampler)
-		{
-			BindingDescription description;
-			description.type = BindingType::Texture;
-			description.location = binding;
-			description.tex.texture = texture;
-			description.tex.sampler = sampler;
-
-			bindings.Add(description);
+			Stages = stage;
+			Location = loc;
+			Type = type;
+			if (legacyBinding != -1)
+				LegacyBindingPoints.Add(legacyBinding);
 		}
 	};
 
-	class PipelineInstance : public CoreLib::Object
+	// API specific class that holds internal representation of DescriptorSetLayout
+	class DescriptorSetLayout : public CoreLib::RefObject
 	{
 	protected:
-		PipelineInstance() {}
+		DescriptorSetLayout() {}
 	};
 
-	class Pipeline : public CoreLib::Object
+	class DescriptorSet : public CoreLib::RefObject
+	{
+	protected:
+		DescriptorSet() {}
+	public:
+		virtual void BeginUpdate() = 0;
+		virtual void Update(int location, Texture* texture, TextureAspect aspect) = 0;
+		virtual void Update(int location, TextureSampler* sampler) = 0;
+		virtual void Update(int location, Buffer* buffer, int offset = 0, int length = -1) = 0;
+		virtual void EndUpdate() = 0;
+	};
+
+	// API specific class that holds the pipeline representation
+	class Pipeline : public CoreLib::RefObject
 	{
 	protected:
 		Pipeline() {}
-	public:
-		virtual PipelineInstance* CreateInstance(const PipelineBinding& pipelineBinding) = 0;
 	};
 
-	class PipelineBuilder : public CoreLib::Object
+	class FixedFunctionPipelineStates
 	{
-	protected:
-		PipelineBuilder() {}
 	public:
 		bool PrimitiveRestartEnabled = false;
+		bool EnablePolygonOffset = false;
+		float PolygonOffsetFactor = 0.4f;
+		float PolygonOffsetUnits = 1.0f;
 		PrimitiveType PrimitiveTopology = GameEngine::PrimitiveType::Triangles;
 		int PatchSize = 3;
 		CompareFunc DepthCompareFunc = CompareFunc::Disabled, StencilCompareFunc = CompareFunc::Disabled;
@@ -572,35 +684,48 @@ namespace GameEngine
 		unsigned int StencilReference = 0;
 		CullMode CullMode = GameEngine::CullMode::CullBackFace;
 
+	};
+
+	class PipelineBuilder : public CoreLib::RefObject
+	{
+	protected:
+		PipelineBuilder() {}
+	public:
+		FixedFunctionPipelineStates FixedFunctionStates;
 		virtual void SetShaders(CoreLib::ArrayView<Shader*> shaders) = 0;
 		virtual void SetVertexLayout(VertexFormat vertexFormat) = 0;
-		virtual void SetBindingLayout(int bindingId, BindingType bindType) = 0;
+		virtual void SetBindingLayout(CoreLib::ArrayView<DescriptorSetLayout*> descriptorSets) = 0;
+		virtual void SetDebugName(CoreLib::String name) = 0;
 		virtual Pipeline* ToPipeline(RenderTargetLayout* renderTargetLayout) = 0;
 	};
 
-	class CommandBuffer : public CoreLib::Object
+	class CommandBuffer : public CoreLib::RefObject
 	{
 	protected:
 		CommandBuffer() {};
 	public:
+		// Begin recording non-render-pass-specific commands
+		virtual void BeginRecording() = 0;
 		// Specifying the FrameBuffer can result in better performance, but will need to be re-recorded when FrameBuffer changes
-		virtual void BeginRecording(RenderTargetLayout* renderTargetLayout, FrameBuffer* frameBuffer) = 0;
+		virtual void BeginRecording(FrameBuffer* frameBuffer) = 0;
 		// Not specifying a specific FrameBuffer may result in worse performance, but can be used with any compatible FrameBuffer
 		virtual void BeginRecording(RenderTargetLayout* renderTargetLayout) = 0;
 		virtual void EndRecording() = 0;
 		virtual void SetViewport(int x, int y, int width, int height) = 0;
-		virtual void BindVertexBuffer(Buffer* vertexBuffer) = 0;
-		virtual void BindIndexBuffer(Buffer* indexBuffer) = 0;
-		virtual void BindPipeline(PipelineInstance* pipelineInstance) = 0;
+		virtual void BindVertexBuffer(Buffer* vertexBuffer, int byteOffset) = 0;
+		virtual void BindIndexBuffer(Buffer* indexBuffer, int byteOffset) = 0;
+		virtual void BindPipeline(Pipeline* pipeline) = 0;
+		virtual void BindDescriptorSet(int binding, DescriptorSet* descSet) = 0;
 		virtual void Draw(int firstVertex, int vertexCount) = 0;
 		virtual void DrawInstanced(int numInstances, int firstVertex, int vertexCount) = 0;
 		virtual void DrawIndexed(int firstIndex, int indexCount) = 0;
 		virtual void DrawIndexedInstanced(int numInstances, int firstIndex, int indexCount) = 0;
+		virtual void TransferLayout(const RenderAttachments& attachments, CoreLib::ArrayView<TextureUsage> layouts) = 0;
 		virtual void Blit(Texture2D* dstImage, Texture2D* srcImage) = 0;
-		virtual void ClearAttachments(RenderAttachments renderAttachments) = 0;
+		virtual void ClearAttachments(FrameBuffer * frameBuffer) = 0;
 	};
 
-	class HardwareRenderer : public CoreLib::Object
+	class HardwareRenderer : public CoreLib::RefObject
 	{
 	protected:
 		HardwareRenderer() {};
@@ -609,26 +734,41 @@ namespace GameEngine
 		virtual void * GetWindowHandle() = 0;
 		virtual void Resize(int width, int height) = 0;
 		virtual void ClearTexture(GameEngine::Texture2D* texture) = 0;
-		virtual void ExecuteCommandBuffers(RenderTargetLayout* renderTargetLayout, FrameBuffer* frameBuffer, CoreLib::ArrayView<CommandBuffer*> commands) = 0;
+		virtual void ExecuteCommandBuffers(FrameBuffer* frameBuffer, CoreLib::ArrayView<CommandBuffer*> commands, Fence* fence) = 0;
 		virtual void Present(Texture2D* srcImage) = 0;
 		virtual void Blit(Texture2D* dstImage, Texture2D* srcImage) = 0;
 		virtual void Wait() = 0;
-		virtual Buffer* CreateBuffer(BufferUsage usage) = 0;
-		virtual Buffer* CreateMappedBuffer(BufferUsage usage) = 0;
-		virtual Texture2D* CreateTexture2D(TextureUsage usage) = 0;
-		virtual TextureSampler * CreateTextureSampler() = 0;
+		virtual Fence* CreateFence() = 0;
+		virtual Buffer* CreateBuffer(BufferUsage usage, int sizeInBytes) = 0;
+		virtual Buffer* CreateMappedBuffer(BufferUsage usage, int sizeInBytes) = 0;
+		// Automatically builds mipmaps with supplied data
+		virtual Texture2D* CreateTexture2D(int width, int height, StorageFormat format, DataType type, void* data) = 0;
+		// Allocates resources for a texture with supplied parameters
+		virtual Texture2D* CreateTexture2D(TextureUsage usage, int width, int height, int mipLevelCount, StorageFormat format) = 0;
+		// Populates the created texture with the data supplied for each mipLevel
+		virtual Texture2D* CreateTexture2D(TextureUsage usage, int width, int height, int mipLevelCount, StorageFormat format, DataType type, CoreLib::ArrayView<void*> mipLevelData) = 0;
+		virtual Texture2DArray* CreateTexture2DArray(TextureUsage usage, int width, int height, int layers, int mipLevelCount, StorageFormat format) = 0;
+		virtual TextureCube* CreateTextureCube(TextureUsage usage, int size, int mipLevelCount, StorageFormat format) = 0;
+		virtual Texture3D* CreateTexture3D(TextureUsage usage, int width, int height, int depth, int mipLevelCount, StorageFormat format) = 0;
+		virtual TextureSampler* CreateTextureSampler() = 0;
 		virtual Shader* CreateShader(ShaderType stage, const char* data, int size) = 0;
-		virtual RenderTargetLayout* CreateRenderTargetLayout(CoreLib::ArrayView<TextureUsage> bindings) = 0;
+		virtual RenderTargetLayout* CreateRenderTargetLayout(CoreLib::ArrayView<AttachmentLayout> bindings) = 0;
 		virtual PipelineBuilder* CreatePipelineBuilder() = 0;
+		virtual DescriptorSetLayout* CreateDescriptorSetLayout(CoreLib::ArrayView<DescriptorLayout> descriptors) = 0;
+		virtual DescriptorSet* CreateDescriptorSet(DescriptorSetLayout* layout) = 0;
+		virtual int GetDescriptorPoolCount() = 0;
 		virtual CommandBuffer* CreateCommandBuffer() = 0;
-		virtual CoreLib::String GetSpireBackendName() = 0;
+		virtual int GetSpireTarget() = 0;
 		virtual int UniformBufferAlignment() = 0;
 		virtual int StorageBufferAlignment() = 0;
+		virtual void BeginDataTransfer() = 0;
+		virtual void EndDataTransfer() = 0;
 	};
 
 	// HardwareRenderer instance constructors
 	HardwareRenderer* CreateGLHardwareRenderer();
 	HardwareRenderer* CreateVulkanHardwareRenderer(int gpuId);
+	HardwareRenderer* CreateVulkanOneDescHardwareRenderer(int gpuId);
 }
 
 #endif

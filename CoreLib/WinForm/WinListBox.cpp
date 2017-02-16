@@ -57,11 +57,11 @@ namespace CoreLib
 		}
 		void ListBox::AddItem(const String & text)
 		{
-			SendMessage(handle, LB_ADDSTRING, 0, (LPARAM)text.Buffer());
+			SendMessage(handle, LB_ADDSTRING, 0, (LPARAM)text.ToWString());
 		}
 		void ListBox::InsertItem(int id, const String & text)
 		{
-			SendMessage(handle, LB_INSERTSTRING, id, (LPARAM)text.Buffer());
+			SendMessage(handle, LB_INSERTSTRING, id, (LPARAM)text.ToWString());
 		}
 		void ListBox::RemoveItem(int id)
 		{
@@ -79,7 +79,7 @@ namespace CoreLib
 			SendMessage(handle, LB_GETTEXT, id, (LPARAM)buffer.Buffer());
 			if (buffer.Count() > 0)
 				buffer[buffer.Count() - 1] = 0;
-			return String(buffer.Buffer());
+			return String::FromWString(buffer.Buffer());
 		}
 		int ListBox::GetSelectionIndex()
 		{
@@ -178,11 +178,11 @@ namespace CoreLib
 		}
 		void ComboBox::AddItem(const String & text)
 		{
-			SendMessage(handle, CB_ADDSTRING, 0, (LPARAM)text.Buffer());
+			SendMessage(handle, CB_ADDSTRING, 0, (LPARAM)text.ToWString());
 		}
 		void ComboBox::InsertItem(int id, const String & text)
 		{
-			SendMessage(handle, CB_INSERTSTRING, id, (LPARAM)text.Buffer());
+			SendMessage(handle, CB_INSERTSTRING, id, (LPARAM)text.ToWString());
 		}
 		void ComboBox::RemoveItem(int id)
 		{
@@ -196,7 +196,7 @@ namespace CoreLib
 			SendMessage(handle, CB_GETLBTEXT, id, (LPARAM)buffer.Buffer());
 			if (buffer.Count() > 0)
 				buffer[buffer.Count() - 1] = 0;
-			return String(buffer.Buffer());
+			return String::FromWString(buffer.Buffer());
 		}
 		int ComboBox::GetSelectionIndex()
 		{

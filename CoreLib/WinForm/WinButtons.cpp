@@ -129,7 +129,7 @@ namespace CoreLib
 
 		void CustomButton::SetText(const String & text)
 		{
-			SetWindowTextW(handle, text.Buffer());
+			SetWindowTextW(handle, text.ToWString());
 		}
 
 		int CustomButton::ProcessNotification(WinNotification note)

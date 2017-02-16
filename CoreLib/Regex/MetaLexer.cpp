@@ -1,5 +1,5 @@
 #include "MetaLexer.h"
-
+#include "../Tokenizer.h"
 #include "../LibIO.h"
 
 namespace CoreLib
@@ -35,20 +35,10 @@ namespace Text
 			dfa = 0;
 	}
 
-	bool IsWhiteSpace(wchar_t ch)
-	{
-		return (ch == L' ' || ch == L'\t' || ch == L'\n' || ch == L'\r' || ch == L'\v');
-	}
-
 	bool IsIdent(wchar_t ch)
 	{
 		return ((ch >=L'A' && ch <= L'Z') || (ch >= L'a' && ch<=L'z') || (ch>=L'0' && ch<=L'9')
 			|| ch == L'_' || ch==L'#');
-	}
-
-	bool IsLetter(wchar_t ch)
-	{
-		return ((ch >=L'A' && ch <= L'Z') || (ch >= L'a' && ch<=L'z') || ch == L'_' || ch==L'#');
 	}
 
 	bool MetaLexer::ParseLexProfile(const CoreLib::String & lex)
@@ -67,24 +57,24 @@ namespace Text
 			{
 			case 0:
 				{
-					if (IsLetter(curChar))
+					if (IsLetter((char)curChar))
 						state = 1;
-					else if (IsWhiteSpace(curChar))
+					else if (IsWhiteSpace((char)curChar))
 						ptr ++;
-					else if (curChar == L'{')
+					else if (curChar == '{')
 					{
 						state = 2;
 						ptr ++;
 					}
-					else if (curChar == L'=')
+					else if (curChar == '=')
 						state = 3;
-					else if (curChar == L'/' && nextChar == L'/')
+					else if (curChar == '/' && nextChar == '/')
 						state = 4;
 					else
 					{
 						LexerError err;
 						err.Position = ptr;
-						err.Text = String(L"[Profile Error] Illegal character \'") + curChar + L"\'";
+						err.Text = String("[Profile Error] Illegal character \'") + curChar + "\'";
 						Errors.Add(err);
 						ptr ++;
 					}
@@ -110,7 +100,7 @@ namespace Text
 				break;
 			case 2:
 				{
-					if (curChar == L'}' && (nextChar == L'\r' || nextChar == L'\n' || nextChar == 0) )
+					if (curChar == '}' && (nextChar == '\r' || nextChar == '\n' || nextChar == 0) )
 					{
 						LexProfileToken tk;
 						tk.str = curToken.ToString();
@@ -138,7 +128,7 @@ namespace Text
 				break;
 			case 4:
 				{
-					if (curChar == L'\n')
+					if (curChar == '\n')
 						state = 0;
 					else
 						ptr ++;
@@ -185,20 +175,20 @@ namespace Text
 		}
 		else
 		{
-			String name = L"[Profile Error] ";
+			String name = "[Profile Error] ";
 			switch (type)
 			{
 			case LexProfileToken::Equal:
-				name = L"\'=\'";
+				name = "\'=\'";
 				break;
 			case LexProfileToken::Identifier:
-				name = L"Token identifier";
+				name = "Token identifier";
 				break;
 			case LexProfileToken::Regex:
-				name = L"Regular expression";
+				name = "Regular expression";
 				break;
 			}
-			name = name + L" expected.";
+			name = name + " expected.";
 			LexerError err;
 			err.Text = name;
 			err.Position = 0;
@@ -237,7 +227,7 @@ namespace Text
 			{
 				LexerError err;
 				err.Position = 0;
-				err.Text = L"Illegal regex for \"" + String(TokenNames[i]) + L"\"";
+				err.Text = "Illegal regex for \"" + String(TokenNames[i]) + "\"";
 				Errors.Add(err);
 				return;
 			}
@@ -357,7 +347,7 @@ namespace Text
 			if (charClass == 0xFFFF)
 			{
 				LexerError err;
-				err.Text = String(L"Illegal character \'") + str[ptr] + L"\'";
+				err.Text = String("Illegal character \'") + str[ptr] + "\'";
 				err.Position = ptr;
 				Errors.Add(err);
 				ptr++;
@@ -392,8 +382,8 @@ namespace Text
 				else
 				{
 					LexerError err;
-					err.Text = L"Illegal token \'" +
-						str.SubString(lastTokenPtr, ptr-lastTokenPtr) + L"\'";
+					err.Text = "Illegal token \'" +
+						str.SubString(lastTokenPtr, ptr-lastTokenPtr) + "\'";
 					err.Position = ptr;
 					Errors.Add(err);
 					ptr++;

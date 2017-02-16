@@ -16,14 +16,14 @@ namespace CoreLib
 			{
 				if (IsDebuggerPresent() != 0)
 				{
-					OutputDebugStringW(text.Buffer());
+					OutputDebugStringW(text.ToWString());
 				}
 			}
 			static void WriteLine(const String & text)
 			{
 				if (IsDebuggerPresent() != 0)
 				{
-					OutputDebugStringW(text.Buffer());
+					OutputDebugStringW(text.ToWString());
 					OutputDebugStringW(L"\n");
 				}
 			}

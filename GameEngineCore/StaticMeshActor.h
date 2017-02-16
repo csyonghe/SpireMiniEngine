@@ -2,6 +2,7 @@
 #define GAME_ENGINE_STATIC_ACTOR_H
 
 #include "Actor.h"
+#include "RendererService.h"
 
 namespace GameEngine
 {
@@ -10,20 +11,25 @@ namespace GameEngine
 	class StaticMeshActor : public Actor
 	{
 	protected:
-		virtual bool ParseField(Level * level, CoreLib::Text::Parser & parser, bool & isInvalid) override;
+		CoreLib::RefPtr<Drawable> drawable;
+		bool localTransformChanged = true;
+	protected:
+		virtual bool ParseField(CoreLib::Text::TokenReader & parser, bool & isInvalid) override;
 	public:
 		CoreLib::String MeshName;
 		Mesh * Mesh = nullptr;
 		Material * MaterialInstance;
-		CoreLib::RefPtr<StaticRenderContext> RenderContext;
-		virtual void Tick() override { }
+		
+		virtual void OnLoad() override;
+		virtual void GetDrawables(const GetDrawablesParameter & params) override;
+		virtual void SetLocalTransform(const VectorMath::Matrix4 & val) override;
 		virtual EngineActorType GetEngineType() override
 		{
-			return EngineActorType::StaticMesh;
+			return EngineActorType::Drawable;
 		}
 		virtual CoreLib::String GetTypeName() override
 		{
-			return L"StaticMesh";
+			return "StaticMesh";
 		}
 	};
 }

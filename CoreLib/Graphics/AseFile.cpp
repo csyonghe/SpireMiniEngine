@@ -1,6 +1,6 @@
 #include "AseFile.h"
 #include "../LibIO.h"
-#include "../Parser.h"
+#include "../Tokenizer.h"
 
 using namespace CoreLib::Basic;
 using namespace CoreLib::IO;
@@ -11,32 +11,32 @@ namespace CoreLib
 {
 	namespace Graphics
 	{
-		void SkipBlock(Parser & parser)
+		void SkipBlock(TokenReader & parser)
 		{
-			while (!parser.IsEnd() && !parser.LookAhead(L"}"))
+			while (!parser.IsEnd() && !parser.LookAhead("}"))
 			{
 				auto word = parser.ReadToken();
-				if (word.Str == L"{")
+				if (word.Content == "{")
 					SkipBlock(parser);
 			}
-			parser.Read(L"}");
+			parser.Read("}");
 		}
 
-		void SkipField(Parser & parser)
+		void SkipField(TokenReader & parser)
 		{
-			while (!parser.IsEnd() && !parser.LookAhead("*") && !parser.LookAhead(L"}"))
+			while (!parser.IsEnd() && !parser.LookAhead("*") && !parser.LookAhead("}"))
 			{
 				auto word = parser.ReadToken();
-				if (word.Str == L"{")
+				if (word.Content == "{")
 					SkipBlock(parser);
 			}
 		}
 
-		void ParseAttributes(EnumerableDictionary<String, AseValue> & attribs, Parser & parser)
+		void ParseAttributes(EnumerableDictionary<String, AseValue> & attribs, TokenReader & parser)
 		{
-			parser.Read(L"*");
+			parser.Read("*");
 			auto fieldName = parser.ReadWord();
-			if (parser.NextToken().TypeID == TokenType_StringLiteral)
+			if (parser.NextToken().Type == TokenType::StringLiterial)
 			{
 				attribs[fieldName] = AseValue(parser.ReadStringLiteral());
 			}
@@ -45,16 +45,16 @@ namespace CoreLib
 				Vec4 val;
 				val.SetZero();
 				int ptr = 0;
-				while (!parser.LookAhead(L"*") && !parser.LookAhead(L"}"))
+				while (!parser.LookAhead("*") && !parser.LookAhead("}"))
 				{
 					if (ptr < 4)
 					{
-						if (parser.NextToken().TypeID == TokenType_Float || parser.NextToken().TypeID == TokenType_Int)
+						if (parser.NextToken().Type == TokenType::DoubleLiterial || parser.NextToken().Type == TokenType::IntLiterial)
 						{
 							val[ptr] = (float)parser.ReadDouble();
 							ptr++;
 						}
-						else if (parser.LookAhead(L"{"))
+						else if (parser.LookAhead("{"))
 						{
 							parser.ReadToken();
 							SkipBlock(parser);
@@ -63,50 +63,50 @@ namespace CoreLib
 							SkipField(parser);
 					}
 					else
-						throw InvalidOperationException(L"Invalid file format: attribute contains more than 4 values.");
+						throw InvalidOperationException("Invalid file format: attribute contains more than 4 values.");
 				}
 				attribs[fieldName] = AseValue(val);
 			}
 		}
 
-		void ParseAttributeBlock(EnumerableDictionary<String, AseValue> & attribs, Parser & parser)
+		void ParseAttributeBlock(EnumerableDictionary<String, AseValue> & attribs, TokenReader & parser)
 		{
-			parser.Read(L"{");
+			parser.Read("{");
 			while (!parser.LookAhead("}"))
 			{
-				if (parser.LookAhead(L"*"))
+				if (parser.LookAhead("*"))
 					ParseAttributes(attribs, parser);
 				else
 					break;
 			}
-			parser.Read(L"}");
+			parser.Read("}");
 		}
 
-		RefPtr<AseMaterial> ParseSubMaterial(Parser & parser)
+		RefPtr<AseMaterial> ParseSubMaterial(TokenReader & parser)
 		{
 			RefPtr<AseMaterial> result = new AseMaterial();
 			ParseAttributeBlock(result->Fields, parser);
 			AseValue val;
-			val.Str = L"noname";
-			result->Fields.TryGetValue(L"MATERIAL_NAME", val);
+			val.Str = "noname";
+			result->Fields.TryGetValue("MATERIAL_NAME", val);
 			result->Name = val.Str;
 			return result;
 		}
 
-		RefPtr<AseMaterial> ParseMaterial(Parser & parser)
+		RefPtr<AseMaterial> ParseMaterial(TokenReader & parser)
 		{
 			RefPtr<AseMaterial> result = new AseMaterial();
-			parser.Read(L"{");
-			while (!parser.LookAhead(L"}"))
+			parser.Read("{");
+			while (!parser.LookAhead("}"))
 			{
-				parser.Read(L"*");
+				parser.Read("*");
 				auto fieldName = parser.ReadWord();
-				if (fieldName == L"SUBMATERIAL")
+				if (fieldName == "SUBMATERIAL")
 				{
 					parser.ReadInt(); // id
 					result->SubMaterials.Add(ParseSubMaterial(parser));
 				}
-				else if (fieldName == L"MATERIAL_NAME")
+				else if (fieldName == "MATERIAL_NAME")
 				{
 					result->Name = parser.ReadStringLiteral();
 				}
@@ -116,17 +116,17 @@ namespace CoreLib
 					ParseAttributes(result->Fields, parser);
 				}
 			}
-			parser.Read(L"}");
+			parser.Read("}");
 			return result;
 		}
 
 
-		void ParseVertexList(List<Vec3> & verts, Parser & parser)
+		void ParseVertexList(List<Vec3> & verts, TokenReader & parser)
 		{
-			parser.Read(L"{");
-			while (!parser.LookAhead(L"}"))
+			parser.Read("{");
+			while (!parser.LookAhead("}"))
 			{
-				parser.Read(L"*");
+				parser.Read("*");
 				parser.ReadToken(); // name
 				parser.ReadToken(); // id
 				Vec3 c;
@@ -135,41 +135,41 @@ namespace CoreLib
 				c.z = (float)parser.ReadDouble();
 				verts.Add(c);
 			}
-			parser.Read(L"}");
+			parser.Read("}");
 		}
 
-		void ParseFaceList(List<AseMeshFace> & faces, Parser & parser)
+		void ParseFaceList(List<AseMeshFace> & faces, TokenReader & parser)
 		{
-			parser.Read(L"{");
-			while (!parser.LookAhead(L"}"))
+			parser.Read("{");
+			while (!parser.LookAhead("}"))
 			{
 				AseMeshFace f;
-				parser.Read(L"*");
-				parser.Read(L"MESH_FACE"); // name
+				parser.Read("*");
+				parser.Read("MESH_FACE"); // name
 				parser.ReadToken(); // id
-				parser.Read(L":");
-				parser.Read(L"A"); parser.Read(L":");
+				parser.Read(":");
+				parser.Read("A"); parser.Read(":");
 				f.Ids[0] = parser.ReadInt();
-				parser.Read(L"B"); parser.Read(L":");
+				parser.Read("B"); parser.Read(":");
 				f.Ids[1] = parser.ReadInt();
-				parser.Read(L"C"); parser.Read(L":");
+				parser.Read("C"); parser.Read(":");
 				f.Ids[2] = parser.ReadInt();
-				while (!parser.LookAhead(L"*") && !parser.LookAhead(L"}"))
+				while (!parser.LookAhead("*") && !parser.LookAhead("}"))
 					parser.ReadToken();
-				while (parser.LookAhead(L"*"))
+				while (parser.LookAhead("*"))
 				{
-					parser.Read(L"*");
+					parser.Read("*");
 					auto word = parser.ReadWord();
-					if (word == L"MESH_SMOOTHING")
+					if (word == "MESH_SMOOTHING")
 					{
 						try
 						{
 							// comma separated int list
 							f.SmoothGroup = 0;
-							while (parser.NextToken().TypeID == TokenType_Int)
+							while (parser.NextToken().Type == TokenType::IntLiterial)
 							{
 								f.SmoothGroup |= (1 << parser.ReadInt());
-								if (parser.LookAhead(L","))
+								if (parser.LookAhead(","))
 									parser.ReadToken();
 								else
 									break;
@@ -181,9 +181,9 @@ namespace CoreLib
 							parser.Back(1);
 						}
 					}
-					else if (word == L"MESH_MTLID")
+					else if (word == "MESH_MTLID")
 						f.MaterialId = parser.ReadInt();
-					else if (word == L"MESH_FACE")
+					else if (word == "MESH_FACE")
 					{
 						parser.Back(2);
 						break;
@@ -191,16 +191,16 @@ namespace CoreLib
 				}
 				faces.Add(f);
 			}
-			parser.Read(L"}");
+			parser.Read("}");
 		}
 
-		void ParseAttribFaceList(List<AseMeshAttribFace> & faces, Parser & parser)
+		void ParseAttribFaceList(List<AseMeshAttribFace> & faces, TokenReader & parser)
 		{
-			parser.Read(L"{");
-			while (!parser.LookAhead(L"}"))
+			parser.Read("{");
+			while (!parser.LookAhead("}"))
 			{
 				AseMeshAttribFace f;
-				parser.Read(L"*");
+				parser.Read("*");
 				parser.ReadToken(); // name
 				parser.ReadToken(); // id
 				f.Ids[0] = parser.ReadInt();
@@ -208,158 +208,158 @@ namespace CoreLib
 				f.Ids[2] = parser.ReadInt();
 				faces.Add(f);
 			}
-			parser.Read(L"}");
+			parser.Read("}");
 		}
 
-		RefPtr<AseMesh> ParseMesh(Parser & parser)
+		RefPtr<AseMesh> ParseMesh(TokenReader & parser)
 		{
 			RefPtr<AseMesh> result = new AseMesh();
-			parser.Read(L"{");
-			while (!parser.LookAhead(L"}"))
+			parser.Read("{");
+			while (!parser.LookAhead("}"))
 			{
-				parser.Read(L"*");
+				parser.Read("*");
 				auto fieldName = parser.ReadWord();
-				if (fieldName == L"MESH_NUMVERTEX")
+				if (fieldName == "MESH_NUMVERTEX")
 				{
 					int count = parser.ReadInt();
 					result->Vertices.Reserve(count);
 				}
-				else if (fieldName == L"MESH_NUMFACES")
+				else if (fieldName == "MESH_NUMFACES")
 				{
 					int count = parser.ReadInt();
 					result->Faces.Reserve(count);
 				}
-				else if (fieldName == L"MESH_VERTEX_LIST")
+				else if (fieldName == "MESH_VERTEX_LIST")
 				{
 					ParseVertexList(result->Vertices, parser);
 				}
-				else if (fieldName == L"MESH_FACE_LIST")
+				else if (fieldName == "MESH_FACE_LIST")
 				{
 					ParseFaceList(result->Faces, parser);
 				}
-				else if (fieldName == L"MESH_NUMCVERTEX")
+				else if (fieldName == "MESH_NUMCVERTEX")
 				{
 					result->Colors.Data.Reserve(parser.ReadInt());
 				}
-				else if (fieldName == L"MESH_NUMCVFACES")
+				else if (fieldName == "MESH_NUMCVFACES")
 				{
 					result->Colors.Faces.Reserve(parser.ReadInt());
 				}
-				else if (fieldName == L"MESH_CVERTLIST")
+				else if (fieldName == "MESH_CVERTLIST")
 				{
 					ParseVertexList(result->Colors.Data, parser);
 				}
-				else if (fieldName == L"MESH_CFACELIST")
+				else if (fieldName == "MESH_CFACELIST")
 				{
 					ParseAttribFaceList(result->Colors.Faces, parser);
 				}
-				else if (fieldName == L"MESH_TVERTLIST")
+				else if (fieldName == "MESH_TVERTLIST")
 				{
 					result->TexCoords.SetSize(Math::Max(result->TexCoords.Count(), 1));
 					ParseVertexList(result->TexCoords[0].Data, parser);
 				}
-				else if (fieldName == L"MESH_TFACELIST")
+				else if (fieldName == "MESH_TFACELIST")
 				{
 					result->TexCoords.SetSize(Math::Max(result->TexCoords.Count(), 1));
 					result->TexCoords[0].Faces.Reserve(result->Faces.Count());
 					ParseAttribFaceList(result->TexCoords[0].Faces, parser);
 				}
-				else if (fieldName == L"MESH_NUMTVFACES")
+				else if (fieldName == "MESH_NUMTVFACES")
 				{
 					result->TexCoords.SetSize(Math::Max(result->TexCoords.Count(), 1));
 					result->TexCoords[0].Faces.Reserve(parser.ReadInt());
 				}
-				else if (fieldName == L"MESH_MAPPINGCHANNEL")
+				else if (fieldName == "MESH_MAPPINGCHANNEL")
 				{
 					int channelId = parser.ReadInt();
 					result->TexCoords.SetSize(Math::Max(channelId, result->TexCoords.Count()));
 					auto & texCoords = result->TexCoords[channelId - 1];
-					parser.Read(L"{");
-					while (!parser.LookAhead(L"}"))
+					parser.Read("{");
+					while (!parser.LookAhead("}"))
 					{
-						parser.Read(L"*");
+						parser.Read("*");
 						auto word = parser.ReadWord();
-						if (word == L"MESH_NUMTVERTEX")
+						if (word == "MESH_NUMTVERTEX")
 						{
 							texCoords.Data.Reserve(parser.ReadInt());
 						}
-						else if (word == L"MESH_NUMTVFACES")
+						else if (word == "MESH_NUMTVFACES")
 						{
 							texCoords.Faces.Reserve(parser.ReadInt());
 						}
-						else if (word == L"MESH_TVERTLIST")
+						else if (word == "MESH_TVERTLIST")
 						{
 							ParseVertexList(texCoords.Data, parser);
 						}
-						else if (word == L"MESH_TFACELIST")
+						else if (word == "MESH_TFACELIST")
 						{
 							ParseAttribFaceList(texCoords.Faces, parser);
 						}
 						else
 							SkipField(parser);
 					}
-					parser.Read(L"}");
+					parser.Read("}");
 				}
 				else
 				{
 					SkipField(parser);
 				}
 			}
-			parser.Read(L"}");
+			parser.Read("}");
 			return result;
 		}
 
-		RefPtr<AseGeomObject> ParseGeomObject(Parser & parser)
+		RefPtr<AseGeomObject> ParseGeomObject(TokenReader & parser)
 		{
 			RefPtr<AseGeomObject> result = new AseGeomObject();
-			parser.Read(L"{");
-			while (!parser.LookAhead(L"}"))
+			parser.Read("{");
+			while (!parser.LookAhead("}"))
 			{
-				parser.Read(L"*");
+				parser.Read("*");
 				auto fieldName = parser.ReadWord();
-				if (fieldName == L"NODE_NAME")
+				if (fieldName == "NODE_NAME")
 				{
 					result->Attributes[fieldName] = AseValue(parser.ReadStringLiteral());
 				}
-				else if (fieldName == L"NODE_TM")
+				else if (fieldName == "NODE_TM")
 				{
 					ParseAttributeBlock(result->Attributes, parser);
 				}
-				else if (fieldName == L"MESH")
+				else if (fieldName == "MESH")
 				{
 					result->Mesh = ParseMesh(parser);
 				}
-				else if (fieldName == L"MATERIAL_REF")
+				else if (fieldName == "MATERIAL_REF")
 				{
 					result->MaterialId = parser.ReadInt();
 				}
 				else
 					SkipField(parser);
 			}
-			parser.Read(L"}");
+			parser.Read("}");
 			return result;
 		}
 
 		void AseFile::Parse(const String & content, bool flipYZ)
 		{
-			Parser parser(content);
+			TokenReader parser(content);
 			while (!parser.IsEnd())
 			{
-				parser.Read(L"*");
-				auto fieldName = parser.ReadToken().Str;
-				if (fieldName == L"MATERIAL_LIST")
+				parser.Read("*");
+				auto fieldName = parser.ReadToken().Content;
+				if (fieldName == "MATERIAL_LIST")
 				{
-					parser.Read(L"{");
-					while (!parser.LookAhead(L"}"))
+					parser.Read("{");
+					while (!parser.LookAhead("}"))
 					{
-						parser.Read(L"*");
+						parser.Read("*");
 						auto subField = parser.ReadWord();
-						if (subField == L"MATERIAL_COUNT")
+						if (subField == "MATERIAL_COUNT")
 						{
 							int count = parser.ReadInt();
 							Materials.SetSize(count);
 						}
-						else if (subField == L"MATERIAL")
+						else if (subField == "MATERIAL")
 						{
 							int id = parser.ReadInt();
 							if (id >= Materials.Count())
@@ -369,9 +369,9 @@ namespace CoreLib
 						else
 							SkipField(parser);
 					}
-					parser.Read(L"}");
+					parser.Read("}");
 				}
-				else if (fieldName == L"GEOMOBJECT")
+				else if (fieldName == "GEOMOBJECT")
 				{
 					GeomObjects.Add(ParseGeomObject(parser));
 				}

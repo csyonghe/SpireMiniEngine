@@ -5,118 +5,160 @@ namespace GameEngine
 {
 	using namespace VectorMath;
 
-	Vec3 Actor::ParseVec3(CoreLib::Text::Parser & parser)
+	int Actor::ParseInt(CoreLib::Text::TokenReader & parser)
+	{
+		return parser.ReadInt();
+	}
+
+	bool Actor::ParseBool(CoreLib::Text::TokenReader & parser)
+	{
+		if (parser.LookAhead("true"))
+		{
+			parser.ReadToken();
+			return true;
+		}
+		else if (parser.LookAhead("false"))
+		{
+			parser.ReadToken();
+			return false;
+		}
+		else
+			return ParseInt(parser) != 0;
+	}
+
+	Vec3 Actor::ParseVec3(CoreLib::Text::TokenReader & parser)
 	{
 		Vec3 rs;
-		parser.Read(L"[");
+		parser.Read("[");
 		rs.x = (float)parser.ReadDouble();
+		if (parser.LookAhead(","))
+			parser.ReadToken();
 		rs.y = (float)parser.ReadDouble();
+		if (parser.LookAhead(","))
+			parser.ReadToken();
 		rs.z = (float)parser.ReadDouble();
-		parser.Read(L"]");
+		parser.Read("]");
 		return rs;
 	}
-	Vec4 Actor::ParseVec4(CoreLib::Text::Parser & parser)
+	Vec4 Actor::ParseVec4(CoreLib::Text::TokenReader & parser)
 	{
 		Vec4 rs;
-		parser.Read(L"[");
-		rs.x = (float)parser.ReadDouble();
+		parser.Read("[");
+		rs.x = (float)parser.ReadDouble(); 
+		if (parser.LookAhead(","))
+			parser.ReadToken();
 		rs.y = (float)parser.ReadDouble();
+		if (parser.LookAhead(","))
+			parser.ReadToken();
 		rs.z = (float)parser.ReadDouble();
+		if (parser.LookAhead(","))
+			parser.ReadToken();
 		rs.w = (float)parser.ReadDouble();
-		parser.Read(L"]");
+		parser.Read("]");
 		return rs;
 	}
-	Matrix4 Actor::ParseMatrix4(CoreLib::Text::Parser & parser)
+	Matrix4 Actor::ParseMatrix4(CoreLib::Text::TokenReader & parser)
 	{
 		Matrix4 rs;
-		parser.Read(L"[");
+		parser.Read("[");
 		for (int i = 0; i < 16; i++)
+		{
 			rs.values[i] = (float)parser.ReadDouble();
-		parser.Read(L"]");
+			if (parser.LookAhead(","))
+				parser.ReadToken();
+		}
+		parser.Read("]");
 		return rs;
 	}
 
 	void Actor::Serialize(CoreLib::StringBuilder & sb, const VectorMath::Vec3 & v)
 	{
-		sb << L"[";
+		sb << "[";
 		for (int i = 0; i < 3; i++)
-			sb << v[i] << L" ";
-		sb << L"]";
+			sb << v[i] << " ";
+		sb << "]";
 	}
 
 	void Actor::Serialize(CoreLib::StringBuilder & sb, const VectorMath::Vec4 & v)
 	{
-		sb << L"[";
+		sb << "[";
 		for (int i = 0; i < 4; i++)
-			sb << v[i] << L" ";
-		sb << L"]";
+			sb << v[i] << " ";
+		sb << "]";
 	}
 
 	void Actor::Serialize(CoreLib::StringBuilder & sb, const VectorMath::Matrix4 & v)
 	{
-		sb << L"[";
+		sb << "[";
 		for (int i = 0; i < 16; i++)
-			sb << v.values[i] << L" ";
-		sb << L"]";
+			sb << v.values[i] << " ";
+		sb << "]";
 	}
 
-	bool Actor::ParseField(Level * level, CoreLib::Text::Parser & parser, bool &)
+	bool Actor::ParseField(CoreLib::Text::TokenReader & parser, bool &)
 	{
-		if (parser.LookAhead(L"name"))
+		if (parser.LookAhead("name"))
 		{
 			parser.ReadToken();
 			Name = parser.ReadStringLiteral();
 			return true;
 		}
-		else if (parser.LookAhead(L"bounds"))
+		else if (parser.LookAhead("bounds"))
 		{
 			parser.ReadToken();
 			Bounds.Min = ParseVec3(parser);
 			Bounds.Max = ParseVec3(parser);
 			return true;
 		}
-		else if (parser.LookAhead(L"transform"))
+		else if (parser.LookAhead("transform"))
 		{
 			parser.ReadToken();
-			LocalTransform = ParseMatrix4(parser);
+			localTransform = ParseMatrix4(parser);
 			return true;
 		}
-		else if (parser.LookAhead(L"component"))
+		else if (parser.LookAhead("component"))
 		{
 			parser.ReadToken();
 			SubComponents.Add(Engine::Instance()->ParseActor(level, parser));
+			return true;
+		}
+		else if (parser.LookAhead("CastShadow"))
+		{
+			parser.ReadToken();
+			CastShadow = ParseBool(parser);
 			return true;
 		}
 		return false;
 	}
 	void Actor::SerializeFields(CoreLib::StringBuilder & sb)
 	{
-		sb << L"name \"" << Name << L"\"\n";
-		sb << L"transform ";
-		Serialize(sb, LocalTransform);
-		sb << L"\n";
+		sb << "name \"" << Name << "\"\n";
+		sb << "transform ";
+		Serialize(sb, localTransform);
+		sb << "\n";
 		for (auto & comp : SubComponents)
 		{
-			sb << L"component ";
+			sb << "component ";
 			comp->SerializeToText(sb);
 		}
 	}
-	void Actor::Parse(Level * level, CoreLib::Text::Parser & parser, bool & isInvalid)
+	void Actor::Parse(Level * plevel, CoreLib::Text::TokenReader & parser, bool & isInvalid)
 	{
+		level = plevel;
 		parser.ReadToken(); // skip class name
-		parser.Read(L"{");
-		while (!parser.IsEnd() && !parser.LookAhead(L"}"))
+		parser.Read("{");
+		while (!parser.IsEnd() && !parser.LookAhead("}"))
 		{
-			if (!ParseField(level, parser, isInvalid))
-				parser.ReadToken();
+			if (!ParseField(parser, isInvalid))
+				throw CoreLib::Text::TextFormatException("invalid level syntax at " + parser.NextToken().Position.ToString());
 		}
-		parser.Read(L"}");
+		parser.Read("}");
 	}
 	void Actor::SerializeToText(CoreLib::StringBuilder & sb)
 	{
-		sb << GetTypeName() << L"\n{\n";
+		sb << GetTypeName() << "\n{\n";
 		SerializeFields(sb);
-		sb << L"}\n";
+		sb << "}\n";
 	}
 	Actor::~Actor()
 	{

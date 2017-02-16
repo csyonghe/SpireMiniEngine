@@ -2,7 +2,7 @@
 #define GAME_ENGINE_HARDWARE_INPUT_INTERFACE
 
 #include "CoreLib/Basic.h"
-#include "Common.h"
+#include "OS.h"
 
 namespace GameEngine
 {
@@ -20,6 +20,7 @@ namespace GameEngine
 		const wchar_t RightArrow = 0x27;
 		const wchar_t DownArrow = 0x28;
 		const wchar_t Shift = 0x10;
+		const wchar_t Tilda = 0xC0;
 	}
 
 	class KeyStateQueryResult

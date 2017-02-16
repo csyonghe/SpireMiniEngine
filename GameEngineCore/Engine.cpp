@@ -2,6 +2,8 @@
 #include "SkeletalMeshActor.h"
 #include "FreeRoamCameraController.h"
 #include "CoreLib/LibIO.h"
+#include "CoreLib/Tokenizer.h"
+#include "EngineLimits.h"
 
 #ifndef DWORD
 typedef unsigned long DWORD;
@@ -19,57 +21,123 @@ namespace GameEngine
 	using namespace CoreLib::Diagnostics;
 	using namespace GraphicsUI;
 
+	void RegisterEngineActorClasses(Engine *);
+
+    String RemoveQuote(String str)
+    {
+        if (str.Length() >= 2 && str.StartsWith("\""))
+            return str.SubString(1, str.Length() - 2);
+        return str;
+
+    }
+
+	bool Engine::OnToggleConsoleAction(const CoreLib::String & /*actionName*/, ActionInput /*val*/)
+	{
+		if (uiCommandForm)
+			if (uiCommandForm->Visible)
+				uiEntry->CloseWindow(uiCommandForm);
+			else
+				uiEntry->ShowWindow(uiCommandForm);
+		return true;
+	}
+
+	void Engine::RefreshUI()
+	{
+		if (!inDataTransfer)
+		{
+			renderer->GetHardwareRenderer()->BeginDataTransfer();
+			auto uiCommands = uiEntry->DrawUI();
+			uiSystemInterface->TransferDrawComands(renderer->GetRenderedImage(), uiCommands);
+			renderer->GetHardwareRenderer()->EndDataTransfer();
+			uiSystemInterface->ExecuteDrawCommands(nullptr);
+			renderer->GetHardwareRenderer()->Present(uiSystemInterface->GetRenderedImage());
+			renderer->Wait();
+		}
+	}
+
 	void Engine::InternalInit(const EngineInitArguments & args)
 	{
 		try
 		{
-			startTime = lastGameLogicTime = lastRenderingTime = Diagnostics::PerformanceCounter::Start();
+			RegisterEngineActorClasses(this);
 
+			startTime = lastGameLogicTime = lastRenderingTime = Diagnostics::PerformanceCounter::Start();
+			
 			GpuId = args.GpuId;
+			RecompileShaders = args.RecompileShaders;
 
 			gameDir = args.GameDirectory;
 			engineDir = args.EngineDirectory;
+			Path::CreateDir(Path::Combine(gameDir, "Cache"));
+			Path::CreateDir(Path::Combine(gameDir, "Cache/Shaders"));
+			Path::CreateDir(Path::Combine(gameDir, "Settings"));
+
+			auto graphicsSettingsFile = FindFile("graphics.settings", ResourceType::Settings);
+			if (graphicsSettingsFile.Length())
+				graphicsSettings.LoadFromFile(graphicsSettingsFile);
 
 			// initialize input dispatcher
 			inputDispatcher = new InputDispatcher(CreateHardwareInputInterface(args.Window));
-			auto bindingFile = Path::Combine(gameDir, L"bindings.config");
+			auto bindingFile = Path::Combine(gameDir, "bindings.config");
 			if (File::Exists(bindingFile))
 				inputDispatcher->LoadMapping(bindingFile);
-
-			// register internal actor classes
-			RegisterActorClass(L"StaticMesh", []() {return new StaticMeshActor(); });
-			RegisterActorClass(L"SkeletalMesh", []() {return new SkeletalMeshActor(); });
-			RegisterActorClass(L"Camera", []() {return new CameraActor(); });
-			RegisterActorClass(L"FreeRoamCameraController", []() {return new FreeRoamCameraController(); });
-
+			inputDispatcher->BindActionHandler("ToggleConsole", ActionInputHandlerFunc(this, &Engine::OnToggleConsoleAction));
 			// initialize renderer
 			renderer = CreateRenderer(args.Window, args.API);
-
 			renderer->Resize(args.Width, args.Height);
 
 			uiSystemInterface = new UIWindowsSystemInterface(renderer->GetHardwareRenderer());
 			Global::Colors = CreateDarkColorTable();
 			uiEntry = new UIEntry(args.Width, args.Height, uiSystemInterface.Ptr());
 			uiSystemInterface->SetEntry(uiEntry.Ptr());
-			auto cmdForm = new CommandForm(uiEntry.Ptr());
-			uiEntry->ShowWindow(cmdForm);
+			renderer->GetHardwareRenderer()->BeginDataTransfer();
+			uiSystemInterface->SetResolution(args.Width, args.Height);
+			renderer->GetHardwareRenderer()->EndDataTransfer();
 
-			auto configFile = Path::Combine(gameDir, L"game.config");
+			uiCommandForm = new CommandForm(uiEntry.Ptr());
+			uiCommandForm->OnCommand.Bind(this, &Engine::OnCommand);
+			drawCallStatForm = new DrawCallStatForm(uiEntry.Ptr());
+			drawCallStatForm->Posit(args.Width - drawCallStatForm->GetWidth() - 10, 10, drawCallStatForm->GetWidth(), drawCallStatForm->GetHeight());
+			if (args.NoConsole)
+			{
+				uiEntry->CloseWindow(drawCallStatForm);
+                uiEntry->CloseWindow(uiCommandForm);
+			}
+			renderStats.SetSize(renderStats.GetCapacity());
+
+			switch (args.API)
+			{
+			case RenderAPI::Vulkan:
+				Print("using Vulkan renderer, on GPU %d\n", Engine::Instance()->GpuId);
+				break;
+			case RenderAPI::OpenGL:
+				Print("using OpenGL renderer.\n");
+				break;
+			case RenderAPI::VulkanSingle:
+				Print("using VulkanOne renderer, on GPU %d\n", Engine::Instance()->GpuId);
+				break;
+			}
+
+			auto configFile = Path::Combine(gameDir, "game.config");
+			levelToLoad = RemoveQuote(args.StartupLevelName);
 			if (File::Exists(configFile))
 			{
-				CoreLib::Text::Parser parser(File::ReadAllText(configFile));
-				if (parser.LookAhead(L"DefaultLevel"))
+				CoreLib::Text::TokenReader parser(File::ReadAllText(configFile));
+				if (parser.LookAhead("DefaultLevel"))
 				{
 					parser.ReadToken();
-					parser.Read(L"=");
-					auto defaultLevelName = parser.ReadStringLiteral();
-					LoadLevel(defaultLevelName);
+					parser.Read("=");
+                    auto defaultLevelName = parser.ReadStringLiteral();
+					if (args.StartupLevelName.Length() == 0)
+						levelToLoad = defaultLevelName;
 				}
 			}
+			for (int i = 0; i < DynamicBufferLengthMultiplier; i++)
+				syncFences.Add(renderer->GetHardwareRenderer()->CreateFence());
 		}
 		catch (const Exception & e)
 		{
-			MessageBox(NULL, e.Message.Buffer(), L"Error", MB_ICONEXCLAMATION);
+			MessageBox(NULL, e.Message.ToWString(), L"Error", MB_ICONEXCLAMATION);
 			exit(1);
 		}
 	}
@@ -80,68 +148,115 @@ namespace GameEngine
 		level = nullptr;
 		uiEntry = nullptr;
 		uiSystemInterface = nullptr;
+		for (auto & fence : syncFences)
+			fence = nullptr;
 		renderer = nullptr;
+	}
+
+	void Engine::SaveGraphicsSettings()
+	{
+		auto graphicsSettingsFile = Path::Combine(gameDir, "Settings/graphics.settings");
+		graphicsSettings.SaveToFile(graphicsSettingsFile);
 	}
 
 	float Engine::GetTimeDelta(EngineThread thread)
 	{
-		if (thread == EngineThread::GameLogic)
-			return gameLogicTimeDelta;
+		if (timingMode == TimingMode::Natural)
+		{
+			if (thread == EngineThread::GameLogic)
+				return gameLogicTimeDelta;
+			else
+				return renderingTimeDelta;
+		}
 		else
-			return renderingTimeDelta;
+		{
+			return fixedFrameDuration;
+		}
 	}
 
 	static float aggregateTime = 0.0f;
-	static int frameCount = 0;
 
 	void Engine::Tick()
 	{
 		auto thisGameLogicTime = PerformanceCounter::Start();
 		gameLogicTimeDelta = PerformanceCounter::EndSeconds(lastGameLogicTime);
 
-		if (enableInput && !uiEntry->KeyInputConsumed)
+		if (enableInput && !uiEntry->KeyInputConsumed && frameCounter > 2)
 			inputDispatcher->DispatchInput();
 
-		if (level)
+		if (!level)
 		{
-			for (auto & actor : level->StaticActors)
-				actor->Tick();
-			for (auto & actor : level->GeneralActors)
-				actor->Tick();
+			if (levelToLoad.Length())
+			{
+				Print("loading %S\n", levelToLoad.ToWString());
+				LoadLevel(levelToLoad);
+				levelToLoad = "";
+			}
+		}
+		else
+		{
+			for (auto & actor : level->Actors)
+				actor.Value->Tick();
 		}
 		lastGameLogicTime = thisGameLogicTime;
-
+		auto &stats = renderer->GetStats();
 		auto thisRenderingTime = PerformanceCounter::Start();
 		renderingTimeDelta = PerformanceCounter::EndSeconds(lastRenderingTime);
-		renderer->TakeSnapshot();
-		renderer->RenderFrame();
 		lastRenderingTime = thisRenderingTime;
 
-		frameCount++;
+		if (stats.Divisor == 0)
+			stats.StartTime = thisRenderingTime;
+
+		inDataTransfer = true;
+		syncFences[frameCounter % DynamicBufferLengthMultiplier]->Wait();
+		//renderer->Wait();
+		auto cpuTimePoint = CoreLib::Diagnostics::PerformanceCounter::Start();
+		renderer->GetHardwareRenderer()->BeginDataTransfer();
+		renderer->TakeSnapshot();
+		auto uiCommands = uiEntry->DrawUI();
+		uiSystemInterface->TransferDrawComands(renderer->GetRenderedImage(), uiCommands);
+		renderer->GetHardwareRenderer()->EndDataTransfer();
+		inDataTransfer = false;
+
+		renderer->RenderFrame();
+
+		stats.CpuTime += CoreLib::Diagnostics::PerformanceCounter::EndSeconds(cpuTimePoint);
+		
+		uiSystemInterface->ExecuteDrawCommands(syncFences[frameCounter % DynamicBufferLengthMultiplier].Ptr());
 		aggregateTime += renderingTimeDelta;
+
+		renderer->GetHardwareRenderer()->Present(uiSystemInterface->GetRenderedImage());
 
 		if (aggregateTime > 1.0f)
 		{
-			printf("                                  \r");
-			printf("%.2f ms (%u FPS)\r", aggregateTime/frameCount*1000.0f, (int)(frameCount / aggregateTime));
-		
-			aggregateTime = 0.0f;
-			frameCount = 0;
+			drawCallStatForm->SetNumShaders(stats.NumShaders);
+			drawCallStatForm->SetNumMaterials(stats.NumMaterials);
 		}
 
-		auto uiCommands = uiEntry->DrawUI();
-		uiSystemInterface->ExecuteDrawCommands(renderer->GetRenderedImage(), uiCommands);
-		renderer->GetHardwareRenderer()->Present(uiSystemInterface->GetRenderedImage());
-		//renderer->GetHardwareRenderer()->Present(renderer->GetRenderedImage());
-
+		if (stats.Divisor >= 500)
+		{
+			drawCallStatForm->SetFrameRenderTime(aggregateTime / stats.Divisor);
+			drawCallStatForm->SetNumDrawCalls(stats.NumDrawCalls / stats.Divisor);
+			drawCallStatForm->SetNumWorldPasses(stats.NumPasses / stats.Divisor);
+			drawCallStatForm->SetCpuTime(stats.CpuTime / stats.Divisor, stats.PipelineLookupTime / stats.Divisor);
+			static int ptr = 0;
+			stats.TotalTime = CoreLib::Diagnostics::PerformanceCounter::EndSeconds(stats.StartTime);
+			renderStats[ptr%renderStats.Count()] = stats;
+			ptr++;
+			stats.Clear();
+			aggregateTime = 0.0f;
+		}
+		frameCounter++;
 	}
 
 	void Engine::Resize(int w, int h)
 	{
-		if (w > 2 && h > 2)
+		if (renderer && w > 2 && h > 2)
 		{
+			renderer->GetHardwareRenderer()->BeginDataTransfer();
 			renderer->Resize(w, h);
 			uiSystemInterface->SetResolution(w, h);
+			renderer->GetHardwareRenderer()->EndDataTransfer();
 		}
 	}
 
@@ -150,9 +265,50 @@ namespace GameEngine
 		enableInput = value;
 	}
 
+	void Engine::OnCommand(CoreLib::String command)
+	{
+		CoreLib::Text::TokenReader parser(command);
+		if (parser.LookAhead("spawn"))
+		{
+			parser.ReadToken();
+			auto typeName = parser.ReadWord();
+			if (level)
+			{
+				auto actor = CreateActor(typeName);
+				if (actor)
+				{
+					actor->Name = String("TestUser") + String(level->Actors.Count());
+					level->RegisterActor(actor);
+				}
+				else
+				{
+					Print("Unknown actor class \'%s\'.\n", typeName.Buffer());
+				}
+			}
+		}
+		else
+		{
+			auto word = parser.ReadToken();
+			List<String> args;
+			while (!parser.IsEnd())
+				args.Add(parser.ReadWord());
+			inputDispatcher->DispatchAction(word.Content, args.GetArrayView(), 1.0f);
+		}
+	}
+
 	int Engine::HandleWindowsMessage(HWND hwnd, UINT message, WPARAM & wparam, LPARAM & lparam)
 	{
-		return uiSystemInterface->HandleSystemMessage(hwnd, message, wparam, lparam);
+		if (uiSystemInterface)
+			return uiSystemInterface->HandleSystemMessage(hwnd, message, wparam, lparam);
+		return -1;
+	}
+
+	Texture2D * Engine::GetRenderResult(bool withUI)
+	{
+		if (withUI)
+			return uiSystemInterface->GetRenderedImage();
+		else
+			return renderer->GetRenderedImage();
 	}
 
 	Actor * Engine::CreateActor(const CoreLib::String & name)
@@ -177,21 +333,19 @@ namespace GameEngine
 		{
 			auto actualFileName = FindFile(fileName, ResourceType::Level);
 			level = new GameEngine::Level(actualFileName);
-			for (auto & actor : level->StaticActors)
-				actor->OnLoad();
-			for (auto & actor : level->GeneralActors)
-				actor->OnLoad();
+			inDataTransfer = true;
 			renderer->InitializeLevel(level.Ptr());
+			inDataTransfer = false;
 		}
 		catch (const Exception & e)
 		{
-			Print(L"error loading level '%s': %s\n", fileName.Buffer(), e.Message.Buffer());
+			Print("error loading level '%S': %S\n", fileName.ToWString(), e.Message.ToWString());
 		}
 	}
 
-	RefPtr<Actor> Engine::ParseActor(GameEngine::Level * pLevel, Text::Parser & parser)
+	RefPtr<Actor> Engine::ParseActor(GameEngine::Level * pLevel, Text::TokenReader & parser)
 	{
-		RefPtr<Actor> actor = CreateActor(parser.NextToken().Str);
+		RefPtr<Actor> actor = CreateActor(parser.NextToken().Content);
 		bool isInvalid = false;
 		if (actor)
 			actor->Parse(pLevel, parser, isInvalid);
@@ -203,41 +357,85 @@ namespace GameEngine
 
 	CoreLib::String Engine::FindFile(const CoreLib::String & fileName, ResourceType type)
 	{
-		String subDirName;
-		switch (type)
-		{
-		case ResourceType::Level:
-			subDirName = L"Levels";
-			break;
-		case ResourceType::Mesh:
-			subDirName = L"Models";
-			break;
-		case ResourceType::Shader:
-			subDirName = L"Shaders";
-			break;
-		case ResourceType::Texture:
-		case ResourceType::Material:
-			subDirName = L"Materials";
-			break;
-		}
-		auto localFile = Path::Combine(gameDir, subDirName, fileName);
+		auto localFile = Path::Combine(GetDirectory(false, type), fileName);
 		if (File::Exists(localFile))
 			return localFile;
-		auto engineFile = Path::Combine(engineDir, subDirName, fileName);
+		auto engineFile = Path::Combine(GetDirectory(true, type), fileName);
 		if (File::Exists(engineFile))
 			return engineFile;
 		return CoreLib::String();
 	}
 
+	CoreLib::String Engine::GetDirectory(bool useEngineDir, ResourceType type)
+	{
+		String subDirName;
+		switch (type)
+		{
+		case ResourceType::Level:
+			subDirName = "Levels";
+			break;
+		case ResourceType::Mesh:
+			subDirName = "Models";
+			break;
+		case ResourceType::Shader:
+			subDirName = "Shaders";
+			break;
+		case ResourceType::Texture:
+		case ResourceType::Material:
+			subDirName = "Materials";
+			break;
+		case ResourceType::Landscape:
+			subDirName = "Landscapes";
+			break;
+		case ResourceType::Settings:
+			subDirName = "Settings";
+			break;
+		case ResourceType::ShaderCache:
+			subDirName = "Cache/Shaders";
+			break;
+		case ResourceType::ExtTools:
+			subDirName = "ExtTools";
+			break;
+		}
+		if (useEngineDir)
+			return Path::Combine(engineDir, subDirName);
+		else
+			return Path::Combine(gameDir, subDirName);
+	}
+
 	void Engine::Init(const EngineInitArguments & args)
 	{
-		instance = new Engine();
 		instance->InternalInit(args);
 	}
 	void Engine::Destroy()
 	{
 		delete instance;
 		instance = nullptr;
+	}
+	void Engine::SaveImage(Texture2D * image, String fileName)
+	{
+		CoreLib::Imaging::ImageRef imgRef;
+		image->GetSize(imgRef.Width, imgRef.Height);
+		List<unsigned char> imageBuffer;
+		imageBuffer.SetSize(imgRef.Width * imgRef.Height * 4);
+		image->GetData(0, imageBuffer.Buffer(), imageBuffer.Count());
+		List<Vec4> imageBufferf;
+		imageBufferf.SetSize(imgRef.Width * imgRef.Height);
+		for (int i = 0; i < imgRef.Width * imgRef.Height; i++)
+		{
+			imageBufferf[i].x = imageBuffer[i * 4] / 255.0f;
+			imageBufferf[i].y = imageBuffer[i * 4 + 1] / 255.0f;
+			imageBufferf[i].z = imageBuffer[i * 4 + 2] / 255.0f;
+			imageBufferf[i].w = imageBuffer[i * 4 + 3] / 255.0f;
+		}
+		imgRef.Pixels = imageBufferf.Buffer();
+		auto lfileName = fileName.ToLower();
+		if (lfileName.EndsWith("bmp"))
+			imgRef.SaveAsBmpFile(fileName, true);
+		else if (lfileName.EndsWith("png"))
+			imgRef.SaveAsPngFile(fileName, true);
+		else
+			throw InvalidOperationException("Cannot save image as the specified file format.");
 	}
 }
 

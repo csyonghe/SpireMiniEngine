@@ -1,0 +1,3 @@
+UseDeferredRenderer = "true"
+ShadowMapArraySize = "8"
+ShadowMapResolution = "2048"

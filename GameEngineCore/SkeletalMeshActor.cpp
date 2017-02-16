@@ -3,25 +3,27 @@
 
 namespace GameEngine
 {
-	bool SkeletalMeshActor::ParseField(Level * level, CoreLib::Text::Parser & parser, bool &isInvalid)
+	bool SkeletalMeshActor::ParseField(CoreLib::Text::TokenReader & parser, bool &isInvalid)
 	{
-		if (Actor::ParseField(level, parser, isInvalid))
+		if (Actor::ParseField(parser, isInvalid))
 			return true;
-		if (parser.LookAhead(L"mesh"))
+		if (parser.LookAhead("mesh"))
 		{
 			parser.ReadToken();
 			MeshName = parser.ReadStringLiteral();
 			Mesh = level->LoadMesh(MeshName);
+			Bounds = Mesh->Bounds;
 			if (!Mesh)
 				isInvalid = false;
 			return true;
 		}
-		if (parser.LookAhead(L"material"))
+		if (parser.LookAhead("material"))
 		{
-			if (parser.NextToken(1).Str == L"{")
+			if (parser.NextToken(1).Content == "{")
 			{
 				MaterialInstance = level->CreateNewMaterial();
 				MaterialInstance->Parse(parser);
+				MaterialInstance->Name = Name;
 			}
 			else
 			{
@@ -33,7 +35,7 @@ namespace GameEngine
 			}
 			return true;
 		}
-		if (parser.LookAhead(L"Skeleton"))
+		if (parser.LookAhead("Skeleton"))
 		{
 			parser.ReadToken();
 			SkeletonName = parser.ReadStringLiteral();
@@ -42,7 +44,7 @@ namespace GameEngine
 				isInvalid = true;
 			return true;
 		}
-		if (parser.LookAhead(L"SimpleAnimation"))
+		if (parser.LookAhead("SimpleAnimation"))
 		{
 			parser.ReadToken();
 			SimpleAnimationName = parser.ReadStringLiteral();
@@ -51,29 +53,34 @@ namespace GameEngine
 				isInvalid = true;
 			return true;
 		}
-        if (parser.LookAhead(L"MotionGraph"))
-        {
-            parser.ReadToken();
-            MotionGraphName = parser.ReadStringLiteral();
-            MotionGraph = level->LoadMotionGraph(MotionGraphName);
-            if (!MotionGraph)
-                isInvalid = true;
-            return true;
-        }
 		return false;
 	}
+
 	void GameEngine::SkeletalMeshActor::Tick()
 	{
-		auto time = Engine::Instance()->GetCurrentTime();
-		if (Animation)
+		auto time = Engine::Instance()->GetTime();
+        if (Animation)
 			Animation->GetPose(nextPose, time);
 	}
+
+	void SkeletalMeshActor::GetDrawables(const GetDrawablesParameter & params)
+	{
+		if (!drawable)
+			drawable = params.rendererService->CreateSkeletalDrawable(Mesh, Skeleton, MaterialInstance);
+		drawable->UpdateTransformUniform(localTransform, nextPose);
+		params.sink->AddDrawable(drawable.Ptr());
+	}
+
 	void SkeletalMeshActor::OnLoad()
 	{
         if (this->SimpleAnimation)
             Animation = new SimpleAnimationSynthesizer(Skeleton, this->SimpleAnimation);
-        else if (this->MotionGraph)
-            Animation = new MotionGraphAnimationSynthesizer(Skeleton, this->MotionGraph);
 		Tick();
+	}
+
+	void SkeletalMeshActor::SetLocalTransform(const VectorMath::Matrix4 & val)
+	{
+		Actor::SetLocalTransform(val);
+		CoreLib::Graphics::TransformBBox(Bounds, localTransform, Mesh->Bounds);
 	}
 }

@@ -16,14 +16,27 @@ namespace GameEngine
         for (auto & state : States)
         {
             writer.Write(state.Sequence);
+            writer.Write(state.IdInsequence);
             writer.Write(state.Pose.Transforms);
-            writer.Write(state.Positions);
-            writer.Write(state.Velocities);
+            writer.Write(state.Contact);
+            writer.Write(state.Velocity);
+            writer.Write(state.YawAngularVelocity);
+            writer.Write(state.LeftFootToRootDistance);
+            writer.Write(state.RightFootToRootDistance);
             writer.Write(state.ChildrenIds.Count());
             for (auto id : state.ChildrenIds)
             {
                 writer.Write(id);
             }
+        }
+
+        writer.Write(TransitionDictionary.Count());
+        for (auto & transitionInfo : TransitionDictionary)
+        {
+            writer.Write(transitionInfo.Key);
+            writer.Write(transitionInfo.Value.ShortestPath);
+            writer.Write(transitionInfo.Value.DeltaPos);
+            writer.Write(transitionInfo.Value.DeltaYaw);
         }
 
         writer.ReleaseStream();
@@ -41,10 +54,13 @@ namespace GameEngine
         {
             MGState state;
             reader.Read(state.Sequence);
+            reader.Read(state.IdInsequence);
             reader.Read(state.Pose.Transforms);
-            reader.Read(state.Positions);
-            reader.Read(state.Velocities);
-
+            reader.Read(state.Contact);
+            reader.Read(state.Velocity);
+            reader.Read(state.YawAngularVelocity);
+            reader.Read(state.LeftFootToRootDistance);
+            reader.Read(state.RightFootToRootDistance);
             int numChildren = 0;
             reader.Read(numChildren);
             for (int j = 0; j < numChildren; j++)
@@ -54,6 +70,19 @@ namespace GameEngine
                 state.ChildrenIds.Add(id);
             }
             States.Add(state);
+        }
+
+        int numTransitions = 0;
+        reader.Read(numTransitions);
+        for (int i = 0; i < numTransitions; i++)
+        {
+            IndexPair p;
+            StateTransitionInfo info;
+            reader.Read(p);
+            reader.Read(info.ShortestPath);
+            reader.Read(info.DeltaPos);
+            reader.Read(info.DeltaYaw);
+            TransitionDictionary.Add(p, info);
         }
 
         reader.ReleaseStream();

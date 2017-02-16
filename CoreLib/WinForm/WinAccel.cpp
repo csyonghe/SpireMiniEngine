@@ -67,7 +67,7 @@ namespace CoreLib
 			}
 			if (find)
 			{
-				throw L"Accelerator confliction.";
+				throw "Accelerator confliction.";
 			}
 			acc.accel.cmd = (WORD)item->GetIdentifier();
 			accels.Add(acc.accel);

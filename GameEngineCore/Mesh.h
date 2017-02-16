@@ -5,31 +5,42 @@
 #include "CoreLib/VectorMath.h"
 #include "CoreLib/Graphics/BBox.h"
 #include "CoreLib/LibIO.h"
+#include <assert.h>
 
 namespace GameEngine
 {
 	class MeshVertexFormat
 	{
 	private:
-		int numColors = 0;
-		int numUVs = 0;
-		bool hasTangent = false;
-		bool hasSkinning = false;
+		union
+		{
+			struct KeyFields
+			{
+				unsigned int hasSkinning : 1;
+				unsigned int hasTangent : 1;
+				unsigned int numUVs : 4;
+				unsigned int numColors : 4;
+			} fields;
+			int typeId;
+		} key;
 		int vertSize = 12;
 		CoreLib::String shaderDef;
 		int CalcVertexSize()
 		{
-			return 3 * sizeof(float) + (numColors + numUVs) * sizeof(unsigned int) + (hasTangent ? 4 : 0) + (hasSkinning ? 8 : 0);
+			return 3 * sizeof(float) + (key.fields.numColors + key.fields.numUVs) * sizeof(unsigned int) + (key.fields.hasTangent ? 4 : 0) + (key.fields.hasSkinning ? 8 : 0);
 		}
 	public:
 		MeshVertexFormat() {}
 		MeshVertexFormat(int typeId);
 		MeshVertexFormat(int colorChannels, int uvChannels, bool pHasTangent, bool pHasSkinning)
 		{
-			numColors = colorChannels;
-			numUVs = uvChannels;
-			hasTangent = pHasTangent;
-			hasSkinning = pHasSkinning;
+			assert(colorChannels <= 7);
+			assert(uvChannels <= 7);
+
+			key.fields.numColors = colorChannels;
+			key.fields.numUVs = uvChannels;
+			key.fields.hasTangent = pHasTangent ? 1 : 0;
+			key.fields.hasSkinning = pHasSkinning ? 1 : 0;
 			vertSize = CalcVertexSize();
 		}
 		CoreLib::String GetShaderDefinition();
@@ -37,24 +48,27 @@ namespace GameEngine
 		{
 			return vertSize;
 		}
-		int GetColorChannelCount() { return numColors; }
-		int GetUVChannelCount() { return numUVs; }
-		bool HasTangent() { return hasTangent; }
-		bool HasSkinning() { return hasSkinning; };
+		int GetColorChannelCount() { return (int)key.fields.numColors; }
+		int GetUVChannelCount() { return (int)key.fields.numUVs; }
+		bool HasTangent() { return key.fields.hasTangent != 0; }
+		bool HasSkinning() { return key.fields.hasSkinning != 0; };
 		int GetPositionOffset() { return 0; }
 		int GetUVOffset(int channelId) { return 12 + channelId * sizeof(unsigned int); }
-		int GetTangentFrameOffset() { return 12 + numUVs * sizeof(unsigned int); }
-		int GetColorOffset(int channelId) { return 12 + numUVs * sizeof(unsigned int) + (hasTangent ? 4 : 0) + channelId * sizeof(unsigned int); }
+		int GetTangentFrameOffset() { return 12 + key.fields.numUVs * sizeof(unsigned int); }
+		int GetColorOffset(int channelId) { return 12 + key.fields.numUVs * sizeof(unsigned int) + (key.fields.hasTangent ? 4 : 0) + channelId * sizeof(unsigned int); }
 		int GetBoneIdsOffset()
 		{
-			return 12 + numUVs * sizeof(unsigned int) + (hasTangent ? 4 : 0) + numColors * sizeof(unsigned int);
+			return 12 + key.fields.numUVs * sizeof(unsigned int) + (key.fields.hasTangent ? 4 : 0) + key.fields.numColors * sizeof(unsigned int);
 		}
 		int GetBoneWeightsOffset()
 		{
 			return GetBoneIdsOffset() + 4;
 		}
 		
-		int GetTypeId();
+		int GetTypeId()
+		{
+			return key.typeId;
+		}
 	};
 
 	class Skeleton;
@@ -176,6 +190,8 @@ namespace GameEngine
 		void LoadFromStream(CoreLib::IO::Stream * stream);
 		void LoadFromFile(const CoreLib::String & fileName);
 		void FromSkeleton(Skeleton * skeleton, float width);
+	public:
+		static Mesh CreateBox(VectorMath::Vec3 vmin, VectorMath::Vec3 vmax);
 	};
 
 }

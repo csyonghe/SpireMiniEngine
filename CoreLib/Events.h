@@ -59,11 +59,11 @@ namespace CoreLib
 		{
 		private:
 			List<RefPtr<FuncPtr<void, Arguments... >>> Handlers;
-			void Bind(FuncPtr<void, Arguments...> * fobj)
+			void BindFuncPtr(FuncPtr<void, Arguments...> * fobj)
 			{
 				Handlers.Add(fobj);
 			}
-			void Unbind(FuncPtr<void, Arguments...> * fobj)
+			void UnbindFuncPtr(FuncPtr<void, Arguments...> * fobj)
 			{
 				int id = -1;
 				for (int i = 0; i < Handlers.Count(); i++)
@@ -77,7 +77,7 @@ namespace CoreLib
 				if (id != -1)
 				{
 					Handlers[id] = 0;
-					Handlers.Delete(id);				
+					Handlers.RemoveAt(id);				
 				}
 			}
 		public:
@@ -111,22 +111,22 @@ namespace CoreLib
 			template <typename Class>
 			void Bind(Class * Owner, typename MemberFuncPtr<Class, void, Arguments...>::FuncType handler)
 			{
-				Handlers.Add(new MemberFuncPtr<Class, void, Arguments...>(Owner, handler));
+				BindFuncPtr(new MemberFuncPtr<Class, void, Arguments...>(Owner, handler));
 			}
 			template <typename Class>
 			void Unbind(Class * Owner, typename MemberFuncPtr<Class, void, Arguments...>::FuncType handler)
 			{
 				MemberFuncPtr<Class, void, Arguments...> h(Owner, handler);
-				Unbind(&h);
+				UnbindFuncPtr(&h);
 			}
 			void Bind(typename CdeclFuncPtr<void, Arguments...>::FuncType f)
 			{
-				Bind(new CdeclFuncPtr<void, Arguments...>(f));
+				BindFuncPtr(new CdeclFuncPtr<void, Arguments...>(f));
 			}
 			void Unbind(typename CdeclFuncPtr<void, Arguments...>::FuncType f)
 			{
 				CdeclFuncPtr<void, Arguments...> h(f);
-				Unbind(&h);
+				UnbindFuncPtr(&h);
 			}
 			template <typename TFunctor>
 			void Bind(const TFunctor & func)

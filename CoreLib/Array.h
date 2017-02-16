@@ -13,7 +13,7 @@ namespace CoreLib
 		{
 		private:
 			T _buffer[size];
-			int _count;
+			int _count = 0;
 		public:
 			T* begin() const
 			{
@@ -24,10 +24,6 @@ namespace CoreLib
 				return (T*)_buffer+_count;
 			}
 		public:
-			Array()
-			{
-				_count = 0;
-			}
 			inline int GetCapacity() const
 			{
 				return size;
@@ -40,7 +36,7 @@ namespace CoreLib
 			{
 #ifdef _DEBUG
 				if (newSize > size)
-					throw IndexOutofRangeException(L"size too large.");
+					throw IndexOutofRangeException("size too large.");
 #endif
 				_count = newSize;
 			}
@@ -48,7 +44,7 @@ namespace CoreLib
 			{
 #ifdef _DEBUG
 				if (_count == size)
-					throw IndexOutofRangeException(L"out of range access to static array.");
+					throw IndexOutofRangeException("out of range access to static array.");
 #endif
 				_buffer[_count++] = item;
 			}
@@ -56,7 +52,7 @@ namespace CoreLib
 			{
 #ifdef _DEBUG
 				if (_count == size)
-					throw IndexOutofRangeException(L"out of range access to static array.");
+					throw IndexOutofRangeException("out of range access to static array.");
 #endif
 				_buffer[_count++] = _Move(item);
 			}
@@ -65,7 +61,7 @@ namespace CoreLib
 			{
 #if _DEBUG
 				if(id >= _count || id < 0)
-					throw IndexOutofRangeException(L"Operator[]: Index out of Range.");
+					throw IndexOutofRangeException("Operator[]: Index out of Range.");
 #endif
 				return ((T*)_buffer)[id];
 			}
@@ -111,6 +107,31 @@ namespace CoreLib
 				return ArrayView<T>((T*)_buffer + start, count);
 			}
 		};
+
+		template<typename T, typename ...TArgs>
+		struct FirstType
+		{
+			typedef T type;
+		};
+
+
+		template<typename T, int size>
+		void InsertArray(Array<T, size> &) {}
+
+		template<typename T, typename ...TArgs, int size>
+		void InsertArray(Array<T, size> & arr, const T & val, TArgs... args)
+		{
+			arr.Add(val);
+			InsertArray(arr, args...);
+		}
+
+		template<typename ...TArgs>
+		auto MakeArray(TArgs ...args)
+		{
+			Array<typename FirstType<TArgs...>::type, sizeof...(args)> rs;
+			InsertArray(rs, args...);
+			return rs;
+		}
 	}
 }
 

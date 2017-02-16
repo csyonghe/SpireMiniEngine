@@ -1,7 +1,7 @@
 #include "Engine.h"
 #include "Level.h"
 #include "CoreLib/LibIO.h"
-#include "CoreLib/Parser.h"
+#include "CoreLib/Tokenizer.h"
 
 namespace GameEngine
 {
@@ -10,27 +10,48 @@ namespace GameEngine
 
 	Level::Level(const CoreLib::String & fileName)
 	{
-		Text::Parser parser(File::ReadAllText(fileName));
+		Text::TokenReader parser(File::ReadAllText(fileName));
 		while (!parser.IsEnd())
 		{
 			auto actor = Engine::Instance()->ParseActor(this, parser);
 			if (!actor)
 			{
-				Print(L"error: ignoring object.\n");
+				Print("error: ignoring object.\n");
 			}
 			else
 			{
-				if (actor->GetEngineType() == EngineActorType::StaticMesh)
-					StaticActors.Add(actor.As<StaticMeshActor>());
-				else
-					GeneralActors.Add(actor);
-				actorRegistry[actor->Name] = actor.Ptr();
-				if (actor->GetEngineType() == EngineActorType::Camera)
-					CurrentCamera = actor.As<CameraActor>();
+				try
+				{
+					RegisterActor(actor.Ptr());
+					if (actor->GetEngineType() == EngineActorType::Camera)
+						CurrentCamera = actor.As<CameraActor>();
+				}
+				catch (Exception)
+				{
+					Print("error: an actor named '%S' already exists, ignoring second actor.\n", actor->Name.ToWString());
+				}
 			}
 		}
+		Print("Num materials: %d\n", Materials.Count());
 	}
-	Mesh * Level::LoadMesh(const CoreLib::String & fileName)
+	Level::~Level()
+	{
+		for (auto & actor : From(Actors).ToList())
+			UnregisterActor(actor.Value.Ptr());
+	}
+	void Level::RegisterActor(Actor * actor)
+	{
+		Actors.Add(actor->Name, actor);
+		actor->OnLoad();
+		actor->RegisterUI(Engine::Instance()->GetUiEntry());
+	}
+	void Level::UnregisterActor(Actor*actor)
+	{
+		actor->OnUnload();
+		Actors[actor->Name] = nullptr;
+		Actors.Remove(actor->Name);
+	}
+	Mesh * Level::LoadMesh(CoreLib::String fileName)
 	{
 		RefPtr<Mesh> result = nullptr;
 		if (!Meshes.TryGetValue(fileName, result))
@@ -44,9 +65,19 @@ namespace GameEngine
 			}
 			else
 			{
-				printf("error: cannot load mesh \'%S\'\n", fileName.Buffer());
+				Print("error: cannot load mesh \'%S\'\n", fileName.ToWString());
 				return nullptr;
 			}
+		}
+		return result.Ptr();
+	}
+	Mesh * Level::LoadMesh(CoreLib::String name, Mesh m)
+	{
+		RefPtr<Mesh> result = nullptr;
+		if (!Meshes.TryGetValue(name, result))
+		{
+			result = new Mesh(_Move(m));
+			Meshes.Add(_Move(name), result);
 		}
 		return result.Ptr();
 	}
@@ -64,7 +95,7 @@ namespace GameEngine
 			}
 			else
 			{
-				printf("error: cannot load skeleton \'%S\'\n", fileName.Buffer());
+				Print("error: cannot load skeleton \'%S\'\n", fileName.ToWString());
 				return nullptr;
 			}
 		}
@@ -82,18 +113,20 @@ namespace GameEngine
 				result->LoadFromFile(actualName);
 				Materials[fileName] = result;
 			}
-			else
+			else if (fileName != "Error.material")
 			{
-				printf("error: cannot load material \'%S\'\n", fileName.Buffer());
-				return nullptr;
+				Print("error: cannot load material \'%S\'\n", fileName.ToWString());
+				return LoadMaterial("Error.material");
 			}
+			else
+				return nullptr;
 		}
 		return result.Ptr();
 	}
 	Material * Level::CreateNewMaterial()
 	{
 		Material* mat = new Material();
-		Materials[String(L"$materialInstance") + String(Materials.Count())] = mat;
+		Materials[String("$materialInstance") + String(Materials.Count())] = mat;
 		return mat;
 	}
 	SkeletalAnimation * Level::LoadSkeletalAnimation(const CoreLib::String & fileName)
@@ -110,7 +143,7 @@ namespace GameEngine
 			}
 			else
 			{
-				printf("error: cannot load animation \'%S\'\n", fileName.Buffer());
+				Print("error: cannot load animation \'%S\'\n", fileName.ToWString());
 				return nullptr;
 			}
 		}
@@ -130,7 +163,7 @@ namespace GameEngine
             }
             else
             {
-                printf("error: cannot load motion graph \'%S\'\n", fileName.Buffer());
+				Print("error: cannot load motion graph \'%S\'\n", fileName.ToWString());
                 return nullptr;
             }
         }
@@ -138,8 +171,8 @@ namespace GameEngine
     }
 	Actor * Level::FindActor(const CoreLib::String & name)
 	{
-		Actor * result = nullptr;
-		actorRegistry.TryGetValue(name, result);
-		return result;
+		RefPtr<Actor> result;
+		Actors.TryGetValue(name, result);
+		return result.Ptr();
 	}
 }

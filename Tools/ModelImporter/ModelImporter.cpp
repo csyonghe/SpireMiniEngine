@@ -33,9 +33,9 @@ void IndentString(StringBuilder & sb, String src)
 	for (int c = 0; c < src.Length(); c++)
 	{
 		auto ch = src[c];
-		if (ch == L'\n')
+		if (ch == '\n')
 		{
-			sb << L"\n";
+			sb << "\n";
 
 			beginTrim = true;
 		}
@@ -43,21 +43,21 @@ void IndentString(StringBuilder & sb, String src)
 		{
 			if (beginTrim)
 			{
-				while (c < src.Length() - 1 && (src[c] == L'\t' || src[c] == L'\n' || src[c] == L'\r' || src[c] == L' '))
+				while (c < src.Length() - 1 && (src[c] == '\t' || src[c] == '\n' || src[c] == '\r' || src[c] == ' '))
 				{
 					c++;
 					ch = src[c];
 				}
 				for (int i = 0; i < indent - 1; i++)
-					sb << L'\t';
+					sb << '\t';
 				if (ch != '}' && indent > 0)
-					sb << L'\t';
+					sb << '\t';
 				beginTrim = false;
 			}
 
-			if (ch == L'{')
+			if (ch == '{')
 				indent++;
-			else if (ch == L'}')
+			else if (ch == '}')
 				indent--;
 			if (indent < 0)
 				indent = 0;
@@ -71,21 +71,21 @@ void ConvertLevelNode(StringBuilder & sb, const aiScene * scene, aiNode * node)
 {
 	for (auto i = 0u; i < node->mNumMeshes; i++)
 	{
-		sb << L"StaticMesh\n{\n";
-		sb << L"name \"" << String(node->mName.C_Str()) << L"\"\n";
-		sb << L"transform [";
+		sb << "StaticMesh\n{\n";
+		sb << "name \"" << String(node->mName.C_Str()) << "\"\n";
+		sb << "transform [";
 		for (int i = 0; i < 16; i++)
-			sb << String(node->mTransformation[i%4][i/4]) << L" ";
-		sb << L"]\n";
+			sb << String(node->mTransformation[i%4][i/4]) << " ";
+		sb << "]\n";
 		auto name = String(scene->mMeshes[node->mMeshes[i]]->mName.C_Str());
 		if (name.Length() == 0)
-			name = L"mesh_" + String((int)(node->mMeshes[i])) + L".mesh";
-		sb << L"mesh \"" << name << L"\"\n";
+			name = "mesh_" + String((int)(node->mMeshes[i])) + ".mesh";
+		sb << "mesh \"" << name << "\"\n";
 		for (auto i = 0u; i < node->mNumChildren; i++)
 		{
 			ConvertLevelNode(sb, scene, node->mChildren[i]);
 		}
-		sb << L"}\n";
+		sb << "}\n";
 	}
 }
 
@@ -144,15 +144,15 @@ void FlipKeyFrame(BoneTransformation & kf)
 void Export(ExportArguments args)
 {
 	auto fileName = args.FileName;
-	auto outFileName = Path::ReplaceExt(fileName, L"out");
-	wprintf(L"loading %s...\n", fileName.Buffer());
+	auto outFileName = Path::ReplaceExt(fileName, "out");
+	printf("loading %S...\n", fileName.ToWString());
 	Assimp::Importer importer;
 	int process = aiProcess_CalcTangentSpace;
 	if (args.FlipUV)
 		process |= aiProcess_FlipUVs;
 	if (args.FlipWindingOrder)
 		process |= aiProcess_FlipWindingOrder;
-	auto scene = importer.ReadFile(fileName.ToMultiByteString(), process);
+	auto scene = importer.ReadFile(fileName.Buffer(), process);
 	if (scene)
 	{
 		importer.ApplyPostProcessing(aiProcess_JoinIdenticalVertices | aiProcess_OptimizeMeshes | aiProcess_ImproveCacheLocality | aiProcess_LimitBoneWeights);
@@ -207,7 +207,7 @@ void Export(ExportArguments args)
 					}
 				}
                 skeleton = skeleton.TopologySort();
-				auto node = scene->mRootNode->FindNode(skeleton.Bones[0].Name.ToMultiByteString());
+				auto node = scene->mRootNode->FindNode(skeleton.Bones[0].Name.Buffer());
 				aiMatrix4x4 rootTransform = node->mTransformation;
 				while (node->mParent)
 				{
@@ -234,18 +234,20 @@ void Export(ExportArguments args)
 				}
                 if (args.ExportSkeleton)
                 {
-                    skeleton.SaveToFile(Path::ReplaceExt(outFileName, L"skeleton"));
-                    wprintf(L"skeleton converted. total bones: %d.\n", skeleton.Bones.Count());
+                    skeleton.SaveToFile(Path::ReplaceExt(outFileName, "skeleton"));
+                    printf("skeleton converted. total bones: %d.\n", skeleton.Bones.Count());
                 }
 			}
 		}
 
 		if (args.ExportMesh && scene->mNumMeshes > 0)
 		{
-			for (auto i = 0u; i < scene->mNumMeshes; i++)
+			for (auto mi = 0u; mi < scene->mNumMeshes; mi++)
 			{
-				auto mesh = scene->mMeshes[i];
+				auto mesh = scene->mMeshes[mi];
+				
 				RefPtr<Mesh> meshOut = new Mesh();
+				meshOut->Bounds.Init();
 				meshOut->SetVertexFormat(MeshVertexFormat((int)mesh->GetNumColorChannels(), (int)mesh->GetNumUVChannels(), true, mesh->HasBones()));
 				meshOut->AllocVertexBuffer(mesh->mNumVertices);
 				meshOut->Indices.SetSize(mesh->mNumFaces * 3);
@@ -260,6 +262,7 @@ void Export(ExportArguments args)
 					auto vertPos = Vec3::Create(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z);
 					if (args.FlipYZ)
 						vertPos = FlipYZ(vertPos);
+					meshOut->Bounds.Union(vertPos);
 					meshOut->SetVertexPosition(i, vertPos);
 					for (auto j = 0u; j < mesh->GetNumUVChannels(); j++)
 					{
@@ -336,15 +339,19 @@ void Export(ExportArguments args)
 					}
 				}
 				auto outName = outFileName;
+				String meshName;
 				if (scene->mNumMeshes > 1)
 				{
-					String meshName = mesh->mName.C_Str();
-					if (meshName.Length() == 0)
-						meshName = L"mesh_" + String((int)i);
-					outName = Path::Combine(Path::GetDirectoryName(outFileName), meshName + L".mesh");
+					meshName = Path::GetFileNameWithoutEXT(fileName) + "_";
+					String compName = mesh->mName.C_Str();
+					meshName = meshName + String((int)mi);
+					/*if (compName.Length() != 0)
+						meshName = meshName + "_" + compName;*/
+					outName = Path::Combine(Path::GetDirectoryName(outFileName), meshName + ".mesh");
 				}
-				meshOut->SaveToFile(Path::ReplaceExt(outName, L"mesh"));
-				wprintf(L"mesh converted. faces: %d, vertices: %d, bones: %d.\n", mesh->mNumFaces, mesh->mNumVertices, mesh->mNumBones);
+				
+				meshOut->SaveToFile(Path::ReplaceExt(outName, "mesh"));
+				wprintf(L"mesh converted: %s faces: %d, vertices: %d, bones: %d.\n", meshName.ToWString(), mesh->mNumFaces, mesh->mNumVertices, mesh->mNumBones);
 			}
 		}
 
@@ -461,16 +468,16 @@ void Export(ExportArguments args)
 					anim.Channels[i].KeyFrames.Add(keyFrame);
 				}
 			}
-			anim.SaveToFile(Path::ReplaceExt(outFileName, L"anim"));
+			anim.SaveToFile(Path::ReplaceExt(outFileName, "anim"));
 			int maxKeyFrames = 0;
 			for (auto & c : anim.Channels)
 				maxKeyFrames = Math::Max(maxKeyFrames, c.KeyFrames.Count());
-			wprintf(L"animation converted. keyframes %d, bones %d\n", maxKeyFrames, anim.Channels.Count());
+			printf("animation converted. keyframes %d, bones %d\n", maxKeyFrames, anim.Channels.Count());
 		}
 	}
 	else
 	{
-		wprintf(L"cannot load '%s'.\n", fileName.Buffer());
+		printf("cannot load '%S'.\n", fileName.ToWString());
 	}
 }
 
@@ -482,26 +489,26 @@ private:
 public:
 	ModelImporterForm()
 	{
-		SetText(L"Convert FBX");
+		SetText("Convert FBX");
 		SetClientWidth(300);
 		SetClientHeight(180);
 		SetMaximizeBox(false);
 		SetBorder(fbFixedDialog);
 		chkFlipYZ = new CheckBox(this);
 		chkFlipYZ->SetPosition(90, 20, 120, 25);
-		chkFlipYZ->SetText(L"Flip YZ");
+		chkFlipYZ->SetText("Flip YZ");
 		chkFlipYZ->SetChecked(ExportArguments().FlipYZ);
 		chkFlipUV = new CheckBox(this);
 		chkFlipUV->SetPosition(90, 50, 120, 25);
-		chkFlipUV->SetText(L"Flip UV");
+		chkFlipUV->SetText("Flip UV");
 		chkFlipUV->SetChecked(ExportArguments().FlipUV);
 		chkFlipWinding = new CheckBox(this);
 		chkFlipWinding->SetPosition(90, 80, 120, 25);
-		chkFlipWinding->SetText(L"Flip Winding");
+		chkFlipWinding->SetText("Flip Winding");
 		chkFlipWinding->SetChecked(ExportArguments().FlipWindingOrder);
 		btnSelectFiles = new Button(this);
 		btnSelectFiles->SetPosition(90, 130, 120, 30);
-		btnSelectFiles->SetText(L"Select Files");
+		btnSelectFiles->SetText("Select Files");
 		btnSelectFiles->OnClick.Bind([=](Object*, EventArgs)
 		{
 			FileDialog dlg(this);
@@ -528,7 +535,7 @@ int wmain(int argc, const wchar_t** argv)
 	if (argc > 1)
 	{
 		ExportArguments args;
-		args.FileName = String(argv[1]);
+		args.FileName = String::FromWString(argv[1]);
 		Export(args);
 	}
 	else

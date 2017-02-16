@@ -28,38 +28,38 @@ public:
 	String FileName;
 	String SkeletonFileName;
 	String RigMappingFileName;
-	String EulerOrder = L"AUTO";
+	String EulerOrder = "AUTO";
 	bool ExportSkeleton = true;
 	bool ExportMesh = false;
 	bool ExportAnimation = true;
 	bool FlipYZ = true;
 };
 
-Quaternion FlipYZ(Quaternion q)
-{
-	return Quaternion::FromAxisAngle(Vec3::Create(1.0f, 0.0f, 0.0f), -Math::Pi*0.5f) * q * Quaternion::FromAxisAngle(Vec3::Create(1.0f, 0.0f, 0.0f), Math::Pi*0.5f);
-}
-
+//Quaternion FlipYZ(Quaternion q)
+//{
+//	return Quaternion::FromAxisAngle(Vec3::Create(1.0f, 0.0f, 0.0f), -Math::Pi*0.5f) * q * Quaternion::FromAxisAngle(Vec3::Create(1.0f, 0.0f, 0.0f), Math::Pi*0.5f);
+//}
+//
 Vec3 FlipYZ(const Vec3 & v)
 {
 	return Vec3::Create(v.x, v.z, -v.y);
 }
-
-Matrix4 FlipYZ(const Matrix4 & v)
-{
-	Matrix4 rs = v;
-	for (int i = 0; i < 4; i++)
-	{
-		rs.m[1][i] = v.m[2][i];
-		rs.m[2][i] = -v.m[1][i];
-	}
-	for (int i = 0; i < 4; i++)
-	{
-		Swap(rs.m[i][1], rs.m[i][2]);
-		rs.m[i][2] = -rs.m[i][2];
-	}
-	return rs;
-}
+//
+//Matrix4 FlipYZ(const Matrix4 & v)
+//{
+//	Matrix4 rs = v;
+//	for (int i = 0; i < 4; i++)
+//	{
+//		rs.m[1][i] = v.m[2][i];
+//		rs.m[2][i] = -v.m[1][i];
+//	}
+//	for (int i = 0; i < 4; i++)
+//	{
+//		Swap(rs.m[i][1], rs.m[i][2]);
+//		rs.m[i][2] = -rs.m[i][2];
+//	}
+//	return rs;
+//}
 
 template<typename TFunc>
 void TraverseBvhJoints(BvhJoint * joint, const TFunc & f)
@@ -119,7 +119,6 @@ void RotateKeyFrame(BoneTransformation & kf, Vec3 rotation)
 	kf.Rotation *= 1.0f / kf.Rotation.Length();
 	kf.Translation = Vec3::Create(transform.values[12], transform.values[13], transform.values[14]);
 }
-
 
 void FlipKeyFrame(BoneTransformation & kf)
 {
@@ -250,7 +249,7 @@ void Export(ExportArguments args)
     }
 
     if (args.ExportSkeleton)
-        skeleton.SaveToFile(Path::ReplaceExt(args.FileName, L"skeleton"));
+        skeleton.SaveToFile(Path::ReplaceExt(args.FileName, "skeleton"));
 
 	if (args.ExportAnimation)
 	{
@@ -281,10 +280,10 @@ void Export(ExportArguments args)
 			}
 			else
 			{
-				throw InvalidOperationException(L"MOTION data size does not match HIERARCHY channels declaration.");
+				throw InvalidOperationException("MOTION data size does not match HIERARCHY channels declaration.");
 			}
 		};
-        bool orderDetermined = args.EulerOrder != L"AUTO";
+        bool orderDetermined = args.EulerOrder != "AUTO";
         StringBuilder orderSB;
 		while (ptr < file.FrameData.Count())
 		{
@@ -323,17 +322,17 @@ void Export(ExportArguments args)
 					case ChannelType::XRot:
 						rotX = readData();
                         if (!orderDetermined) 
-                            orderSB.Append(L"X");
+                            orderSB.Append("X");
 						break;
 					case ChannelType::YRot:
 						rotY = readData();
                         if (!orderDetermined)
-                            orderSB.Append(L"Y");
+                            orderSB.Append("Y");
 						break;
 					case ChannelType::ZRot:
 						rotZ = readData();
                         if (!orderDetermined)
-                            orderSB.Append(L"Z");
+                            orderSB.Append("Z");
 						break;
 					}
 				}
@@ -347,32 +346,32 @@ void Export(ExportArguments args)
 				Matrix4::RotationX(xMat, rotX * (Math::Pi / 180.0f));
 				Matrix4::RotationY(yMat, rotY * (Math::Pi / 180.0f));
 				Matrix4::RotationZ(zMat, rotZ * (Math::Pi / 180.0f));
-				if (args.EulerOrder == L"ZXY")
+				if (args.EulerOrder == "ZXY")
 				{
 					Matrix4::Multiply(rot, xMat, zMat);
 					Matrix4::Multiply(rot, yMat, rot);
 				}
-				else if (args.EulerOrder == L"ZYX")
+				else if (args.EulerOrder == "ZYX")
 				{
 					Matrix4::Multiply(rot, yMat, zMat);
 					Matrix4::Multiply(rot, xMat, rot);
 				}
-				else if (args.EulerOrder == L"YXZ")
+				else if (args.EulerOrder == "YXZ")
 				{
 					Matrix4::Multiply(rot, xMat, yMat);
 					Matrix4::Multiply(rot, zMat, rot);
 				}
-				else if (args.EulerOrder == L"XYZ")
+				else if (args.EulerOrder == "XYZ")
 				{
 					Matrix4::Multiply(rot, yMat, xMat);
 					Matrix4::Multiply(rot, zMat, rot);
 				}
-				else if (args.EulerOrder == L"XZY")
+				else if (args.EulerOrder == "XZY")
 				{
 					Matrix4::Multiply(rot, zMat, xMat);
 					Matrix4::Multiply(rot, yMat, rot);
 				}
-				else //if (args.EulerOrder == L"YZX")
+				else //if (args.EulerOrder == "YZX")
 				{
 					Matrix4::Multiply(rot, zMat, yMat);
 					Matrix4::Multiply(rot, xMat, rot);
@@ -392,7 +391,7 @@ void Export(ExportArguments args)
 			}
 			frameId++;
 		}
-		anim.SaveToFile(Path::ReplaceExt(args.FileName, L"anim"));
+		anim.SaveToFile(Path::ReplaceExt(args.FileName, "anim"));
 	}
 	
     if (args.ExportMesh)
@@ -402,7 +401,7 @@ void Export(ExportArguments args)
 		FindBBox(bbox, file.Hierarchy.Ptr());
 		Mesh mesh;
 		mesh.FromSkeleton(&skeleton, (bbox.Max-bbox.Min).Length() * 0.08f);
-		mesh.SaveToFile(Path::ReplaceExt(args.FileName, L"mesh"));
+		mesh.SaveToFile(Path::ReplaceExt(args.FileName, "mesh"));
 	}
 }
 
@@ -418,7 +417,7 @@ private:
 public:
 	MocapConverterForm()
 	{
-		SetText(L"Convert Mocap Data");
+		SetText("Convert Mocap Data");
 		SetClientWidth(420);
 		SetClientHeight(240);
 		CenterScreen();
@@ -426,57 +425,57 @@ public:
 		SetBorder(fbFixedDialog);
 		chkFlipYZ = new CheckBox(this);
 		chkFlipYZ->SetPosition(30, 20, 120, 25);
-		chkFlipYZ->SetText(L"Flip YZ");
+		chkFlipYZ->SetText("Flip YZ");
 		chkFlipYZ->SetChecked(ExportArguments().FlipYZ);
 		chkCreateMesh = new CheckBox(this);
 		chkCreateMesh->SetPosition(30, 50, 120, 25);
-		chkCreateMesh->SetText(L"Create Mesh");
+		chkCreateMesh->SetText("Create Mesh");
 		chkCreateMesh->SetChecked(ExportArguments().ExportMesh);
 		cmbEuler = new ComboBox(this);
-		cmbEuler->AddItem(L"Euler Angle Order");
-		cmbEuler->AddItem(L"ZXY");
-		cmbEuler->AddItem(L"ZYX");
-		cmbEuler->AddItem(L"YXZ");
-		cmbEuler->AddItem(L"XYZ");
-		cmbEuler->AddItem(L"XZY");
-		cmbEuler->AddItem(L"YZX");
+		cmbEuler->AddItem("Euler Angle Order");
+		cmbEuler->AddItem("ZXY");
+		cmbEuler->AddItem("ZYX");
+		cmbEuler->AddItem("YXZ");
+		cmbEuler->AddItem("XYZ");
+		cmbEuler->AddItem("XZY");
+		cmbEuler->AddItem("YZX");
 
 		cmbEuler->SetPosition(30, 80, 120, 30);
 		cmbEuler->SetSelectionIndex(0);
 
 		lblSkeleton = new Label(this);
-		lblSkeleton->SetText(L"Retarget Skeleton:");
+		lblSkeleton->SetText("Retarget Skeleton:");
 		lblSkeleton->SetPosition(30, 113, 120, 30);
 		txtSkeletonFile = new TextBox(this);
-		txtSkeletonFile->SetText(L"");
+		txtSkeletonFile->SetText("");
 		txtSkeletonFile->SetPosition(150, 110, 140, 25);
 		btnSelectSkeletonFile = new Button(this);
-		btnSelectSkeletonFile->SetText(L"Browse");
+		btnSelectSkeletonFile->SetText("Browse");
 		btnSelectSkeletonFile->SetPosition(300, 110, 80, 25);
 
 		btnSelectSkeletonFile->OnClick.Bind([this](Object*, EventArgs)
 		{
 			FileDialog dlg(this);
-			dlg.Filter = L"Skeleton|*.skeleton";
+			dlg.Filter = "Skeleton|*.skeleton";
 			if (dlg.ShowOpen())
 				txtSkeletonFile->SetText(dlg.FileName);
 		});
 
 
 		lblRig = new Label(this);
-		lblRig->SetText(L"Rig Mapping:");
+		lblRig->SetText("Rig Mapping:");
 		lblRig->SetPosition(30, 143, 120, 30);
 		txtRigFile = new TextBox(this);
-		txtRigFile->SetText(L"");
+		txtRigFile->SetText("");
 		txtRigFile->SetPosition(150, 140, 140, 25);
 		btnSelectRigFile = new Button(this);
-		btnSelectRigFile->SetText(L"Browse");
+		btnSelectRigFile->SetText("Browse");
 		btnSelectRigFile->SetPosition(300, 140, 80, 25);
 
 		btnSelectRigFile->OnClick.Bind([this](Object*, EventArgs)
 		{
 			FileDialog dlg(this);
-			dlg.Filter = L"Rig Mapping|*.rig";
+			dlg.Filter = "Rig Mapping|*.rig";
 			if (dlg.ShowOpen())
 				txtRigFile->SetText(dlg.FileName);
 		});
@@ -484,7 +483,7 @@ public:
 
 		btnSelectFiles = new Button(this);
 		btnSelectFiles->SetPosition(90, 170, 120, 30);
-		btnSelectFiles->SetText(L"Select Files");
+		btnSelectFiles->SetText("Select Files");
 		btnSelectFiles->OnClick.Bind([=](Object*, EventArgs)
 		{
 			try
@@ -511,7 +510,7 @@ public:
 			}
 			catch (const Exception & e)
 			{
-				MessageBox(String("Error: ") + e.Message, L"Error", MB_ICONEXCLAMATION);
+				MessageBox(String("Error: ") + e.Message, "Error", MB_ICONEXCLAMATION);
 			}
 		});
 	}
@@ -526,24 +525,23 @@ int wmain(int argc, const wchar_t** argv)
 			ExportArguments args;
 			args.FlipYZ = false;
 			args.ExportMesh = false;
-			args.FileName = String(argv[1]);
+			args.FileName = String::FromWString(argv[1]);
 			for (int i = 2; i < argc; i++)
-				if (String(argv[i]) == L"-flipyz")
+				if (String::FromWString(argv[i]) == "-flipyz")
 					args.FlipYZ = true;
-				else if (String(argv[i]) == L"-mesh")
+				else if (String::FromWString(argv[i]) == "-mesh")
 					args.ExportMesh = true;
-				else if (String(argv[i]) == L"-euler" && i < argc - 1)
-					args.EulerOrder = argv[i + 1];
-				else if (String(argv[i]) == L"-skeleton" && i < argc - 1)
-					args.SkeletonFileName = argv[i + 1];
-				else if (String(argv[i]) == L"-rig" && i < argc - 1)
-					args.RigMappingFileName = argv[i + 1];
+				else if (String::FromWString(argv[i]) == "-euler" && i < argc - 1)
+					args.EulerOrder = String::FromWString(argv[i + 1]);
+				else if (String::FromWString(argv[i]) == "-skeleton" && i < argc - 1)
+					args.SkeletonFileName = String::FromWString(argv[i + 1]);
+				else if (String::FromWString(argv[i]) == "-rig" && i < argc - 1)
+					args.RigMappingFileName = String::FromWString(argv[i + 1]);
 			Export(args);
-			CoreLib::Text::Parser::DisposeTextLexer();
 		}
 		catch (const Exception & e)
 		{
-			printf("Error: %S\n", e.Message.Buffer());
+			printf("Error: %S\n", e.Message.ToWString());
 			return 1;
 		}
 	}

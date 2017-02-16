@@ -40,7 +40,7 @@ namespace CoreLib
 
 		void TextBox::SetText(const String & text)
 		{
-			SendMessage(handle, WM_SETTEXT, 0, (LPARAM)text.Buffer());
+			SendMessage(handle, WM_SETTEXT, 0, (LPARAM)text.ToWString());
 		}
 
 		String TextBox::GetText()
@@ -50,7 +50,7 @@ namespace CoreLib
 			buffer.SetSize(len+1);
 			buffer.Last() = 0;
 			GetWindowTextW(handle, buffer.Buffer(), len+1);
-			return String(buffer.Buffer());
+			return String::FromWString(buffer.Buffer());
 		}
 
 		int TextBox::ProcessNotification(WinNotification note)
@@ -184,7 +184,7 @@ namespace CoreLib
 
 		void Label::SetText(const String & text)
 		{
-			SetWindowTextW(handle, text.Buffer());
+			SetWindowTextW(handle, text.ToWString());
 		}
 
 		String Label::GetText()
@@ -194,7 +194,7 @@ namespace CoreLib
 			buffer.SetSize(len+1);
 			buffer.Last() = 0;
 			GetWindowTextW(handle, buffer.Buffer(), len);
-			return String(buffer.Buffer());
+			return String::FromWString(buffer.Buffer());
 		}
 	}
 }

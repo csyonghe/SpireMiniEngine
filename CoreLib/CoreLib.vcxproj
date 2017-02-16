@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="DebugClang|ARM">
@@ -74,6 +74,10 @@
     <RootNamespace>CoreLib</RootNamespace>
     <ProjectGuid>{CC291035-BF4A-4C63-B374-F85DB4A9C712}</ProjectGuid>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <SccProjectName>SAK</SccProjectName>
+    <SccAuxPath>SAK</SccAuxPath>
+    <SccLocalPath>SAK</SccLocalPath>
+    <SccProvider>SAK</SccProvider>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -537,6 +541,7 @@
     <ClInclude Include="Array.h" />
     <ClInclude Include="ArrayView.h" />
     <ClInclude Include="Basic.h" />
+    <ClInclude Include="CommandLineParser.h" />
     <ClInclude Include="Common.h" />
     <ClInclude Include="Dictionary.h" />
     <ClInclude Include="Events.h" />
@@ -550,6 +555,7 @@
     <ClInclude Include="Graphics\ObjModel.h" />
     <ClInclude Include="Graphics\TextureFile.h" />
     <ClInclude Include="Graphics\ViewFrustum.h" />
+    <ClInclude Include="Hash.h" />
     <ClInclude Include="Imaging\Bitmap.h" />
     <ClInclude Include="Imaging\lodepng.h" />
     <ClInclude Include="Imaging\stb_image.h" />
@@ -565,7 +571,6 @@
     <ClInclude Include="LibMath.h" />
     <ClInclude Include="MD5.h" />
     <ClInclude Include="MemoryPool.h" />
-    <ClInclude Include="Parser.h" />
     <ClInclude Include="PerformanceCounter.h" />
     <ClInclude Include="Regex\MetaLexer.h" />
     <ClInclude Include="Regex\Regex.h" />
@@ -577,8 +582,8 @@
     <ClInclude Include="Stream.h" />
     <ClInclude Include="TextIO.h" />
     <ClInclude Include="Threading.h" />
+    <ClInclude Include="Tokenizer.h" />
     <ClInclude Include="VectorMath.h" />
-    <ClInclude Include="WideChar.h" />
     <ClInclude Include="WinForm\Debug.h" />
     <ClInclude Include="WinForm\WinAccel.h" />
     <ClInclude Include="WinForm\WinApp.h" />
@@ -593,6 +598,7 @@
     <ClInclude Include="WinForm\WinListBox.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CommandLineParser.cpp" />
     <ClCompile Include="Graphics\AseFile.cpp" />
     <ClCompile Include="Graphics\BBox.cpp" />
     <ClCompile Include="Graphics\BezierMesh.cpp" />
@@ -612,7 +618,6 @@
     <ClCompile Include="LibUI\LibUI_MultiTextBox.cpp" />
     <ClCompile Include="MD5.cpp" />
     <ClCompile Include="MemoryPool.cpp" />
-    <ClCompile Include="Parser.cpp" />
     <ClCompile Include="PerformanceCounter.cpp" />
     <ClCompile Include="Regex\MetaLexer.cpp" />
     <ClCompile Include="Regex\Regex.cpp" />
@@ -623,8 +628,8 @@
     <ClCompile Include="Stream.cpp" />
     <ClCompile Include="TextIO.cpp" />
     <ClCompile Include="Threading.cpp" />
+    <ClCompile Include="Tokenizer.cpp" />
     <ClCompile Include="VectorMath.cpp" />
-    <ClCompile Include="WideChar.cpp" />
     <ClCompile Include="WinForm\WinAccel.cpp" />
     <ClCompile Include="WinForm\WinApp.cpp" />
     <ClCompile Include="WinForm\WinButtons.cpp" />

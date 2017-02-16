@@ -84,9 +84,6 @@
     <ClInclude Include="Regex\RegexTree.h">
       <Filter>Regex</Filter>
     </ClInclude>
-    <ClInclude Include="Parser.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="VectorMath.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -98,9 +95,6 @@
     </ClInclude>
     <ClInclude Include="Graphics\ObjModel.h">
       <Filter>Graphics</Filter>
-    </ClInclude>
-    <ClInclude Include="WideChar.h">
-      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="PerformanceCounter.h">
       <Filter>Header Files</Filter>
@@ -204,6 +198,15 @@
     <ClInclude Include="LibUI\UISystemInterface.h">
       <Filter>LibUI</Filter>
     </ClInclude>
+    <ClInclude Include="Tokenizer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CommandLineParser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Hash.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="LibString.cpp">
@@ -236,9 +239,6 @@
     <ClCompile Include="Regex\RegexTree.cpp">
       <Filter>Regex</Filter>
     </ClCompile>
-    <ClCompile Include="Parser.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="VectorMath.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -250,9 +250,6 @@
     </ClCompile>
     <ClCompile Include="Graphics\ObjModel.cpp">
       <Filter>Graphics</Filter>
-    </ClCompile>
-    <ClCompile Include="WideChar.cpp">
-      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="PerformanceCounter.cpp">
       <Filter>Source Files</Filter>
@@ -334,6 +331,12 @@
     </ClCompile>
     <ClCompile Include="LibUI\LibUI_MultiTextBox.cpp">
       <Filter>LibUI</Filter>
+    </ClCompile>
+    <ClCompile Include="Tokenizer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CommandLineParser.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -15,7 +15,7 @@ namespace CoreLib
 		enum class TextureStorageFormat : short
 		{
 			R8, RG8, RGB8, RGBA8,
-			R_F32, RG_F32, RGB_F32, RGBA_F32, BC1, BC5,
+			R_F32, RG_F32, RGB_F32, RGBA_F32, BC1, BC5, BC3
 		};
 		class TextureFileHeader
 		{
@@ -120,6 +120,8 @@ namespace CoreLib
 				return pixels;
 			}
 		};
+
+		CoreLib::List<char> TranslateThreeChannelTextureFormat(char * buffer, int pixelCount, int channelSize);
 	}
 }
 

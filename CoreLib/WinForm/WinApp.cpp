@@ -6,7 +6,7 @@
 #include "WinForm.h"
 #include "WinAccel.h"
 #include <commctrl.h>
-#include "../Parser.h"
+#include "../Tokenizer.h"
 #include "../LibIO.h"
 
 #pragma comment(lib,"comctl32.lib")
@@ -72,14 +72,14 @@ namespace CoreLib
 			Application::Init(GetModuleHandle(0), 0, ::GetCommandLineW());
 		}
 
-		void Application::Init(HINSTANCE hIns, HINSTANCE hPrevIns, LPTSTR cmdline, int show)
+		void Application::Init(HINSTANCE hIns, HINSTANCE hPrevIns, LPWSTR cmdline, int show)
 		{
 			instance = hIns;
 			components = new Dictionary<HWND, Component*>();
 			Application::cmdLine = new String();
 			Application::objMap = new Dictionary<UINT_PTR, Object*>();
 			prevInstance = hPrevIns;
-			*Application::cmdLine = cmdline;
+			*Application::cmdLine = String::FromWString(cmdline);
 			cmdShow = show;
 			GdiplusStartupInput input;
 			GdiplusStartup(&gdiToken, &input, 0);
@@ -164,7 +164,7 @@ namespace CoreLib
 			wcex.cbWndExtra		= 0;
 			wcex.hInstance		= Application::GetHandle();
 			wcex.hIcon			= 0;
-			wcex.hCursor		= NULL;
+			wcex.hCursor		= LoadCursor(NULL, IDC_ARROW);
 			wcex.hbrBackground	= (HBRUSH)(COLOR_BTNFACE+1);
 			wcex.lpszMenuName	= 0;
 			wcex.lpszClassName	= FormClassName;
@@ -231,11 +231,15 @@ namespace CoreLib
 			UpdateWindow(mainFormHandle);
 			while (!terminate)
 			{
-				int HasMsg = (NonBlocking?PeekMessage(&msg, NULL,0,0,TRUE):GetMessage(&msg, NULL, 0,0));
-				if (HasMsg)
+				int HasMsg = 0;
+				do
 				{
-					ProcessMessage(msg);
-				}
+					HasMsg = (NonBlocking ? PeekMessage(&msg, NULL, 0, 0, TRUE) : GetMessage(&msg, NULL, 0, 0));
+					if (HasMsg)
+					{
+						ProcessMessage(msg);
+					}
+				} while (!terminate && HasMsg);
 				if (msg.message == WM_QUIT)
 					terminate = true;
 				if (onMainLoop)
@@ -325,7 +329,6 @@ namespace CoreLib
 			}
 			forms = EnumerableHashSet<BaseForm*>();
 			GdiplusShutdown(gdiToken);
-			CoreLib::Text::Parser::DisposeTextLexer();
 			_CrtDumpMemoryLeaks();
 		}
 
@@ -338,7 +341,7 @@ namespace CoreLib
 		{
 			wchar_t fileName[500];
 			::GetModuleFileName(NULL, fileName, 500);
-			return Path::GetDirectoryName(fileName);
+			return Path::GetDirectoryName(String::FromWString(fileName));
 		}
 
 		int SystemMetrics::GetScreenWidth()

@@ -5,9 +5,10 @@
 #include "Mesh.h"
 #include "Skeleton.h"
 #include "StaticMeshActor.h"
-#include "Camera.h"
+#include "CameraActor.h"
 #include "Material.h"
 #include "MotionGraph.h"
+#include "RendererService.h"
 
 namespace GameEngine
 {
@@ -19,19 +20,20 @@ namespace GameEngine
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<Skeleton>> Skeletons;
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<SkeletalAnimation>> Animations;
         CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<MotionGraph>> MotionGraphs;
-		CoreLib::List<CoreLib::RefPtr<StaticMeshActor>> StaticActors;
-		CoreLib::List<CoreLib::RefPtr<Actor>> GeneralActors;
-		CoreLib::EnumerableDictionary<CoreLib::String, Actor *> actorRegistry;
+		CoreLib::EnumerableDictionary<CoreLib::String, RefPtr<Actor>> Actors;
 		CoreLib::RefPtr<CameraActor> CurrentCamera;
-		
 		Level(const CoreLib::String & fileName);
-		Mesh * LoadMesh(const CoreLib::String & fileName);
+		~Level();
+		Mesh * LoadMesh(CoreLib::String fileName);
+		Mesh * LoadMesh(CoreLib::String name, Mesh m);
 		Skeleton * LoadSkeleton(const CoreLib::String & fileName);
 		Material * LoadMaterial(const CoreLib::String & fileName);
 		Material * CreateNewMaterial();
 		SkeletalAnimation * LoadSkeletalAnimation(const CoreLib::String & fileName);
         MotionGraph * LoadMotionGraph(const CoreLib::String & fileName);
 		Actor * FindActor(const CoreLib::String & name);
+		void RegisterActor(Actor * actor);
+		void UnregisterActor(Actor * actor);
 	};
 }
 

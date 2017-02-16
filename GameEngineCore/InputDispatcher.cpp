@@ -1,5 +1,5 @@
 #include "InputDispatcher.h"
-#include "CoreLib/Parser.h"
+#include "CoreLib/Tokenizer.h"
 #include "CoreLib/LibIO.h"
 
 namespace GameEngine
@@ -15,54 +15,56 @@ namespace GameEngine
 
 	void InputDispatcher::LoadMapping(const CoreLib::String & fileName)
 	{
-		Parser parser(File::ReadAllText(fileName));
+		TokenReader parser(File::ReadAllText(fileName));
 		while (!parser.IsEnd())
 		{
 			bool isAxis = true;
 			InputMappingValue mapVal;
-			if (parser.LookAhead(L"action"))
+			if (parser.LookAhead("action"))
 			{
-				parser.Read(L"action");
+				parser.Read("action");
 				isAxis = false;
 			}
 			else
-				parser.Read(L"axis");
+				parser.Read("axis");
 			mapVal.ActionName = parser.ReadWord();
-			parser.Read(L":");
+			parser.Read(":");
 			auto ch = parser.ReadStringLiteral().ToUpper();
 			if (isAxis)
 			{
-				if (parser.LookAhead(L","))
+				if (parser.LookAhead(","))
 				{
-					parser.Read(L",");
+					parser.Read(",");
 					mapVal.Value = (float)parser.ReadDouble();
 				}
 			}
 			wchar_t key = ch[0];
-			if (ch == L"SPACE")
+			if (ch == "SPACE")
 				key = SpecialKeys::Space;
-			else if (ch == L"MBLEFT")
+			else if (ch == "MBLEFT")
 				key = SpecialKeys::MouseLeftButton;
-			else if (ch == L"MBRIGHT")
+			else if (ch == "MBRIGHT")
 				key = SpecialKeys::MouseRightButton;
-			else if (ch == L"MBMIDDLE")
+			else if (ch == "MBMIDDLE")
 				key = SpecialKeys::MouseMiddleButton;
-			else if (ch == L"CTRL")
+			else if (ch == "CTRL")
 				key = SpecialKeys::Control;
-			else if (ch == L"UP")
+			else if (ch == "UP")
 				key = SpecialKeys::UpArrow;
-			else if (ch == L"DOWN")
+			else if (ch == "DOWN")
 				key = SpecialKeys::DownArrow;
-			else if (ch == L"LEFT")
+			else if (ch == "LEFT")
 				key = SpecialKeys::LeftArrow;
-			else if (ch == L"RIGHT")
+			else if (ch == "RIGHT")
 				key = SpecialKeys::RightArrow;
-			else if (ch == L"ESCAPE")
+			else if (ch == "ESCAPE")
 				key = SpecialKeys::Escape;
-			else if (ch == L"ENTER")
+			else if (ch == "ENTER")
 				key = SpecialKeys::Enter;
-			else if (ch == L"SHIFT")
+			else if (ch == "SHIFT")
 				key = SpecialKeys::Shift;
+			else if (ch == "`")
+				key = SpecialKeys::Tilda;
 			if (isAxis)
 				keyboardAxisMappings[key] = mapVal;
 			else
@@ -73,8 +75,12 @@ namespace GameEngine
 	void InputDispatcher::BindActionHandler(const CoreLib::String & axisName, ActionInputHandlerFunc handlerFunc)
 	{
 		auto list = actionHandlers.TryGetValue(axisName);
-		if (list)
-			list->Add(handlerFunc);
+		if (!list)
+		{
+			actionHandlers.Add(axisName, List<ActionInputHandlerFunc>());
+			list = actionHandlers.TryGetValue(axisName);
+		}
+		list->Add(handlerFunc);
 	}
 	void InputDispatcher::UnbindActionHandler(const CoreLib::String & axisName, ActionInputHandlerFunc func)
 	{
@@ -112,13 +118,7 @@ namespace GameEngine
 		{
 			if (inputInterface->QueryKeyState(binding.Key).HasPressed)
 			{
-				auto handlers = actionHandlers.TryGetValue(binding.Value.ActionName);
-				if (handlers)
-				{
-					for (auto & handler : *handlers)
-						if (handler(binding.Value.ActionName, binding.Value.Value))
-							break;
-				}
+				DispatchAction(binding.Value.ActionName, ArrayView<String>(), binding.Value.Value);
 			}
 		}
 
@@ -126,14 +126,21 @@ namespace GameEngine
 		{
 			if (inputInterface->QueryKeyState(binding.Key).IsDown)
 			{
-				auto handlers = actionHandlers.TryGetValue(binding.Value.ActionName);
-				if (handlers)
-				{
-					for (auto & handler : *handlers)
-						if (handler(binding.Value.ActionName, binding.Value.Value))
-							break;
-				}
+				DispatchAction(binding.Value.ActionName, ArrayView<String>(), binding.Value.Value);
 			}
+		}
+	}
+	void InputDispatcher::DispatchAction(CoreLib::String actionName, ArrayView<String> args, float actionValue)
+	{
+		auto handlers = actionHandlers.TryGetValue(actionName);
+		if (handlers)
+		{
+			ActionInput input;
+			input.AxisValue = actionValue;
+			input.Arguments = args;
+			for (auto & handler : *handlers)
+				if (handler(actionName, input))
+					break;
 		}
 	}
 }

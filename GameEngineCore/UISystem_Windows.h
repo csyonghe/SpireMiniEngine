@@ -21,7 +21,7 @@ namespace GraphicsUI
 			NONCLIENTMETRICS NonClientMetrics;
 			NonClientMetrics.cbSize = sizeof(NONCLIENTMETRICS) - sizeof(NonClientMetrics.iPaddedBorderWidth);
 			SystemParametersInfo(SPI_GETNONCLIENTMETRICS, sizeof(NONCLIENTMETRICS), &NonClientMetrics, 0);
-			FontName = NonClientMetrics.lfMessageFont.lfFaceName;
+			FontName = CoreLib::String::FromWString(NonClientMetrics.lfMessageFont.lfFaceName);
 			Size = 9;
 			Bold = false;
 			Underline = false;
@@ -81,8 +81,10 @@ namespace GraphicsUI
 		~TextRasterizer();
 		bool MultiLine = false;
 		void SetFont(const Font & Font, int dpi);
-		TextRasterizationResult RasterizeText(UIWindowsSystemInterface * system, const CoreLib::String & text);
+		TextRasterizationResult RasterizeText(UIWindowsSystemInterface * system, const CoreLib::String & text, unsigned char * existingBuffer, int existingBufferSize);
 		TextSize GetTextSize(const CoreLib::String & text);
+		TextSize GetTextSize(const CoreLib::List<unsigned int> & text);
+
 	};
 
 
@@ -124,7 +126,8 @@ namespace GraphicsUI
 			rasterizer->SetFont(fontDesc, dpi);
 		}
 		virtual Rect MeasureString(const CoreLib::String & text) override;
-		virtual IBakedText * BakeString(const CoreLib::String & text) override;
+		virtual Rect MeasureString(const CoreLib::List<unsigned int> & text) override;
+		virtual IBakedText * BakeString(const CoreLib::String & text, IBakedText * previous) override;
 
 	};
 
@@ -139,6 +142,7 @@ namespace GraphicsUI
 		CoreLib::MemoryPool textBufferPool;
 		VectorMath::Vec4 ColorToVec(GraphicsUI::Color c);
 		CoreLib::RefPtr<WindowsFont> defaultFont, titleFont, symbolFont;
+		GameEngine::Fence* textBufferFence = nullptr;
 		CoreLib::WinForm::Timer tmrHover, tmrTick;
 		UIEntry * entry = nullptr;
 		int GetCurrentDpi();
@@ -155,10 +159,8 @@ namespace GraphicsUI
 	public:
 		UIWindowsSystemInterface(GameEngine::HardwareRenderer * ctx);
 		~UIWindowsSystemInterface();
-		unsigned char * AllocTextBuffer(int size)
-		{
-			return textBufferPool.Alloc(size);
-		}
+		void WaitForDrawFence();
+		unsigned char * AllocTextBuffer(int size);
 		void FreeTextBuffer(unsigned char * buffer, int size)
 		{
 			textBufferPool.Free(buffer, size);
@@ -175,7 +177,8 @@ namespace GraphicsUI
 		IFont * LoadFont(const Font & f);
 		IImage * CreateImageObject(const CoreLib::Imaging::Bitmap & bmp);
 		void SetResolution(int w, int h);
-		void ExecuteDrawCommands(GameEngine::Texture2D* baseTexture, CoreLib::List<DrawCommand> & commands);
+		void TransferDrawComands(GameEngine::Texture2D* baseTexture, CoreLib::List<DrawCommand> & commands);
+		void ExecuteDrawCommands(GameEngine::Fence* fence);
 		void SetEntry(UIEntry * pentry);
 		int HandleSystemMessage(HWND hWnd, UINT message, WPARAM &wParam, LPARAM &lParam);
 	};

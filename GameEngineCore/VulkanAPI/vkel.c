@@ -1,114 +1,84 @@
-/*========================================================================
-/* Name
-/*     Vulkan (Cross-Platform) Extension Loader
-/*
-/* Repository
-/*
-/* Overview
-/*     This is a simple, dynamic and tiny cross-platform Vulkan
-/*     extension loader.
-/*
-/* Dependencies
-/*     Vulkan (library)
-/*     Windows (header) - needed for library loading on Windows
-/*     dlfcn (header) - needed for library loading on non-Windows OS'
-/*     Standard C Libraries (stdio, stdlib, string, assert) - needed for NULL, malloc()
-/*                                                 calloc(), free(), memset(), assert()
-/*
-/* Notice
-/*     Copyright (c) 2016 Christian Vallentin <mail@vallentinsource.com>
-/*
-/* Developers & Contributors
-/*     Christian Vallentin <mail@vallentinsource.com>
-/*
-/* Version History
-/*     Last Modified Date: May 16, 2016
-/*     Revision: 14
-/*     Version: 2.0.11
-/*
-/* Revision History
-/*     Revision 14, 2016/05/16
-/*       - Updated support for Vulkan 1.0.14
-/*
-/*     Revision 13, 2016/05/15
-/*       - Updated support for Vulkan 1.0.13
-/*
-/*     Revision 12, 2016/05/02
-/*       - Fixed "for loop initial declarations are only
-/*         allowed in C99 mode".
-/*
-/*     Revision 11, 2016/05/01
-/*       - Updated support for Vulkan 1.0.12
-/*
-/*     Revision 10, 2016/04/22
-/*       - Updated support for Vulkan 1.0.11
-/*
-/*     Revision 9, 2016/04/18
-/*       - Updated support for Vulkan 1.0.10
-/*
-/*     Revision 8, 2016/04/08
-/*       - Updated support for Vulkan 1.0.9
-/*
-/*     Revision 7, 2016/04/03
-/*       - Updated support for Vulkan 1.0.8
-/*
-/*     Revision 6, 2016/03/26
-/*       - Updated support for Vulkan 1.0.7
-/*
-/*     Revision 5, 2016/03/12
-/*       - Updated support for Vulkan 1.0.6
-/*
-/*     Revision 4, 2016/03/06
-/*       - Updated support for Vulkan 1.0.5
-/*
-/*     Revision 3, 2016/02/26
-/*       - Rewrote vkel_gen.py, now it parses and directly
-/*         adds vulkan.h and vk_platform.h into vkel.h,
-/*         along with moving the appropriate copyrights
-/*         to the top of vkel.h.
-/*       - Fixed/added better differentiation for instance
-/*         and device related calls.
-/*       - Removed the need for having the vukan.h and
-/*         vk_platform.h headers.
-/*       - Updated support for Vulkan 1.0.4
-/*
-/*     Revision 2, 2016/02/24
-/*       - Created a Python script for automatically generating
-/*         all the extensions and their functions. (Tested with
-/*         Python 3.5.1)
-/*       - Added cross-platform support, for loading libraries
-/*         and getting the function addresses.
-/*       - Fixed so platform specific functions defaults to NULL
-/*       - Added missing include for dlfcn (used on non-Window OS')
-/*
-/*     Revision 1, 2016/02/23
-/*       - Implemented the basic version supporting a few (manually
-/*         written) dynamically loaded functions.
-/*
-/*------------------------------------------------------------------------
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-/* IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
-/* OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
-/* ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-/* OTHER DEALINGS IN THE SOFTWARE.
-/*
-/* Permission is granted to anyone to use this software for any purpose,
-/* including commercial applications, and to alter it and redistribute it
-/* freely, subject to the following restrictions:
-/*
-/* 1. The origin of this software must not be misrepresented; you must not
-/*    claim that you wrote the original software. If you use this software
-/*    in a product, an acknowledgment in the product documentation would
-/*    be appreciated but is not required.
-/*
-/* 2. Altered source versions must be plainly marked as such, and must not
-/*    be misrepresented as being the original software.
-/*
-/* 3. This notice may not be removed or altered from any source
-/*    distribution.
-/*========================================================================*/
+//========================================================================
+// Name
+//     Vulkan (Cross-Platform) Extension Loader
+//
+// Repository
+//     https://github.com/MrVallentin/vkel
+//
+// Overview
+//     This is a simple, dynamic and tiny cross-platform Vulkan
+//     extension loader.
+//
+// Dependencies
+//     Vulkan (library)
+//     Windows (header) - needed for library loading on Windows
+//     dlfcn (header) - needed for library loading on non-Windows OS'
+//     Standard C Libraries (stdio, stdlib, string, assert) - needed for NULL, malloc()
+//                                                 calloc(), free(), memset(), assert()
+//
+// Notice
+//     Copyright (c) 2016 Christian Vallentin <mail@vallentinsource.com>
+//
+// Developers & Contributors
+//     Christian Vallentin <mail@vallentinsource.com>
+//
+// Version History
+//     Last Modified Date: May 16, 2016
+//     Revision: 14
+//     Version: 2.0.11
+//
+// Revision History
+//     Revision 12, 2016/05/02
+//       - Fixed "for loop initial declarations are only
+//         allowed in C99 mode".
+//
+//     Revision 3, 2016/02/26
+//       - Rewrote vkel_gen.py, now it parses and directly
+//         adds vulkan.h and vk_platform.h into vkel.h,
+//         along with moving the appropriate copyrights
+//         to the top of vkel.h.
+//       - Fixed/added better differentiation for instance
+//         and device related calls.
+//       - Removed the need for having the vukan.h and
+//         vk_platform.h headers.
+//
+//     Revision 2, 2016/02/24
+//       - Created a Python script for automatically generating
+//         all the extensions and their functions. (Tested with
+//         Python 3.5.1)
+//       - Added cross-platform support, for loading libraries
+//         and getting the function addresses.
+//       - Fixed so platform specific functions defaults to NULL
+//       - Added missing include for dlfcn (used on non-Window OS')
+//
+//     Revision 1, 2016/02/23
+//       - Implemented the basic version supporting a few (manually
+//         written) dynamically loaded functions.
+//
+//------------------------------------------------------------------------
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+// IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+// OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+// ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+// OTHER DEALINGS IN THE SOFTWARE.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would
+//    be appreciated but is not required.
+//
+// 2. Altered source versions must be plainly marked as such, and must not
+//    be misrepresented as being the original software.
+//
+// 3. This notice may not be removed or altered from any source
+//    distribution.
+//========================================================================
 
 /*
 ** Copyright (c) 2015-2016 The Khronos Group Inc.
@@ -117,6 +87,7 @@
 ** you may not use this file except in compliance with the License.
 ** You may obtain a copy of the License at
 **
+**     http://www.apache.org/licenses/LICENSE-2.0
 **
 ** Unless required by applicable law or agreed to in writing, software
 ** distributed under the License is distributed on an "AS IS" BASIS,
@@ -148,7 +119,7 @@ extern "C" {
 #	define WIN32_LEAN_AND_MEAN
 #endif
 
-	/* STOP THAT, BAD WINDOWS! */
+	// STOP THAT, BAD WINDOWS!
 #ifndef NOMINMAX
 #	define NOMINMAX
 #endif
@@ -165,7 +136,7 @@ extern "C" {
 #	define vkelPlatformOpenLibrary(name) LoadLibraryA(name)
 #	define vkelPlatformCloseLibrary(handle) FreeLibrary((HMODULE) handle)
 #	define vkelPlatformGetProcAddr(handle, name) GetProcAddress((HMODULE) handle, name)
-	/* #elif defined(__APPLE__) || defined(__linux__) || defined(__ANDROID__) || defined(__unix__ ) */
+	// #elif defined(__APPLE__) || defined(__linux__) || defined(__ANDROID__) || defined(__unix__ )
 #else
 #define vkelPlatformOpenLibrary(name) dlopen(name, RTLD_LAZY | RTLD_LOCAL)
 #define vkelPlatformCloseLibrary(handle) dlclose(handle)
@@ -175,43 +146,6 @@ extern "C" {
 #endif
 
 	static void *vkelVkLibHandle;
-
-
-	// Instance and device extension names
-	VkBool32 VKEL_AMD_gcn_shader;
-	VkBool32 VKEL_AMD_rasterization_order;
-	VkBool32 VKEL_AMD_shader_explicit_vertex_parameter;
-	VkBool32 VKEL_AMD_shader_trinary_minmax;
-	VkBool32 VKEL_EXT_debug_marker;
-	VkBool32 VKEL_EXT_debug_report;
-	VkBool32 VKEL_IMG_filter_cubic;
-	VkBool32 VKEL_KHR_android_surface;
-	VkBool32 VKEL_KHR_display;
-	VkBool32 VKEL_KHR_display_swapchain;
-	VkBool32 VKEL_KHR_mir_surface;
-	VkBool32 VKEL_KHR_sampler_mirror_clamp_to_edge;
-	VkBool32 VKEL_KHR_surface;
-	VkBool32 VKEL_KHR_swapchain;
-	VkBool32 VKEL_KHR_wayland_surface;
-	VkBool32 VKEL_KHR_win32_surface;
-	VkBool32 VKEL_KHR_xcb_surface;
-	VkBool32 VKEL_KHR_xlib_surface;
-	VkBool32 VKEL_NV_glsl_shader;
-
-	// Instance and device layer names
-	VkBool32 VKEL_LAYER_GOOGLE_unique_objects;
-	VkBool32 VKEL_LAYER_LUNARG_api_dump;
-	VkBool32 VKEL_LAYER_LUNARG_device_limits;
-	VkBool32 VKEL_LAYER_LUNARG_draw_state;
-	VkBool32 VKEL_LAYER_LUNARG_image;
-	VkBool32 VKEL_LAYER_LUNARG_mem_tracker;
-	VkBool32 VKEL_LAYER_LUNARG_object_tracker;
-	VkBool32 VKEL_LAYER_LUNARG_param_checker;
-	VkBool32 VKEL_LAYER_LUNARG_screenshot;
-	VkBool32 VKEL_LAYER_LUNARG_swapchain;
-	VkBool32 VKEL_LAYER_LUNARG_threading;
-	VkBool32 VKEL_LAYER_LUNARG_vktrace;
-
 
 	// Functions
 	PFN_vkAcquireNextImageKHR __vkAcquireNextImageKHR;
@@ -245,14 +179,18 @@ extern "C" {
 	PFN_vkCmdDraw __vkCmdDraw;
 	PFN_vkCmdDrawIndexed __vkCmdDrawIndexed;
 	PFN_vkCmdDrawIndexedIndirect __vkCmdDrawIndexedIndirect;
+	PFN_vkCmdDrawIndexedIndirectCountAMD __vkCmdDrawIndexedIndirectCountAMD;
 	PFN_vkCmdDrawIndirect __vkCmdDrawIndirect;
+	PFN_vkCmdDrawIndirectCountAMD __vkCmdDrawIndirectCountAMD;
 	PFN_vkCmdEndQuery __vkCmdEndQuery;
 	PFN_vkCmdEndRenderPass __vkCmdEndRenderPass;
 	PFN_vkCmdExecuteCommands __vkCmdExecuteCommands;
 	PFN_vkCmdFillBuffer __vkCmdFillBuffer;
 	PFN_vkCmdNextSubpass __vkCmdNextSubpass;
 	PFN_vkCmdPipelineBarrier __vkCmdPipelineBarrier;
+	PFN_vkCmdProcessCommandsNVX __vkCmdProcessCommandsNVX;
 	PFN_vkCmdPushConstants __vkCmdPushConstants;
+	PFN_vkCmdReserveSpaceForCommandsNVX __vkCmdReserveSpaceForCommandsNVX;
 	PFN_vkCmdResetEvent __vkCmdResetEvent;
 	PFN_vkCmdResetQueryPool __vkCmdResetQueryPool;
 	PFN_vkCmdResolveImage __vkCmdResolveImage;
@@ -285,7 +223,9 @@ extern "C" {
 	PFN_vkCreateGraphicsPipelines __vkCreateGraphicsPipelines;
 	PFN_vkCreateImage __vkCreateImage;
 	PFN_vkCreateImageView __vkCreateImageView;
+	PFN_vkCreateIndirectCommandsLayoutNVX __vkCreateIndirectCommandsLayoutNVX;
 	PFN_vkCreateInstance __vkCreateInstance;
+	PFN_vkCreateObjectTableNVX __vkCreateObjectTableNVX;
 	PFN_vkCreatePipelineCache __vkCreatePipelineCache;
 	PFN_vkCreatePipelineLayout __vkCreatePipelineLayout;
 	PFN_vkCreateQueryPool __vkCreateQueryPool;
@@ -311,7 +251,9 @@ extern "C" {
 	PFN_vkDestroyFramebuffer __vkDestroyFramebuffer;
 	PFN_vkDestroyImage __vkDestroyImage;
 	PFN_vkDestroyImageView __vkDestroyImageView;
+	PFN_vkDestroyIndirectCommandsLayoutNVX __vkDestroyIndirectCommandsLayoutNVX;
 	PFN_vkDestroyInstance __vkDestroyInstance;
+	PFN_vkDestroyObjectTableNVX __vkDestroyObjectTableNVX;
 	PFN_vkDestroyPipeline __vkDestroyPipeline;
 	PFN_vkDestroyPipelineCache __vkDestroyPipelineCache;
 	PFN_vkDestroyPipelineLayout __vkDestroyPipelineLayout;
@@ -349,8 +291,10 @@ extern "C" {
 	PFN_vkGetInstanceProcAddr __vkGetInstanceProcAddr;
 	PFN_vkGetPhysicalDeviceDisplayPlanePropertiesKHR __vkGetPhysicalDeviceDisplayPlanePropertiesKHR;
 	PFN_vkGetPhysicalDeviceDisplayPropertiesKHR __vkGetPhysicalDeviceDisplayPropertiesKHR;
+	PFN_vkGetPhysicalDeviceExternalImageFormatPropertiesNV __vkGetPhysicalDeviceExternalImageFormatPropertiesNV;
 	PFN_vkGetPhysicalDeviceFeatures __vkGetPhysicalDeviceFeatures;
 	PFN_vkGetPhysicalDeviceFormatProperties __vkGetPhysicalDeviceFormatProperties;
+	PFN_vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX __vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX;
 	PFN_vkGetPhysicalDeviceImageFormatProperties __vkGetPhysicalDeviceImageFormatProperties;
 	PFN_vkGetPhysicalDeviceMemoryProperties __vkGetPhysicalDeviceMemoryProperties;
 	PFN_vkGetPhysicalDeviceProperties __vkGetPhysicalDeviceProperties;
@@ -374,6 +318,7 @@ extern "C" {
 	PFN_vkQueueSubmit __vkQueueSubmit;
 	PFN_vkQueueWaitIdle __vkQueueWaitIdle;
 	PFN_vkReallocationFunction __vkReallocationFunction;
+	PFN_vkRegisterObjectsNVX __vkRegisterObjectsNVX;
 	PFN_vkResetCommandBuffer __vkResetCommandBuffer;
 	PFN_vkResetCommandPool __vkResetCommandPool;
 	PFN_vkResetDescriptorPool __vkResetDescriptorPool;
@@ -381,6 +326,7 @@ extern "C" {
 	PFN_vkResetFences __vkResetFences;
 	PFN_vkSetEvent __vkSetEvent;
 	PFN_vkUnmapMemory __vkUnmapMemory;
+	PFN_vkUnregisterObjectsNVX __vkUnregisterObjectsNVX;
 	PFN_vkUpdateDescriptorSets __vkUpdateDescriptorSets;
 	PFN_vkVoidFunction __vkVoidFunction;
 	PFN_vkWaitForFences __vkWaitForFences;
@@ -401,6 +347,7 @@ extern "C" {
 
 #ifdef VK_USE_PLATFORM_WIN32_KHR
 	PFN_vkCreateWin32SurfaceKHR __vkCreateWin32SurfaceKHR;
+	PFN_vkGetMemoryWin32HandleNV __vkGetMemoryWin32HandleNV;
 	PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR __vkGetPhysicalDeviceWin32PresentationSupportKHR;
 #endif /* VK_USE_PLATFORM_WIN32_KHR */
 
@@ -488,6 +435,7 @@ extern "C" {
 	{
 		if (!vkelVkLibHandle && !vkelInit())
 			return VK_FALSE;
+
 		__vkCreateDebugReportCallbackEXT = (PFN_vkCreateDebugReportCallbackEXT)vkelGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT");
 		__vkCreateDevice = (PFN_vkCreateDevice)vkelGetInstanceProcAddr(instance, "vkCreateDevice");
 		__vkCreateDisplayModeKHR = (PFN_vkCreateDisplayModeKHR)vkelGetInstanceProcAddr(instance, "vkCreateDisplayModeKHR");
@@ -502,8 +450,10 @@ extern "C" {
 		__vkGetDeviceProcAddr = (PFN_vkGetDeviceProcAddr)vkelGetInstanceProcAddr(instance, "vkGetDeviceProcAddr");
 		__vkGetPhysicalDeviceDisplayPlanePropertiesKHR = (PFN_vkGetPhysicalDeviceDisplayPlanePropertiesKHR)vkelGetInstanceProcAddr(instance, "vkGetPhysicalDeviceDisplayPlanePropertiesKHR");
 		__vkGetPhysicalDeviceDisplayPropertiesKHR = (PFN_vkGetPhysicalDeviceDisplayPropertiesKHR)vkelGetInstanceProcAddr(instance, "vkGetPhysicalDeviceDisplayPropertiesKHR");
+		__vkGetPhysicalDeviceExternalImageFormatPropertiesNV = (PFN_vkGetPhysicalDeviceExternalImageFormatPropertiesNV)vkelGetInstanceProcAddr(instance, "vkGetPhysicalDeviceExternalImageFormatPropertiesNV");
 		__vkGetPhysicalDeviceFeatures = (PFN_vkGetPhysicalDeviceFeatures)vkelGetInstanceProcAddr(instance, "vkGetPhysicalDeviceFeatures");
 		__vkGetPhysicalDeviceFormatProperties = (PFN_vkGetPhysicalDeviceFormatProperties)vkelGetInstanceProcAddr(instance, "vkGetPhysicalDeviceFormatProperties");
+		__vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX = (PFN_vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX)vkelGetInstanceProcAddr(instance, "vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX");
 		__vkGetPhysicalDeviceImageFormatProperties = (PFN_vkGetPhysicalDeviceImageFormatProperties)vkelGetInstanceProcAddr(instance, "vkGetPhysicalDeviceImageFormatProperties");
 		__vkGetPhysicalDeviceMemoryProperties = (PFN_vkGetPhysicalDeviceMemoryProperties)vkelGetInstanceProcAddr(instance, "vkGetPhysicalDeviceMemoryProperties");
 		__vkGetPhysicalDeviceProperties = (PFN_vkGetPhysicalDeviceProperties)vkelGetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties");
@@ -530,6 +480,7 @@ extern "C" {
 
 #ifdef VK_USE_PLATFORM_WIN32_KHR
 		__vkCreateWin32SurfaceKHR = (PFN_vkCreateWin32SurfaceKHR)vkelGetInstanceProcAddr(instance, "vkCreateWin32SurfaceKHR");
+		__vkGetMemoryWin32HandleNV = (PFN_vkGetMemoryWin32HandleNV)vkelGetInstanceProcAddr(instance, "vkGetMemoryWin32HandleNV");
 		__vkGetPhysicalDeviceWin32PresentationSupportKHR = (PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR)vkelGetInstanceProcAddr(instance, "vkGetPhysicalDeviceWin32PresentationSupportKHR");
 #endif /* VK_USE_PLATFORM_WIN32_KHR */
 
@@ -550,7 +501,6 @@ extern "C" {
 	{
 		if (!vkelVkLibHandle && !vkelInit())
 			return VK_FALSE;
-
 
 		__vkAcquireNextImageKHR = (PFN_vkAcquireNextImageKHR)vkelGetDeviceProcAddr(device, "vkAcquireNextImageKHR");
 		__vkAllocateCommandBuffers = (PFN_vkAllocateCommandBuffers)vkelGetDeviceProcAddr(device, "vkAllocateCommandBuffers");
@@ -583,14 +533,18 @@ extern "C" {
 		__vkCmdDraw = (PFN_vkCmdDraw)vkelGetDeviceProcAddr(device, "vkCmdDraw");
 		__vkCmdDrawIndexed = (PFN_vkCmdDrawIndexed)vkelGetDeviceProcAddr(device, "vkCmdDrawIndexed");
 		__vkCmdDrawIndexedIndirect = (PFN_vkCmdDrawIndexedIndirect)vkelGetDeviceProcAddr(device, "vkCmdDrawIndexedIndirect");
+		__vkCmdDrawIndexedIndirectCountAMD = (PFN_vkCmdDrawIndexedIndirectCountAMD)vkelGetDeviceProcAddr(device, "vkCmdDrawIndexedIndirectCountAMD");
 		__vkCmdDrawIndirect = (PFN_vkCmdDrawIndirect)vkelGetDeviceProcAddr(device, "vkCmdDrawIndirect");
+		__vkCmdDrawIndirectCountAMD = (PFN_vkCmdDrawIndirectCountAMD)vkelGetDeviceProcAddr(device, "vkCmdDrawIndirectCountAMD");
 		__vkCmdEndQuery = (PFN_vkCmdEndQuery)vkelGetDeviceProcAddr(device, "vkCmdEndQuery");
 		__vkCmdEndRenderPass = (PFN_vkCmdEndRenderPass)vkelGetDeviceProcAddr(device, "vkCmdEndRenderPass");
 		__vkCmdExecuteCommands = (PFN_vkCmdExecuteCommands)vkelGetDeviceProcAddr(device, "vkCmdExecuteCommands");
 		__vkCmdFillBuffer = (PFN_vkCmdFillBuffer)vkelGetDeviceProcAddr(device, "vkCmdFillBuffer");
 		__vkCmdNextSubpass = (PFN_vkCmdNextSubpass)vkelGetDeviceProcAddr(device, "vkCmdNextSubpass");
 		__vkCmdPipelineBarrier = (PFN_vkCmdPipelineBarrier)vkelGetDeviceProcAddr(device, "vkCmdPipelineBarrier");
+		__vkCmdProcessCommandsNVX = (PFN_vkCmdProcessCommandsNVX)vkelGetDeviceProcAddr(device, "vkCmdProcessCommandsNVX");
 		__vkCmdPushConstants = (PFN_vkCmdPushConstants)vkelGetDeviceProcAddr(device, "vkCmdPushConstants");
+		__vkCmdReserveSpaceForCommandsNVX = (PFN_vkCmdReserveSpaceForCommandsNVX)vkelGetDeviceProcAddr(device, "vkCmdReserveSpaceForCommandsNVX");
 		__vkCmdResetEvent = (PFN_vkCmdResetEvent)vkelGetDeviceProcAddr(device, "vkCmdResetEvent");
 		__vkCmdResetQueryPool = (PFN_vkCmdResetQueryPool)vkelGetDeviceProcAddr(device, "vkCmdResetQueryPool");
 		__vkCmdResolveImage = (PFN_vkCmdResolveImage)vkelGetDeviceProcAddr(device, "vkCmdResolveImage");
@@ -621,6 +575,8 @@ extern "C" {
 		__vkCreateGraphicsPipelines = (PFN_vkCreateGraphicsPipelines)vkelGetDeviceProcAddr(device, "vkCreateGraphicsPipelines");
 		__vkCreateImage = (PFN_vkCreateImage)vkelGetDeviceProcAddr(device, "vkCreateImage");
 		__vkCreateImageView = (PFN_vkCreateImageView)vkelGetDeviceProcAddr(device, "vkCreateImageView");
+		__vkCreateIndirectCommandsLayoutNVX = (PFN_vkCreateIndirectCommandsLayoutNVX)vkelGetDeviceProcAddr(device, "vkCreateIndirectCommandsLayoutNVX");
+		__vkCreateObjectTableNVX = (PFN_vkCreateObjectTableNVX)vkelGetDeviceProcAddr(device, "vkCreateObjectTableNVX");
 		__vkCreatePipelineCache = (PFN_vkCreatePipelineCache)vkelGetDeviceProcAddr(device, "vkCreatePipelineCache");
 		__vkCreatePipelineLayout = (PFN_vkCreatePipelineLayout)vkelGetDeviceProcAddr(device, "vkCreatePipelineLayout");
 		__vkCreateQueryPool = (PFN_vkCreateQueryPool)vkelGetDeviceProcAddr(device, "vkCreateQueryPool");
@@ -632,11 +588,11 @@ extern "C" {
 		__vkCreateSwapchainKHR = (PFN_vkCreateSwapchainKHR)vkelGetDeviceProcAddr(device, "vkCreateSwapchainKHR");
 		__vkDebugMarkerSetObjectNameEXT = (PFN_vkDebugMarkerSetObjectNameEXT)vkelGetDeviceProcAddr(device, "vkDebugMarkerSetObjectNameEXT");
 		__vkDebugMarkerSetObjectTagEXT = (PFN_vkDebugMarkerSetObjectTagEXT)vkelGetDeviceProcAddr(device, "vkDebugMarkerSetObjectTagEXT");
-		__vkDebugReportCallbackEXT = (PFN_vkDebugReportCallbackEXT)vkelGetDeviceProcAddr(device, "vkDebugReportCallbackEXT");
 		__vkDebugReportMessageEXT = (PFN_vkDebugReportMessageEXT)vkelGetDeviceProcAddr(device, "vkDebugReportMessageEXT");
 		__vkDestroyBuffer = (PFN_vkDestroyBuffer)vkelGetDeviceProcAddr(device, "vkDestroyBuffer");
 		__vkDestroyBufferView = (PFN_vkDestroyBufferView)vkelGetDeviceProcAddr(device, "vkDestroyBufferView");
 		__vkDestroyCommandPool = (PFN_vkDestroyCommandPool)vkelGetDeviceProcAddr(device, "vkDestroyCommandPool");
+		__vkDestroyDebugReportCallbackEXT = (PFN_vkDestroyDebugReportCallbackEXT)vkelGetDeviceProcAddr(device, "vkDestroyDebugReportCallbackEXT");
 		__vkDestroyDescriptorPool = (PFN_vkDestroyDescriptorPool)vkelGetDeviceProcAddr(device, "vkDestroyDescriptorPool");
 		__vkDestroyDescriptorSetLayout = (PFN_vkDestroyDescriptorSetLayout)vkelGetDeviceProcAddr(device, "vkDestroyDescriptorSetLayout");
 		__vkDestroyEvent = (PFN_vkDestroyEvent)vkelGetDeviceProcAddr(device, "vkDestroyEvent");
@@ -644,6 +600,8 @@ extern "C" {
 		__vkDestroyFramebuffer = (PFN_vkDestroyFramebuffer)vkelGetDeviceProcAddr(device, "vkDestroyFramebuffer");
 		__vkDestroyImage = (PFN_vkDestroyImage)vkelGetDeviceProcAddr(device, "vkDestroyImage");
 		__vkDestroyImageView = (PFN_vkDestroyImageView)vkelGetDeviceProcAddr(device, "vkDestroyImageView");
+		__vkDestroyIndirectCommandsLayoutNVX = (PFN_vkDestroyIndirectCommandsLayoutNVX)vkelGetDeviceProcAddr(device, "vkDestroyIndirectCommandsLayoutNVX");
+		__vkDestroyObjectTableNVX = (PFN_vkDestroyObjectTableNVX)vkelGetDeviceProcAddr(device, "vkDestroyObjectTableNVX");
 		__vkDestroyPipeline = (PFN_vkDestroyPipeline)vkelGetDeviceProcAddr(device, "vkDestroyPipeline");
 		__vkDestroyPipelineCache = (PFN_vkDestroyPipelineCache)vkelGetDeviceProcAddr(device, "vkDestroyPipelineCache");
 		__vkDestroyPipelineLayout = (PFN_vkDestroyPipelineLayout)vkelGetDeviceProcAddr(device, "vkDestroyPipelineLayout");
@@ -687,6 +645,7 @@ extern "C" {
 		__vkQueueSubmit = (PFN_vkQueueSubmit)vkelGetDeviceProcAddr(device, "vkQueueSubmit");
 		__vkQueueWaitIdle = (PFN_vkQueueWaitIdle)vkelGetDeviceProcAddr(device, "vkQueueWaitIdle");
 		__vkReallocationFunction = (PFN_vkReallocationFunction)vkelGetDeviceProcAddr(device, "vkReallocationFunction");
+		__vkRegisterObjectsNVX = (PFN_vkRegisterObjectsNVX)vkelGetDeviceProcAddr(device, "vkRegisterObjectsNVX");
 		__vkResetCommandBuffer = (PFN_vkResetCommandBuffer)vkelGetDeviceProcAddr(device, "vkResetCommandBuffer");
 		__vkResetCommandPool = (PFN_vkResetCommandPool)vkelGetDeviceProcAddr(device, "vkResetCommandPool");
 		__vkResetDescriptorPool = (PFN_vkResetDescriptorPool)vkelGetDeviceProcAddr(device, "vkResetDescriptorPool");
@@ -694,34 +653,10 @@ extern "C" {
 		__vkResetFences = (PFN_vkResetFences)vkelGetDeviceProcAddr(device, "vkResetFences");
 		__vkSetEvent = (PFN_vkSetEvent)vkelGetDeviceProcAddr(device, "vkSetEvent");
 		__vkUnmapMemory = (PFN_vkUnmapMemory)vkelGetDeviceProcAddr(device, "vkUnmapMemory");
+		__vkUnregisterObjectsNVX = (PFN_vkUnregisterObjectsNVX)vkelGetDeviceProcAddr(device, "vkUnregisterObjectsNVX");
 		__vkUpdateDescriptorSets = (PFN_vkUpdateDescriptorSets)vkelGetDeviceProcAddr(device, "vkUpdateDescriptorSets");
 		__vkVoidFunction = (PFN_vkVoidFunction)vkelGetDeviceProcAddr(device, "vkVoidFunction");
 		__vkWaitForFences = (PFN_vkWaitForFences)vkelGetDeviceProcAddr(device, "vkWaitForFences");
-
-#ifdef VK_USE_PLATFORM_ANDROID_KHR
-		__vkCreateAndroidSurfaceKHR = (PFN_vkCreateAndroidSurfaceKHR)vkelGetDeviceProcAddr(device, "vkCreateAndroidSurfaceKHR");
-#endif /* VK_USE_PLATFORM_ANDROID_KHR */
-
-#ifdef VK_USE_PLATFORM_MIR_KHR
-		__vkCreateMirSurfaceKHR = (PFN_vkCreateMirSurfaceKHR)vkelGetDeviceProcAddr(device, "vkCreateMirSurfaceKHR");
-		__vkGetPhysicalDeviceMirPresentationSupportKHR = (PFN_vkGetPhysicalDeviceMirPresentationSupportKHR)vkelGetDeviceProcAddr(device, "vkGetPhysicalDeviceMirPresentationSupportKHR");
-#endif /* VK_USE_PLATFORM_MIR_KHR */
-
-#ifdef VK_USE_PLATFORM_WAYLAND_KHR
-		__vkCreateWaylandSurfaceKHR = (PFN_vkCreateWaylandSurfaceKHR)vkelGetDeviceProcAddr(device, "vkCreateWaylandSurfaceKHR");
-		__vkGetPhysicalDeviceWaylandPresentationSupportKHR = (PFN_vkGetPhysicalDeviceWaylandPresentationSupportKHR)vkelGetDeviceProcAddr(device, "vkGetPhysicalDeviceWaylandPresentationSupportKHR");
-#endif /* VK_USE_PLATFORM_WAYLAND_KHR */
-
-
-#ifdef VK_USE_PLATFORM_XCB_KHR
-		__vkCreateXcbSurfaceKHR = (PFN_vkCreateXcbSurfaceKHR)vkelGetDeviceProcAddr(device, "vkCreateXcbSurfaceKHR");
-		__vkGetPhysicalDeviceXcbPresentationSupportKHR = (PFN_vkGetPhysicalDeviceXcbPresentationSupportKHR)vkelGetDeviceProcAddr(device, "vkGetPhysicalDeviceXcbPresentationSupportKHR");
-#endif /* VK_USE_PLATFORM_XCB_KHR */
-
-#ifdef VK_USE_PLATFORM_XLIB_KHR
-		__vkCreateXlibSurfaceKHR = (PFN_vkCreateXlibSurfaceKHR)vkelGetDeviceProcAddr(device, "vkCreateXlibSurfaceKHR");
-		__vkGetPhysicalDeviceXlibPresentationSupportKHR = (PFN_vkGetPhysicalDeviceXlibPresentationSupportKHR)vkelGetDeviceProcAddr(device, "vkGetPhysicalDeviceXlibPresentationSupportKHR");
-#endif /* VK_USE_PLATFORM_XLIB_KHR */
 
 		return VK_TRUE;
 	}

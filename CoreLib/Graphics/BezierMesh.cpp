@@ -90,7 +90,7 @@ namespace CoreLib
 						e.V0 = mdl.Faces[i].VertexIds[ev0];
 						e.V1 = mdl.Faces[i].VertexIds[ev1];	
 						if (e.V0 == -1)
-							throw InvalidMeshTopologyException(L"The input model is not a quad mesh.");
+							throw InvalidMeshTopologyException("The input model is not a quad mesh.");
 						if (e.V0 > e.V1)
 						{
 							Swap(e.V0, e.V1);
@@ -106,7 +106,7 @@ namespace CoreLib
 								ef.VId1[1] = (char)ev1;
 							}
 							else
-								throw InvalidMeshTopologyException(L"Invalid mesh topology: an edge is shared by more than two faces.");
+								throw InvalidMeshTopologyException("Invalid mesh topology: an edge is shared by more than two faces.");
 						}
 						else
 						{

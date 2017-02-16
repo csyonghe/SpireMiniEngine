@@ -4,13 +4,16 @@
 #include "Skeleton.h"
 #include "MotionGraph.h"
 #include "CoreLib/LibMath.h"
-
+#include "CatmullSpline.h"
+#include <queue>
+#include <stack>
+#include <ctime>
 
 namespace GameEngine
 {
 	class AnimationSynthesizer : public CoreLib::Object
-	{
-	public:
+	{	
+    public:
 		virtual void GetPose(Pose & p, float time) = 0;
 	};
 
@@ -31,31 +34,6 @@ namespace GameEngine
 		}
 		virtual void GetPose(Pose & p, float time) override;
 	};
-
-    class MotionGraphAnimationSynthesizer : public AnimationSynthesizer
-    {
-    private:
-        Skeleton * skeleton = nullptr;
-        MotionGraph * motionGraph = nullptr;
-        MGState* lastState = nullptr;
-        MGState* nextState = nullptr;
-        int startId = 0;
-        int preventJumpCounter = 0;
-        float lastStateTime = 0.f;
-        VectorMath::Vec3 rootLocation = VectorMath::Vec3::Create(0.f, 0.f, 0.f);
-        CoreLib::Random random;
-        CoreLib::List<int> startCandidates;
-        void GetStartCandidates();
-
-    public:
-        MotionGraphAnimationSynthesizer(Skeleton * pSkeleton, MotionGraph * pMotionGraph)
-            : skeleton(pSkeleton), motionGraph(pMotionGraph), random(3571)
-        {
-            GetStartCandidates();
-        }
-        virtual void GetPose(Pose & p, float time) override;
-    };
-
 }
 
 #endif

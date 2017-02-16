@@ -1,4 +1,6 @@
 #include "TextureCompressor.h"
+#define STB_DXT_IMPLEMENTATION
+#include "TextureTool/stb_dxt.h"
 #include "TextureTool/LibSquish.h"
 
 namespace GameEngine
@@ -34,7 +36,7 @@ namespace GameEngine
 		return rs;
 	}
 
-	void TextureCompressor::CompressRGBA_BC1(TextureFile & result, const CoreLib::ArrayView<unsigned char> & rgbaPixels, int width, int height)
+	void TextureCompressor::CompressRGBA_BC1(TextureFile & result, const CoreLib::ArrayView<unsigned char> & rgbaPixels, int width, int height, bool useSquish)
 	{
 		List<unsigned char> input;
 		input.AddRange(rgbaPixels.Buffer(), rgbaPixels.Count());
@@ -45,7 +47,32 @@ namespace GameEngine
 		{
 			List<unsigned char> data;
 			data.SetSize((int)(ceil(w / 4.0f) * ceil(h / 4.0f) * 8));
-			squish::CompressImage(input.Buffer(), w, h, data.Buffer(), squish::kDxt1);
+			if (useSquish)
+				squish::CompressImage(input.Buffer(), w, h, data.Buffer(), squish::kDxt1);
+			else
+			{
+				int ptr = 0;
+				for (int i = 0; i < h; i += 4)
+				{
+					for (int j = 0; j < w; j += 4)
+					{
+						unsigned char block[64], outBlock[8];
+						for (int ki = 0; ki < 4; ki++)
+						{
+							int ni = Math::Clamp(i + ki, 0, h - 1);
+							for (int kj = 0; kj < 4; kj++)
+							{
+								int nj = Math::Clamp(j + kj, 0, w - 1);
+								for (int c = 0; c < 4; c++)
+									block[(ki * 4 + kj) * 4 + c] = input[(ni * h + nj) * 4 + c];
+							}
+						}
+						stb_compress_dxt_block(outBlock, block, 0, STB_DXT_HIGHQUAL);
+						memcpy(data.Buffer() + ptr, outBlock, 8);
+						ptr += 8;
+					}
+				}
+			}
 			result.SetData(TextureStorageFormat::BC1, w, h, level, data.GetArrayView());
 			if (w == 1 && h == 1) break;
 			int nw, nh;
@@ -54,7 +81,53 @@ namespace GameEngine
 			h = nh;
 			level++;
 		}
-		
+	}
+
+	void TextureCompressor::CompressRGBA_BC3(TextureFile & result, const CoreLib::ArrayView<unsigned char> & rgbaPixels, int width, int height, bool useSquish)
+	{
+		List<unsigned char> input;
+		input.AddRange(rgbaPixels.Buffer(), rgbaPixels.Count());
+		int w = width;
+		int h = height;
+		int level = 0;
+		while (w >= 1 || h >= 1)
+		{
+			List<unsigned char> data;
+			data.SetSize((int)(ceil(w / 4.0f) * ceil(h / 4.0f) * 16));
+			if (useSquish)
+				squish::CompressImage(input.Buffer(), w, h, data.Buffer(), squish::kDxt3);
+			else
+			{
+				int ptr = 0;
+				for (int i = 0; i < h; i += 4)
+				{
+					for (int j = 0; j < w; j += 4)
+					{
+						unsigned char block[64], outBlock[16];
+						for (int ki = 0; ki < 4; ki++)
+						{
+							int ni = Math::Clamp(i + ki, 0, h - 1);
+							for (int kj = 0; kj < 4; kj++)
+							{
+								int nj = Math::Clamp(j + kj, 0, w - 1);
+								for (int c = 0; c < 4; c++)
+									block[(ki * 4 + kj) * 4 + c] = input[(ni * h + nj) * 4 + c];
+							}
+						}
+						stb_compress_dxt_block(outBlock, block, 1, STB_DXT_HIGHQUAL);
+						memcpy(data.Buffer() + ptr, outBlock, 16);
+						ptr += 16;
+					}
+				}
+			}
+			result.SetData(TextureStorageFormat::BC3, w, h, level, data.GetArrayView());
+			if (w == 1 && h == 1) break;
+			int nw, nh;
+			input = Resample(input, w, h, nw, nh);
+			w = nw;
+			h = nh;
+			level++;
+		}
 	}
 
 	void CompressBlockBC5(unsigned char * block, unsigned char * input)
@@ -143,6 +216,5 @@ namespace GameEngine
 			level++;
 		}
 	}
-
 }
 

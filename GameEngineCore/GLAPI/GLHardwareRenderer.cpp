@@ -2,13 +2,14 @@
 #define GLEW_STATIC
 #endif
 
-#include "../GameEngineCore/HardwareRenderer.h"
 #include "CoreLib/PerformanceCounter.h"
-
-#include "../WinForm/Debug.h"
 #include <glew/glew.h>
 #include <glew/wglew.h>
 #include "../VectorMath.h"
+#include "../Spire/Spire.h"
+#include "../WinForm/Debug.h"
+#include "../GameEngineCore/HardwareRenderer.h"
+#include "../Common.h"
 #include <assert.h>
 #pragma comment(lib, "opengl32.lib")
 
@@ -21,6 +22,8 @@ namespace GLL
 	using namespace VectorMath;
 	class GUIWindow
 	{};
+
+	bool DebugErrorEnabled = true;
 
 	typedef GUIWindow* GUIHandle;
 
@@ -77,7 +80,7 @@ namespace GLL
 		case BufferUsage::IndexBuffer: return GL_ELEMENT_ARRAY_BUFFER;
 		case BufferUsage::StorageBuffer: return GL_SHADER_STORAGE_BUFFER;
 		case BufferUsage::UniformBuffer: return GL_UNIFORM_BUFFER;
-		default: throw HardwareRendererException(L"Unsupported buffer usage.");
+		default: throw HardwareRendererException("Unsupported buffer usage.");
 		}
 	}
 
@@ -86,19 +89,22 @@ namespace GLL
 		int internalFormat = 0;
 		switch (format)
 		{
-		case StorageFormat::Float16:
+		case StorageFormat::R_F16:
 			internalFormat = GL_R16F;
 			break;
-		case StorageFormat::Float32:
+		case StorageFormat::R_F32:
 			internalFormat = GL_R32F;
 			break;
-		case StorageFormat::Int16:
+		case StorageFormat::R_16:
 			internalFormat = GL_R16;
+			break;
+		case StorageFormat::R_I16:
+			internalFormat = GL_R16I;
 			break;
 		case StorageFormat::Int32_Raw:
 			internalFormat = GL_R32I;
 			break;
-		case StorageFormat::Int8:
+		case StorageFormat::R_8:
 			internalFormat = GL_R8;
 			break;
 		case StorageFormat::RG_F16:
@@ -108,28 +114,19 @@ namespace GLL
 			internalFormat = GL_RG32F;
 			break;
 		case StorageFormat::RG_I16:
+			internalFormat = GL_RG16I;
+			break;
+		case StorageFormat::RG_16:
 			internalFormat = GL_RG16;
 			break;
 		case StorageFormat::RG_I32_Raw:
 			internalFormat = GL_RG32I;
 			break;
-		case StorageFormat::RG_I8:
+		case StorageFormat::RG_8:
 			internalFormat = GL_RG8;
 			break;
-		case StorageFormat::RGB_F16:
-			internalFormat = GL_RGB16F;
-			break;
-		case StorageFormat::RGB_F32:
-			internalFormat = GL_RGB32F;
-			break;
-		case StorageFormat::RGB_I16:
-			internalFormat = GL_RGB16;
-			break;
-		case StorageFormat::RGB_I32_Raw:
-			internalFormat = GL_RGB32I;
-			break;
-		case StorageFormat::RGB_I8:
-			internalFormat = GL_RGB8;
+		case StorageFormat::RG_I8:
+			internalFormat = GL_RG8I;
 			break;
 		case StorageFormat::RGBA_F16:
 			internalFormat = GL_RGBA16F;
@@ -150,8 +147,10 @@ namespace GLL
 			internalFormat = GL_RGBA32I;
 			break;
 		case StorageFormat::RGBA_I8:
+			internalFormat = GL_RGBA8I;
+			break;
 		case StorageFormat::RGBA_8:
-			internalFormat = GL_RGBA;
+			internalFormat = GL_RGBA8;
 			break;
 		case StorageFormat::RGBA_Compressed:
 #ifdef _DEBUG
@@ -161,10 +160,16 @@ namespace GLL
 #endif
 			break;
 		case StorageFormat::BC1:
-			internalFormat = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
+			internalFormat = GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
 			break;
 		case StorageFormat::BC5:
 			internalFormat = GL_COMPRESSED_RG_RGTC2;
+			break;
+		case StorageFormat::BC3:
+			internalFormat = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
+			break;
+		case StorageFormat::Depth24:
+			internalFormat = GL_DEPTH_COMPONENT24;
 			break;
 		case StorageFormat::Depth24Stencil8:
 			internalFormat = GL_DEPTH24_STENCIL8;
@@ -173,7 +178,7 @@ namespace GLL
 			internalFormat = GL_DEPTH_COMPONENT32;
 			break;
 		default:
-			throw HardwareRendererException(L"Unsupported storage format.");
+			throw HardwareRendererException("Unsupported storage format.");
 		}
 		return internalFormat;
 	}
@@ -186,7 +191,7 @@ namespace GLL
 		case 2: return GL_RG;
 		case 3: return GL_RGB;
 		case 4: return GL_RGBA;
-		default: throw HardwareRendererException(L"Unsupported data type.");
+		default: throw HardwareRendererException("Unsupported data type.");
 		}
 	}
 
@@ -234,7 +239,7 @@ namespace GLL
 		case DataType::UInt4_10_10_10_2:
 			return GL_UNSIGNED_INT_2_10_10_10_REV;
 		default:
-			throw HardwareRendererException(L"Unsupported data type.");
+			throw HardwareRendererException("Unsupported data type.");
 		}
 	}
 
@@ -282,6 +287,43 @@ namespace GLL
 		{
 			Handle = 0;
 		}
+	};
+
+	class Fence : public GameEngine::Fence 
+	{
+	public:
+		int waitCounter = 0;
+		GLsync handle = nullptr;
+		Fence()
+		{}
+		~Fence()
+		{
+			if (handle)
+				glDeleteSync(handle);
+		}
+		virtual void Reset() override
+		{
+			if (handle)
+			{
+				glDeleteSync(handle);
+				handle = nullptr;
+			}
+		}
+		virtual void Wait() override
+		{
+			if (handle)
+			{
+				while (1)
+				{
+					GLenum waitReturn = glClientWaitSync(handle, GL_SYNC_FLUSH_COMMANDS_BIT, 1);
+					if (waitReturn == GL_ALREADY_SIGNALED || waitReturn == GL_CONDITION_SATISFIED)
+						return;
+
+					waitCounter++;
+				}
+			}
+		}
+
 	};
 
 	class RenderBuffer : public GL_Object
@@ -467,7 +509,7 @@ namespace GLL
 			case GL_NOTEQUAL: return CompareFunc::NotEqual;
 			case GL_ALWAYS: return CompareFunc::Always;
 			case GL_NEVER: return CompareFunc::Never;
-			default: throw HardwareRendererException(L"Not implemented");
+			default: throw HardwareRendererException("Not implemented");
 			}
 		}
 	};
@@ -508,6 +550,11 @@ namespace GLL
 			format = GL_RGBA;
 			storageFormat = StorageFormat::RGBA_I8;
 			type = GL_UNSIGNED_BYTE;
+		}
+		~Texture()
+		{
+			if (Handle)
+				glDeleteTextures(1, &Handle);
 		}
 		bool operator == (const Texture &t) const
 		{
@@ -553,55 +600,31 @@ namespace GLL
 		{
 			glClearTexImage(Handle, 0, format, type, &data);
 		}
-		void Resize(int width, int height, int samples, int /*mipLevels*/, bool /*preserveData*/)
+		virtual void SetData(int level, int width, int height, int samples, DataType inputType, void * data) override
 		{
-			glBindTexture(GL_TEXTURE_2D, Handle);
-			if (samples <= 1)
-				glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, type, nullptr);
-			else
-			{
-				glTexImage2DMultisample(GL_TEXTURE_2D, samples, internalFormat, width, height, GL_TRUE);
-			}
-			glBindTexture(GL_TEXTURE_2D, 0);
-		}
-		void SetData(StorageFormat pFormat, int level, int width, int height, int samples, DataType inputType, void * data, bool /*mipmapped*/)
-		{
-			this->storageFormat = pFormat;
-			this->internalFormat = TranslateStorageFormat(pFormat);
+			if (storageFormat == StorageFormat::BC1 || storageFormat == StorageFormat::BC5)
+				throw HardwareRendererException("Compressed textures must recreated instead of modified");
+
+			this->internalFormat = TranslateStorageFormat(storageFormat);
 			this->format = TranslateDataTypeToFormat(inputType);
 			this->type = TranslateDataTypeToInputType(inputType);
 			if (this->internalFormat == GL_DEPTH_COMPONENT16 || this->internalFormat == GL_DEPTH_COMPONENT24 || this->internalFormat == GL_DEPTH_COMPONENT32)
 				this->format = GL_DEPTH_COMPONENT;
 			else if (this->internalFormat == GL_DEPTH24_STENCIL8)
 				this->format = GL_DEPTH_STENCIL;
-			if (pFormat == StorageFormat::BC1 || pFormat == StorageFormat::BC5)
+
+			if (samples <= 1)
 			{
-				int blocks = (int)(ceil(width / 4.0f) * ceil(height / 4.0f));
-				int bufferSize = pFormat == StorageFormat::BC5 ? blocks * 16 : blocks * 8;
 				glBindTexture(GL_TEXTURE_2D, Handle);
-				glCompressedTexImage2D(GL_TEXTURE_2D, level, internalFormat, width, height, 0, bufferSize, data);
+				glTexSubImage2D(GL_TEXTURE_2D, level, 0, 0, width, height, this->format, this->type, data);
 				glBindTexture(GL_TEXTURE_2D, 0);
 			}
 			else
-			{
-				if (samples > 1)
-				{
-					glBindTexture(GL_TEXTURE_2D, Handle);
-					glTexImage2DMultisample(GL_TEXTURE_2D, samples, this->internalFormat, width, height, GL_TRUE);
-					glBindTexture(GL_TEXTURE_2D, 0);
-				}
-				else
-				{
-					glBindTexture(GL_TEXTURE_2D, Handle);
-					glTexImage2D(GL_TEXTURE_2D, level, this->internalFormat, width, height, 0, this->format, this->type, data);
-					glBindTexture(GL_TEXTURE_2D, 0);
-
-				}
-			}
+				throw NotImplementedException();
 		}
-		void SetData(StorageFormat pFormat, int width, int height, int samples, DataType inputType, void * data, bool mipmapped = true)
+		virtual void SetData(int width, int height, int samples, DataType inputType, void * data) override
 		{
-			SetData(pFormat, 0, width, height, samples, inputType, data, mipmapped);
+			SetData(0, width, height, samples, inputType, data);
 		}
 		int GetComponents()
 		{
@@ -636,7 +659,6 @@ namespace GLL
 				glGetTexImage(GL_TEXTURE_2D, level, format, TranslateDataTypeToInputType(outputType), data);
 			glBindTexture(GL_TEXTURE_2D, 0);
 		}
-		void DebugDump(String fileName);
 		void BuildMipmaps()
 		{
 			glBindTexture(GL_TEXTURE_2D, Handle);
@@ -645,13 +667,163 @@ namespace GLL
 		}
 	};
 
-	class TextureCube : public Texture
+	class Texture2DArray : public Texture, public GameEngine::Texture2DArray
 	{
 	public:
-		TextureCube()
+		Texture2DArray()
 		{
+			BindTarget = GL_TEXTURE_2D_ARRAY;
+		}
+		~Texture2DArray()
+		{
+			if (Handle)
+			{
+				glDeleteTextures(1, &Handle);
+				Handle = 0;
+			}
+		}
+		StorageFormat GetFormat()
+		{
+			return storageFormat;
+		}
+		void GetSize(int & width, int & height, int & layers)
+		{
+			glBindTexture(GL_TEXTURE_2D_ARRAY, Handle);
+			glGetTexLevelParameteriv(GL_TEXTURE_2D_ARRAY, 0, GL_TEXTURE_WIDTH, &width);
+			glGetTexLevelParameteriv(GL_TEXTURE_2D_ARRAY, 0, GL_TEXTURE_HEIGHT, &height);
+			glGetTexLevelParameteriv(GL_TEXTURE_2D_ARRAY, 0, GL_TEXTURE_DEPTH, &layers);
+
+			glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+		}
+		virtual void SetData(int mipLevel, int xOffset, int yOffset, int layerOffset, int width, int height, int layerCount, DataType inputType, void * data) override
+		{
+			this->internalFormat = TranslateStorageFormat(storageFormat);
+			this->format = TranslateDataTypeToFormat(inputType);
+			this->type = TranslateDataTypeToInputType(inputType);
+			if (this->internalFormat == GL_DEPTH_COMPONENT16 || this->internalFormat == GL_DEPTH_COMPONENT24 || this->internalFormat == GL_DEPTH_COMPONENT32)
+				this->format = GL_DEPTH_COMPONENT;
+			else if (this->internalFormat == GL_DEPTH24_STENCIL8)
+				this->format = GL_DEPTH_STENCIL;
+			if (storageFormat == StorageFormat::BC1 || storageFormat == StorageFormat::BC5)
+			{
+				assert(xOffset == 0 && yOffset == 0);
+				int blocks = (int)(ceil(width / 4.0f) * ceil(height / 4.0f));
+				int bufferSize = storageFormat == StorageFormat::BC5 ? blocks * 16 : blocks * 8;
+				glBindTexture(GL_TEXTURE_2D_ARRAY, Handle);
+				glCompressedTexImage3D(GL_TEXTURE_2D_ARRAY, mipLevel, internalFormat, width, height, layerOffset, 0, bufferSize, data);
+				glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+			}
+			else
+			{		
+				glBindTexture(GL_TEXTURE_2D_ARRAY, Handle);
+				glTexSubImage3D(GL_TEXTURE_2D_ARRAY, mipLevel, xOffset, yOffset, layerOffset, width, height, layerCount, this->format, this->type, data);
+				glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+			}
+		}
+		int GetComponents()
+		{
+			switch (this->format)
+			{
+			case GL_RED:
+				return 1;
+			case GL_RG:
+				return 2;
+			case GL_RGB:
+				return 3;
+			case GL_RGBA:
+				return 4;
+			}
+			return 4;
+		}
+		
+		void BuildMipmaps()
+		{
+			glBindTexture(GL_TEXTURE_2D_ARRAY, Handle);
+			glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
+			glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+		}
+	};
+
+	class Texture3D : public Texture, public GameEngine::Texture3D
+	{
+	public:
+		Texture3D()
+		{
+			BindTarget = GL_TEXTURE_3D;
+		}
+		~Texture3D()
+		{
+			if (Handle)
+			{
+				glDeleteTextures(1, &Handle);
+				Handle = 0;
+			}
+		}
+		StorageFormat GetFormat()
+		{
+			return storageFormat;
+		}
+		void GetSize(int & width, int & height, int & layers)
+		{
+			glBindTexture(GL_TEXTURE_3D, Handle);
+			glGetTexLevelParameteriv(GL_TEXTURE_3D, 0, GL_TEXTURE_WIDTH, &width);
+			glGetTexLevelParameteriv(GL_TEXTURE_3D, 0, GL_TEXTURE_HEIGHT, &height);
+			glGetTexLevelParameteriv(GL_TEXTURE_3D, 0, GL_TEXTURE_DEPTH, &layers);
+
+			glBindTexture(GL_TEXTURE_3D, 0);
+		}
+		virtual void SetData(int mipLevel, int xOffset, int yOffset, int layerOffset, int width, int height, int layerCount, DataType inputType, void * data) override
+		{
+			this->internalFormat = TranslateStorageFormat(storageFormat);
+			this->format = TranslateDataTypeToFormat(inputType);
+			this->type = TranslateDataTypeToInputType(inputType);
+			if (this->internalFormat == GL_DEPTH_COMPONENT16 || this->internalFormat == GL_DEPTH_COMPONENT24 || this->internalFormat == GL_DEPTH_COMPONENT32)
+				this->format = GL_DEPTH_COMPONENT;
+			else if (this->internalFormat == GL_DEPTH24_STENCIL8)
+				this->format = GL_DEPTH_STENCIL;
+			if (storageFormat == StorageFormat::BC1 || storageFormat == StorageFormat::BC5)
+			{
+				assert(xOffset == 0 && yOffset == 0);
+				int blocks = (int)(ceil(width / 4.0f) * ceil(height / 4.0f));
+				int bufferSize = storageFormat == StorageFormat::BC5 ? blocks * 16 : blocks * 8;
+				glBindTexture(GL_TEXTURE_3D, Handle);
+				glCompressedTexImage3D(GL_TEXTURE_3D, mipLevel, internalFormat, width, height, layerOffset, 0, bufferSize, data);
+				glBindTexture(GL_TEXTURE_3D, 0);
+			}
+			else
+			{
+				glBindTexture(GL_TEXTURE_3D, Handle);
+				glTexSubImage3D(GL_TEXTURE_3D, mipLevel, xOffset, yOffset, layerOffset, width, height, layerCount, this->format, this->type, data);
+				glBindTexture(GL_TEXTURE_3D, 0);
+			}
+		}
+		int GetComponents()
+		{
+			switch (this->format)
+			{
+			case GL_RED:
+				return 1;
+			case GL_RG:
+				return 2;
+			case GL_RGB:
+				return 3;
+			case GL_RGBA:
+				return 4;
+			}
+			return 4;
+		}
+	};
+
+	class TextureCube : public Texture, public GameEngine::TextureCube
+	{
+	public:
+		int size = 0;
+		TextureCube(int psize)
+		{
+			size = psize;
 			BindTarget = GL_TEXTURE_CUBE_MAP;
 		}
+	
 		StorageFormat GetFormat()
 		{
 			return storageFormat;
@@ -698,6 +870,11 @@ namespace GLL
 			glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 			glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 		}
+
+		virtual void GetSize(int & psize) override
+		{
+			psize = size;
+		}
 	};
 
 	class FrameBuffer : public GL_Object
@@ -708,10 +885,14 @@ namespace GLL
 		{
 			glNamedFramebufferTexture(Handle, GL_COLOR_ATTACHMENT0 + attachmentPoint, texture.Handle, level);
 		}
-		void SetColorRenderTarget(int attachmentPoint, const TextureCube &texture, TextureCubeFace face)
+		void SetColorRenderTarget(int attachmentPoint, const Texture2DArray &texture, int layer, int level = 0)
+		{
+			glNamedFramebufferTextureLayer(Handle, GL_COLOR_ATTACHMENT0 + attachmentPoint, texture.Handle, level, layer);
+		}
+		void SetColorRenderTarget(int attachmentPoint, const TextureCube &texture, TextureCubeFace face, int level)
 		{
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Handle);
-			glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attachmentPoint, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (int)face, texture.Handle, 0);
+			glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attachmentPoint, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (int)face, texture.Handle, level);
 		}
 		void SetColorRenderTarget(int attachmentPoint, const RenderBuffer &buffer)
 		{
@@ -739,26 +920,58 @@ namespace GLL
 		void SetDepthStencilRenderTarget(const Texture2D &texture)
 		{
 			if (texture.internalFormat == GL_DEPTH24_STENCIL8)
+			{
+				glNamedFramebufferTexture(Handle, GL_DEPTH_ATTACHMENT, 0, 0);
 				glNamedFramebufferTexture(Handle, GL_DEPTH_STENCIL_ATTACHMENT, texture.Handle, 0);
+			}
 			else
+			{
+				glNamedFramebufferTexture(Handle, GL_DEPTH_STENCIL_ATTACHMENT, 0, 0);
 				glNamedFramebufferTexture(Handle, GL_DEPTH_ATTACHMENT, texture.Handle, 0);
+			}
+		}
+
+		void SetDepthStencilRenderTarget(const Texture2DArray &texture, int layer)
+		{
+			if (texture.internalFormat == GL_DEPTH24_STENCIL8)
+			{
+				glNamedFramebufferTextureLayer(Handle, GL_DEPTH_ATTACHMENT, 0, 0, layer);
+				glNamedFramebufferTextureLayer(Handle, GL_DEPTH_STENCIL_ATTACHMENT, texture.Handle, 0, layer);
+			}
+			else
+			{
+				glNamedFramebufferTextureLayer(Handle, GL_DEPTH_STENCIL_ATTACHMENT, 0, 0, layer);
+				glNamedFramebufferTextureLayer(Handle, GL_DEPTH_ATTACHMENT, texture.Handle, 0, layer);
+			}
 		}
 
 		void SetDepthStencilRenderTarget(const TextureCube &texture, TextureCubeFace face)
 		{
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Handle);
 			if (texture.internalFormat == GL_DEPTH24_STENCIL8)
-				glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X+(int)face, texture.Handle, 0);
+			{
+				glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (int)face, 0, 0);
+				glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (int)face, texture.Handle, 0);
+			}
 			else
+			{
+				glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (int)face, 0, 0);
 				glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (int)face, texture.Handle, 0);
+			}
 		}
 
 		void SetDepthStencilRenderTarget(const RenderBuffer &buffer)
 		{
 			if (buffer.internalFormat == GL_DEPTH24_STENCIL8)
+			{
+				glNamedFramebufferRenderbuffer(Handle, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, 0);
 				glNamedFramebufferRenderbuffer(Handle, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, buffer.Handle);
+			}
 			else
+			{
+				glNamedFramebufferRenderbuffer(Handle, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, 0);
 				glNamedFramebufferRenderbuffer(Handle, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, buffer.Handle);
+			}
 		}
 
 		void SetStencilRenderTarget(const RenderBuffer &buffer)
@@ -772,7 +985,7 @@ namespace GLL
 			if (rs != GL_FRAMEBUFFER_COMPLETE)
 			{
 				printf("Framebuffer check result: %d", rs);
-				throw HardwareRendererException(L"Inconsistent frame buffer object setup.");
+				throw HardwareRendererException("Inconsistent frame buffer object setup.");
 			}
 		}
 	};
@@ -780,13 +993,42 @@ namespace GLL
 	class FrameBufferDescriptor : public GameEngine::FrameBuffer
 	{
 	public:
-		CoreLib::List<GLL::Texture2D*> attachments;
+		struct Attachment
+		{
+			struct
+			{
+				GLL::Texture2D* tex2D = nullptr;
+				GLL::Texture2DArray* tex2DArray = nullptr;
+				GLL::TextureCube* texCube = nullptr;
+			} handle;
+			int layer = -1;
+			TextureCubeFace face;
+			Attachment(GLL::Texture2D * tex)
+			{
+				handle.tex2D = tex;
+				layer = -1;
+			}
+			Attachment(GLL::Texture2DArray* texArr, int l)
+			{
+				handle.tex2DArray = texArr;
+				layer = l;
+			}
+			Attachment(GLL::TextureCube* texCube, TextureCubeFace pface, int l)
+			{
+				handle.texCube = texCube;
+				layer = l;
+				face = pface;
+			}
+			Attachment() = default;
+		};
+	public:
+		CoreLib::List<Attachment> attachments;
 	};
 
 	class RenderTargetLayout : public GameEngine::RenderTargetLayout
 	{
 	public:
-		CoreLib::List<TextureUsage> attachments;
+		CoreLib::List<AttachmentLayout> attachments;
 	private:
 		void Resize(int size)
 		{
@@ -794,10 +1036,10 @@ namespace GLL
 				attachments.SetSize(size);
 		}
 
-		void SetColorAttachment(int binding)
+		void SetColorAttachment(int binding, AttachmentLayout layout)
 		{
 			Resize(binding + 1);
-			attachments[binding] = TextureUsage::ColorAttachment;
+			attachments[binding] = layout;
 
 			//if (samples > 1)
 			//{
@@ -805,37 +1047,37 @@ namespace GLL
 			//}
 		}
 
-		void SetDepthAttachment(int binding)
+		void SetDepthAttachment(int binding, AttachmentLayout layout)
 		{
 			for (auto attachment : attachments)
 			{
-				if (attachment == TextureUsage::DepthAttachment)
-					throw HardwareRendererException(L"Only 1 depth/stencil attachment allowed.");
+				if (attachment.Usage == TextureUsage::DepthAttachment)
+					throw HardwareRendererException("Only 1 depth/stencil attachment allowed.");
 			}
 
 			Resize(binding + 1);
-			attachments[binding] = TextureUsage::DepthAttachment;
+			attachments[binding] = layout;
 		}
 	public:
-		RenderTargetLayout(CoreLib::ArrayView<TextureUsage> bindings)
+		RenderTargetLayout(CoreLib::ArrayView<AttachmentLayout> bindings)
 		{
 			int location = 0;
 			for (auto binding : bindings)
 			{
-				switch (binding)
+				switch (binding.Usage)
 				{
 				case TextureUsage::ColorAttachment:
 				case TextureUsage::SampledColorAttachment:
-					SetColorAttachment(location);
+					SetColorAttachment(location, binding);
 					break;
 				case TextureUsage::DepthAttachment:
 				case TextureUsage::SampledDepthAttachment:
-					SetDepthAttachment(location);
+					SetDepthAttachment(location, binding);
 					break;
 				case TextureUsage::Unused:
 					break;
 				default:
-					throw HardwareRendererException(L"Unsupported attachment usage");
+					throw HardwareRendererException("Unsupported attachment usage");
 				}
 				location++;
 			}
@@ -867,7 +1109,12 @@ namespace GLL
 
 			for (auto renderAttachment : renderAttachments.attachments)
 			{
-				result->attachments.Add(dynamic_cast<Texture2D*>(renderAttachment));
+				if (renderAttachment.handle.tex2D)
+					result->attachments.Add(FrameBufferDescriptor::Attachment(dynamic_cast<GLL::Texture2D*>(renderAttachment.handle.tex2D)));
+				else if (renderAttachment.handle.tex2DArray)
+					result->attachments.Add(FrameBufferDescriptor::Attachment(dynamic_cast<GLL::Texture2DArray*>(renderAttachment.handle.tex2DArray), renderAttachment.layer));
+				else if (renderAttachment.handle.texCube)
+					result->attachments.Add(FrameBufferDescriptor::Attachment(dynamic_cast<GLL::TextureCube*>(renderAttachment.handle.texCube), renderAttachment.face, renderAttachment.layer));
 			}
 
 			return result;
@@ -877,8 +1124,13 @@ namespace GLL
 	class BufferObject : public GL_Object, public GameEngine::Buffer
 	{
 	public:
+#ifdef _DEBUG
+		bool * isInTransfer = nullptr;
+#endif
 		bool persistentMapping = false;
 		GLuint BindTarget;
+		void * mappedPtr = nullptr;
+
 		static float CheckBufferData(int bufferHandle)
 		{
 			float buffer;
@@ -893,40 +1145,55 @@ namespace GLL
 		}
 		void SetData(void * data, int sizeInBytes)
 		{
-			GLenum usage = GL_STATIC_DRAW;
-			if (BindTarget == GL_UNIFORM_BUFFER)
-				usage = GL_DYNAMIC_DRAW;
-			else if (BindTarget == GL_ARRAY_BUFFER || BindTarget == GL_ELEMENT_ARRAY_BUFFER)
-				usage = GL_STREAM_DRAW;
-			if (sizeInBytes == 0)
-				return;
-			if (persistentMapping)
-			{
-				glDeleteBuffers(1, &Handle);
-				glGenBuffers(1, &Handle);
-				glBindBuffer(BindTarget, Handle);
-				glNamedBufferStorage(Handle, sizeInBytes, data, GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_COHERENT_BIT);
-				glBindBuffer(BindTarget, 0);
-			}
+#ifdef _DEBUG
+			if (!*isInTransfer)
+				throw HardwareRendererException("Renderer not in data-transfer mode.");
+#endif
+			if (mappedPtr)
+				memcpy(mappedPtr, data, sizeInBytes);
 			else
-			{
-				glBindBuffer(BindTarget, Handle);
-				glBufferData(BindTarget, sizeInBytes, data, usage);
-				glBindBuffer(BindTarget, 0);
-			}
+				SetData(0, data, sizeInBytes);
+		}
+		void SetDataAsync(int offset, void * data, int size)
+		{
+#ifdef _DEBUG
+			if (!*isInTransfer)
+				throw HardwareRendererException("Renderer not in data-transfer mode.");
+#endif
+			if (mappedPtr)
+				memcpy((char*)mappedPtr + offset, data, size);
+			else
+				glNamedBufferSubData(Handle, (GLintptr)offset, (GLsizeiptr)size, data);
 		}
 		void SetData(int offset, void * data, int size)
 		{
-			glNamedBufferSubData(Handle, (GLintptr)offset, (GLsizeiptr)size, data);
+#ifdef _DEBUG
+			if (!*isInTransfer)
+				throw HardwareRendererException("Renderer not in data-transfer mode.");
+#endif
+			if (mappedPtr)
+				memcpy((char*)mappedPtr + offset, data, size);
+			else 
+				glNamedBufferSubData(Handle, (GLintptr)offset, (GLsizeiptr)size, data);
 		}
-		void BufferStorage(int size, void * data, BufferStorageFlag storageFlags)
+		void BufferStorage(int size, void * data, int flags)
 		{
-			glNamedBufferStorage(Handle, (GLsizeiptr)size, data, TranslateBufferStorageFlags(storageFlags));
+			glNamedBufferStorage(Handle, (GLsizeiptr)size, data, flags);
+			if (persistentMapping)
+				Map();
 		}
 		void * Map(BufferAccess access, int offset, int len)
 		{
 			if (persistentMapping)
-				return glMapNamedBufferRange(Handle, offset, len, GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_COHERENT_BIT);
+			{
+				if (mappedPtr)
+					return mappedPtr;
+				else
+				{
+					mappedPtr = glMapNamedBufferRange(Handle, offset, len, GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_COHERENT_BIT);
+					return mappedPtr;
+				}
+			}
 			else
 				return glMapNamedBufferRange(Handle, offset, len, TranslateBufferAccess(access));
 		}
@@ -940,6 +1207,7 @@ namespace GLL
 		}
 		void Unmap()
 		{
+			mappedPtr = nullptr;
 			glUnmapNamedBuffer(Handle);
 		}
 		void Flush(int /*offset*/, int /*size*/)
@@ -974,35 +1242,75 @@ namespace GLL
 
 	class VertexArray : public GL_Object
 	{
+	private:
+		int lastAttribCount = 0;
+		GLuint lastBoundVBO = 0;
+		int lastBufferOffset = 0;
+		struct AttribState
+		{
+			bool activated = false;
+			DataType dataType;
+			int vertSize = 0, ptr = 0, divisor = 0;
+		};
+		AttribState attribStates[32];
 	public:
-		void SetIndex(BufferObject indices)
+		void SetIndex(const BufferObject & indices)
 		{
-			//glVertexArrayElementBuffer(Handle, indices->Handle);
-			glBindVertexArray(Handle);
+			//glBindVertexArray(Handle);
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices.Handle);
-			glBindVertexArray(0);
 		}
-		void SetVertex(BufferObject vertices, ArrayView<VertexAttributeDesc> attribs, int vertSize, int startId = 0, int instanceDivisor = 0)
+		void SetVertex(const BufferObject & vertices, ArrayView<VertexAttributeDesc> attribs, int vertSize, int bufferOffset, int startId = 0, int instanceDivisor = 0)
 		{
-			glBindVertexArray(Handle);
-			glBindBuffer(GL_ARRAY_BUFFER, vertices.Handle);
+			bool bufferChanged = false;
+			//glBindVertexArray(Handle);
+			if (lastBoundVBO != vertices.Handle)
+			{
+				glBindBuffer(GL_ARRAY_BUFFER, vertices.Handle);
+				lastBoundVBO = vertices.Handle;
+				bufferChanged = true;
+			}
+			if (bufferOffset != lastBufferOffset)
+			{
+				lastBufferOffset = bufferOffset;
+				bufferChanged = true;
+			}
+			for (int i = attribs.Count(); i < lastAttribCount; i++)
+			{
+				glDisableVertexAttribArray(i);
+				attribStates[i].activated = false;
+				attribStates[i].ptr = -1;
+				attribStates[i].divisor = -1;
+			}
 			for (int i = 0; i < attribs.Count(); i++)
 			{
-				//glVertexArrayVertexBuffer(Handle, i, ((GL_BufferObject*)vertices)->Handle, attribs[i].StartOffset, vertSize);
-				//glVertexArrayAttribFormat(Handle, i, GetDataTypeComponenets(attribs[i].Type), TranslateDataTypeToInputType(attribs[i].Type), attribs[i].Normalized, attribs[i].StartOffset);
 				int id = i + startId;
-				if (attribs[i].Location != -1)
-					id = attribs[i].Location;
-				glEnableVertexAttribArray(id);
-				if (attribs[i].Type == DataType::Int || attribs[i].Type == DataType::Int2 || attribs[i].Type == DataType::Int3 || attribs[i].Type == DataType::Int4
-					|| attribs[i].Type == DataType::UInt)
-					glVertexAttribIPointer(id, GetDataTypeComponenets(attribs[i].Type), TranslateDataTypeToInputType(attribs[i].Type), vertSize, (void*)(CoreLib::PtrInt)attribs[i].StartOffset);
-				else
-					glVertexAttribPointer(id, GetDataTypeComponenets(attribs[i].Type), TranslateDataTypeToInputType(attribs[i].Type), attribs[i].Normalized, vertSize, (void*)(CoreLib::PtrInt)attribs[i].StartOffset);
-				glVertexAttribDivisor(id, instanceDivisor);
+				auto & attrib = attribs[i];
+				if (attrib.Location != -1)
+					id = attrib.Location;
+				if (!attribStates[id].activated)
+				{
+					glEnableVertexAttribArray(id);
+					attribStates[id].activated = true;
+				}
+				if (bufferChanged || attribStates[id].dataType != attrib.Type || attribStates[id].vertSize != vertSize ||
+					attribStates[id].ptr != attrib.StartOffset)
+				{
+					if (attrib.Type == DataType::Int || attrib.Type == DataType::Int2 || attrib.Type == DataType::Int3 || attrib.Type == DataType::Int4
+						|| attrib.Type == DataType::UInt)
+						glVertexAttribIPointer(id, GetDataTypeComponenets(attrib.Type), TranslateDataTypeToInputType(attrib.Type), vertSize, (void*)(CoreLib::PtrInt)(attrib.StartOffset + bufferOffset));
+					else
+						glVertexAttribPointer(id, GetDataTypeComponenets(attrib.Type), TranslateDataTypeToInputType(attrib.Type), attrib.Normalized, vertSize, (void*)(CoreLib::PtrInt)(attrib.StartOffset + bufferOffset));
+					attribStates[id].dataType = attrib.Type;
+					attribStates[id].vertSize = vertSize;
+					attribStates[id].ptr = attribs[i].StartOffset;
+				}
+				if (attribStates[id].divisor != instanceDivisor)
+				{
+					glVertexAttribDivisor(id, instanceDivisor);
+					attribStates[id].divisor = instanceDivisor;
+				}
 			}
-
-			glBindVertexArray(0);
+			lastAttribCount = attribs.Count() + startId;
 		}
 	};
 
@@ -1041,12 +1349,12 @@ namespace GLL
 	public:
 		void StorageBlockBinding(String blockName, int binding)
 		{
-			int index = glGetProgramResourceIndex(Handle, GL_SHADER_STORAGE_BLOCK, blockName.ToMultiByteString());
+			int index = glGetProgramResourceIndex(Handle, GL_SHADER_STORAGE_BLOCK, blockName.Buffer());
 			glShaderStorageBlockBinding(Handle, index, binding);
 		}
 		void UniformBlockBinding(String blockName, int binding)
 		{
-			int index = glGetProgramResourceIndex(Handle, GL_UNIFORM_BLOCK, blockName.ToMultiByteString());
+			int index = glGetProgramResourceIndex(Handle, GL_UNIFORM_BLOCK, blockName.Buffer());
 			glUniformBlockBinding(Handle, index, binding);
 		}
 		void UniformBlockBinding(int index, int binding)
@@ -1055,81 +1363,81 @@ namespace GLL
 		}
 		int GetAttribBinding(String name)
 		{
-			return glGetAttribLocation(Handle, name.ToMultiByteString());
+			return glGetAttribLocation(Handle, name.Buffer());
 		}
 		int GetOutputLocation(String name)
 		{
-			return glGetFragDataLocation(Handle, name.ToMultiByteString());
+			return glGetFragDataLocation(Handle, name.Buffer());
 		}
 		void SetUniform(String name, unsigned int value)
 		{
-			int loc = glGetUniformLocation(Handle, name.ToMultiByteString());
+			int loc = glGetUniformLocation(Handle, name.Buffer());
 			if (loc != -1)
 				glProgramUniform1ui(Handle, loc, value);
 		}
 		void SetUniform(String name, int value)
 		{
-			int loc = glGetUniformLocation(Handle, name.ToMultiByteString());
+			int loc = glGetUniformLocation(Handle, name.Buffer());
 			if (loc != -1)
 				glProgramUniform1i(Handle, loc, value);
 		}
 		void SetUniform(String name, float value)
 		{
-			int loc = glGetUniformLocation(Handle, name.ToMultiByteString());
+			int loc = glGetUniformLocation(Handle, name.Buffer());
 			if (loc != -1)
 				glProgramUniform1f(Handle, loc, value);
 		}
 		void SetUniform(String name, Vec2 value)
 		{
-			int loc = glGetUniformLocation(Handle, name.ToMultiByteString());
+			int loc = glGetUniformLocation(Handle, name.Buffer());
 			if (loc != -1)
 				glProgramUniform2fv(Handle, loc, 1, (float*)&value);
 		}
 		void SetUniform(String name, Vec3 value)
 		{
-			int loc = glGetUniformLocation(Handle, name.ToMultiByteString());
+			int loc = glGetUniformLocation(Handle, name.Buffer());
 			if (loc != -1)
 				glProgramUniform3fv(Handle, loc, 1, (float*)&value);
 		}
 		void SetUniform(String name, Vec4 value)
 		{
-			int loc = glGetUniformLocation(Handle, name.ToMultiByteString());
+			int loc = glGetUniformLocation(Handle, name.Buffer());
 			if (loc != -1)
 				glProgramUniform4fv(Handle, loc, 1, (float*)&value);
 		}
 		void SetUniform(String name, Vec2i value)
 		{
-			int loc = glGetUniformLocation(Handle, name.ToMultiByteString());
+			int loc = glGetUniformLocation(Handle, name.Buffer());
 			if (loc != -1)
 				glProgramUniform2iv(Handle, loc, 1, (int*)&value);
 		}
 		void SetUniform(String name, Vec3i value)
 		{
-			int loc = glGetUniformLocation(Handle, name.ToMultiByteString());
+			int loc = glGetUniformLocation(Handle, name.Buffer());
 			if (loc != -1)
 				glProgramUniform3iv(Handle, loc, 1, (int*)&value);
 		}
 		void SetUniform(String name, Vec4i value)
 		{
-			int loc = glGetUniformLocation(Handle, name.ToMultiByteString());
+			int loc = glGetUniformLocation(Handle, name.Buffer());
 			if (loc != -1)
 				glProgramUniform4iv(Handle, loc, 1, (int*)&value);
 		}
 		void SetUniform(String name, Matrix3 value)
 		{
-			int loc = glGetUniformLocation(Handle, name.ToMultiByteString());
+			int loc = glGetUniformLocation(Handle, name.Buffer());
 			if (loc != -1)
 				glProgramUniformMatrix3fv(Handle, loc, 1, false, (float*)&value);
 		}
 		void SetUniform(String name, Matrix4 value)
 		{
-			int loc = glGetUniformLocation(Handle, name.ToMultiByteString());
+			int loc = glGetUniformLocation(Handle, name.Buffer());
 			if (loc != -1)
 				glProgramUniformMatrix4fv(Handle, loc, 1, false, (float*)&value);
 		}
 		void SetUniform(String name, uint64_t value)
 		{
-			int loc = glGetUniformLocation(Handle, name.ToMultiByteString());
+			int loc = glGetUniformLocation(Handle, name.Buffer());
 			if (loc != -1)
 				glProgramUniformui64NV(Handle, loc, value);
 		}
@@ -1191,7 +1499,7 @@ namespace GLL
 		}
 		int GetUniformLoc(String name)
 		{
-			return glGetUniformLocation(Handle, name.ToMultiByteString());
+			return glGetUniformLocation(Handle, name.Buffer());
 		}
 		int GetUniformLoc(const char * name)
 		{
@@ -1199,7 +1507,7 @@ namespace GLL
 		}
 		int GetUniformBlockIndex(String name)
 		{
-			return glGetUniformBlockIndex(Handle, name.ToMultiByteString());
+			return glGetUniformBlockIndex(Handle, name.Buffer());
 		}
 		void Use()
 		{
@@ -1222,7 +1530,7 @@ namespace GLL
 				dbgWriter << logOutput;
 			if (compileStatus != GL_TRUE)
 			{
-				throw HardwareRendererException(L"program linking\n" + logOutput);
+				throw HardwareRendererException("program linking\n" + logOutput);
 			}
 
 			glValidateProgram(Handle);
@@ -1235,24 +1543,26 @@ namespace GLL
 			glGetProgramiv(Handle, GL_VALIDATE_STATUS, &compileStatus);
 			if (compileStatus != GL_TRUE)
 			{
-				throw HardwareRendererException(L"program validation\n" + logOutput);
+				throw HardwareRendererException("program validation\n" + logOutput);
 			}
 		}
 	};
 
 	void __stdcall GL_DebugCallback(GLenum /*source*/, GLenum type, GLuint /*id*/, GLenum /*severity*/, GLsizei /*length*/, const GLchar* message, const void* /*userParam*/)
 	{
+		if (!DebugErrorEnabled)
+			return;
 		switch (type)
 		{
 		case GL_DEBUG_TYPE_ERROR:
 		case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
-			CoreLib::Diagnostics::Debug::Write(L"[GL Error] ");
+			CoreLib::Diagnostics::Debug::Write("[GL Error] ");
 			break;
 		case GL_DEBUG_TYPE_PERFORMANCE:
-			CoreLib::Diagnostics::Debug::Write(L"[GL Performance] ");
+			CoreLib::Diagnostics::Debug::Write("[GL Performance] ");
 			break;
 		case GL_DEBUG_TYPE_PORTABILITY:
-			CoreLib::Diagnostics::Debug::Write(L"[GL Portability] ");
+			CoreLib::Diagnostics::Debug::Write("[GL Portability] ");
 			break;
 		default:
 			return;
@@ -1261,67 +1571,105 @@ namespace GLL
 		if (type == GL_DEBUG_TYPE_ERROR || type == GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR)
 		{
 			printf("%s\n", message);
-			CoreLib::Diagnostics::Debug::WriteLine(L"--------");
+			CoreLib::Diagnostics::Debug::WriteLine("--------");
 		}
 	}
+
+	struct BindingLayout
+	{
+		BindingType Type = BindingType::Unused;
+		CoreLib::List<int> BindingPoints;
+	};
+
+	struct Descriptor
+	{
+		BindingType Type = BindingType::Unused;
+		int Offset = 0, Length = 0;
+		union
+		{
+			GLL::Texture * texture = nullptr;
+			GLL::TextureSampler * sampler;
+			GLL::BufferObject * buffer;
+		} binding;
+	};
+
+	class DescriptorSetLayout : public GameEngine::DescriptorSetLayout
+	{
+	public:
+		List<BindingLayout> layouts;
+	};
+
+	class DescriptorSet : public GameEngine::DescriptorSet
+	{
+	public:
+		List<Descriptor> descriptors;
+		virtual void BeginUpdate() {}
+		virtual void Update(int location, GameEngine::Texture* texture, TextureAspect /*aspect*/) override
+		{
+			if (location >= descriptors.Count())
+				throw HardwareRendererException("descriptor set write out of bounds.");
+			auto & desc = descriptors[location];
+			desc.binding.texture = dynamic_cast<GLL::Texture*>(texture);
+			desc.Offset = desc.Length = 0;
+			desc.Type = BindingType::Texture;
+		}
+		virtual void Update(int location, GameEngine::TextureSampler* sampler) override
+		{
+			if (location >= descriptors.Count())
+				throw HardwareRendererException("descriptor set write out of bounds.");
+			auto & desc = descriptors[location];
+			desc.binding.sampler = dynamic_cast<GLL::TextureSampler*>(sampler);
+			desc.Offset = desc.Length = 0;
+			desc.Type = BindingType::Sampler;
+		}
+		virtual void Update(int location, Buffer* buffer, int offset = 0, int length = -1) override
+		{
+			if (location >= descriptors.Count())
+				throw HardwareRendererException("descriptor set write out of bounds.");
+			auto & desc = descriptors[location];
+			desc.binding.buffer = dynamic_cast<GLL::BufferObject*>(buffer);
+			desc.Offset = offset;
+			desc.Length = length;
+			desc.Type = BindingType::UniformBuffer; // only suggests this is a buffer; actual type is stated in pipeline layout
+		}
+		virtual void EndUpdate() {}
+	};
 
 	struct PipelineSettings
 	{
 		Program program;
 		VertexFormat format;
-		bool primitiveRestart;
-		PrimitiveType primitiveType;
-		int patchSize;
-		CompareFunc DepthCompareFunc;
-		CompareFunc StencilCompareFunc;
-		StencilOp StencilFailOp, StencilDepthFailOp, StencilDepthPassOp;
-		BlendMode BlendMode;
-		unsigned int StencilMask, StencilReference;
-		CullMode CullMode;
-	};
-
-	class PipelineInstance : public GameEngine::PipelineInstance
-	{
-	public:
-		PipelineSettings settings;
-		PipelineBinding binding;
-		int stride;
-		PipelineInstance(const PipelineSettings & pSettings, PipelineBinding pipelineBinding)
-			: settings(pSettings), binding(pipelineBinding)
-		{
-			int maxOffset = -1;
-			stride = 0;
-			for (auto attribute : settings.format.Attributes)
-			{
-				if (attribute.StartOffset > maxOffset)
-				{
-					maxOffset = attribute.StartOffset;
-					stride = maxOffset + DataTypeSize(attribute.Type);
-				}
-			}
-		}
+		bool primitiveRestart = false;
+		PrimitiveType primitiveType = PrimitiveType::Triangles;
+		int patchSize = 0;
+		CompareFunc DepthCompareFunc = CompareFunc::Disabled;
+		CompareFunc StencilCompareFunc = CompareFunc::Disabled;
+		StencilOp StencilFailOp = StencilOp::Replace, StencilDepthFailOp = StencilOp::Replace, StencilDepthPassOp = StencilOp::Replace;
+		BlendMode BlendMode = BlendMode::Replace;
+		unsigned int StencilMask = 255, StencilReference = 0;
+		CullMode CullMode = CullMode::Disabled;
+		bool enablePolygonOffset = false;
+		float polygonOffsetFactor = 0.0f, polygonOffsetUnits = 0.0f;
+		List<List<BindingLayout>> bindingLayout; // indexed by bindingLayout[setid][location]
 	};
 
 	class Pipeline : public GameEngine::Pipeline
 	{
 	public:
 		PipelineSettings settings;
-
+		String Name;
 		Pipeline(const PipelineSettings & pSettings)
 			: settings(pSettings)
 		{}
-
-		virtual PipelineInstance* CreateInstance(const PipelineBinding& pipelineBinding) override
-		{
-			return new PipelineInstance(settings, pipelineBinding);
-		}
 	};
 
 	class PipelineBuilder : public GameEngine::PipelineBuilder
 	{
 	public:
+		String debugName;
 		Program shaderProgram;
 		VertexFormat format;
+		List<DescriptorSetLayout*> descLayouts;
 		bool isTessellation = false;
 		virtual void SetShaders(CoreLib::ArrayView<GameEngine::Shader*> shaders) override
 		{
@@ -1361,7 +1709,7 @@ namespace GLL
 					tessEvalPresent = true;
 					break;
 				default:
-					throw HardwareRendererException(L"Unknown shader stage");
+					throw HardwareRendererException("Unknown shader stage");
 				}
 #endif
 				if (dynamic_cast<Shader*>(shader)->stage == ShaderType::HullShader)
@@ -1377,18 +1725,26 @@ namespace GLL
 		{
 			format = vertexFormat;
 		}
-		virtual void SetBindingLayout(int /*bindingId*/, BindingType /*bindType*/) override
+		virtual void SetBindingLayout(CoreLib::ArrayView<GameEngine::DescriptorSetLayout*> descriptorSets) override
 		{
-			// Do nothing
+			descLayouts.Clear();
+			for (auto descSet : descriptorSets)
+			{
+				descLayouts.Add((DescriptorSetLayout*)descSet);
+			}
+		}
+		virtual void SetDebugName(String name) override
+		{
+			debugName = name;
 		}
 		virtual Pipeline* ToPipeline(GameEngine::RenderTargetLayout* /*renderTargetLayout*/) override
 		{
 			PipelineSettings settings;
 			settings.format = format;
-			settings.primitiveRestart = PrimitiveRestartEnabled;
+			settings.primitiveRestart = FixedFunctionStates.PrimitiveRestartEnabled;
 			if (isTessellation)
 			{
-				switch (PrimitiveTopology)
+				switch (FixedFunctionStates.PrimitiveTopology)
 				{
 				case PrimitiveType::Lines:
 					settings.patchSize = 2;
@@ -1400,30 +1756,40 @@ namespace GLL
 					settings.patchSize = 4;
 					break;
 				case PrimitiveType::Patches:
-					settings.patchSize = PatchSize;
+					settings.patchSize = FixedFunctionStates.PatchSize;
 					break;
 				default:
-					throw InvalidOperationException(L"invalid primitive type for tessellation.");
+					throw InvalidOperationException("invalid primitive type for tessellation.");
 				}
 				settings.primitiveType = PrimitiveType::Patches;
 			}
 			else
-				settings.primitiveType = PrimitiveTopology;
+				settings.primitiveType = FixedFunctionStates.PrimitiveTopology;
 			settings.program = shaderProgram;
 			
-			settings.DepthCompareFunc = DepthCompareFunc;
-			settings.StencilCompareFunc = StencilCompareFunc;
-			settings.StencilFailOp = StencilFailOp;
-			settings.StencilDepthFailOp = StencilDepthFailOp;
-			settings.StencilDepthPassOp = StencilDepthPassOp;
-			settings.StencilMask = StencilMask;
-			settings.StencilReference = StencilReference;
-			settings.CullMode = CullMode;
+			settings.DepthCompareFunc = FixedFunctionStates.DepthCompareFunc;
+			settings.StencilCompareFunc = FixedFunctionStates.StencilCompareFunc;
+			settings.StencilFailOp = FixedFunctionStates.StencilFailOp;
+			settings.StencilDepthFailOp = FixedFunctionStates.StencilDepthFailOp;
+			settings.StencilDepthPassOp = FixedFunctionStates.StencilDepthPassOp;
+			settings.StencilMask = FixedFunctionStates.StencilMask;
+			settings.StencilReference = FixedFunctionStates.StencilReference;
+			settings.CullMode = FixedFunctionStates.CullMode;
 
-			settings.BlendMode = BlendMode;
+			settings.BlendMode = FixedFunctionStates.BlendMode;
+			settings.enablePolygonOffset = FixedFunctionStates.EnablePolygonOffset;
+			settings.polygonOffsetFactor = FixedFunctionStates.PolygonOffsetFactor;
+			settings.polygonOffsetUnits = FixedFunctionStates.PolygonOffsetUnits;
 
-
-			return new Pipeline(settings);
+			settings.bindingLayout.SetSize(descLayouts.Count());
+			for (int i = 0; i < descLayouts.Count(); i++)
+			{
+				if (descLayouts[i])
+					settings.bindingLayout[i].AddRange(descLayouts[i]->layouts);
+			}
+			auto rs = new Pipeline(settings);
+			rs->Name = debugName;
+			return rs;
 		}
 	};
 
@@ -1433,6 +1799,7 @@ namespace GLL
 		BindVertexBuffer,
 		BindIndexBuffer,
 		BindPipeline,
+		BindDescriptorSet,
 		Draw,
 		DrawInstanced,
 		DrawIndexed,
@@ -1443,14 +1810,11 @@ namespace GLL
 
 	struct SetViewportData
 	{
-		int x, y, width, height;
+		int x = 0, y = 0, width = 0, height = 0;
 	};
 	struct PipelineData
 	{
-		PipelineInstance* instance;
-		int vertSize;
-		bool primitiveRestart = false;
-		PrimitiveType primitiveType;
+		Pipeline* pipeline;
 	};
 	struct DrawData
 	{
@@ -1465,25 +1829,33 @@ namespace GLL
 	};
 	struct AttachmentData
 	{
-		CoreLib::ArrayView<GameEngine::Texture2D*> attachments;
+		int drawBufferMask = 1;
+		bool depth = true, stencil = true;
 	};
-
+	struct BindDescriptorSetData
+	{
+		DescriptorSet * descSet;
+		int location = 0;
+	};
+	struct BindBufferData
+	{
+		BufferObject * buffer;
+		int offset;
+	};
 	class CommandData
 	{
 	public:
-		CommandData() {}
-		~CommandData() {}
-
 		Command command;
+		CommandData() {}
 		union
 		{
 			SetViewportData viewport;
-			BufferObject* vertexBuffer;
-			BufferObject* indexBuffer;
-			PipelineData pipeline;
+			BindBufferData vertexBufferBinding;
+			PipelineData pipelineData;
 			DrawData draw;
 			BlitData blit;
 			AttachmentData clear;
+			BindDescriptorSetData bindDesc;
 		};
 	};
 
@@ -1492,16 +1864,20 @@ namespace GLL
 	public:
 		CoreLib::List<CommandData> buffer;
 	public:
-		virtual void BeginRecording(GameEngine::RenderTargetLayout* /*renderTargetLayout*/, GameEngine::FrameBuffer* /*frameBuffer*/)
+		virtual void BeginRecording() override
 		{
 			buffer.Clear();
 		}
-		virtual void BeginRecording(GameEngine::RenderTargetLayout* /*renderTargetLayout*/)
+		virtual void BeginRecording(GameEngine::FrameBuffer* /*frameBuffer*/) override
 		{
 			buffer.Clear();
 		}
-		virtual void EndRecording() { /*Do nothing*/ }
-		virtual void SetViewport(int x, int y, int width, int height)
+		virtual void BeginRecording(GameEngine::RenderTargetLayout* /*renderTargetLayout*/) override
+		{
+			buffer.Clear();
+		}
+		virtual void EndRecording() override { /*Do nothing*/ }
+		virtual void SetViewport(int x, int y, int width, int height) override
 		{
 			CommandData data;
 			data.command = Command::SetViewport;
@@ -1511,31 +1887,38 @@ namespace GLL
 			data.viewport.height = height;
 			buffer.Add(data);
 		}
-		virtual void BindVertexBuffer(GameEngine::Buffer* vertexBuffer)
+		virtual void BindVertexBuffer(GameEngine::Buffer* vertexBuffer, int offset) override
 		{
 			CommandData data;
 			data.command = Command::BindVertexBuffer;
-			data.vertexBuffer = dynamic_cast<BufferObject*>(vertexBuffer);
+			data.vertexBufferBinding.buffer = reinterpret_cast<BufferObject*>(vertexBuffer);
+			data.vertexBufferBinding.offset = offset;
 			buffer.Add(data);
 		}
-		virtual void BindIndexBuffer(GameEngine::Buffer* indexBuffer)
+		virtual void BindIndexBuffer(GameEngine::Buffer* indexBuffer, int offset) override
 		{
 			CommandData data;
 			data.command = Command::BindIndexBuffer;
-			data.indexBuffer = dynamic_cast<BufferObject*>(indexBuffer);
+			data.vertexBufferBinding.buffer = reinterpret_cast<BufferObject*>(indexBuffer);
+			data.vertexBufferBinding.offset = offset;
 			buffer.Add(data);
 		}
-		virtual void BindPipeline(GameEngine::PipelineInstance* pipelineInstance)
+		virtual void BindPipeline(GameEngine::Pipeline* pipeline) override
 		{
 			CommandData data;
 			data.command = Command::BindPipeline;
-			data.pipeline.instance = dynamic_cast<PipelineInstance*>(pipelineInstance);
-			data.pipeline.vertSize = dynamic_cast<PipelineInstance*>(pipelineInstance)->stride;
-			data.pipeline.primitiveRestart = ((GLL::PipelineInstance*)(pipelineInstance))->settings.primitiveRestart;
-			data.pipeline.primitiveType = ((GLL::PipelineInstance*)(pipelineInstance))->settings.primitiveType;
+			data.pipelineData.pipeline = reinterpret_cast<GLL::Pipeline*>(pipeline);
 			buffer.Add(data);
 		}
-		virtual void Draw(int firstVertex, int vertexCount)
+		virtual void BindDescriptorSet(int binding, GameEngine::DescriptorSet* descSet) override
+		{
+			CommandData data;
+			data.command = Command::BindDescriptorSet;
+			data.bindDesc.descSet = reinterpret_cast<GLL::DescriptorSet*>(descSet);
+			data.bindDesc.location = binding;
+			buffer.Add(data);
+		}
+		virtual void Draw(int firstVertex, int vertexCount) override
 		{
 			CommandData data;
 			data.command = Command::Draw;
@@ -1543,7 +1926,7 @@ namespace GLL
 			data.draw.count = vertexCount;
 			buffer.Add(data);
 		}
-		virtual void DrawInstanced(int numInstances, int firstVertex, int vertexCount)
+		virtual void DrawInstanced(int numInstances, int firstVertex, int vertexCount) override
 		{
 			CommandData data;
 			data.command = Command::DrawInstanced;
@@ -1552,7 +1935,7 @@ namespace GLL
 			data.draw.count = vertexCount;
 			buffer.Add(data);
 		}
-		virtual void DrawIndexed(int firstIndex, int indexCount)
+		virtual void DrawIndexed(int firstIndex, int indexCount) override
 		{
 			CommandData data;
 			data.command = Command::DrawIndexed;
@@ -1560,7 +1943,7 @@ namespace GLL
 			data.draw.count = indexCount;
 			buffer.Add(data);
 		}
-		virtual void DrawIndexedInstanced(int numInstances, int firstIndex, int indexCount)
+		virtual void DrawIndexedInstanced(int numInstances, int firstIndex, int indexCount) override
 		{
 			CommandData data;
 			data.command = Command::DrawIndexedInstanced;
@@ -1568,6 +1951,9 @@ namespace GLL
 			data.draw.first = firstIndex;
 			data.draw.count = indexCount;
 			buffer.Add(data);
+		}
+		virtual void TransferLayout(const RenderAttachments& /*attachments*/, ArrayView<TextureUsage> /*layouts*/) override
+		{
 		}
 		virtual void Blit(GameEngine::Texture2D* dstImage, GameEngine::Texture2D* srcImage) override
 		{
@@ -1577,12 +1963,44 @@ namespace GLL
 			data.blit.src = srcImage;
 			buffer.Add(data);
 		}
-		virtual void ClearAttachments(RenderAttachments renderAttachments) override
+		void ClearAttachmentsImpl(ArrayView<TextureUsage> attachments)
 		{
 			CommandData data;
 			data.command = Command::ClearAttachments;
-			data.clear.attachments = renderAttachments.attachments.GetArrayView();
+            data.clear = GLL::AttachmentData();
+			int i = 0;
+			for (auto & attach : attachments)
+			{
+				StorageFormat f = StorageFormat::Invalid;
+				bool isDepth = (attach == TextureUsage::DepthAttachment || attach == TextureUsage::SampledDepthAttachment);
+				i++;
+				if (isDepth)
+				{
+					data.clear.depth = true;
+					data.clear.stencil = true;
+				}
+				else if (f != StorageFormat::Invalid)
+					data.clear.drawBufferMask |= (1 << i);
+			}
 			buffer.Add(data);
+		}
+		virtual void ClearAttachments(GameEngine::FrameBuffer * frameBuffer) override
+		{
+			auto & attachments = ((GLL::FrameBufferDescriptor*)frameBuffer)->attachments;
+			Array<TextureUsage, 16> usage;
+			for (auto & attach : attachments)
+			{
+				StorageFormat f = StorageFormat::Invalid;
+				if (attach.handle.tex2D)
+					f = dynamic_cast<GLL::Texture2D*>(attach.handle.tex2D)->storageFormat;
+				else if (attach.handle.tex2DArray)
+					f = dynamic_cast<GLL::Texture2DArray*>(attach.handle.tex2DArray)->storageFormat;
+				if (isDepthFormat(f))
+					usage.Add(TextureUsage::DepthAttachment);
+				else
+					usage.Add(TextureUsage::ColorAttachment);
+			}
+			ClearAttachmentsImpl(usage.GetArrayView());
 		}
 	};
 
@@ -1597,6 +2015,16 @@ namespace GLL
 		VertexArray currentVAO;
 		FrameBuffer srcFrameBuffer;
 		FrameBuffer dstFrameBuffer;
+		struct BufferBindState
+		{
+			GLuint buffer = 0;
+			int start = 0;
+			int length = -1;
+		};
+		BufferBindState bufferBindState[4][64];
+		GLuint textureBindState[160];
+		GLuint samplerBindState[160];
+		PipelineSettings currentFixedFuncState;
 	private:
 		void FindExtensionSubstitutes()
 		{
@@ -1615,11 +2043,17 @@ namespace GLL
 			}
 		}
 	public:
+		bool isInDataTransfer = false;
 		HardwareRenderer()
 		{
 			hwnd = 0;
 			hdc = 0;
 			hrc = 0;
+			for (int i = 0; i < 160; i++)
+			{
+				textureBindState[i] = 0;
+				samplerBindState[i] = 0;
+			}
 		}
 		~HardwareRenderer()
 		{
@@ -1650,18 +2084,18 @@ namespace GLL
 
 			int nPixelFormat = ChoosePixelFormat(hdc, &pfd); // Check if our PFD is valid and get a pixel format back
 			if (nPixelFormat == 0) // If it fails
-				throw HardwareRendererException(L"Requried pixel format is not supported.");
+				throw HardwareRendererException("Requried pixel format is not supported.");
 
 			auto bResult = SetPixelFormat(hdc, nPixelFormat, &pfd); // Try and set the pixel format based on our PFD
 			if (!bResult) // If it fails
-				throw HardwareRendererException(L"Requried pixel format is not supported.");
+				throw HardwareRendererException("Requried pixel format is not supported.");
 
 			HGLRC tempOpenGLContext = wglCreateContext(hdc); // Create an OpenGL 2.1 context for our device context
 			wglMakeCurrent(hdc, tempOpenGLContext); // Make the OpenGL 2.1 context current and active
 			GLenum error = glewInit(); // Enable GLEW
 
 			if (error != GLEW_OK) // If GLEW fails
-				throw HardwareRendererException(L"Failed to load OpenGL.");
+				throw HardwareRendererException("Failed to load OpenGL.");
 
 			int contextFlags = WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
 #ifdef _DEBUG
@@ -1693,11 +2127,11 @@ namespace GLL
 			glGetIntegerv(GL_MAJOR_VERSION, &glVersion[0]); // Get back the OpenGL MAJOR version we are using
 			glGetIntegerv(GL_MINOR_VERSION, &glVersion[1]); // Get back the OpenGL MAJOR version we are using
 
-			CoreLib::Diagnostics::Debug::WriteLine(L"Using OpenGL: " + String(glVersion[0]) + L"." + String(glVersion[1])); // Output which version of OpenGL we are using
+			CoreLib::Diagnostics::Debug::WriteLine("Using OpenGL: " + String(glVersion[0]) + "." + String(glVersion[1])); // Output which version of OpenGL we are using
 			if (glVersion[0] < TargetOpenGLVersion_Major || (glVersion[0] == TargetOpenGLVersion_Major && glVersion[1] < TargetOpenGLVersion_Minor))
 			{
 				// supported OpenGL version is too low
-				throw HardwareRendererException(L"OpenGL" + String(TargetOpenGLVersion_Major) + L"." + String(TargetOpenGLVersion_Minor) + L" is not supported.");
+				throw HardwareRendererException("OpenGL" + String(TargetOpenGLVersion_Major) + "." + String(TargetOpenGLVersion_Minor) + " is not supported.");
 			}
 			if (glDebugMessageCallback)
 				glDebugMessageCallback(GL_DebugCallback, this);
@@ -1713,6 +2147,7 @@ namespace GLL
 			dstFrameBuffer = CreateFrameBuffer();
 			currentVAO = CreateVertexArray();
 			wglSwapIntervalEXT(0);
+			glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
 		}
 
 		virtual void Resize(int pwidth, int pheight) override
@@ -1721,9 +2156,9 @@ namespace GLL
 			height = pheight;
 		}
 
-		virtual String GetSpireBackendName() override
+		virtual int GetSpireTarget() override
 		{
-			return L"glsl";
+			return SPIRE_GLSL;
 		}
 
 		virtual void ClearTexture(GameEngine::Texture2D* texture) override
@@ -1750,28 +2185,43 @@ namespace GLL
 			}
 		}
 
-		virtual void ExecuteCommandBuffers(GameEngine::RenderTargetLayout* renderTargetLayout, GameEngine::FrameBuffer* frameBuffer, CoreLib::ArrayView<GameEngine::CommandBuffer*> commands) override
+		virtual GameEngine::Fence* CreateFence() override
 		{
-			glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+			return new GLL::Fence();
+		}
+
+		virtual void ExecuteCommandBuffers(GameEngine::FrameBuffer* frameBuffer, CoreLib::ArrayView<GameEngine::CommandBuffer*> commands, GameEngine::Fence * fence) override
+		{
+			auto fb = (GLL::FrameBufferDescriptor*)(frameBuffer);
 			auto setupFrameBuffer = [&]()
 			{
 				int location = 0;
 				int mask = 0;
-				for (auto renderAttachment : dynamic_cast<GLL::FrameBufferDescriptor*>(frameBuffer)->attachments)
+				for (auto renderAttachment : fb->attachments)
 				{
-					switch (dynamic_cast<GLL::RenderTargetLayout*>(renderTargetLayout)->attachments[location])
+					bool isDepth = false;
+					if (renderAttachment.handle.tex2D)
+						isDepth = isDepthFormat(renderAttachment.handle.tex2D->storageFormat);
+					else if(renderAttachment.handle.tex2DArray)
+						isDepth = isDepthFormat(renderAttachment.handle.tex2DArray->storageFormat);
+					else if (renderAttachment.handle.texCube)
+						isDepth = isDepthFormat(renderAttachment.handle.texCube->storageFormat);
+					if (isDepth)
 					{
-					case TextureUsage::ColorAttachment:
-					case TextureUsage::SampledColorAttachment:
-						srcFrameBuffer.SetColorRenderTarget(location, *renderAttachment);
+						if (renderAttachment.handle.tex2D)
+							srcFrameBuffer.SetDepthStencilRenderTarget(*renderAttachment.handle.tex2D);
+						else if (renderAttachment.handle.tex2DArray)
+							srcFrameBuffer.SetDepthStencilRenderTarget(*renderAttachment.handle.tex2DArray, renderAttachment.layer);
+					}
+					else
+					{
+						if (renderAttachment.handle.tex2D)
+							srcFrameBuffer.SetColorRenderTarget(location, *renderAttachment.handle.tex2D);
+						else if (renderAttachment.handle.tex2DArray)
+							srcFrameBuffer.SetColorRenderTarget(location, *renderAttachment.handle.tex2DArray, renderAttachment.layer);
+						else if (renderAttachment.handle.texCube)
+							srcFrameBuffer.SetColorRenderTarget(location, *renderAttachment.handle.texCube, renderAttachment.face, renderAttachment.layer);
 						mask |= (1 << location);
-						break;
-					case TextureUsage::DepthAttachment:
-					case TextureUsage::SampledDepthAttachment:
-						srcFrameBuffer.SetDepthStencilRenderTarget(*renderAttachment);
-						break;
-					case TextureUsage::Sampled:
-						throw HardwareRendererException(L"Can't use sampled image as a RenderAttachment");
 					}
 					location++;
 				}
@@ -1782,44 +2232,72 @@ namespace GLL
 
 			// Prepare framebuffer
 			SetWriteFrameBuffer(srcFrameBuffer);
-			SetViewport(0, 0, width, height);
-			SetZTestMode(CompareFunc::Disabled);
-			SetStencilMode(StencilMode());
+			//SetViewport(0, 0, width, height);
+			//SetZTestMode(CompareFunc::Disabled);
+			//SetStencilMode(StencilMode());
+			//currentFixedFuncState.DepthCompareFunc = CompareFunc::Disabled;
 			// Execute command buffer
 			
-			//
-			BufferObject* currentVertexBuffer = nullptr;
+			Pipeline * currentPipeline = nullptr;
+			BufferObject* currentVertexBuffer = nullptr, *currentIndexBuffer = nullptr;
+			int currentVertexBufferOffset = 0; int currentIndexBufferOffset = 0;
 			PrimitiveType primType = PrimitiveType::Triangles;
-			PipelineBinding currentBinding;
-			auto applyBinding = [&]()
+			Array<DescriptorSet*, 32> boundDescSets;
+			boundDescSets.SetSize(boundDescSets.GetCapacity());
+			for (auto & set : boundDescSets)
+				set = nullptr;
+			auto updateBindings = [&]()
 			{
-				for (auto binding : currentBinding.GetBindings())
+				if (currentPipeline)
 				{
-					switch (binding.type)
+					for (int i = 0; i<currentPipeline->settings.bindingLayout.Count(); i++)
 					{
-					case BindingType::UniformBuffer:
-						if (binding.buf.offset == 0 && binding.buf.range == 0)
-							BindBuffer(BufferType::UniformBuffer, binding.location, *reinterpret_cast<BufferObject*>(binding.buf.buffer));
-						else
-							BindBuffer(BufferType::UniformBuffer, binding.location, *reinterpret_cast<BufferObject*>(binding.buf.buffer), binding.buf.offset, binding.buf.range);
-						break;
-					case BindingType::StorageBuffer:
-						if (binding.buf.offset == 0 && binding.buf.range == 0)
-							BindBuffer(BufferType::StorageBuffer, binding.location, *reinterpret_cast<BufferObject*>(binding.buf.buffer));
-						else
-							BindBuffer(BufferType::StorageBuffer, binding.location, *reinterpret_cast<BufferObject*>(binding.buf.buffer), binding.buf.offset, binding.buf.range);
-						break;
-					case BindingType::Texture:
-						UseTexture(binding.location, *reinterpret_cast<Texture2D*>(binding.tex.texture), *reinterpret_cast<TextureSampler*>(binding.tex.sampler));
-						break;
-					default:
-						break;
+						auto & descLayout = currentPipeline->settings.bindingLayout[i];
+						auto descSet = boundDescSets[i];
+						if (!descSet) continue;
+						if (descSet->descriptors.Count() != descLayout.Count() && descLayout.Count() != 0)
+							throw HardwareRendererException("bound descriptor set does not match descriptor set layout.");
+						for (int j = 0; j < descLayout.Count(); j++)
+						{
+							auto & desc = descSet->descriptors[j];
+							auto & layout = descLayout[j];
+							if (!desc.binding.buffer || layout.BindingPoints.Count() == 0)
+								continue;
+							if (layout.Type == BindingType::Texture && desc.Type == BindingType::Texture)
+							{
+								UseTexture(layout.BindingPoints.First(), *desc.binding.texture);
+							}
+							else if (layout.Type == BindingType::Sampler && desc.Type == BindingType::Sampler)
+							{
+								for (auto binding : layout.BindingPoints)
+									UseSampler(binding, *desc.binding.sampler);
+							}
+							else if (layout.Type == BindingType::UniformBuffer && (desc.Type == BindingType::UniformBuffer || desc.Type == BindingType::StorageBuffer))
+							{
+								if (desc.Offset == 0 && desc.Length == -1)
+									BindBuffer(BufferType::UniformBuffer, layout.BindingPoints.First(), desc.binding.buffer->Handle);
+								else
+									BindBuffer(BufferType::UniformBuffer, layout.BindingPoints.First(), desc.binding.buffer->Handle, desc.Offset, desc.Length);
+							}
+							else if (layout.Type == BindingType::StorageBuffer && (desc.Type == BindingType::UniformBuffer || desc.Type == BindingType::StorageBuffer))
+							{
+								if (desc.Offset == 0 && desc.Length == -1)
+									BindBuffer(BufferType::StorageBuffer, layout.BindingPoints.First(), desc.binding.buffer->Handle);
+								else
+									BindBuffer(BufferType::StorageBuffer, layout.BindingPoints.First(), desc.binding.buffer->Handle, desc.Offset, desc.Length);
+							}
+							else
+								throw HardwareRendererException("descriptor type does not match descriptor layout description");
+						}
 					}
 				}
+				else
+					throw HardwareRendererException("must bind pipeline before binding descriptor set.");
 			};
+			BindVertexArray(currentVAO);
 			for (auto commandBuffer : commands)
 			{
-				for (auto command : reinterpret_cast<GLL::CommandBuffer*>(commandBuffer)->buffer)
+				for (auto & command : reinterpret_cast<GLL::CommandBuffer*>(commandBuffer)->buffer)
 				{
 					switch (command.command)
 					{
@@ -1828,64 +2306,105 @@ namespace GLL
 						break;
 					case Command::BindVertexBuffer:
 					{
-						currentVertexBuffer = command.vertexBuffer;
+						if (currentVertexBuffer != command.vertexBufferBinding.buffer || currentVertexBufferOffset != command.vertexBufferBinding.offset)
+						{
+							currentVertexBuffer = command.vertexBufferBinding.buffer; 
+							currentVertexBufferOffset = command.vertexBufferBinding.offset;
+							currentVAO.SetVertex(*currentVertexBuffer, currentPipeline->settings.format.Attributes.GetArrayView(), currentPipeline->settings.format.Size(), command.vertexBufferBinding.offset, 0, 0);
+						}
 						break;
 					}
 					case Command::BindIndexBuffer:
-						currentVAO.SetIndex(*command.indexBuffer);
+						if (currentIndexBuffer != command.vertexBufferBinding.buffer)
+						{
+							currentIndexBuffer = command.vertexBufferBinding.buffer;
+							currentVAO.SetIndex(*currentIndexBuffer);
+						}
+						currentIndexBufferOffset = command.vertexBufferBinding.offset;
 						break;
 					case Command::BindPipeline:
 					{
-						auto & pipelineSettings = command.pipeline.instance->settings;
-						pipelineSettings.program.Use();
-						if (currentVertexBuffer == nullptr) throw HardwareRendererException(L"For OpenGL, must BindVertexBuffer before BindPipeline.");
-						currentVAO.SetVertex(*currentVertexBuffer, pipelineSettings.format.Attributes.GetArrayView(), command.pipeline.vertSize, 0, 0);
-						primType = command.pipeline.primitiveType;
-						if (command.pipeline.primitiveRestart)
+						if (currentPipeline != command.pipelineData.pipeline)
 						{
-							glEnable(GL_PRIMITIVE_RESTART);
-							glPrimitiveRestartIndex(0xFFFFFFFF);
+							currentPipeline = command.pipelineData.pipeline;
+							auto & pipelineSettings = command.pipelineData.pipeline->settings;
+							if (pipelineSettings.program.Handle != currentFixedFuncState.program.Handle)
+								pipelineSettings.program.Use();
+							if (pipelineSettings.primitiveRestart != currentFixedFuncState.primitiveRestart)
+							{
+								if (pipelineSettings.primitiveRestart)
+								{
+									glEnable(GL_PRIMITIVE_RESTART);
+									glPrimitiveRestartIndex(0xFFFFFFFF);
+								}
+								else
+								{
+									glDisable(GL_PRIMITIVE_RESTART);
+								}
+							}
+							if (pipelineSettings.primitiveType != currentFixedFuncState.primitiveType)
+							{
+								if (pipelineSettings.primitiveType == PrimitiveType::Patches)
+									glPatchParameteri(GL_PATCH_VERTICES, pipelineSettings.patchSize);
+							}
+							if (pipelineSettings.enablePolygonOffset != currentFixedFuncState.enablePolygonOffset)
+							{
+								if (pipelineSettings.enablePolygonOffset)
+								{
+									glEnable(GL_POLYGON_OFFSET_FILL);
+									glPolygonOffset(pipelineSettings.polygonOffsetFactor, pipelineSettings.polygonOffsetUnits);
+								}
+								else
+									glDisable(GL_POLYGON_OFFSET_FILL);
+							}
+							if (pipelineSettings.DepthCompareFunc != currentFixedFuncState.DepthCompareFunc)
+								SetZTestMode(pipelineSettings.DepthCompareFunc);
+							if (pipelineSettings.BlendMode != currentFixedFuncState.BlendMode)
+								SetBlendMode(pipelineSettings.BlendMode);
+							if (pipelineSettings.StencilCompareFunc != currentFixedFuncState.StencilCompareFunc ||
+								pipelineSettings.StencilDepthFailOp != currentFixedFuncState.StencilDepthFailOp ||
+								pipelineSettings.StencilDepthPassOp != currentFixedFuncState.StencilDepthPassOp ||
+								pipelineSettings.StencilFailOp != currentFixedFuncState.StencilFailOp ||
+								pipelineSettings.StencilMask != currentFixedFuncState.StencilMask ||
+								pipelineSettings.StencilReference != currentFixedFuncState.StencilReference)
+							{
+								StencilMode smode;
+								smode.DepthFail = pipelineSettings.StencilDepthFailOp;
+								smode.DepthPass = pipelineSettings.StencilDepthPassOp;
+								smode.Fail = pipelineSettings.StencilFailOp;
+								smode.StencilFunc = pipelineSettings.StencilCompareFunc;
+								smode.StencilMask = pipelineSettings.StencilMask;
+								smode.StencilReference = pipelineSettings.StencilReference;
+								SetStencilMode(smode);
+							}
+							if (pipelineSettings.CullMode != currentFixedFuncState.CullMode)
+								SetCullMode(pipelineSettings.CullMode);
+
+							currentFixedFuncState = pipelineSettings;
+							primType = pipelineSettings.primitiveType;
 						}
-						else
-						{
-							glDisable(GL_PRIMITIVE_RESTART);
-						}
-						if (pipelineSettings.primitiveType == PrimitiveType::Patches)
-							glPatchParameteri(GL_PATCH_VERTICES, pipelineSettings.patchSize);
-						SetZTestMode(pipelineSettings.DepthCompareFunc);
-						SetBlendMode(pipelineSettings.BlendMode);
-						StencilMode smode;
-						smode.DepthFail = pipelineSettings.StencilDepthFailOp;
-						smode.DepthPass = pipelineSettings.StencilDepthPassOp;
-						smode.Fail = pipelineSettings.StencilFailOp;
-						smode.StencilFunc = pipelineSettings.StencilCompareFunc;
-						smode.StencilMask = pipelineSettings.StencilMask;
-						smode.StencilReference = pipelineSettings.StencilReference;
-						SetStencilMode(smode);
-						SetCullMode(pipelineSettings.CullMode);
-						currentBinding = command.pipeline.instance->binding;
 						break;
 					}
-					//TODO: I have no idea if these draw functions are even remotely correct
+					case Command::BindDescriptorSet:
+					{
+						boundDescSets[command.bindDesc.location] = command.bindDesc.descSet;
+						break;
+					}
 					case Command::Draw:
-						glBindVertexArray(currentVAO.Handle);
-						applyBinding();
+						updateBindings();
 						glDrawArrays((GLenum)primType, command.draw.first, command.draw.count);
 						break;
 					case Command::DrawInstanced:
-						glBindVertexArray(currentVAO.Handle);
-						applyBinding();
+						updateBindings();
 						glDrawArraysInstanced((GLenum)primType, command.draw.first, command.draw.count, command.draw.instances);
 						break;
 					case Command::DrawIndexed:
-						glBindVertexArray(currentVAO.Handle);
-						applyBinding();
-						glDrawElements((GLenum)primType, command.draw.count, GL_UNSIGNED_INT, (void*)(CoreLib::PtrInt)(command.draw.first * 4));
+						updateBindings();
+						glDrawElements((GLenum)primType, command.draw.count, GL_UNSIGNED_INT, (void*)(CoreLib::PtrInt)(command.draw.first * 4 + currentIndexBufferOffset));
 						break;
 					case Command::DrawIndexedInstanced:
-						glBindVertexArray(currentVAO.Handle);
-						applyBinding();
-						glDrawElementsInstanced((GLenum)primType, command.draw.count, GL_UNSIGNED_INT, (void*)(CoreLib::PtrInt)(command.draw.first * 4), command.draw.instances);
+						updateBindings();
+						glDrawElementsInstanced((GLenum)primType, command.draw.count, GL_UNSIGNED_INT, (void*)(CoreLib::PtrInt)(command.draw.first * 4 + currentIndexBufferOffset), command.draw.instances);
 						break;
 					case Command::Blit:
 						Blit(command.blit.dst, command.blit.src);
@@ -1893,30 +2412,25 @@ namespace GLL
 						SetWriteFrameBuffer(srcFrameBuffer);
 						break;
 					case Command::ClearAttachments:
-						Clear(1, 1, 1);
+						// TODO: ignoring drawBufferMask for now, assuming clearing all current framebuffer bindings
+						Clear(command.clear.depth, command.clear.drawBufferMask!=0, command.clear.stencil);
 						break;
 					}
 				}
 			}
-
-			int location = 0;
-			auto layout = (GLL::RenderTargetLayout*)renderTargetLayout;
-			for (location = 0; location < layout->attachments.Count(); location++)
+			if (fence)
 			{
-				switch (layout->attachments[location])
-				{
-				case TextureUsage::ColorAttachment:
-				case TextureUsage::SampledColorAttachment:
-					srcFrameBuffer.SetColorRenderTarget(location, Texture2D());
-					break;
-				case TextureUsage::DepthAttachment:
-				case TextureUsage::SampledDepthAttachment:
-					srcFrameBuffer.SetDepthStencilRenderTarget(Texture2D());
-					break;
-				default:
-					break;
-				}
+				auto pfence = (GLL::Fence*)fence;
+				if (pfence->handle)
+					glDeleteSync(pfence->handle);
+				pfence->handle = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 			}
+			int location = 0;
+			for (location = 0; location < fb->attachments.Count(); location++)
+			{
+				srcFrameBuffer.SetColorRenderTarget(location, Texture2D());
+			}
+			srcFrameBuffer.SetDepthStencilRenderTarget(Texture2D());
 		}
 
 		void Blit(GameEngine::Texture2D* dstImage, GameEngine::Texture2D* srcImage)
@@ -1983,6 +2497,7 @@ namespace GLL
 			SetReadFrameBuffer(srcFrameBuffer);
 			SetWriteFrameBuffer(GLL::FrameBuffer());
 			CopyFrameBuffer(0, 0, width, height, 0, 0, width, height, true, false, false);
+
 			SwapBuffers();
 
 			switch (reinterpret_cast<GLL::Texture2D*>(srcImage)->format)
@@ -2025,14 +2540,34 @@ namespace GLL
 			if (stencil) bitmask |= GL_STENCIL_BUFFER_BIT;
 			glClear(bitmask);
 		}
-		void BindBuffer(BufferType bufferType, int index, BufferObject buffer)
+
+
+		void BindBuffer(BufferType bufferType, int index, GLuint buffer)
 		{
-			glBindBufferBase(TranslateBufferType(bufferType), index, buffer.Handle);
+			auto & state = bufferBindState[(int)bufferType][index];
+			if (state.buffer != buffer ||
+				state.start != 0 || state.length != -1)
+			{
+				glBindBufferBase(TranslateBufferType(bufferType), index, buffer);
+				state.buffer = buffer;
+				state.start = 0;
+				state.length = -1;
+			}
 		}
-		void BindBuffer(BufferType bufferType, int index, BufferObject buffer, int start, int count)
+		void BindBuffer(BufferType bufferType, int index, GLuint buffer, int start, int count)
 		{
-			if (count > 0) 
-				glBindBufferRange(TranslateBufferType(bufferType), index, buffer.Handle, start, count);
+			if (count > 0)
+			{
+				auto & state = bufferBindState[(int)bufferType][index];
+				if (state.buffer != buffer ||
+					state.start != start || state.length != count)
+				{
+					glBindBufferRange(TranslateBufferType(bufferType), index, buffer, start, count);
+					state.buffer = buffer;
+					state.start = start;
+					state.length = count;
+				}
+			}
 		}
 		void BindBufferAddr(BufferType bufferType, int index, uint64_t addr, int length)
 		{
@@ -2101,7 +2636,7 @@ namespace GLL
 				glBlendFunc(GL_ONE, GL_ONE);
 				break;
 			default:
-				throw HardwareRendererException(L"Unsupported blend mode.");
+				throw HardwareRendererException("Unsupported blend mode.");
 			}
 		}
 		void SetZTestMode(CompareFunc ztestMode)
@@ -2208,7 +2743,9 @@ namespace GLL
 		}
 		void SwapBuffers()
 		{
+			DebugErrorEnabled = false;
 			::SwapBuffers(hdc);
+			DebugErrorEnabled = true;
 		}
 
 		void Flush()
@@ -2290,7 +2827,7 @@ namespace GLL
 				handle = glCreateShader(GL_COMPUTE_SHADER);
 				break;
 			default:
-				throw HardwareRendererException(L"OpenGL hardware renderer does not support specified shader type.");
+				throw HardwareRendererException("OpenGL hardware renderer does not support specified shader type.");
 			}
 			GLchar * src = (GLchar*)data;
 			GLint length = size;
@@ -2305,12 +2842,27 @@ namespace GLL
 			if (compileStatus != GL_TRUE)
 			{
 				CoreLib::Diagnostics::Debug::WriteLine(String(buffer.Buffer()));
-				throw HardwareRendererException(L"Shader compilation failed\n" + String(buffer.Buffer()));
+				throw HardwareRendererException("Shader compilation failed\n" + String(buffer.Buffer()));
 			}
 			auto rs = new Shader();
 			rs->Handle = handle;
 			rs->stage = type;
 			return rs;
+		}
+
+		virtual void BeginDataTransfer() override
+		{
+#ifdef _DEBUG
+			//if (isInDataTransfer)
+			//	throw HardwareRendererException("Renderer is already in data transfer mode.");
+#endif
+			isInDataTransfer = true;
+		}
+
+		virtual void EndDataTransfer() override
+		{
+			isInDataTransfer = false;
+			glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
 		}
 
 		Program CreateTransformFeedbackProgram(const Shader &vertexShader, const List<String> & varyings, FeedbackStorageMode format)
@@ -2319,10 +2871,10 @@ namespace GLL
 			if (vertexShader.Handle)
 				glAttachShader(handle, vertexShader.Handle);
 
-			List<char*> varyingPtrs;
+			List<const char*> varyingPtrs;
 			varyingPtrs.Reserve(varyings.Count());
 			for (auto & v : varyings)
-				varyingPtrs.Add(v.ToMultiByteString());
+				varyingPtrs.Add(v.Buffer());
 			glTransformFeedbackVaryings(handle, varyingPtrs.Count(), varyingPtrs.Buffer(), format == FeedbackStorageMode::Interleaved ? GL_INTERLEAVED_ATTRIBS : GL_SEPARATE_ATTRIBS);
 			auto rs = Program();
 			rs.Handle = handle;
@@ -2365,7 +2917,7 @@ namespace GLL
 			rs.Handle = handle;
 			for (auto & binding : vertexAttributeBindings)
 			{
-				glBindAttribLocation(handle, binding.Value, binding.Key.ToMultiByteString());
+				glBindAttribLocation(handle, binding.Value, binding.Key.Buffer());
 			}
 			rs.Link();
 			return rs;
@@ -2378,8 +2930,16 @@ namespace GLL
 			return rs;
 		}
 
-		Texture2D* CreateTexture2D(TextureUsage /*usage*/)
+		virtual Texture2D* CreateTexture2D(int w, int h, StorageFormat storageFormat, DataType dataType, void* data) override
 		{
+			if (storageFormat == StorageFormat::BC1 || storageFormat == StorageFormat::BC5)
+				throw HardwareRendererException("Cannot automatically generate mipmaps for compressed textures");
+
+			int mipLevelCount = (int)Math::Log2Floor(Math::Max(w, h)) + 1;
+			GLint internalformat = TranslateStorageFormat(storageFormat);
+			GLenum format = TranslateDataTypeToFormat(dataType);
+			GLenum type = TranslateDataTypeToInputType(dataType);
+
 			GLuint handle = 0;
 			if (glCreateTextures)
 				glCreateTextures(GL_TEXTURE_2D, 1, &handle);
@@ -2392,15 +2952,139 @@ namespace GLL
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8.0f);
+			glTextureStorage2D(handle, mipLevelCount, internalformat, w, h);
+			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, format, type, data);
+			glGenerateMipmap(GL_TEXTURE_2D);
 			glBindTexture(GL_TEXTURE_2D, 0);
 
 			auto rs = new Texture2D();
 			rs->Handle = handle;
+			rs->storageFormat = storageFormat;
 			rs->BindTarget = GL_TEXTURE_2D;
 			return rs;
 		}
 
-		TextureCube CreateTextureCube()
+		virtual Texture2D* CreateTexture2D(TextureUsage /*usage*/, int w, int h, int mipLevelCount, StorageFormat format) override
+		{
+			if (format == StorageFormat::BC1 || format == StorageFormat::BC5)
+				throw HardwareRendererException("Compressed textures must supply data at texture creation");
+
+			GLuint handle = 0;
+			if (glCreateTextures)
+				glCreateTextures(GL_TEXTURE_2D, 1, &handle);
+			else
+			{
+				glGenTextures(1, &handle);
+				glBindTexture(GL_TEXTURE_2D, handle);
+			}
+			glBindTexture(GL_TEXTURE_2D, handle);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8.0f);
+			glTextureStorage2D(handle, mipLevelCount, TranslateStorageFormat(format), w, h);
+			glBindTexture(GL_TEXTURE_2D, 0);
+
+			auto rs = new Texture2D();
+			rs->Handle = handle;
+			rs->storageFormat = format;
+			rs->BindTarget = GL_TEXTURE_2D;
+			return rs;
+		}
+
+		virtual Texture2D* CreateTexture2D(TextureUsage /*usage*/, int w, int h, int mipLevelCount, StorageFormat storageFormat, DataType dataType, ArrayView<void*> mipLevelData) override
+		{
+			GLint internalformat = TranslateStorageFormat(storageFormat);
+			GLenum format = TranslateDataTypeToFormat(dataType);
+			GLenum type = TranslateDataTypeToInputType(dataType);
+
+			GLuint handle = 0;
+			if (glCreateTextures)
+				glCreateTextures(GL_TEXTURE_2D, 1, &handle);
+			else
+			{
+				glGenTextures(1, &handle);
+				glBindTexture(GL_TEXTURE_2D, handle);
+			}
+			glBindTexture(GL_TEXTURE_2D, handle);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8.0f);
+			if (storageFormat == StorageFormat::BC1 || storageFormat == StorageFormat::BC5 || storageFormat == StorageFormat::BC3)
+			{
+				for (int level = 0; level < mipLevelCount; level++)
+				{
+					int wl = Math::Max(w >> level, 1);
+					int hl = Math::Max(h >> level, 1);
+					int blocks = (int)(ceil(wl / 4.0f) * ceil(hl / 4.0f));
+					int bufferSize = storageFormat == StorageFormat::BC1 ? blocks * 8 : blocks * 16;
+					glCompressedTexImage2D(GL_TEXTURE_2D, level, internalformat, wl, hl, 0, bufferSize, mipLevelData[level]);
+				}
+			}
+			else
+			{
+				glTextureStorage2D(handle, mipLevelCount, internalformat, w, h);
+				for (int level = 0; level < mipLevelCount; level++)
+					glTexSubImage2D(GL_TEXTURE_2D, level, 0, 0, Math::Max(w >> level, 1), Math::Max(h >> level, 1), format, type, mipLevelData[level]);
+			}
+			glBindTexture(GL_TEXTURE_2D, 0);
+
+			auto rs = new Texture2D();
+			rs->Handle = handle;
+			rs->storageFormat = storageFormat;
+			rs->BindTarget = GL_TEXTURE_2D;
+			return rs;
+		}
+
+		virtual Texture3D* CreateTexture3D(TextureUsage /*usage*/, int w, int h, int depth, int mipLevelCount, StorageFormat format) override
+		{
+			GLuint handle = 0;
+			if (glCreateTextures)
+				glCreateTextures(GL_TEXTURE_3D, 1, &handle);
+			else
+			{
+				glGenTextures(1, &handle);
+				glBindTexture(GL_TEXTURE_3D, handle);
+			}
+			glBindTexture(GL_TEXTURE_3D, handle);
+			glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexParameterf(GL_TEXTURE_3D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8.0f);
+			glTextureStorage3D(handle, mipLevelCount, TranslateStorageFormat(format), w, h, depth);
+			glBindTexture(GL_TEXTURE_3D, 0);
+
+			auto rs = new Texture3D();
+			rs->Handle = handle;
+			rs->storageFormat = format;
+			rs->BindTarget = GL_TEXTURE_3D;
+			return rs;
+		}
+
+		virtual Texture2DArray* CreateTexture2DArray(TextureUsage /*usage*/, int w, int h, int layers, int mipLevelCount, StorageFormat format) override
+		{
+			GLuint handle = 0;
+			if (glCreateTextures)
+				glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &handle);
+			else
+			{
+				glGenTextures(1, &handle);
+				glBindTexture(GL_TEXTURE_2D_ARRAY, handle);
+			}
+			glBindTexture(GL_TEXTURE_2D_ARRAY, handle);
+			glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8.0f);
+			glTextureStorage3D(handle, mipLevelCount, TranslateStorageFormat(format), w, h, layers);
+			glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+
+			auto rs = new Texture2DArray();
+			rs->Handle = handle;
+			rs->storageFormat = format;
+			rs->BindTarget = GL_TEXTURE_2D_ARRAY;
+			return rs;
+		}
+
+
+		virtual TextureCube* CreateTextureCube(TextureUsage /*usage*/, int size, int mipLevelCount, StorageFormat format) override
 		{
 			GLuint handle = 0;
 			if (glCreateTextures)
@@ -2411,15 +3095,17 @@ namespace GLL
 				glBindTexture(GL_TEXTURE_CUBE_MAP, handle);
 			}
 			glBindTexture(GL_TEXTURE_CUBE_MAP, handle);
-
 			glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 			glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-			//glTexParameterf(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8.0f);
+			glTexParameterf(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8.0f);
+			glTexStorage2D(GL_TEXTURE_CUBE_MAP, mipLevelCount, TranslateStorageFormat(format), size, size);
+			glClearTexSubImage(handle, 0, 0, 0, 0, size, size, 6, GL_RGBA, GL_FLOAT, nullptr);
 			glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 
-			auto rs = TextureCube();
-			rs.Handle = handle;
-			rs.BindTarget = GL_TEXTURE_CUBE_MAP;
+			auto rs = new TextureCube(size);
+			rs->Handle = handle;
+			rs->storageFormat = format;
+			rs->BindTarget = GL_TEXTURE_CUBE_MAP;
 			return rs;
 		}
 
@@ -2547,9 +3233,15 @@ namespace GLL
 
 		}
 
-		BufferObject* CreateBuffer(BufferUsage usage)
+		BufferObject* CreateBuffer(BufferUsage usage, int bufferSize, int storageFlags)
 		{
 			auto rs = new BufferObject();
+#ifdef _DEBUG
+			rs->isInTransfer = &isInDataTransfer;
+#endif
+			if (storageFlags & GL_MAP_PERSISTENT_BIT)
+				rs->persistentMapping = true;
+
 			rs->BindTarget = TranslateBufferUsage(usage);
 			if (glCreateBuffers)
 				glCreateBuffers(1, &rs->Handle);
@@ -2558,13 +3250,17 @@ namespace GLL
 				glGenBuffers(1, &rs->Handle);
 				glBindBuffer(rs->BindTarget, rs->Handle);
 			}
+			rs->BufferStorage(bufferSize, nullptr, storageFlags);
 			return rs;
 		}
 
-		BufferObject* CreateMappedBuffer(BufferUsage usage)
+		BufferObject* CreateBuffer(BufferUsage usage, int bufferSize)
 		{
-			auto result = CreateBuffer(usage);
-			result->persistentMapping = true;
+			return CreateBuffer(usage, bufferSize, GL_DYNAMIC_STORAGE_BIT);
+		}
+		BufferObject* CreateMappedBuffer(BufferUsage usage, int bufferSize)
+		{
+			auto result = CreateBuffer(usage, bufferSize, GL_MAP_PERSISTENT_BIT | GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_COHERENT_BIT);
 			return result;
 		}
 
@@ -2586,55 +3282,24 @@ namespace GLL
 			if (stencil) bitmask |= GL_STENCIL_BUFFER_BIT;
 			glBlitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, bitmask, GL_LINEAR);
 		}
-		void UseTexture(int channel, const Texture &tex, TextureSampler sampler)
+		void UseTexture(int channel, const Texture &tex)
 		{
-			glActiveTexture(GL_TEXTURE0 + channel);
-			glBindTexture(tex.BindTarget, tex.Handle);
-			glBindSampler(channel, sampler.Handle);
-		}
-		void UseTextures(ArrayView<Texture> textures, TextureSampler sampler)
-		{
-			for (int i = 0; i < textures.Count(); i++)
+			if (textureBindState[channel] != tex.Handle)
 			{
-				glActiveTexture(GL_TEXTURE0 + i);
-				glBindTexture(textures[i].BindTarget, textures[i].Handle);
-				glBindSampler(i, sampler.Handle);
+				glActiveTexture(GL_TEXTURE0 + channel);
+				glBindTexture(tex.BindTarget, tex.Handle);
+				textureBindState[channel] = tex.Handle;
 			}
 		}
-		void UseTextures(ArrayView<Texture> textures, ArrayView<TextureSampler> samplers)
+		void UseSampler(int channel, const TextureSampler &sampler)
 		{
-			for (int i = 0; i < textures.Count(); i++)
+			if (samplerBindState[channel] != sampler.Handle)
 			{
-				glActiveTexture(GL_TEXTURE0 + i);
-				glBindTexture(textures[i].BindTarget, textures[i].Handle);
-				glBindSampler(i, samplers[i].Handle);
-			}
-			/*for (auto tex : textures)
-			{
-				glMakeTextureHandleResidentARB(((GL_Texture*)tex)->TextureHandle);
-			}*/
-		}
-		void FinishUsingTextures(ArrayView<Texture> textures)
-		{
-			for (int i = 0; i < textures.Count(); i++)
-			{
-				glActiveTexture(GL_TEXTURE0 + i);
-				glBindTexture(textures[i].BindTarget, 0);
-				glBindSampler(i, 0);
-			}
-			/*for (auto tex : textures)
-			{
-				glMakeTextureHandleNonResidentARB(((GL_Texture*)tex)->TextureHandle);
-			}*/
-		}
-		void BindShaderBuffers(ArrayView<BufferObject> buffers)
-		{
-			for (int i = 0; i < buffers.Count(); i++)
-			{
-				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, buffers[i].Handle);
+				glActiveTexture(GL_TEXTURE0 + channel);
+				glBindSampler(channel, sampler.Handle);
+				samplerBindState[channel] = sampler.Handle;
 			}
 		}
-
 		int UniformBufferAlignment() override
 		{
 			GLint uniformBufferAlignment;
@@ -2649,7 +3314,7 @@ namespace GLL
 			return rs;
 		}
 
-		RenderTargetLayout* CreateRenderTargetLayout(CoreLib::ArrayView<TextureUsage> bindings)
+		RenderTargetLayout* CreateRenderTargetLayout(CoreLib::ArrayView<AttachmentLayout> bindings)
 		{
 			return new RenderTargetLayout(bindings);
 		}
@@ -2662,6 +3327,36 @@ namespace GLL
 		GameEngine::CommandBuffer* CreateCommandBuffer() 
 		{
 			return new CommandBuffer();
+		}
+
+		virtual GameEngine::DescriptorSetLayout * CreateDescriptorSetLayout(CoreLib::ArrayView<GameEngine::DescriptorLayout> descriptors) override
+		{
+			auto result = new DescriptorSetLayout();
+			for (auto & desc : descriptors)
+			{
+				BindingLayout layout;
+				layout.BindingPoints = desc.LegacyBindingPoints;
+				layout.Type = desc.Type;
+				result->layouts.Add(layout);
+			}
+			return result;
+		}
+
+		virtual GameEngine::DescriptorSet * CreateDescriptorSet(GameEngine::DescriptorSetLayout * playout) override
+		{
+			auto layout = (DescriptorSetLayout*)playout;
+			DescriptorSet * result = new DescriptorSet();
+			result->descriptors.SetSize(layout->layouts.Count());
+			for (int i = 0; i < layout->layouts.Count(); i++)
+			{
+				result->descriptors[i].Type = layout->layouts[i].Type;
+			}
+			return result;
+		}
+		
+		virtual int GetDescriptorPoolCount() override
+		{
+			return 0;
 		}
 
 		void Wait()

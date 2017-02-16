@@ -3,7 +3,12 @@
 #include <wingdi.h>
 #include "CoreLib/VectorMath.h"
 #include "HardwareRenderer.h"
+#include "CoreLib/WinForm/Debug.h"
 #include "Spire/Spire.h"
+#include "OS.h"
+#include "EngineLimits.h"
+#include "AsyncCommandBuffer.h"
+#include "ShaderCompiler.h"
 
 //#define WINDOWS_10_SCALING
 
@@ -26,8 +31,9 @@ using namespace VectorMath;
 using namespace GameEngine;
 
 const int TextBufferSize = 4 * 1024 * 1024;
-const int TextPixelBits = 2;
+const int TextPixelBits = 4;
 const int Log2TextPixelsPerByte = Math::Log2Floor(8 / TextPixelBits);
+const int Log2TextBufferBlockSize = 6;
 
 namespace GraphicsUI
 {
@@ -248,14 +254,14 @@ namespace GraphicsUI
 				wchar_t EditString[201];
 				unsigned int StrSize = ImmGetCompositionStringW(hIMC, GCS_COMPSTR, EditString, sizeof(EditString) - sizeof(char));
 				EditString[StrSize / sizeof(wchar_t)] = 0;
-				entry->ImeMessageHandler.DoImeCompositeString(String(EditString));
+				entry->ImeMessageHandler.DoImeCompositeString(String::FromWString(EditString));
 			}
 			if (lParam&GCS_RESULTSTR)
 			{
 				wchar_t ResultStr[201];
 				unsigned int StrSize = ImmGetCompositionStringW(hIMC, GCS_RESULTSTR, ResultStr, sizeof(ResultStr) - sizeof(TCHAR));
 				ResultStr[StrSize / sizeof(wchar_t)] = 0;
-				entry->ImeMessageHandler.StringInputed(String(ResultStr));
+				entry->ImeMessageHandler.StringInputed(String::FromWString(ResultStr));
 			}
 			ImmReleaseContext(hWnd, hIMC);
 			rs = 0;
@@ -318,7 +324,7 @@ namespace GraphicsUI
 			font.lfCharSet = DEFAULT_CHARSET;
 			font.lfClipPrecision = CLIP_DEFAULT_PRECIS;
 			font.lfEscapement = 0;
-			wcscpy_s(font.lfFaceName, 32, newFont.FontName.Buffer());
+			wcscpy_s(font.lfFaceName, 32, newFont.FontName.ToWString());
 			font.lfHeight = -MulDiv(newFont.Size, dpi, 72);
 			font.lfItalic = newFont.Italic;
 			font.lfOrientation = 0;
@@ -335,7 +341,9 @@ namespace GraphicsUI
 		}
 		void DrawText(const CoreLib::String & text, int X, int Y)
 		{
-			(::TextOut(Handle, X, Y, text.Buffer(), text.Length()));
+			int len = 0;
+			text.ToWString(&len);
+			(::TextOut(Handle, X, Y, text.ToWString(), len));
 		}
 		/*int DrawText(const CoreLib::String & text, int X, int Y, int W)
 		{
@@ -351,7 +359,26 @@ namespace GraphicsUI
 			SIZE sText;
 			TextSize result;
 			sText.cx = 0; sText.cy = 0;
-			GetTextExtentPoint32(Handle, Text.Buffer(), Text.Length(), &sText);
+			int len;
+			Text.ToWString(&len);
+			GetTextExtentPoint32W(Handle, Text.ToWString(), len, &sText);
+			result.x = sText.cx;  result.y = sText.cy;
+			return result;
+		}
+		TextSize GetTextSize(const CoreLib::List<unsigned int> & Text)
+		{
+			SIZE sText;
+			TextSize result;
+			sText.cx = 0; sText.cy = 0;
+			CoreLib::List<unsigned short> wstr;
+			wstr.Reserve(Text.Count());
+			for (int i = 0; i < Text.Count(); i++)
+			{
+				unsigned short buffer[2];
+				int len = CoreLib::IO::EncodeUnicodePointToUTF16(buffer, Text[i]);
+				wstr.AddRange(buffer, len);
+			}
+			GetTextExtentPoint32W(Handle, (wchar_t*)wstr.Buffer(), wstr.Count(), &sText);
 			result.x = sText.cx;  result.y = sText.cy;
 			return result;
 		}
@@ -414,7 +441,7 @@ namespace GraphicsUI
 			ScanLine = NULL;
 			Handle = CreateCompatibleDC(NULL);
 			canvas = new Canvas(Handle);
-			canvas->ChangeFont(Font(L"Segoe UI", 10), 96);
+			canvas->ChangeFont(Font("Segoe UI", 10), 96);
 
 		}
 		~DIBImage()
@@ -477,60 +504,22 @@ namespace GraphicsUI
 				[Pinned]
 				input world rootVert;
 
-				[Pinned]
-				input world uniformIn;
-
-				[Pinned]
-				input world primitiveUniform;
-
-				[Pinned]
-				input world textBuffer;
-
 				world vs;
 				world fs;
 
 				require @vs vec4 projCoord;
-				[Binding: "0"]
-				extern @(vs*, fs*) Uniform<uniformIn> uniformInBlock;
-				import(uniformIn->vs) uniformImport()
-				{
-					return uniformInBlock;
-				}
-				import(uniformIn->fs) uniformImport()
-				{
-					return uniformInBlock;
-				}
-				[Binding: "1"]
-				extern @(vs*, fs*) StorageBuffer<primitiveUniform> primitiveUniformBlock;
-				import(primitiveUniform->vs) uniformImport()
-				{
-					return primitiveUniformBlock;
-				}
-				import(primitiveUniform->fs) uniformImport()
-				{
-					return primitiveUniformBlock;
-				}
-				[Binding: "2"]
-				extern @(vs*, fs*) StorageBuffer<textBuffer> textBufferBlock;
-				import(textBuffer->vs) uniformImport()
-				{
-					return textBufferBlock;
-				}
-				import(textBuffer->fs) uniformImport()
-				{
-					return textBufferBlock;
-				}
-
+				
+				[VertexInput]
 				extern @vs rootVert vertAttribIn;
 				import(rootVert->vs) vertexImport()
 				{
-					return vertAttribIn;
+					return project(vertAttribIn);
 				}
 
 				extern @fs vs vsIn;
 				import(vs->fs) standardImport()
 				{
-					return vsIn;
+					return project(vsIn);
 				}
     
 				stage vs : VertexShader
@@ -548,7 +537,7 @@ namespace GraphicsUI
 			// This approximates the error function, needed for the gaussian integral
 			vec4 erf(vec4 x)
 			{
-				vec4 s = sign(x), a = abs(x);
+				vec4 s = sign(x); vec4 a = abs(x);
 				x = 1.0 + (0.278393 + (0.230389 + 0.078108 * (a * a)) * a) * a;
 				x *= x;
 				return s - s / (x * x);
@@ -561,14 +550,20 @@ namespace GraphicsUI
 				return (integral.z - integral.x) * (integral.w - integral.y);
 			}
 
+			module UberUIShaderParams
+			{
+				public param mat4 orthoMatrix;
+				public param StructuredBuffer<uvec4> uniformInput;
+				public param StructuredBuffer<uint> textContent;
+			}
 			shader UberUIShader
 			{
-				@uniformIn mat4 orthoMatrix;
+				[Binding: "0"]
+				public using UberUIShaderParams;
+
 				@rootVert vec2 vert_pos;
 				@rootVert vec2 vert_uv;
 				@rootVert int vert_primId;
-				@primitiveUniform uvec4[] uniformInput;
-				@textBuffer uint[] textContent;
 				vec4 projCoord = orthoMatrix * vec4(vert_pos, 0.0, 1.0);
 				public out @fs vec4 color
 				{
@@ -603,13 +598,13 @@ namespace GraphicsUI
 			
 						ivec2 fetchPos = ivec2(vert_uv * ivec2(textWidth, textHeight));
 						int relAddr = fetchPos.y * textWidth + fetchPos.x;
-						int ptr = startAddr + (relAddr >> 2);
-						uint word = textContent[ptr >> 2];
+						int ptr = startAddr + (relAddr >> 1);  // in bytes
+						uint word = textContent[ptr >> 2];     // fetch the word at ptr
 						uint ptrMod = (ptr & 3);
-						word >>= (ptrMod<<3);
-						int bitPtr = relAddr & 3;
-						word >>= (bitPtr << 1);
-						float alpha = float(word & 3) * (1.0/3.0);
+						word >>= (ptrMod<<3);                  // we are in the right byte now
+						int bitPtr = relAddr & 1;              // two pixels per byte
+						word >>= (bitPtr << 2);                // shift to get the correct half
+						float alpha = float(word & 15) * (1.0/15.0);  // extract alpha
 						result = inputColor;
 						result.w *= alpha;
 					}
@@ -617,7 +612,7 @@ namespace GraphicsUI
 					{
 						if (vert_pos.x > clipBoundX && vert_pos.x < clipBoundX1 && vert_pos.y > clipBoundY && vert_pos.y < clipBoundY1)
 							discard;
-						vec2 origin, size;
+						vec2 origin; vec2 size;
 						origin.x = float(params1.x & 65535);
 						origin.y = float(params1.x >> 16);
 						size.x = float(params1.y & 65535);
@@ -628,6 +623,7 @@ namespace GraphicsUI
 					}
 					else
 						discard;
+					
 					return result;
 				}
 			}
@@ -639,7 +635,7 @@ namespace GraphicsUI
 			CoreLib::List<unsigned char> result;
 
 			FILE * f;
-			fopen_s(&f, fileName.ToMultiByteString(), "rb");
+			_wfopen_s(&f, fileName.ToWString(), L"rb");
 			while (!feof(f))
 			{
 				unsigned char c;
@@ -651,133 +647,27 @@ namespace GraphicsUI
 			return result;
 		};
 
-		const char * uberVsSrc = R"(
-				#version 440
-				layout(location = 0) in vec2 vert_pos;
-				layout(location = 1) in vec2 vert_uv;	
-				layout(location = 2) in int vert_primId;
-				layout(binding = 0) uniform UniformBlock
-				{
-					mat4 orthoMatrix;
-				} uniformIn;
-				out vec2 pos;
-				out vec2 uv;
-				flat out int primId;
-				void main()
-				{
-					pos = vert_pos;
-					gl_Position = uniformIn.orthoMatrix * vec4(pos, 0.0, 1.0);
-					uv = vert_uv;
-					primId = vert_primId;
-				}
-			)";
-		const char * uberFsSrc = R"(
-			#version 440
-			layout(std430, binding = 1) buffer uniformBuffer
-			{
-				uvec4 uniformInput[];
-			};
-			layout(std430, binding = 2) buffer textBuffer
-			{
-				uint textContent[];
-			};
-			in vec2 pos;
-			in vec2 uv;
-			flat in int primId;
-			layout(location = 0) out vec4 color;
-
-			// This approximates the error function, needed for the gaussian integral
-			vec4 erf(vec4 x)
-			{
-				vec4 s = sign(x), a = abs(x);
-				x = 1.0 + (0.278393 + (0.230389 + 0.078108 * (a * a)) * a) * a;
-				x *= x;
-				return s - s / (x * x);
-			}
-			// Return the mask for the shadow of a box from lower to upper
-			float boxShadow(vec2 lower, vec2 upper, vec2 point, float sigma)
-			{
-				vec4 query = vec4(point - lower, point - upper);
-				vec4 integral = 0.5 + 0.5 * erf(query * (sqrt(0.5) / sigma));
-				return (integral.z - integral.x) * (integral.w - integral.y);
-			}
-	
-			void main()
-			{
-				uvec4 params0 = uniformInput[int(primId) * 2];
-				uvec4 params1 = uniformInput[int(primId) * 2 + 1];
-				int clipBoundX = int(params0.x & 65535);
-				int clipBoundY = int(params0.x >> 16);
-				int clipBoundX1 = int(params0.y & 65535);
-				int clipBoundY1 = int(params0.y >> 16);
-				int shaderType = int(params0.z);
-				uint pColor = params0.w;
-				vec4 inputColor = vec4(float(pColor&255), float((pColor>>8)&255), float((pColor>>16)&255), float((pColor>>24)&255)) * (1.0/255.0);
-				if (shaderType == 0) // solid color
-				{
-					if (pos.x < clipBoundX) discard;
-					if (pos.y < clipBoundY) discard;
-					if (pos.x > clipBoundX1) discard;
-					if (pos.y > clipBoundY1) discard;
-					color = inputColor;
-				}
-				else if (shaderType == 1) // text
-				{
-					if (pos.x < clipBoundX) discard;
-					if (pos.y < clipBoundY) discard;
-					if (pos.x > clipBoundX1) discard;
-					if (pos.y > clipBoundY1) discard;
-					
-					int textWidth = int(params1.x);
-					int textHeight = int(params1.y);
-					int startAddr = int(params1.z);
-					
-					ivec2 fetchPos = ivec2(uv * ivec2(textWidth, textHeight));
-					int relAddr = fetchPos.y * textWidth + fetchPos.x;
-					int ptr = startAddr + (relAddr >> 2);
-					uint word = textContent[ptr >> 2];
-					uint ptrMod = (ptr & 3);
-					word >>= (ptrMod<<3);
-					int bitPtr = relAddr & 3;
-					word >>= (bitPtr << 1);
-					float alpha = float(word & 3) * (1.0/3.0);
-					color = inputColor;
-					color.w *= alpha;
-				}
-				else if (shaderType == 2)
-				{
-					if (pos.x > clipBoundX && pos.x < clipBoundX1 && pos.y > clipBoundY && pos.y < clipBoundY1)
-						discard;
-					vec2 origin, size;
-					origin.x = float(params1.x & 65535);
-					origin.y = float(params1.x >> 16);
-					size.x = float(params1.y & 65535);
-					size.y = float(params1.y >> 16);
-					float shadowSize = float(params1.z);
-					float shadow = boxShadow(origin, origin+size, pos, shadowSize);
-					color = vec4(inputColor.xyz, inputColor.w*shadow);
-				}
-				else
-					discard;
-			}
-		)";
 
 	private:
 		RefPtr<Shader> uberVs, uberFs;
 		RefPtr<Pipeline> pipeline;
-		RefPtr<PipelineInstance> pipelineInstance;
 		CoreLib::RefPtr<Texture2D> uiOverlayTexture;
 		RefPtr<Buffer> vertexBuffer, indexBuffer, primitiveBuffer, uniformBuffer;
+		const int primitiveBufferSize = 1 << 22;
+		const int indexBufferSize = 1 << 17;
+		const int vertexBufferSize = 1 << 21;
 		RefPtr<TextureSampler> linearSampler;
 		RefPtr<RenderTargetLayout> renderTargetLayout;
+		Array<RefPtr<DescriptorSet>, DynamicBufferLengthMultiplier> descSets;
 		RefPtr<FrameBuffer> frameBuffer;
-		RefPtr<CommandBuffer> cmdBuffer;
+		RefPtr<AsyncCommandBuffer> cmdBuffer, blitCmdBuffer;
 		List<UniformField> uniformFields;
 		List<UberVertex> vertexStream;
 		List<int> indexStream;
 		int primCounter;
 		UIWindowsSystemInterface * system;
 		Vec4 clipRect;
+		int frameId = 0;
 	public:
 		GLUIRenderer(UIWindowsSystemInterface * pSystem, GameEngine::HardwareRenderer * hw)
 		{
@@ -786,16 +676,12 @@ namespace GraphicsUI
 			rendererApi = hw;
 
 			SpireCompilationContext * spireCtx = spCreateCompilationContext(nullptr);
-			auto backend = rendererApi->GetSpireBackendName();
-			if (backend == L"glsl")
-				spSetCodeGenTarget(spireCtx, SPIRE_GLSL);
-			else if (backend == L"hlsl")
-				spSetCodeGenTarget(spireCtx, SPIRE_HLSL);
-			else
-				spSetCodeGenTarget(spireCtx, SPIRE_SPIRV);
+			SpireDiagnosticSink * diagSink = spCreateDiagnosticSink(spireCtx);
+			spSetCodeGenTarget(spireCtx, rendererApi->GetSpireTarget());
 			String spireShaderSrc(uberSpireShader);
-			auto result = spCompileShaderFromSource(spireCtx, uberSpireShader, "ui_uber_shader");
-			if (spIsCompilationSucessful(result))
+			auto result = spCompileShaderFromSource(spireCtx, uberSpireShader, "ui_uber_shader", diagSink);
+			
+			if (!spDiagnosticSinkHasAnyErrors(diagSink))
 			{
 				int len = 0;
 				auto vsSrc = (char*)spGetShaderStageSource(result, "UberUIShader", "vs", &len);
@@ -803,8 +689,26 @@ namespace GraphicsUI
 				auto fsSrc = (char*)spGetShaderStageSource(result, "UberUIShader", "fs", &len);
 				uberFs = rendererApi->CreateShader(ShaderType::FragmentShader, fsSrc, len);
 			}
+			else
+			{
+				int size = spGetDiagnosticOutput(diagSink, nullptr, 0);
+				List<char> buffer;
+				buffer.SetSize(size);
+				spGetDiagnosticOutput(diagSink, buffer.Buffer(), size);
+				CoreLib::Diagnostics::Debug::WriteLine(String(buffer.Buffer()));
+			}
+			
+			ShaderCompilationResult compileResult;
+			GetShaderCompilationResult(compileResult, result, diagSink);
+
+			spDestroyDiagnosticSink(diagSink);
 			spDestroyCompilationResult(result);
 			spDestroyCompilationContext(spireCtx);
+
+			if (!uberVs)
+			{
+				throw InvalidProgramException("UI shader compilation failed.");
+			}
 
 			Array<Shader*, 2> shaderList;
 			shaderList.Add(uberVs.Ptr()); shaderList.Add(uberFs.Ptr());
@@ -815,44 +719,54 @@ namespace GraphicsUI
 			vformat.Attributes.Add(VertexAttributeDesc(DataType::Float2, 0, 8, 1));
 			vformat.Attributes.Add(VertexAttributeDesc(DataType::Int, 0, 16, 2));
 			pipeBuilder->SetVertexLayout(vformat);
-			pipeBuilder->SetBindingLayout(0, BindingType::UniformBuffer);
-			pipeBuilder->SetBindingLayout(1, BindingType::StorageBuffer);
-			pipeBuilder->SetBindingLayout(2, BindingType::StorageBuffer);
-			pipeBuilder->PrimitiveRestartEnabled = true;
-			pipeBuilder->PrimitiveTopology = PrimitiveType::TriangleFans;
-			pipeBuilder->BlendMode = BlendMode::AlphaBlend;
-			pipeBuilder->DepthCompareFunc = CompareFunc::Disabled;
+			auto binding = compileResult.BindingLayouts.First().Value;
+			RefPtr<DescriptorSetLayout> descLayout = rendererApi->CreateDescriptorSetLayout(MakeArray(
+				DescriptorLayout(sfGraphics, 0, BindingType::UniformBuffer, binding.Descriptors[0].LegacyBindingPoints.First()),
+				DescriptorLayout(sfGraphics, 1, BindingType::StorageBuffer, binding.Descriptors[1].LegacyBindingPoints.First()),
+				DescriptorLayout(sfGraphics, 2, BindingType::StorageBuffer, binding.Descriptors[2].LegacyBindingPoints.First())).GetArrayView());
+			pipeBuilder->SetBindingLayout(MakeArrayView(descLayout.Ptr()));
+			pipeBuilder->FixedFunctionStates.PrimitiveRestartEnabled = true;
+			pipeBuilder->FixedFunctionStates.PrimitiveTopology = PrimitiveType::TriangleFans;
+			pipeBuilder->FixedFunctionStates.BlendMode = BlendMode::AlphaBlend;
+			pipeBuilder->FixedFunctionStates.DepthCompareFunc = CompareFunc::Disabled;
 
-			uniformBuffer = rendererApi->CreateBuffer(BufferUsage::UniformBuffer);
-			primitiveBuffer = rendererApi->CreateBuffer(BufferUsage::StorageBuffer);
-			vertexBuffer = rendererApi->CreateBuffer(BufferUsage::ArrayBuffer);
-			indexBuffer = rendererApi->CreateBuffer(BufferUsage::ArrayBuffer);
+			uniformBuffer = rendererApi->CreateMappedBuffer(BufferUsage::UniformBuffer, sizeof(orthoMatrix));
+			primitiveBuffer = rendererApi->CreateMappedBuffer(BufferUsage::StorageBuffer, primitiveBufferSize * DynamicBufferLengthMultiplier);
+			vertexBuffer = rendererApi->CreateMappedBuffer(BufferUsage::ArrayBuffer, vertexBufferSize * DynamicBufferLengthMultiplier);
+			indexBuffer = rendererApi->CreateMappedBuffer(BufferUsage::ArrayBuffer, indexBufferSize * DynamicBufferLengthMultiplier);
 
-			Array<TextureUsage, 1> frameBufferLayout;
-			frameBufferLayout.Add(TextureUsage::ColorAttachment);
+			Array<AttachmentLayout, 1> frameBufferLayout;
+			frameBufferLayout.Add(AttachmentLayout(TextureUsage::SampledColorAttachment, StorageFormat::RGBA_8));
 
 			renderTargetLayout = rendererApi->CreateRenderTargetLayout(frameBufferLayout.GetArrayView());
+			pipeBuilder->SetDebugName("ui");
 			pipeline = pipeBuilder->ToPipeline(renderTargetLayout.Ptr());
 
-			cmdBuffer = rendererApi->CreateCommandBuffer();
+			cmdBuffer = new AsyncCommandBuffer(rendererApi);
+			blitCmdBuffer = new AsyncCommandBuffer(rendererApi);
 
 			linearSampler = rendererApi->CreateTextureSampler();
 			linearSampler->SetFilter(TextureFilter::Linear);
 
-			uiOverlayTexture = rendererApi->CreateTexture2D(TextureUsage::ColorAttachment);
-			uiOverlayTexture->Resize(400, 400, 1);
+			uiOverlayTexture = rendererApi->CreateTexture2D(TextureUsage::SampledColorAttachment, 4, 4, 1, StorageFormat::RGBA_8);
 			frameBuffer = renderTargetLayout->CreateFrameBuffer(MakeArrayView(uiOverlayTexture.Ptr()));
 
-			PipelineBinding binding;
-			binding.BindUniformBuffer(0, uniformBuffer.Ptr());
-			binding.BindStorageBuffer(1, primitiveBuffer.Ptr());
-			binding.BindStorageBuffer(2, system->GetTextBufferObject());
-			pipelineInstance = pipeline->CreateInstance(binding);
+			for (int i = 0; i < descSets.GetCapacity(); i++)
+			{
+				auto descSet = rendererApi->CreateDescriptorSet(descLayout.Ptr());
+				descSet->BeginUpdate();
+				descSet->Update(0, uniformBuffer.Ptr());
+				descSet->Update(1, primitiveBuffer.Ptr(), i * primitiveBufferSize, primitiveBufferSize);
+				descSet->Update(2, system->GetTextBufferObject());
+				descSet->EndUpdate();
+				descSets.Add(descSet);
+			}
 		}
 		~GLUIRenderer()
 		{
 
 		}
+
 		Texture2D * GetRenderedImage()
 		{
 			return uiOverlayTexture.Ptr();
@@ -863,8 +777,8 @@ namespace GraphicsUI
 			screenHeight = h;
 			rendererApi->Wait();
 			Matrix4::CreateOrthoMatrix(orthoMatrix, 0.0f, (float)screenWidth, 0.0f, (float)screenHeight, 1.0f, -1.0f);
-			uniformBuffer->SetData(&orthoMatrix, sizeof(orthoMatrix));
-			uiOverlayTexture->SetData(GameEngine::StorageFormat::RGBA_8, w, h, 1, DataType::Byte4, nullptr, false);
+			uniformBuffer->SetData(&orthoMatrix, sizeof(orthoMatrix)); 
+			uiOverlayTexture = rendererApi->CreateTexture2D(TextureUsage::SampledColorAttachment, w, h, 1, StorageFormat::RGBA_8);
 			frameBuffer = renderTargetLayout->CreateFrameBuffer(MakeArrayView(uiOverlayTexture.Ptr()));
 		}
 		void BeginUIDrawing()
@@ -876,24 +790,29 @@ namespace GraphicsUI
 		}
 		void EndUIDrawing(Texture2D * baseTexture)
 		{
-			indexBuffer->SetData(indexStream.Buffer(), sizeof(int) * indexStream.Count());
-			vertexBuffer->SetData(vertexStream.Buffer(), sizeof(UberVertex) * vertexStream.Count());
-			primitiveBuffer->SetData(uniformFields.Buffer(), sizeof(UniformField) * uniformFields.Count());
-			/*PipelineBinding binding;
-			binding.BindUniformBuffer(0, uniformBuffer.Ptr());
-			binding.BindStorageBuffer(1, primitiveBuffer.Ptr());
-			binding.BindStorageBuffer(2, system->GetTextBufferObject());
-			pipelineInstance = pipeline->CreateInstance(binding);*/
-			cmdBuffer->BeginRecording(renderTargetLayout.Ptr(), frameBuffer.Ptr());
-			cmdBuffer->Blit(uiOverlayTexture.Ptr(), baseTexture);
-			cmdBuffer->BindVertexBuffer(vertexBuffer.Ptr());
-			cmdBuffer->BindIndexBuffer(indexBuffer.Ptr());
-			cmdBuffer->BindPipeline(pipelineInstance.Ptr());
-			cmdBuffer->SetViewport(0, 0, screenWidth, screenHeight);
-			cmdBuffer->DrawIndexed(0, indexStream.Count());
-			cmdBuffer->EndRecording();
-			rendererApi->ExecuteCommandBuffers(renderTargetLayout.Ptr(), frameBuffer.Ptr(), MakeArrayView(cmdBuffer.Ptr()));
-			rendererApi->Wait();
+			frameId = frameId % DynamicBufferLengthMultiplier;
+			indexBuffer->SetDataAsync(frameId * indexBufferSize, indexStream.Buffer(), sizeof(int) * indexStream.Count());
+			vertexBuffer->SetDataAsync(frameId * vertexBufferSize, vertexStream.Buffer(), sizeof(UberVertex) * vertexStream.Count());
+			primitiveBuffer->SetDataAsync(frameId * primitiveBufferSize, uniformFields.Buffer(), sizeof(UniformField) * uniformFields.Count());
+			
+			auto cmdBuf = blitCmdBuffer->BeginRecording();
+			if (baseTexture)
+				cmdBuf->Blit(uiOverlayTexture.Ptr(), baseTexture);
+			cmdBuf->EndRecording();
+
+			cmdBuf = cmdBuffer->BeginRecording(frameBuffer.Ptr());
+			cmdBuf->BindPipeline(pipeline.Ptr());
+			cmdBuf->BindVertexBuffer(vertexBuffer.Ptr(), frameId * vertexBufferSize);
+			cmdBuf->BindIndexBuffer(indexBuffer.Ptr(), frameId * indexBufferSize);
+			cmdBuf->BindDescriptorSet(0, descSets[frameId].Ptr());
+			cmdBuf->SetViewport(0, 0, screenWidth, screenHeight);
+			cmdBuf->DrawIndexed(0, indexStream.Count());
+			cmdBuf->EndRecording();
+		}
+		void SubmitCommands(GameEngine::Fence * fence)
+		{
+			frameId++;
+			rendererApi->ExecuteCommandBuffers(frameBuffer.Ptr(), MakeArray(blitCmdBuffer->GetBuffer(), cmdBuffer->GetBuffer()).GetArrayView(), fence);
 		}
 		void DrawLine(const Color & color, float x0, float y0, float x1, float y1)
 		{
@@ -1066,9 +985,8 @@ namespace GraphicsUI
 		UIImage(UIWindowsSystemInterface* ctx, const CoreLib::Imaging::Bitmap & bmp)
 		{
 			context = ctx;
-			texture = context->rendererApi->CreateTexture2D(TextureUsage::Sampled);
-			texture->SetData(bmp.GetIsTransparent() ? StorageFormat::RGBA_I8 : StorageFormat::RGB_I8, bmp.GetWidth(), bmp.GetHeight(), 1,
-				bmp.GetIsTransparent() ? DataType::Byte4 : DataType::Byte, bmp.GetPixels());
+			texture = context->rendererApi->CreateTexture2D(TextureUsage::Sampled, bmp.GetWidth(), bmp.GetHeight(), 1, StorageFormat::RGBA_8);
+			texture->SetData(bmp.GetWidth(), bmp.GetHeight(), 1, DataType::Byte4, bmp.GetPixels());
 			w = bmp.GetWidth();
 			h = bmp.GetHeight();
 		}
@@ -1103,7 +1021,7 @@ namespace GraphicsUI
 				WCHAR *pwszText = (WCHAR*)GlobalLock(hBlock);
 				if (pwszText)
 				{
-					CopyMemory(pwszText, text.Buffer(), text.Length() * sizeof(WCHAR));
+					CopyMemory(pwszText, text.ToWString(), text.Length() * sizeof(WCHAR));
 					pwszText[text.Length()] = L'\0';  // Terminate it
 					GlobalUnlock(hBlock);
 				}
@@ -1129,7 +1047,7 @@ namespace GraphicsUI
 				if (pwszText)
 				{
 					// Copy all characters up to null.
-					txt = pwszText;
+					txt = String::FromWString(pwszText);
 					GlobalUnlock(handle);
 				}
 			}
@@ -1156,7 +1074,7 @@ namespace GraphicsUI
 		uiRenderer->SetScreenResolution(w, h);
 	}
 
-	void UIWindowsSystemInterface::ExecuteDrawCommands(Texture2D* baseTexture, CoreLib::List<DrawCommand>& commands)
+	void UIWindowsSystemInterface::TransferDrawComands(Texture2D* baseTexture, CoreLib::List<DrawCommand>& commands)
 	{
 		uiRenderer->BeginUIDrawing();
 		int ptr = 0;
@@ -1217,6 +1135,12 @@ namespace GraphicsUI
 		uiRenderer->EndUIDrawing(baseTexture);
 	}
 
+	void UIWindowsSystemInterface::ExecuteDrawCommands(GameEngine::Fence* fence)
+	{
+		textBufferFence = fence;
+		uiRenderer->SubmitCommands(fence);
+	}
+
 	void UIWindowsSystemInterface::SwitchCursor(CursorType c)
 	{
 		LPTSTR cursorName;
@@ -1268,13 +1192,12 @@ namespace GraphicsUI
 	{
 		rendererApi = ctx;
 		int dpi = GetCurrentDpi();
-		defaultFont = new WindowsFont(this, dpi, Font(L"Segoe UI", 13));
-		titleFont = new WindowsFont(this, dpi, Font(L"Segoe UI", 13, true, false, false));
-		symbolFont = new WindowsFont(this, dpi, Font(L"Webdings", 13));
-		textBufferObj = ctx->CreateMappedBuffer(BufferUsage::StorageBuffer);
-		textBufferObj->SetData(nullptr, TextBufferSize);
+		defaultFont = new WindowsFont(this, dpi, Font("Segoe UI", 13));
+		titleFont = new WindowsFont(this, dpi, Font("Segoe UI", 13, true, false, false));
+		symbolFont = new WindowsFont(this, dpi, Font("Webdings", 13));
+		textBufferObj = ctx->CreateMappedBuffer(BufferUsage::StorageBuffer, TextBufferSize);
 		textBuffer = (unsigned char*)textBufferObj->Map();
-		textBufferPool.Init(textBuffer, 6, TextBufferSize >> 6);
+		textBufferPool.Init(textBuffer, Log2TextBufferBlockSize, TextBufferSize >> Log2TextBufferBlockSize);
 		uiRenderer = new GLUIRenderer(this, ctx);
 		tmrHover.Interval = Global::HoverTimeThreshold;
 		tmrHover.OnTick.Bind(this, &UIWindowsSystemInterface::HoverTimerTick);
@@ -1288,6 +1211,17 @@ namespace GraphicsUI
 		tmrTick.StopTimer();
 		textBufferObj->Unmap();
 		delete uiRenderer;
+	}
+
+	void UIWindowsSystemInterface::WaitForDrawFence()
+	{
+		//if (textBufferFence)
+		//	textBufferFence->Wait();
+	}
+
+	unsigned char * UIWindowsSystemInterface::AllocTextBuffer(int size)
+	{
+		return textBufferPool.Alloc(size);
 	}
 
 	GameEngine::Texture2D * UIWindowsSystemInterface::GetRenderedImage()
@@ -1317,15 +1251,31 @@ namespace GraphicsUI
 		return rs;
 	}
 
-	IBakedText * WindowsFont::BakeString(const CoreLib::String & text)
+	Rect WindowsFont::MeasureString(const List<unsigned int> & text)
 	{
-		BakedText * result = new BakedText();
-		auto imageData = rasterizer->RasterizeText(system, text);
+		Rect rs;
+		auto size = rasterizer->GetTextSize(text);
+		rs.x = rs.y = 0;
+		rs.w = size.x;
+		rs.h = size.y;
+		return rs;
+	}
+
+	IBakedText * WindowsFont::BakeString(const CoreLib::String & text, IBakedText * previous)
+	{
+		BakedText * prev = (BakedText*)previous;
+		auto prevBuffer = (prev ? prev->textBuffer : nullptr);
+		system->WaitForDrawFence();
+		auto imageData = rasterizer->RasterizeText(system, text, prevBuffer, (prev?prev->BufferSize:0));
+		BakedText * result = prev;
+		if (!prevBuffer || imageData.ImageData != prevBuffer)
+			result = new BakedText();
 		result->system = system;
 		result->Width = imageData.Size.x;
 		result->Height = imageData.Size.y;
 		result->textBuffer = imageData.ImageData;
 		result->BufferSize = imageData.BufferSize;
+
 		return result;
 	}
 
@@ -1344,7 +1294,15 @@ namespace GraphicsUI
 		Bit->canvas->ChangeFont(Font, dpi);
 	}
 
-	TextRasterizationResult TextRasterizer::RasterizeText(UIWindowsSystemInterface * system, const CoreLib::String & text) // Set the text that is going to be displayed.
+	int RoundUpToAlignment(int val, int alignment)
+	{
+		int r = val % alignment;
+		if (r == 0)
+			return val;
+		return val + (alignment - r);
+	}
+
+	TextRasterizationResult TextRasterizer::RasterizeText(UIWindowsSystemInterface * system, const CoreLib::String & text, unsigned char * existingBuffer, int existingBufferSize) // Set the text that is going to be displayed.
 	{
 		int TextWidth, TextHeight;
 		List<unsigned char> pic;
@@ -1359,21 +1317,24 @@ namespace GraphicsUI
 
 		int pixelCount = (TextWidth * TextHeight);
 		int bytes = pixelCount >> Log2TextPixelsPerByte;
+		int textPixelMask = (1 << TextPixelBits) - 1;
 		if (pixelCount & ((1 << Log2TextPixelsPerByte) - 1))
 			bytes++;
-		auto buffer = system->AllocTextBuffer(bytes);
+		bytes = RoundUpToAlignment(bytes, 1 << Log2TextBufferBlockSize);
+		auto buffer = bytes > existingBufferSize ? system->AllocTextBuffer(bytes) : existingBuffer;
 		if (buffer)
 		{
+			const float valScale = ((1 << TextPixelBits) - 1) / 255.0f;
 			for (int i = 0; i < TextHeight; i++)
 			{
 				for (int j = 0; j < TextWidth; j++)
 				{
 					int idx = i * TextWidth + j;
 					auto val = 255 - (Bit->ScanLine[i][j * 3 + 2] + Bit->ScanLine[i][j * 3 + 1] + Bit->ScanLine[i][j * 3]) / 3;
-					auto packedVal = Math::FastFloor(val / (255.0f / 3.0f) + 0.5f);
+					auto packedVal = Math::FastFloor(val * valScale + 0.5f);
 					int addr = idx >> Log2TextPixelsPerByte;
 					int mod = idx & ((1 << Log2TextPixelsPerByte) - 1);
-					int mask = 3 << (mod * TextPixelBits);
+					int mask = textPixelMask << (mod * TextPixelBits);
 					buffer[addr] = (unsigned char)((buffer[addr] & (~mask)) | (packedVal << (mod * TextPixelBits)));
 				}
 			}
@@ -1382,11 +1343,16 @@ namespace GraphicsUI
 		result.ImageData = buffer;
 		result.Size.x = TextWidth;
 		result.Size.y = TextHeight;
-		result.BufferSize = bytes;
+		result.BufferSize = bytes > existingBufferSize ? bytes : existingBufferSize;
 		return result;
 	}
 
-	inline TextSize TextRasterizer::GetTextSize(const CoreLib::String & text)
+	TextSize TextRasterizer::GetTextSize(const CoreLib::String & text)
+	{
+		return Bit->canvas->GetTextSize(text);
+	}
+
+	TextSize TextRasterizer::GetTextSize(const CoreLib::List<unsigned int> & text)
 	{
 		return Bit->canvas->GetTextSize(text);
 	}

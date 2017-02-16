@@ -35,7 +35,7 @@ FILE * openFile(const char * fileName)
 #else
 FILE * openFile(const char * fileName)
 {
-	return fopen(fileName, "rb");
+	return wfopen(fileName, "rb");
 }
 #endif
 

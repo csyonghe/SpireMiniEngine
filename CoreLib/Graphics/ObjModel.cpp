@@ -47,16 +47,16 @@ namespace CoreLib
 		String RemoveLineBreakAndQuote(String name)
 		{
 			int pos = 0;
-			while (pos<name.Length() && (name[pos] == L' ' || name[pos] == L'\t'))
+			while (pos<name.Length() && (name[pos] == ' ' || name[pos] == '\t'))
 				pos++;
-			if (pos<name.Length() && name[pos] == L'\"')
+			if (pos<name.Length() && name[pos] == '\"')
 				pos++;
 			int end = name.Length()-1;
-			while (end >= 0 && (name[end] == L' ' || name[end] == L'\t' || name[end] == L'\n'))
+			while (end >= 0 && (name[end] == ' ' || name[end] == '\t' || name[end] == '\n'))
 			{
 				end--;
 			}
-			if (end >= 0 && name[end] == L'\"')
+			if (end >= 0 && name[end] == '\"')
 				end--;
 			return name.SubString(pos, end-pos+1);
 		}
@@ -274,10 +274,10 @@ namespace CoreLib
 		void LoadObjMaterialLib(ObjModel & mdl, const String & filename, Dictionary<String, int> & matLookup)
 		{
 			FILE * f = 0;
-			fopen_s(&f, filename.ToMultiByteString(), "rt");
+			_wfopen_s(&f, filename.ToWString(), L"rt");
 			if (!f)
 			{
-				printf("Error loading obj material library \'%s\'", filename.ToMultiByteString());
+				printf("Error loading obj material library \'%S\'", filename.ToWString());
 				return;
 			}
 			char buf[200];
@@ -371,7 +371,7 @@ namespace CoreLib
 			fclose(f);
 			for (auto & mtl : mdl.Materials)
 			{
-				if (mtl->DiffuseMap == L"" && mtl->AlphaMap == L"")
+				if (mtl->DiffuseMap == "" && mtl->AlphaMap == "")
 					mtl->IsOpaque = true;
 			}
 		}

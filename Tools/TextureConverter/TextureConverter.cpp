@@ -13,9 +13,9 @@ using namespace CoreLib::Imaging;
 using namespace CoreLib::IO;
 using namespace GameEngine;
 
-void ConvertTexture(const String & fileName, TextureStorageFormat format)
+void ConvertTexture(const String & fileName, TextureStorageFormat format, bool useSquish)
 {
-	if (format == TextureStorageFormat::BC1 || format == TextureStorageFormat::BC5)
+	if (format == TextureStorageFormat::BC1 || format == TextureStorageFormat::BC5 || format == TextureStorageFormat::BC3)
 	{
 		Bitmap bmp(fileName);
 		List<unsigned int> pixelsInversed;
@@ -28,10 +28,12 @@ void ConvertTexture(const String & fileName, TextureStorageFormat format)
 		}
 		CoreLib::Graphics::TextureFile texFile;
 		if (format == TextureStorageFormat::BC1)
-			TextureCompressor::CompressRGBA_BC1(texFile, MakeArrayView((unsigned char*)pixelsInversed.Buffer(), pixelsInversed.Count() * 4), bmp.GetWidth(), bmp.GetHeight());
+			TextureCompressor::CompressRGBA_BC1(texFile, MakeArrayView((unsigned char*)pixelsInversed.Buffer(), pixelsInversed.Count() * 4), bmp.GetWidth(), bmp.GetHeight(), useSquish);
+		else if (format == TextureStorageFormat::BC3)
+			TextureCompressor::CompressRGBA_BC3(texFile, MakeArrayView((unsigned char*)pixelsInversed.Buffer(), pixelsInversed.Count() * 4), bmp.GetWidth(), bmp.GetHeight(), useSquish);
 		else
 			TextureCompressor::CompressRG_BC5(texFile, MakeArrayView((unsigned char*)pixelsInversed.Buffer(), pixelsInversed.Count() * 4), bmp.GetWidth(), bmp.GetHeight());
-		texFile.SaveToFile(Path::ReplaceExt(fileName, L"texture"));
+		texFile.SaveToFile(Path::ReplaceExt(fileName, "texture"));
 	}
 	else
 	{
@@ -40,7 +42,7 @@ void ConvertTexture(const String & fileName, TextureStorageFormat format)
 		CoreLib::Imaging::TextureData<CoreLib::Imaging::Color4F> tex;
 		CoreLib::Imaging::CreateTextureDataFromBitmap(tex, bmp);
 		CoreLib::Imaging::CreateTextureFile(texFile, format, tex);
-		texFile.SaveToFile(Path::ReplaceExt(fileName, L"texture"));
+		texFile.SaveToFile(Path::ReplaceExt(fileName, "texture"));
 	}
 }
 
@@ -48,26 +50,31 @@ int wmain(int argc, const wchar_t ** argv)
 {
 	if (argc > 1)
 	{
+		bool useSquish = false;
 		TextureStorageFormat format = TextureStorageFormat::BC1;
-		String fileName = argv[1];
+		String fileName = String::FromWString(argv[1]);
 		for (int i = 0; i < argc; i++)
 		{
-			if (String(argv[i]) == L"-bc1")
+			if (String::FromWString(argv[i]) == "-squish")
+				useSquish = true;
+			if (String::FromWString(argv[i]) == "-bc1")
 				format = TextureStorageFormat::BC1;
-			if (String(argv[i]) == L"-bc5")
+			if (String::FromWString(argv[i]) == "-bc5")
 				format = TextureStorageFormat::BC5;
-			if (String(argv[i]) == L"-r8")
+			if (String::FromWString(argv[i]) == "-bc3")
+				format = TextureStorageFormat::BC3;
+			if (String::FromWString(argv[i]) == "-r8")
 				format = TextureStorageFormat::R8;
-			if (String(argv[i]) == L"-rg8")
+			if (String::FromWString(argv[i]) == "-rg8")
 				format = TextureStorageFormat::RG8;
-			if (String(argv[i]) == L"-rgb8")
+			if (String::FromWString(argv[i]) == "-rgb8")
 				format = TextureStorageFormat::RGB8;
-			if (String(argv[i]) == L"-rgba8")
+			if (String::FromWString(argv[i]) == "-rgba8")
 				format = TextureStorageFormat::RGBA8;
-			if (String(argv[i]) == L"-rgba32f")
+			if (String::FromWString(argv[i]) == "-rgba32f")
 				format = TextureStorageFormat::RGBA_F32;
 		}
-		ConvertTexture(fileName, format);
+		ConvertTexture(fileName, format, useSquish);
 	}
 	else
 	{

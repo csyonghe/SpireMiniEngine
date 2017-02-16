@@ -39,6 +39,7 @@ namespace CoreLib
 			case TextureStorageFormat::BC1:
 				return 0.5f;
 			case TextureStorageFormat::BC5:
+			case TextureStorageFormat::BC3:
 				return 1;
 			default:
 				return 0;
@@ -69,15 +70,15 @@ namespace CoreLib
 		void TextureFile::SetData(TextureStorageFormat storageFormat, int w, int h, int level, CoreLib::Basic::ArrayView<unsigned char> data)
 		{
 			auto pixelSize = GetPixelSize(storageFormat);
-			if (storageFormat == TextureStorageFormat::BC1 || storageFormat == TextureStorageFormat::BC5)
+			if (storageFormat == TextureStorageFormat::BC1 || storageFormat == TextureStorageFormat::BC5 || storageFormat == TextureStorageFormat::BC3)
 			{
 				if (data.Count() != (int)(ceil(w / 4.0f) * ceil(h / 4.0f) * 16 * pixelSize))
-					throw InvalidOperationException(L"Data size does not match texture format.");
+					throw InvalidOperationException("Data size does not match texture format.");
 			}
 			else
 			{
 				if (data.Count() != (int)(w * h * pixelSize))
-					throw InvalidOperationException(L"Data size does not match texture format.");
+					throw InvalidOperationException("Data size does not match texture format.");
 			}
 			if (level >= buffer.Count())
 				buffer.SetSize(level + 1);
@@ -113,6 +114,22 @@ namespace CoreLib
 		{
 			FileStream stream(fileName, FileMode::Create);
 			SaveToStream(&stream);
+		}
+
+		CoreLib::List<char> TranslateThreeChannelTextureFormat(char * buffer, int pixelCount, int channelSize)
+		{
+			CoreLib::List<char> result;
+			result.SetSize(pixelCount * channelSize * 4);
+			char * dest = result.Buffer();
+			char * src = buffer;
+			for (int i = 0; i < pixelCount; i++)
+			{
+				for (int j = 0; j < channelSize * 3; j++)
+					dest[i*channelSize * 4 + j] = src[i*channelSize * 3 + j];
+				for (int j = 0; j < channelSize; j++)
+					dest[(i * 4 + 3)*channelSize + j] = 0;
+			}
+			return _Move(result);
 		}
 	}
 }

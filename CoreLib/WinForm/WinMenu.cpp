@@ -181,7 +181,7 @@ namespace CoreLib
 
 		String MenuItem::GetCompleteText()
 		{
-			return text+L"\t"+shortcutText;
+			return text + "\t" + shortcutText;
 		}
 
 		void MenuItem::UpdateText()
@@ -191,8 +191,8 @@ namespace CoreLib
 				MENUITEMINFO info;
 				info.cbSize = sizeof(MENUITEMINFO);
 				info.fMask = MIIM_STRING;
-				String txt = text + L"\t" + shortcutText;
-				info.dwTypeData = (LPWSTR)txt.Buffer();
+				String txt = text + "\t" + shortcutText;
+				info.dwTypeData = (LPWSTR)txt.ToWString();
 				SetMenuItemInfo(parent->GetHandle(), (UINT)ident, FALSE, &info);
 			}
 		}
@@ -233,7 +233,7 @@ namespace CoreLib
 		{
 			items.Insert(pos, item);
 			InsertMenu((HMENU)handle, pos, MF_BYPOSITION, (UINT_PTR)item->GetIdentifier(), 
-				(LPWSTR)item->GetCompleteText().Buffer());
+				(LPWSTR)item->GetCompleteText().ToWString());
 			item->UpdateState();
 		}
 
@@ -264,7 +264,7 @@ namespace CoreLib
 		{
 			items.Add(item);
 			AppendMenu((HMENU)handle, MF_STRING, (UINT_PTR)item->GetIdentifier(), 
-				(LPWSTR)item->GetCompleteText().Buffer());
+				(LPWSTR)item->GetCompleteText().ToWString());
 			item->UpdateState();
 		}
 

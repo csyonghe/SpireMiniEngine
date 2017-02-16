@@ -30,26 +30,14 @@ vec3 desaturate(vec3 color, float factor)
     return mix(color, vec3(lum, lum, lum), factor);
 }
 
-module SystemUniforms
-{
-    public @ViewUniform mat4 viewTransform;
-    public @ViewUniform mat4 viewProjectionTransform;
-    public @ViewUniform mat4 invViewTransform;
-    public @ViewUniform mat4 invViewProjTransform;
-    public @ViewUniform vec3 cameraPos;
-    public vec3 lightDir = vec3(1.0, 1.0, 0.0);
-    public vec3 lightColor = vec3(1.5, 1.5, 1.5);
-}
-
 module TangentSpaceTransform
 {
     require vec3 coarseVertTangent;
-    require vec3 coarseVertNormal;
-    require vec3 worldTransformNormal(vec3 pos);
-    
-    public vec3 vNormal = worldTransformNormal(coarseVertNormal).xyz;
-    public vec3 vTangent = worldTransformNormal(coarseVertTangent).xyz;
-    public vec3 vBiTangent = cross(vTangent, vNormal);
+    require vec3 coarseVertBinormal;
+    require vec3 worldTransformTangent(vec3 pos);
+    public vec3 vTangent = worldTransformTangent(coarseVertTangent);
+    public vec3 vBiTangent = worldTransformTangent(coarseVertBinormal);
+    public vec3 vNormal = cross(vBiTangent, vTangent);
     
     public vec3 WorldSpaceToTangentSpace(vec3 v)
     {
@@ -69,90 +57,90 @@ module VertexTransform
     require vec3 worldTransformPos(vec3 pos);
 
     public vec3 pos = worldTransformPos(fineVertPos+displacement); 
-    public vec4 projCoord = viewProjectionTransform * vec4(pos, 1);
-}
-
-struct BoneTransform
-{
-    mat4 transformMatrix;
-    mat3 normalMatrix;
+    public vec4 projCoord
+    {
+        vec4 rs = viewProjectionTransform * vec4(pos, 1);
+        return rs;
+    } 
 }
 
 module NoAnimation
 {
+    param mat4 modelMatrix;
+
     require vec3 vertPos;
     require vec3 vertNormal;
     require vec3 vertTangent;
+    require vec3 vertBinormal;
     
     public @CoarseVertex vec3 coarseVertPos = vertPos;
     public @CoarseVertex vec3 coarseVertNormal = vertNormal;
     public @CoarseVertex vec3 coarseVertTangent = vertTangent;
-    
-    @ModelInstance mat4 modelMatrix; 
-    @ModelInstance mat4 normalMatrix; 
-    
+    public @CoarseVertex vec3 coarseVertBinormal = vertBinormal;
+
     public vec3 worldTransformPos(vec3 pos)
     {
         return (modelMatrix * vec4(pos, 1)).xyz;
     }
-    public vec3 worldTransformNormal(vec3 norm)
+    public vec3 worldTransformTangent(vec3 tangent)
     {
-        return (normalMatrix * vec4(norm, 1)).xyz;
+        return normalize(mat3(modelMatrix) * tangent);
     }
 }
 
 struct SkinningResult
 {
     vec3 pos;
-    vec3 normal;
     vec3 tangent;
+    vec3 binormal;
 }
 
 module SkeletalAnimation
 {
     require vec3 vertPos;
-    require vec3 vertNormal;
+    require vec3 vertBinormal;
     require vec3 vertTangent;
     require uint boneIds;
     require uint boneWeights;
 
     require mat4 viewProjectionTransform;
-    @SkeletonData BoneTransform[] boneTransforms;
+
+    param mat4[128] boneTransforms;
     
     public SkinningResult skinning
     {
         SkinningResult result;
         result.pos = vec3(0.0);
-        result.normal = vec3(0.0);
+        result.binormal = vec3(0.0);
         result.tangent = vec3(0.0);
-        for (int i = 0 : 3)
+        for (int i = 0; i < 4; i++)
         {
             uint boneId = (boneIds >> (i*8)) & 255;
             if (boneId == 255) continue;
             float boneWeight = float((boneWeights >> (i*8)) & 255) * (1.0/255.0);
-            vec3 tp = (boneTransforms[boneId].transformMatrix * vec4(vertPos, 1.0)).xyz;
+            vec3 tp = (boneTransforms[boneId] * vec4(vertPos, 1.0)).xyz;
             result.pos += tp * boneWeight;
-            //result.pos = tp;
-            tp = boneTransforms[boneId].normalMatrix * vertNormal;
-            result.normal += tp * boneWeight;
-            //result.normal = tp;
-            tp = (boneTransforms[boneId].transformMatrix * vec4(vertTangent, 0.0)).xyz;
+            tp = mat3(boneTransforms[boneId]) * vertBinormal;
+            result.binormal += tp * boneWeight;
+            tp = mat3(boneTransforms[boneId]) * vertTangent;
             result.tangent += tp * boneWeight;
-            //result.tangent = tp;
         }
+        result.binormal = normalize(result.binormal);
+        result.tangent = normalize(result.tangent);
         return result;
     }
-    public vec3 coarseVertPos = skinning.pos;
-    public vec3 coarseVertNormal = skinning.normal;
-    public vec3 coarseVertTangent = skinning.tangent;
+    public @CoarseVertex vec3 coarseVertPos = skinning.pos;
+    public @CoarseVertex vec3 coarseVertBinormal = skinning.binormal;
+    public @CoarseVertex vec3 coarseVertTangent = skinning.tangent;
+    public @CoarseVertex vec3 coarseVertNormal = normalize(cross(coarseVertBinormal, coarseVertTangent));
 
 	public vec3 worldTransformPos(vec3 pos)
     {
         return pos;
     }
-    public vec3 worldTransformNormal(vec3 norm)
+    public vec3 worldTransformTangent(vec3 tangent)
     {
-        return norm;
+        return tangent;
     }
 }
 
@@ -162,7 +150,7 @@ module NoTessellation
     public vec3 fineVertPos = coarseVertPos;
 }
 
-module PN_Tessellation : TessellationPipeline
+module PN_Tessellation targets TessellationPipeline
 {
     require vec3 coarseVertPos;
     require vec3 coarseVertNormal;
@@ -241,11 +229,12 @@ module PN_Tessellation : TessellationPipeline
 
 module ParallaxOcclusionMapping
 {
-    require sampler2D heightTexture;
+    require float GetHeight(vec2 uvCoord);
     require vec3 viewDirTangentSpace;
     require vec2 uv;
     require float parallaxScale;
-    
+    require SamplerState textureSampler;
+
     vec3 parallaxMapping
     {
         vec3 V = viewDirTangentSpace;
@@ -262,13 +251,13 @@ module ParallaxOcclusionMapping
         // current depth of the layer
         float curLayerHeight = 0.01;
         // shift of texture coordinates for each layer
-        vec2 dtex = parallaxScale * V.xy /V.z / numLayers;
+        vec2 dtex = parallaxScale * V.xy / max(V.z, 1e-5) / numLayers;
         dtex.y = -dtex.y;
         // current texture coordinates
         vec2 currentTextureCoords = T;
 
         // depth from heightmap
-        float heightFromTexture = 1.0-texture(heightTexture, currentTextureCoords).r;
+        float heightFromTexture = 1.0 - GetHeight(currentTextureCoords);//heightTexture.Sample(textureSampler, currentTextureCoords).r;
 
         // while point is above the surface
         while (heightFromTexture > curLayerHeight) 
@@ -278,7 +267,7 @@ module ParallaxOcclusionMapping
             // shift of texture coordinates
             currentTextureCoords -= dtex;
             // new depth from heightmap
-            heightFromTexture = 1.0-texture(heightTexture, currentTextureCoords).r;
+            heightFromTexture = 1.0 - GetHeight(currentTextureCoords);//-heightTexture.Sample(textureSampler, currentTextureCoords).r;
         }
          ///////////////////////////////////////////////////////////
         // Start of Relief Parallax Mapping
@@ -293,14 +282,14 @@ module ParallaxOcclusionMapping
 
         // binary search to increase precision of Steep Paralax Mapping
         int numSearches = 5;
-        for (int i=0:numSearches)
+        for (int i = 0; i <= numSearches; i++)
         {
             // decrease shift and height of layer by half
             deltaTexCoord /= 2;
             deltaHeight /= 2;
 
             // new depth from heightmap
-            heightFromTexture = 1.0-texture(heightTexture, currentTextureCoords).r;
+            heightFromTexture = 1.0 - GetHeight(currentTextureCoords);//heightTexture.Sample(textureSampler, currentTextureCoords).r;
 
             // shift along or agains vector V
             if(heightFromTexture > curLayerHeight) // below the surface
@@ -320,7 +309,7 @@ module ParallaxOcclusionMapping
 
     public vec2 uvOut = parallaxMapping.xy;
     public float heightOut = parallaxMapping.z;
-        
+
     public float selfShadow(vec3 L_tangentSpace)
     {
         float initialHeight = heightOut - 0.05;
@@ -344,7 +333,7 @@ module ParallaxOcclusionMapping
             // current parameters
             float currentLayerHeight = initialHeight - layerHeight;
             vec2 currentTextureCoords = initialTexCoord + texStep;
-            float heightFromTexture	= 1.0-texture(heightTexture, currentTextureCoords).r;
+            float heightFromTexture	= 1.0 - GetHeight(currentTextureCoords); //heightTexture.Sample(textureSampler, currentTextureCoords).r;
             // while point is below depth 0.0 )
             while(currentLayerHeight > 0)
             {
@@ -358,7 +347,7 @@ module ParallaxOcclusionMapping
                 // ofFragmentet to the next layer
                 currentLayerHeight -= layerHeight;
                 currentTextureCoords += texStep;
-                heightFromTexture = 1.0-texture(heightTexture, currentTextureCoords).r;
+                heightFromTexture = 1.0 - GetHeight(currentTextureCoords); //-heightTexture.Sample(textureSampler, currentTextureCoords).r;
             }
 
             // Shadowing factor should be 1 if there were no points under the surface
@@ -375,27 +364,75 @@ module ParallaxOcclusionMapping
     }
 }
 
+ float PhongApprox(float Roughness, float RoL)
+{
+    float a = Roughness * Roughness;	
+    a = max(a, 0.008);					
+    float a2 = a * a;						
+    float rcp_a2 = 1.0/(a2);					
+    float c = 0.72134752 * rcp_a2 + 0.39674113;	
+    float p = rcp_a2 * exp2(c * RoL - c);	
+    // Total 7 instr
+    return min(p, rcp_a2);
+}
+vec3 EnvBRDFApprox( vec3 SpecularColor, float Roughness, float NoV )
+{
+    vec4 c0 = vec4(-1, -0.0275, -0.572, 0.022);
+    vec4 c1 = vec4(1, 0.0425, 1.04, -0.04);
+    vec4 r = Roughness * c0 + c1;
+    float a004 = min( r.x * r.x, exp2( -9.28 * NoV ) ) * r.x + r.y;
+    vec2 AB = vec2( -1.04, 1.04 ) * a004 + r.zw;
+    AB.y *= min(50.0 * SpecularColor.g, 1.0);
+    return SpecularColor * AB.x + AB.y;
+}
+
 module Lighting
 {
+    public param vec3 lightDir;
+    public param vec3 lightColor;
+    public param float ambient;
+    public param int shadowMapId;
+    public param int numCascades;
+    public param mat4[8] lightMatrix;
+    public param vec4[2] zPlanes;
+    public param Texture2DArrayShadow shadowMapArray;
+    public param SamplerComparisonState shadowMapSampler;
+    public param TextureCube envMap;
+
     require vec3 normal;   
     require vec3 albedo;
     require vec3 lightParam;
+    require float ao;
     require vec3 pos;
-    require vec3 lightDir;
-    require vec3 lightColor;
     require vec3 cameraPos;
     require float selfShadow(vec3 lightDir);
-    float shadow = selfShadow(lightDir);
-    float brightness = clamp(dot(lightDir, normal), 0.0, 1.0) * shadow;
+    require mat4 viewTransform;
+    require bool isDoubleSided;
+    require SamplerState textureSampler;
+
+    vec3 lNormal
+    {
+		vec3 result;
+        if (isDoubleSided)
+        {
+            result = dot(normal, view) < 0 ? -normal : normal;
+        }
+        else
+        {
+            result = normal;
+        }
+		return result;
+    }
+
     vec3 view = normalize(cameraPos - pos);
     inline float roughness_in = lightParam.x;
     inline float metallic_in = lightParam.y;
     inline float specular_in = lightParam.z;
     vec3 L = lightDir;
     vec3 H = normalize(view+L);
-    float dotNL = clamp(dot(normal,L), 0.01, 0.99);
+    float dotNL = clamp(dot(lNormal,L), 0.01, 0.99);
     float dotLH = clamp(dot(L,H), 0.01, 0.99);
-    float dotNH = clamp(dot(normal,H), 0.01, 0.99);
+    float dotNH = clamp(dot(lNormal,H), 0.01, 0.99);
     
     float Pow4(float x)
     {
@@ -407,7 +444,7 @@ module Lighting
         float alpha = roughness*roughness;/*sf*/
 
         // F
-        float F_a, F_b;
+        float F_a; float F_b;
         float dotLH5 = Pow4(1.0-dotLH) * (1.0 - dotLH);
         F_a = 1.0;
         F_b = dotLH5;
@@ -432,23 +469,80 @@ module Lighting
         float D = alphaSqr/(pi * denom * denom);
         return D;
     }
+
+    float shadow
+    {
+        float result = selfShadow(lightDir);
+        if (numCascades)
+        {
+            vec3 viewPos = (viewTransform * vec4(pos, 1.0)).xyz;
+            for (int i = 0; i < numCascades; i++)
+            {
+                if (-viewPos.z < zPlanes[i>>2][i&3])
+                {
+                    vec4 lightSpacePosT = lightMatrix[i] * vec4(pos, 1.0);
+                    vec3 lightSpacePos = lightSpacePosT.xyz / lightSpacePosT.w;
+                    float val = shadowMapArray.SampleCmp(shadowMapSampler, 
+                        vec3(lightSpacePos.xy, i+shadowMapId), lightSpacePos.z);
+                    result *= val;
+                    break;
+                }
+            }
+        }
+        return result;
+    }
     
-    float highlight : phongStandard
+    float brightness = clamp(dot(lightDir, lNormal), 0.0, 1.0) * shadow;
+
+    public vec3 result
     {
-        float alpha = roughness_in*roughness_in;
-        float p = 6.644/(alpha*alpha) - 6.644;
-        float pi = 3.14159;
-        return dotNL *exp2(p * dotNH - p) / (pi * (alpha*alpha)) * specular_in;
+        float dielectricSpecluar = 0.02 * specular_in;
+        vec3 diffuseColor = albedo - albedo * metallic_in;
+        vec3 specularColor = vec3(dielectricSpecluar - dielectricSpecluar * metallic_in) + albedo * metallic_in;
+        float NoV = max(dot(lNormal, view), 0.0);
+        specularColor = EnvBRDFApprox(specularColor, roughness_in, NoV);
+        vec3 R = reflect(-view, lNormal);
+        float RoL = max(0, dot(R, lightDir));
+        vec3 color = lightColor * dotNL * (diffuseColor + specularColor * PhongApprox(roughness_in, RoL)) * shadow;
+        vec3 specularIBL = specularColor * envMap.SampleLevel(textureSampler, R, 
+                            clamp(roughness_in, 0.0, 1.0) * 8.0).xyz;
+        vec3 diffuseIBL = diffuseColor * envMap.SampleLevel(textureSampler, lNormal, 
+                            8.0).xyz * ambient;
+        color += specularIBL + diffuseIBL;
+        color *= ao;
+        return color;
     }
-    float highlight : GGXstandard
+}
+
+module ForwardBasePassParams
+{
+    public param mat4 viewTransform;
+    public param mat4 viewProjectionTransform;
+    public param mat4 invViewTransform;
+    public param mat4 invViewProjTransform;
+    public param vec3 cameraPos;
+    public param float time;  
+    public param SamplerState textureSampler;  
+}
+
+interface IMaterialPattern
+{
+    vec3 albedo = vec3(1.0);
+    vec3 normal = vec3(0.0, 0.0, 1.0);
+    float roughness = 0.5;
+    float metallic = 0.3;
+    float specular = 0.8;
+    float opacity = 1.0;
+    float ao = 1.0;
+    bool isDoubleSided = false;
+    float selfShadow(vec3 lightDir)
     {
-        float D = LightingFuncGGX_D(dotNH,roughness_in);
-        vec2 FV_helper = LightingFuncGGX_FV(dotLH,roughness_in);
-        float FV = metallic_in*FV_helper.x + (1.0-metallic_in)*FV_helper.y;
-        float specular = dotNL * D * FV * specular_in;
-        return specular;
+        return 1.0;        
     }
-    public vec3 result = lightColor * 
-                        (albedo * (brightness + 0.7)*(1.0-metallic_in) + 
-                        mix(albedo, vec3(1.0), 1.0 - metallic_in) * (highlight * shadow));
+}
+
+interface IMaterialGeometry
+{
+    public vec3 fineVertPos;
+    public vec3 displacement;
 }
