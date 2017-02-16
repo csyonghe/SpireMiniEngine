@@ -149,6 +149,11 @@ namespace GameEngine
 			unsigned int & vBoneIds = *(unsigned int*)((unsigned char *)vertexData.Buffer() + vertId * vertexFormat.GetVertexSize() + vertexFormat.GetBoneIdsOffset());
 			unsigned int & vBoneWeights = *(unsigned int*)((unsigned char *)vertexData.Buffer() + vertId * vertexFormat.GetVertexSize() + vertexFormat.GetBoneWeightsOffset());
 			unsigned char cBoneIds[4], cWeights[4];
+            for (int i = 0; i < 4; i++)
+            {
+                cBoneIds[i] = 255;
+                cWeights[i] = 0;
+            }
 			for (int i = 0; i < CoreLib::Math::Min(4, boneIds.Count()); i++)
 			{
 				cBoneIds[i] = boneIds[i] == -1 ? 255 : (unsigned char)boneIds[i];
