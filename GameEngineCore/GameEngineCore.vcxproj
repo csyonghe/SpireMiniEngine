@@ -160,6 +160,7 @@
     <ClCompile Include="Actor.cpp" />
     <ClCompile Include="AnimationSynthesizer.cpp" />
     <ClCompile Include="AnimationVisualizationActor.cpp" />
+    <ClCompile Include="ArcBallCameraController.cpp" />
     <ClCompile Include="AsyncCommandBuffer.cpp" />
     <ClCompile Include="AtmosphereActor.cpp" />
     <ClCompile Include="AtmospherePostRenderPass.cpp" />
@@ -227,6 +228,7 @@
     <ClInclude Include="Actor.h" />
     <ClInclude Include="AnimationSynthesizer.h" />
     <ClInclude Include="AnimationVisualizationActor.h" />
+    <ClInclude Include="ArcBallCameraController.h" />
     <ClInclude Include="AsyncCommandBuffer.h" />
     <ClInclude Include="Atmosphere.h" />
     <ClInclude Include="AtmosphereActor.h" />

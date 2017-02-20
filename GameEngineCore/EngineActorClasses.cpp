@@ -3,6 +3,7 @@
 #include "StaticMeshActor.h"
 #include "CameraActor.h"
 #include "FreeRoamCameraController.h"
+#include "ArcBallCameraController.h"
 #include "MotionGraphMeshActor.h"
 #include "AnimationVisualizationActor.h"
 #include "DirectionalLightActor.h"
@@ -19,6 +20,7 @@ namespace GameEngine
 		REGISTER_ACTOR_CLASS(SkeletalMesh);
 		REGISTER_ACTOR_CLASS(Camera);
 		REGISTER_ACTOR_CLASS(FreeRoamCameraController);
+		REGISTER_ACTOR_CLASS(ArcBallCameraController);
         REGISTER_ACTOR_CLASS(MotionGraphMesh);
         REGISTER_ACTOR_CLASS(AnimationVisualization);
 		REGISTER_ACTOR_CLASS(DirectionalLight);

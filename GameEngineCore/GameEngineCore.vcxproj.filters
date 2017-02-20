@@ -143,6 +143,10 @@
     <ClCompile Include="ToneMappingActor.cpp">
       <Filter>Actors</Filter>
     </ClCompile>
+    <ClCompile Include="ToneMappingPostRenderPass.cpp" />
+    <ClCompile Include="ArcBallCameraController.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
@@ -274,9 +278,6 @@
     <ClInclude Include="LightProbeRenderer.h">
       <Filter>Renderer</Filter>
     </ClInclude>
-    <ClInclude Include="ToneMappingPostRenderPass.cpp">
-      <Filter>Renderer\PostProcess</Filter>
-    </ClInclude>
     <ClInclude Include="PostRenderPass.h">
       <Filter>Renderer\PostProcess</Filter>
     </ClInclude>
@@ -291,6 +292,9 @@
     </ClInclude>
     <ClInclude Include="ToneMapping.h">
       <Filter>Renderer\PostProcess</Filter>
+    </ClInclude>
+    <ClInclude Include="ArcBallCameraController.h">
+      <Filter>Actors</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

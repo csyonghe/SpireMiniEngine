@@ -8,13 +8,20 @@ Camera
     fov 60.0
 }
 
+/*
 FreeRoamCameraController
 {
     name "CamControl"
     TargetCamera "FreeCam"
     Speed 100.0
 }
-
+*/
+ArcBallCameraController
+{
+    name "arcballControl"
+    TargetCamera "FreeCam"
+        
+}
 ToneMapping
 {
     name "tonemap"
