@@ -7,7 +7,7 @@ namespace GameEngine
 
 	void ArcBallCameraControllerActor::FindTargetCamera()
 	{
-		auto actor = Engine::Instance()->GetLevel()->FindActor(targetCameraName);
+		auto actor = level->FindActor(targetCameraName);
 		if (actor && actor->GetEngineType() == EngineActorType::Camera)
 			targetCamera = (CameraActor*)actor;
 	}
