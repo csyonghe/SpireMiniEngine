@@ -159,6 +159,7 @@ namespace GameEngine
 		Engine::Instance()->GetUiEntry()->OnMouseMove.Bind(this, &ArcBallCameraControllerActor::MouseMove);
 		Engine::Instance()->GetUiEntry()->OnMouseUp.Bind(this, &ArcBallCameraControllerActor::MouseUp);
 		Engine::Instance()->GetUiEntry()->OnMouseWheel.Bind(this, &ArcBallCameraControllerActor::MouseWheel);
+		UpdateCamera();
 	}
 
 	EngineActorType ArcBallCameraControllerActor::GetEngineType()
