@@ -20,9 +20,8 @@ namespace GameEngine
 			currentArcBall.GetCoordinates(camPos, up, right, dir);
 			targetCamera->SetPosition(camPos);
 			float rotX = asinf(-dir.y);
-			float rotY = atan2f(-dir.z, -dir.x);
-			float rotZ = atan2f(right.y, up.y);
-			targetCamera->SetOrientation(rotY, rotX, rotZ);
+			float rotY = -atan2f(-dir.x, -dir.z);
+			targetCamera->SetOrientation(rotY, rotX, 0.0f);
 		}
 	}
 
@@ -56,13 +55,14 @@ namespace GameEngine
 			{
 				currentArcBall.alpha = lastArcBall.alpha + deltaX * this->turnPrecision;
 				currentArcBall.beta = lastArcBall.beta + deltaY * this->turnPrecision;
+                currentArcBall.beta = Math::Clamp(currentArcBall.beta, -Math::Pi*0.5f + 1e-4f, Math::Pi*0.5f - 1e-4f);
 			}
 			else if (state == MouseState::Translate)
 			{
 				Vec3 camPos, up, right, dir;
 				currentArcBall.GetCoordinates(camPos, up, right, dir);
 				currentArcBall.center = lastArcBall.center + up * translatePrecision * currentArcBall.radius * (float)deltaY
-					+ right * translatePrecision * currentArcBall.radius * (float)deltaX;
+					- right * translatePrecision * currentArcBall.radius * (float)deltaX;
 			}
 			UpdateCamera();
 		}
@@ -76,7 +76,7 @@ namespace GameEngine
 
 	void ArcBallCameraControllerActor::MouseWheel(GraphicsUI::UI_Base * /*sender*/, GraphicsUI::UIMouseEventArgs & e)
 	{
-		if (e.Delta > 0)
+		if (e.Delta < 0)
 			currentArcBall.radius *= zoomScale;
 		else
 			currentArcBall.radius /= zoomScale;
@@ -124,6 +124,26 @@ namespace GameEngine
 			zoomScale = (float)parser.ReadDouble();
 			return true;
 		}
+        else if (parser.LookAhead("Center"))
+        {
+            parser.ReadToken();
+            currentArcBall.center = ParseVec3(parser);
+        }
+        else if (parser.LookAhead("Radius"))
+        {
+            parser.ReadToken();
+            currentArcBall.radius = parser.ReadFloat();
+        }
+        else if (parser.LookAhead("Alpha"))
+        {
+            parser.ReadToken();
+            currentArcBall.alpha = parser.ReadFloat();
+        }
+        else if (parser.LookAhead("Beta"))
+        {
+            parser.ReadToken();
+            currentArcBall.beta = parser.ReadFloat();
+        }
 		return false;
 	}
 
@@ -135,7 +155,6 @@ namespace GameEngine
 		Engine::Instance()->GetUiEntry()->OnMouseMove.Bind(this, &ArcBallCameraControllerActor::MouseMove);
 		Engine::Instance()->GetUiEntry()->OnMouseUp.Bind(this, &ArcBallCameraControllerActor::MouseUp);
 		Engine::Instance()->GetUiEntry()->OnMouseWheel.Bind(this, &ArcBallCameraControllerActor::MouseWheel);
-
 	}
 
 	EngineActorType ArcBallCameraControllerActor::GetEngineType()
@@ -160,9 +179,10 @@ namespace GameEngine
 		axisDir.z = sin(alpha) * cos(beta);
 		axisDir.y = sin(beta);
 		dir = -axisDir;
-		up.x = cos(alpha) * cos(beta + Math::Pi * 0.5f);
-		up.z = sin(alpha) * cos(beta + Math::Pi * 0.5f);
-		up.y = sin(beta + Math::Pi * 0.5f);
+        float beta2 = beta + Math::Pi * 0.5f;
+		up.x = cos(alpha) * cos(beta2);
+		up.z = sin(alpha) * cos(beta2);
+		up.y = sin(beta2);
 		right = Vec3::Cross(dir, up);
 		camPos = center + axisDir * radius;
 	}

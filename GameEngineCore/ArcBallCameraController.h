@@ -16,8 +16,8 @@ namespace GameEngine
 	{
 	public:
 		VectorMath::Vec3 center;
-		float radius = 100.0f;
-		float alpha = 0.0f, beta = 0.0f;
+		float radius = 800.0f;
+		float alpha = Math::Pi * 0.5f, beta = 0.0f;
 		ArcBallParams()
 		{
 			center.SetZero();
@@ -31,7 +31,7 @@ namespace GameEngine
 		int lastX = 0, lastY = 0;
 		
 		float turnPrecision = CoreLib::Math::Pi / 1000.0f;
-		float translatePrecision = 0.1f;
+		float translatePrecision = 0.001f;
 		float zoomScale = 1.1f;
 		float minDist = 10.0f;
 		float maxDist = 10000.0f;
