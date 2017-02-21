@@ -128,21 +128,25 @@ namespace GameEngine
         {
             parser.ReadToken();
             currentArcBall.center = ParseVec3(parser);
+			return true;
         }
         else if (parser.LookAhead("Radius"))
         {
             parser.ReadToken();
             currentArcBall.radius = parser.ReadFloat();
+			return true;
         }
         else if (parser.LookAhead("Alpha"))
         {
             parser.ReadToken();
             currentArcBall.alpha = parser.ReadFloat();
+			return true;
         }
         else if (parser.LookAhead("Beta"))
         {
             parser.ReadToken();
             currentArcBall.beta = parser.ReadFloat();
+			return true;
         }
 		return false;
 	}
