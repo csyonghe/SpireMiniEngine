@@ -46,6 +46,9 @@ public:
 		{
 			localTransform.values[12] = (slider->GetPosition() - 1000) * 0.2f;
 		});
+
+        auto line = new Line(uiForm);
+        line->SetPoints(15, 30, 30, 10);
 		entry->ShowWindow(uiForm);
 	}
 	virtual void OnLoad() override

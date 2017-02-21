@@ -48,8 +48,9 @@ namespace GameEngine
 	void Level::UnregisterActor(Actor*actor)
 	{
 		actor->OnUnload();
-		Actors[actor->Name] = nullptr;
-		Actors.Remove(actor->Name);
+        auto actorName = actor->Name;
+		Actors[actorName] = nullptr;
+		Actors.Remove(actorName);
 	}
 	Mesh * Level::LoadMesh(CoreLib::String fileName)
 	{

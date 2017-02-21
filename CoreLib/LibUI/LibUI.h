@@ -397,8 +397,11 @@ namespace GraphicsUI
 
 	class Line : public Control
 	{
+    private:
+        int x0, x1, y0, y1;
 	public:
 		Line(Container * owner);
+        void SetPoints(int x0, int y0, int x1, int y1);
 		virtual void Draw(int absX, int absY);
 	};
 

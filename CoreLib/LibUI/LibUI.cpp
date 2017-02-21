@@ -6848,11 +6848,22 @@ namespace GraphicsUI
 		: Control(owner)
 	{
 	}
+    void Line::SetPoints(int px0, int py0, int px1, int py1)
+    {
+        x0 = px0;
+        x1 = px1;
+        y0 = py0;
+        y1 = py1;
+        Left = Math::Min(x0, x1);
+        Top = Math::Min(y0, y1);
+        Width = Math::Max(x0, x1) - Left;
+        Height = Math::Max(y0, y1) - Top;
+    }
 	void Line::Draw(int absX, int absY)
 	{
 		auto & graphics = GetEntry()->DrawCommands;
 		graphics.PenColor = BorderColor;
-		graphics.DrawLine(absX + Left, absY + Top, absX + Left + Width - 1, absY + Top + Height - 1);
+		graphics.DrawLine(absX + x0, absY + y0, absX + x1, absY + y1);
 	}
 
 	CommandForm::CommandForm(UIEntry * parent)
