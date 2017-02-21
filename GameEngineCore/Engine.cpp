@@ -288,11 +288,18 @@ namespace GameEngine
 		}
 		else
 		{
-			auto word = parser.ReadToken();
-			List<String> args;
-			while (!parser.IsEnd())
-				args.Add(parser.ReadWord());
-			inputDispatcher->DispatchAction(word.Content, args.GetArrayView(), 1.0f);
+			try
+			{
+				auto word = parser.ReadToken();
+				List<String> args;
+				while (!parser.IsEnd())
+					args.Add(parser.ReadWord());
+				inputDispatcher->DispatchAction(word.Content, args.GetArrayView(), 1.0f);
+			}
+			catch (Exception)
+			{
+				Print("Invalid command.\n");
+			}
 		}
 	}
 
