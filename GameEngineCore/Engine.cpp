@@ -293,7 +293,7 @@ namespace GameEngine
 				auto word = parser.ReadToken();
 				List<String> args;
 				while (!parser.IsEnd())
-					args.Add(parser.ReadWord());
+					args.Add(parser.ReadToken());
 				inputDispatcher->DispatchAction(word.Content, args.GetArrayView(), 1.0f);
 			}
 			catch (Exception)
