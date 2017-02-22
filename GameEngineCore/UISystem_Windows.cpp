@@ -1140,7 +1140,7 @@ namespace GraphicsUI
 		uiRenderer->SetScreenResolution(w, h);
 	}
 
-	void UIWindowsSystemInterface::TransferDrawComands(Texture2D* baseTexture, CoreLib::List<DrawCommand>& commands)
+	void UIWindowsSystemInterface::TransferDrawCommands(Texture2D* baseTexture, CoreLib::List<DrawCommand>& commands)
 	{
 		uiRenderer->BeginUIDrawing();
 		int ptr = 0;

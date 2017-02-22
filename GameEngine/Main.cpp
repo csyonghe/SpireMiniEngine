@@ -208,7 +208,6 @@ int wWinMain(
 				Engine::Instance()->SetTimingMode(GameEngine::TimingMode::Fixed);
 				Engine::Instance()->SetFrameDuration(1.0f / appParams.FramesPerSecond);
 			}
-
 			Application::Run(form, true);
 		}
 		catch (const Exception & e)

@@ -177,7 +177,7 @@ namespace GraphicsUI
 		IFont * LoadFont(const Font & f);
 		IImage * CreateImageObject(const CoreLib::Imaging::Bitmap & bmp);
 		void SetResolution(int w, int h);
-		void TransferDrawComands(GameEngine::Texture2D* baseTexture, CoreLib::List<DrawCommand> & commands);
+		void TransferDrawCommands(GameEngine::Texture2D* baseTexture, CoreLib::List<DrawCommand> & commands);
 		void ExecuteDrawCommands(GameEngine::Fence* fence);
 		void SetEntry(UIEntry * pentry);
 		int HandleSystemMessage(HWND hWnd, UINT message, WPARAM &wParam, LPARAM &lParam);

@@ -47,7 +47,7 @@ namespace GameEngine
 		{
 			renderer->GetHardwareRenderer()->BeginDataTransfer();
 			auto uiCommands = uiEntry->DrawUI();
-			uiSystemInterface->TransferDrawComands(renderer->GetRenderedImage(), uiCommands);
+			uiSystemInterface->TransferDrawCommands(renderer->GetRenderedImage(), uiCommands);
 			renderer->GetHardwareRenderer()->EndDataTransfer();
 			uiSystemInterface->ExecuteDrawCommands(nullptr);
 			renderer->GetHardwareRenderer()->Present(uiSystemInterface->GetRenderedImage());
@@ -214,7 +214,7 @@ namespace GameEngine
 		renderer->GetHardwareRenderer()->BeginDataTransfer();
 		renderer->TakeSnapshot();
 		auto uiCommands = uiEntry->DrawUI();
-		uiSystemInterface->TransferDrawComands(renderer->GetRenderedImage(), uiCommands);
+		uiSystemInterface->TransferDrawCommands(renderer->GetRenderedImage(), uiCommands);
 		renderer->GetHardwareRenderer()->EndDataTransfer();
 		inDataTransfer = false;
 
