@@ -210,7 +210,7 @@ namespace GraphicsUI
 		{
 			UIMouseEventArgs e;
 			TranslateMouseMessage(e, wParam, lParam);
-			entry->DoMouseWheel(e.Delta);
+			entry->DoMouseWheel(e.Delta, e.Shift);
 		}
 		break;
 		case WM_SIZE:
@@ -653,9 +653,9 @@ namespace GraphicsUI
 		RefPtr<Pipeline> pipeline;
 		CoreLib::RefPtr<Texture2D> uiOverlayTexture;
 		RefPtr<Buffer> vertexBuffer, indexBuffer, primitiveBuffer, uniformBuffer;
-		const int primitiveBufferSize = 1 << 22;
-		const int indexBufferSize = 1 << 17;
-		const int vertexBufferSize = 1 << 21;
+		const int primitiveBufferSize = 1 << 25;
+		const int indexBufferSize = 1 << 25;
+		const int vertexBufferSize = 1 << 25;
 		RefPtr<TextureSampler> linearSampler;
 		RefPtr<RenderTargetLayout> renderTargetLayout;
 		Array<RefPtr<DescriptorSet>, DynamicBufferLengthMultiplier> descSets;
@@ -845,6 +845,72 @@ namespace GraphicsUI
 			uniformFields.Add(fields);
 			primCounter++;
 		}
+        void DrawLineCap(Color color, Vec2 pos, Vec2 dir, float size)
+        {
+            Array<Vec2,3> points;
+            points.SetSize(3);
+            points[0] = pos + dir * size;
+            Vec2 up = Vec2::Create(dir.y, -dir.x);
+            points[1] = pos + up * (size * 0.5f);
+            points[2] = points[1] - up * size;
+            DrawSolidPolygon(color, points.GetArrayView());
+        }
+        void DrawBezier(float width, LineCap startCap, LineCap endCap, Color color, Vec2 p0, Vec2 p1, Vec2 p2, Vec2 p3)
+        {
+            auto p10 = p1 - p0;
+            auto p21 = p2 - p1;
+            auto p32 = p3 - p2;
+            auto posAt = [&](float t)
+            {
+                Vec2 rs;
+                float invT = 1.0f - t;
+                rs = p0 * (invT*invT*invT) + p1 * (3.0f * (invT*invT) * t) + p2 * (3.0f * invT * (t * t)) + p3 * (t * t * t);
+                return rs;
+            };
+            auto dirAt = [&](float t)
+            {
+                float invT = 1.0f - t;
+                return p10 * (invT * invT * 3.0f) + p21 * (invT*t*6.0f) + p32 * (t * t * 3.0f);
+            };
+            float estimatedLength = p10.Length() + p21.Length() + p32.Length();
+            int segs = Math::Max(2, (int)sqrt(estimatedLength));
+            float invSegs = 1.0f / (segs - 1);
+            Vec2 pos0 = posAt(0.0f);
+            Vec2 dir0 = dirAt(0.0f).Normalize();
+            Vec2 dir1 = Vec2::Create(0.0f, 0.0f), pos1 = Vec2::Create(0.0f, 0.0f);
+            Vec2 up0 = Vec2::Create(dir0.y, -dir0.x);
+            float halfWidth = width * 0.5f;
+            Vec2 v0 = pos0 + up0 * halfWidth;
+            Vec2 v1 = v0 - up0 * width;
+            CoreLib::Array<Vec2, 4> points;
+            points.SetSize(4);
+            for (int i = 1; i < segs; i++)
+            {
+                float t = invSegs * i;
+                pos1 = posAt(t);
+                dir1 = dirAt(t).Normalize();
+                Vec2 up1 = Vec2::Create(dir1.y, -dir1.x);
+                Vec2 v2 = pos1 + up1 * halfWidth;
+                Vec2 v3 = v2 - up1 * width;
+                points[0] = v0;
+                points[1] = v1;
+                points[2] = v3;
+                points[3] = v2;
+                DrawSolidPolygon(color, points.GetArrayView());
+                v0 = v2;
+                v1 = v3;
+            }
+            if (endCap == LineCap::Arrow)
+            {
+                DrawLineCap(color, pos1, dir1, width * 4.0f);
+            }
+            if (startCap == LineCap::Arrow)
+            {
+                dir0.x = -dir0.x;
+                dir0.y = -dir0.y;
+                DrawLineCap(color, pos0, dir0, width * 4.0f);
+            }
+        }
 		void DrawSolidPolygon(const Color & color, CoreLib::ArrayView<Vec2> points)
 		{
 			for (auto p : points)
@@ -1127,7 +1193,18 @@ namespace GraphicsUI
 					theta += dTheta;
 				}
 				uiRenderer->DrawSolidPolygon(cmd.SolidColorParams.color, verts.GetArrayView());
+                break;
 			}
+            case DrawCommandName::Bezier:
+            {
+                uiRenderer->DrawBezier(cmd.BezierParams.width,
+                    cmd.BezierParams.startCap, cmd.BezierParams.endCap,
+                    cmd.BezierParams.color, 
+                    Vec2::Create(cmd.x0, cmd.y0),
+                    Vec2::Create(cmd.BezierParams.cx0, cmd.BezierParams.cy0),
+                    Vec2::Create(cmd.BezierParams.cx1, cmd.BezierParams.cy1),
+                    Vec2::Create(cmd.x1, cmd.y1));
+            }
 			break;
 			}
 			ptr++;

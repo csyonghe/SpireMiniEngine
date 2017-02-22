@@ -40,6 +40,12 @@ namespace GraphicsUI
 		Color(unsigned char AR, unsigned char AG, unsigned char AB) { R = AR; G = AG; B = AB; A = 255; };
 	};
 
+    enum class LineCap : char
+    {
+        None, Arrow
+    };
+
+
 	class Pen
 	{
 	public:
@@ -102,7 +108,7 @@ namespace GraphicsUI
 
 	enum class DrawCommandName
 	{
-		Line, Ellipse, Triangle, SolidQuad, TextureQuad, ShadowQuad, TextQuad, ClipQuad
+		Line, Bezier, Ellipse, Triangle, SolidQuad, TextureQuad, ShadowQuad, TextQuad, ClipQuad
 	};
 	struct SolidColorCommand
 	{
@@ -128,6 +134,13 @@ namespace GraphicsUI
 		float x2, y2;
 		Color color;
 	};
+    struct DrawBezierCommand
+    {
+        float cx0, cx1, cy0, cy1;
+        float width;
+        Color color;
+        LineCap startCap, endCap;
+    };
 	class DrawCommand
 	{
 	public:
@@ -140,6 +153,7 @@ namespace GraphicsUI
 			TextCommand TextParams;
 			ShadowCommand ShadowParams;
 			DrawTriangleCommand TriangleParams;
+            DrawBezierCommand BezierParams;
 		};
 		DrawCommand() {}
 	};

@@ -1695,6 +1695,21 @@ namespace VectorMath
 			rs.y = py;
 			return rs;
 		}
+
+        Vec2i operator + (Vec2i v)
+        {
+            Vec2i rs;
+            rs.x = x + v.x;
+            rs.y = y + v.y;
+            return rs;
+        }
+        Vec2i operator - (Vec2i v)
+        {
+            Vec2i rs;
+            rs.x = x - v.x;
+            rs.y = y - v.y;
+            return rs;
+        }
 	};
 
 	class Vec3i

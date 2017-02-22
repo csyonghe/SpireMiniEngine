@@ -169,6 +169,7 @@ namespace GraphicsUI
 		void FillEllipse(float x1, float y1, float x2, float y2);
 		void FillTriangle(int x0, int y0, int x1, int y1, int x2, int y2);
 		void DrawLine(float x1, float y1, float x2, float y2);
+        void DrawBezier(float width, LineCap startCap, LineCap endCap, VectorMath::Vec2 p0, VectorMath::Vec2 cp0, VectorMath::Vec2 cp1, VectorMath::Vec2 p1);
 		inline void DrawLine(int x1, int y1, int x2, int y2)
 		{
 			DrawLine((float)x1 + 0.5f, (float)y1 + 0.5f, (float)x2 + 0.5f, (float)y2 + 0.5f);
@@ -285,6 +286,10 @@ namespace GraphicsUI
 	{
 	public:
 		virtual void HandleMessage(const UI_MsgArgs *Args);
+        virtual void InternalBroadcastMessage(UI_MsgArgs *Args)
+        {
+            HandleMessage(Args);
+        }
 	};
 
 	class Control : public UI_Base
@@ -370,7 +375,7 @@ namespace GraphicsUI
 		//Event Reactions
 		virtual bool DoMouseMove(int X, int Y);
 		virtual bool DoMouseDown(int X, int Y, SHIFTSTATE Shift);
-		virtual bool DoMouseWheel(int /*delta*/) { return false; }
+		virtual bool DoMouseWheel(int /*delta*/, SHIFTSTATE /*Shift*/) { return false; }
 		virtual bool DoMouseEnter();
 		virtual bool DoMouseLeave();
 		virtual bool DoMouseUp(int X, int Y, SHIFTSTATE Shift);
@@ -400,10 +405,32 @@ namespace GraphicsUI
     private:
         int x0, x1, y0, y1;
 	public:
+        LineCap StartCap = LineCap::None;
+        LineCap EndCap = LineCap::None;
 		Line(Container * owner);
         void SetPoints(int x0, int y0, int x1, int y1);
 		virtual void Draw(int absX, int absY);
 	};
+
+    class Ellipse : public Control
+    {
+    public:
+        Ellipse(Container * owner);
+        virtual void Draw(int absX, int absY);
+    };
+
+    class BezierCurve : public Control
+    {
+    private:
+        VectorMath::Vec2 p0, p1, cp0, cp1;
+        float LineWidth = 1.0f;
+    public:
+        LineCap StartCap = LineCap::None;
+        LineCap EndCap = LineCap::None;
+        BezierCurve(Container * owner);
+        void SetPoints(float lineWidth, VectorMath::Vec2 p0, VectorMath::Vec2 cp0, VectorMath::Vec2 cp1, VectorMath::Vec2 p1);
+        virtual void Draw(int absX, int absY);
+    };
 
 	enum class ContainerLayoutType
 	{
@@ -428,7 +455,7 @@ namespace GraphicsUI
 		virtual void AddChild(Control *nControl);
 		virtual void RemoveChild(Control *AControl);
 		virtual void ArrangeControls(Rect initalClientRect);
-		virtual void InternalBroadcastMessage(UI_MsgArgs *Args);
+		virtual void InternalBroadcastMessage(UI_MsgArgs *Args) override;
 		virtual bool DoDblClick() override;
 		virtual bool DoMouseLeave() override;
 		virtual bool DoKeyDown(unsigned short Key, SHIFTSTATE Shift)override;
@@ -725,7 +752,7 @@ namespace GraphicsUI
 		virtual bool DoMouseDown(int X, int Y, SHIFTSTATE Shift) override;
 		virtual bool DoMouseUp(int X, int Y, SHIFTSTATE Shift) override;
 		virtual bool DoMouseMove(int X, int Y) override;
-		virtual bool DoMouseWheel(int delta) override;
+		virtual bool DoMouseWheel(int delta, SHIFTSTATE Shift) override;
 		virtual bool DoMouseHover() override;
 		virtual bool DoDblClick() override;
 		virtual void DoDpiChanged() override;
@@ -848,7 +875,7 @@ namespace GraphicsUI
 		virtual bool DoMouseDown(int x, int Y, SHIFTSTATE Shift) override;
 		virtual bool DoMouseUp(int x, int Y, SHIFTSTATE Shift) override;
 		virtual bool DoMouseMove(int x, int Y) override;
-		virtual bool DoMouseWheel(int delta) override;
+		virtual bool DoMouseWheel(int delta, SHIFTSTATE Shift) override;
 		virtual bool DoKeyDown(unsigned short Key, SHIFTSTATE Shift) override;
 		virtual bool DoMouseLeave() override;
 		virtual void DoDpiChanged() override;
@@ -888,7 +915,7 @@ namespace GraphicsUI
 		virtual bool DoMouseDown(int x, int Y, SHIFTSTATE Shift) override;
 		virtual bool DoMouseUp(int x, int Y, SHIFTSTATE Shift) override;
 		virtual bool DoMouseMove(int x, int Y) override;
-		virtual bool DoMouseWheel(int delta) override;
+		virtual bool DoMouseWheel(int delta, SHIFTSTATE Shift) override;
 		virtual bool DoKeyDown(unsigned short Key, SHIFTSTATE Shift) override;
 		virtual void SetFocus() override;
 		virtual void LostFocus(Control * newFocus) override;
@@ -1042,7 +1069,7 @@ namespace GraphicsUI
 		virtual void SizeChanged() override;
 		virtual void AddChild(Control *nControl) override;
 		virtual void RemoveChild(Control *AControl) override;
-		virtual bool DoMouseWheel(int delta) override;
+		virtual bool DoMouseWheel(int delta, SHIFTSTATE Shift) override;
 		virtual void DoFocusChange() override;
 		virtual ContainerLayoutType GetLayout() override;
 		virtual void SetLayout(ContainerLayoutType layout) override;
@@ -1050,6 +1077,40 @@ namespace GraphicsUI
 		int GetClientWidth();
 		int GetClientHeight();
 	};
+
+    class ScrollPanel : public Container
+    {
+    private:
+        ScrollBar * vscrollBar = nullptr;
+        ScrollBar * hscrollBar = nullptr;
+        Container * content = nullptr;
+        void ScrollBar_Changed(UI_Base * sender);
+        int cursorX = 0, cursorY = 0;
+        int zoomLevel = 0;
+        CoreLib::Dictionary<Control*, Rect> ctrlRects;
+    public:
+        bool EnableZoom = false;
+        CoreLib::Event<float, float> OnZoom;
+        ScrollPanel(Container * parent);
+        virtual CoreLib::List<CoreLib::RefPtr<Control>> & GetChildren() override
+        {
+            return content->GetChildren();
+        }
+        virtual void SizeChanged() override;
+        virtual void AddChild(Control *nControl) override;
+        virtual void RemoveChild(Control *AControl) override;
+        virtual bool DoMouseWheel(int delta, SHIFTSTATE Shift) override;
+        virtual bool DoMouseMove(int x, int y) override;
+        virtual ContainerLayoutType GetLayout() override;
+        virtual void SetLayout(ContainerLayoutType layout) override;
+        void UpdateLayout()
+        {
+            SizeChanged();
+        }
+        void ClearChildren();
+        int GetClientWidth();
+        int GetClientHeight();
+    };
 
 	class ToolStrip;
 

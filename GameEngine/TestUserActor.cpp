@@ -46,10 +46,37 @@ public:
 		{
 			localTransform.values[12] = (slider->GetPosition() - 1000) * 0.2f;
 		});
+        auto container = new GraphicsUI::ScrollPanel(uiForm);
+        container->Posit(10, EM(5.0), EM(40.0f), EM(35.0f));
+        auto updateContainer = [=](float zoom)
+        {
+            container->ClearChildren();
+            for (int i = 0; i < 1000; i++)
+                for (int j = 0; j < 100; j++)
+                {
+                    auto bezier = new BezierCurve(container);
+                    bezier->SetPoints(Math::Max(1.0f, 5.0f * zoom), Vec2::Create(30.0f + i * 100, 200.0f + j * 60)*zoom, Vec2::Create(40.0f + i * 100, 120.0f + j * 60)*zoom, Vec2::Create(240.0f + i * 100, 280.0f + j * 60)*zoom, Vec2::Create(250.0f + i * 100, 200.0f + j * 60)*zoom);
+                    bezier->StartCap = bezier->EndCap = LineCap::Arrow;
+                }
+            for (int i = 0; i < 1000; i++)
+                for (int j = 0; j < 100; j++)
+                {
+                    auto circle = new GraphicsUI::Ellipse(container);
+                    circle->FontColor = Color(255, 255, 255, 255);
+                    circle->Posit((int)((140 + i * 140)*zoom), (int)((140 + j * 140)*zoom), (int)(60 * zoom), (int)(60 * zoom));
+                    circle->OnMouseEnter.Bind([=](UI_Base*) 
+                    {
+                        circle->FontColor = Color(255, 255, 0, 255); 
+                    });
+                    circle->OnMouseLeave.Bind([=](UI_Base*) {circle->FontColor = Color(255, 255, 255, 255); });
 
-        auto line = new Line(uiForm);
-        line->SetPoints(15, 30, 30, 10);
-		entry->ShowWindow(uiForm);
+                }
+            container->UpdateLayout();
+        };
+        updateContainer(1.0f);
+        container->EnableZoom = true;
+        container->OnZoom.Bind([=](float /*zoom0*/, float zoom1) {updateContainer(zoom1); });
+        entry->ShowWindow(uiForm);
 	}
 	virtual void OnLoad() override
 	{

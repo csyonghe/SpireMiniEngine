@@ -115,6 +115,23 @@ namespace GraphicsUI
 		commandBuffer.Add(cmd);
 	}
 
+    void Graphics::DrawBezier(float width, LineCap startCap, LineCap endCap, VectorMath::Vec2 p0, VectorMath::Vec2 cp0, VectorMath::Vec2 cp1, VectorMath::Vec2 p1)
+    {
+        DrawCommand cmd;
+        cmd.Name = DrawCommandName::Bezier;
+        cmd.x0 = p0.x; cmd.y0 = p0.y;
+        cmd.x1 = p1.x; cmd.y1 = p1.y;
+        cmd.BezierParams.color = PenColor;
+        cmd.BezierParams.startCap = startCap;
+        cmd.BezierParams.endCap = endCap;
+        cmd.BezierParams.cx0 = cp0.x;
+        cmd.BezierParams.cx1 = cp1.x;
+        cmd.BezierParams.cy0 = cp0.y;
+        cmd.BezierParams.cy1 = cp1.y;
+        cmd.BezierParams.width = width;
+        commandBuffer.Add(cmd);
+    }
+
 	void Graphics::SetClipRect(int x, int y, int w, int h)
 	{
 		DrawCommand cmd;
@@ -1210,28 +1227,33 @@ namespace GraphicsUI
 	{
 		auto entry = GetEntry();
 		entry->ClipRects->AddRect(Rect(absX + Padding.Left, absY + Padding.Top, Width - Padding.Horizontal(), Height - Padding.Vertical()));
-		for (int i = 0; i<controls.Count(); i++)
-		{
-			if (controls[i]->Visible)
-			{
-				Control *ctrl = controls[i].Ptr();
-				if (ctrl->Visible)
-				{
-					int dx = 0;
-					int dy = 0;
-					if (ctrl->DockStyle == dsNone || ctrl->DockStyle == dsFill)
-					{
-						dx = clientRect.x;
-						dy = clientRect.y;
-					}
-					entry->ClipRects->AddRect(Rect(ctrl->Left + absX + dx, ctrl->Top + absY + dy, ctrl->GetWidth(), ctrl->GetHeight()));
-					auto clipRect = entry->ClipRects->GetTop();
-					if (ctrl->Visible && clipRect.Intersects(Rect(absX + dx + ctrl->Left, absY + dy + ctrl->Top, ctrl->GetWidth(), ctrl->GetHeight())))
-						ctrl->Draw(absX + dx, absY + dy);
-					entry->ClipRects->PopRect();
-				}
-			}
-		}
+        auto clipRect = entry->ClipRects->GetTop();
+        if (clipRect.w > 0 && clipRect.h > 0)
+        {
+            for (int i = 0; i < controls.Count(); i++)
+            {
+                if (controls[i]->Visible)
+                {
+                    Control *ctrl = controls[i].Ptr();
+                    if (ctrl->Visible)
+                    {
+                        int dx = 0;
+                        int dy = 0;
+                        if (ctrl->DockStyle == dsNone || ctrl->DockStyle == dsFill)
+                        {
+                            dx = clientRect.x;
+                            dy = clientRect.y;
+                        }
+                        if (ctrl->Visible && clipRect.Intersects(Rect(absX + dx + ctrl->Left, absY + dy + ctrl->Top, ctrl->GetWidth(), ctrl->GetHeight())))
+                        {
+                            entry->ClipRects->AddRect(Rect(ctrl->Left + absX + dx, ctrl->Top + absY + dy, ctrl->GetWidth(), ctrl->GetHeight()));
+                            ctrl->Draw(absX + dx, absY + dy);
+                            entry->ClipRects->PopRect();
+                        }
+                    }
+                }
+            }
+        }
 		entry->ClipRects->PopRect();
 	}
 
@@ -1395,11 +1417,7 @@ namespace GraphicsUI
 		this->HandleMessage(Args);
 		for (int i = controls.Count() - 1; i>=0; i--)
 		{
-			Container * ctn = dynamic_cast<Container *>(controls[i].Ptr());
-			if (ctn)
-				ctn->InternalBroadcastMessage(Args);
-			else
-				controls[i]->HandleMessage(Args);
+		    controls[i]->InternalBroadcastMessage(Args);
 		}
 			
 	}
@@ -2102,12 +2120,12 @@ namespace GraphicsUI
 		return processed;
 	}
 
-	bool GraphicsUI::UIEntry::DoMouseWheel(int delta)
+	bool GraphicsUI::UIEntry::DoMouseWheel(int delta, SHIFTSTATE shift)
 	{
 		auto ctrlToBroadcast = Global::MouseCaptureControl ? Global::MouseCaptureControl : Global::PointedComponent;
 		while (ctrlToBroadcast && ctrlToBroadcast != this)
 		{
-			if (ctrlToBroadcast->DoMouseWheel(delta))
+			if (ctrlToBroadcast->DoMouseWheel(delta, shift))
 				return true;
 			ctrlToBroadcast = ctrlToBroadcast->Parent;
 		}
@@ -4036,7 +4054,7 @@ namespace GraphicsUI
 		return true;
 	}
 
-	bool ListBox::DoMouseWheel(int delta)
+	bool ListBox::DoMouseWheel(int delta, SHIFTSTATE /*Shift*/)
 	{
 		if (Visible && Enabled && ScrollBar->Visible)
 		{
@@ -4384,12 +4402,12 @@ namespace GraphicsUI
 		return true;
 	}
 
-	bool ComboBox::DoMouseWheel(int delta)
+	bool ComboBox::DoMouseWheel(int delta, SHIFTSTATE shift)
 	{
 		if (Visible && Enabled)
 		{
 			if (ShowList)
-				return ListBox::DoMouseWheel(delta);
+				return ListBox::DoMouseWheel(delta, shift);
 			else
 			{
 				int nselId = SelectedIndex;
@@ -6794,7 +6812,7 @@ namespace GraphicsUI
 		content->RemoveChild(ctrl);
 		SizeChanged();
 	}
-	bool VScrollPanel::DoMouseWheel(int delta)
+	bool VScrollPanel::DoMouseWheel(int delta, SHIFTSTATE /*Shift*/)
 	{
 		if (vscrollBar->Visible)
 		{
@@ -6844,6 +6862,166 @@ namespace GraphicsUI
 	{
 		return content->GetHeight();
 	}
+
+
+    void ScrollPanel::ScrollBar_Changed(UI_Base * /*sender*/)
+    {
+        content->Top = -vscrollBar->GetPosition();
+        content->Left = -hscrollBar->GetPosition();
+    }
+
+    ScrollPanel::ScrollPanel(Container * parent)
+        : Container(parent)
+    {
+        auto bottomContainer = new Container(this, false);
+        Container::AddChild(bottomContainer);
+        bottomContainer->Posit(0, 0, Global::SCROLLBAR_BUTTON_SIZE, Global::SCROLLBAR_BUTTON_SIZE);
+        bottomContainer->DockStyle = dsBottom;
+        auto bottomCorner = new Control(bottomContainer);
+        bottomCorner->BorderStyle = BS_NONE;
+        bottomCorner->Posit(0, 0, Global::SCROLLBAR_BUTTON_SIZE, Global::SCROLLBAR_BUTTON_SIZE);
+        bottomCorner->DockStyle = dsRight;
+
+        hscrollBar = new ScrollBar(bottomContainer, true);
+        hscrollBar->SetOrientation(SO_HORIZONTAL);
+        hscrollBar->Posit(0, 0, Global::SCROLLBAR_BUTTON_SIZE, Global::SCROLLBAR_BUTTON_SIZE);
+        hscrollBar->DockStyle = dsFill;
+        hscrollBar->SmallChange = 30;
+        hscrollBar->OnChanged.Bind(this, &ScrollPanel::ScrollBar_Changed);
+
+        vscrollBar = new ScrollBar(this, false);
+        
+        Container::AddChild(vscrollBar);
+        vscrollBar->SetOrientation(SO_VERTICAL);
+        vscrollBar->Posit(0, 0, Global::SCROLLBAR_BUTTON_SIZE, 50);
+        vscrollBar->DockStyle = dsRight;
+        vscrollBar->SmallChange = 30;
+        vscrollBar->OnChanged.Bind(this, &ScrollPanel::ScrollBar_Changed);
+        
+        auto mainClip = new Container(this, false);
+        Container::AddChild(mainClip);
+        mainClip->DockStyle = dsFill;
+        content = new Container(mainClip);
+        content->AutoHeight = true;
+        content->AutoWidth = true;
+
+        BorderStyle = content->BorderStyle = BS_NONE;
+        BackColor.A = content->BackColor.A = 0;
+    }
+    void ScrollPanel::SizeChanged()
+    {
+        content->SizeChanged();
+        //for (auto & ctrl : content->GetChildren())
+        //	maxY = Math::Max(ctrl->Top + ctrl->GetHeight(), maxY);
+        int maxY = content->GetHeight();
+        auto entry = GetEntry();
+        vscrollBar->LargeChange = Math::Max(Height - 30, 10);
+        if (maxY > Height - Global::SCROLLBAR_BUTTON_SIZE)
+        {
+            maxY += entry->GetLineHeight() * 3;
+            int vmax = maxY - Height + Global::SCROLLBAR_BUTTON_SIZE;
+            vscrollBar->SetValue(0, vmax, Math::Clamp(vscrollBar->GetPosition(), 0, vmax), Height - Global::SCROLLBAR_BUTTON_SIZE);
+        }
+        else
+        {
+            vscrollBar->SetPosition(0);
+        }
+        vscrollBar->Posit(0, 0, Global::SCROLLBAR_BUTTON_SIZE, Height - Global::SCROLLBAR_BUTTON_SIZE);
+
+        int maxX = content->GetWidth();
+        hscrollBar->LargeChange = Math::Max(Width - 30, 10);
+        if (maxX > Width - Global::SCROLLBAR_BUTTON_SIZE)
+        {
+            maxX += entry->GetLineHeight() * 3;
+            int hmax = maxX - Width + Global::SCROLLBAR_BUTTON_SIZE;
+            hscrollBar->SetValue(0, hmax, Math::Clamp(hscrollBar->GetPosition(), 0, hmax), Width - Global::SCROLLBAR_BUTTON_SIZE);
+        }
+        else
+        {
+            hscrollBar->SetPosition(0);
+        }
+        hscrollBar->Posit(0, 0, Width - Global::SCROLLBAR_BUTTON_SIZE, Global::SCROLLBAR_BUTTON_SIZE);
+
+        content->Left = -hscrollBar->GetPosition();
+        content->Top = -vscrollBar->GetPosition();
+        Container::SizeChanged();
+    }
+    void ScrollPanel::AddChild(Control * ctrl)
+    {
+        content->AddChild(ctrl);
+        //SizeChanged();
+    }
+    void ScrollPanel::RemoveChild(Control * ctrl)
+    {
+        content->RemoveChild(ctrl);
+        //SizeChanged();
+    }
+    bool ScrollPanel::DoMouseWheel(int delta, SHIFTSTATE shift)
+    {
+        if ((shift & (SS_ALT|SS_CONTROL|SS_SHIFT)) == 0)
+        {
+            int nPos = vscrollBar->GetPosition() + (delta < 0 ? 1 : -1) * GetEntry()->GetLineHeight() * 3;
+            nPos = Math::Clamp(nPos, vscrollBar->GetMin(), vscrollBar->GetMax());
+            vscrollBar->SetPosition(nPos);
+            return true;
+        }
+        else if ((shift & SS_ALT) == SS_ALT)
+        {
+            int nPos = hscrollBar->GetPosition() + (delta < 0 ? 1 : -1) * GetEntry()->GetLineHeight() * 3;
+            nPos = Math::Clamp(nPos, hscrollBar->GetMin(), hscrollBar->GetMax());
+            hscrollBar->SetPosition(nPos);
+            return true;
+        }
+        else if (EnableZoom && (shift & SS_CONTROL) == SS_CONTROL)
+        {
+            int vPos = vscrollBar->GetPosition();
+            int hPos = hscrollBar->GetPosition();
+            float oriZoomFactor = pow(1.1f, zoomLevel);
+            float contentPosY = (vPos + cursorY) / oriZoomFactor;
+            float contentPosX = (hPos + cursorX) / oriZoomFactor;
+            if (delta > 0)
+                zoomLevel++;
+            else
+                zoomLevel--;
+            float zoomFactor = pow(1.1f, zoomLevel);
+            OnZoom(oriZoomFactor, zoomFactor);
+            int newVPos = (int)(contentPosY * zoomFactor) - cursorY;
+            int newHPos = (int)(contentPosX * zoomFactor) - cursorX;
+            vscrollBar->SetPosition(Math::Clamp(newVPos, 0, vscrollBar->GetMax()));
+            hscrollBar->SetPosition(Math::Clamp(newHPos, 0, hscrollBar->GetMax()));
+            return true;
+        }
+        return false;
+    }
+    bool ScrollPanel::DoMouseMove(int x, int y)
+    {
+        cursorX = x;
+        cursorY = y;
+        return Container::DoMouseMove(x, y);
+    }
+    ContainerLayoutType ScrollPanel::GetLayout()
+    {
+        return content->GetLayout();
+    }
+    void ScrollPanel::SetLayout(ContainerLayoutType pLayout)
+    {
+        content->SetLayout(pLayout);
+    }
+    void ScrollPanel::ClearChildren()
+    {
+        for (auto & child : content->GetChildren())
+            child = nullptr;
+        content->GetChildren().Clear();
+    }
+    int ScrollPanel::GetClientWidth()
+    {
+        return content->GetWidth();
+    }
+    int ScrollPanel::GetClientHeight()
+    {
+        return content->GetHeight();
+    }
+
 	Line::Line(Container * owner)
 		: Control(owner)
 	{
@@ -6865,7 +7043,16 @@ namespace GraphicsUI
 		graphics.PenColor = BorderColor;
 		graphics.DrawLine(absX + x0, absY + y0, absX + x1, absY + y1);
 	}
-
+    Ellipse::Ellipse(Container * owner)
+        : Control(owner)
+    {
+    }
+    void Ellipse::Draw(int absX, int absY)
+    {
+        auto & graphics = GetEntry()->DrawCommands;
+        graphics.SolidBrushColor = this->FontColor;
+        graphics.FillEllipse((float)absX + Left, (float)absY + Top, (float)absX + Left + Width, (float)absY + Top + Height);
+    }
 	CommandForm::CommandForm(UIEntry * parent)
 		:Form(parent)
 	{
@@ -6938,4 +7125,32 @@ namespace GraphicsUI
 		cmdForm->Write(text);
 		OnWriteText(text);
 	}
+   
+    BezierCurve::BezierCurve(Container * owner)
+        : Control(owner)
+    {
+    }
+
+    void BezierCurve::SetPoints(float lineWidth, VectorMath::Vec2 tp0, VectorMath::Vec2 tcp0, VectorMath::Vec2 tcp1, VectorMath::Vec2 tp1)
+    {
+        p0 = tp0;
+        p1 = tp1;
+        cp0 = tcp0;
+        cp1 = tcp1;
+        LineWidth = lineWidth;
+        int lineWidth4 = (int)(lineWidth * 4.0f);
+        Left = (int)(Math::Min(p0.x, p1.x, Math::Min(cp0.x, cp1.x)) - lineWidth4);
+        Top = (int)(Math::Min(p0.y, p1.y, Math::Min(cp0.y, cp1.y)) - lineWidth4);
+        Width = (int)(Math::Max(p0.x, p1.x, Math::Max(cp0.x, cp1.x)) - Left + lineWidth4 * 2);
+        Height = (int)(Math::Max(p0.y, p1.y, Math::Max(cp0.y, cp1.y)) - Top + lineWidth4 * 2);
+    }
+
+    void BezierCurve::Draw(int absX, int absY)
+    {
+        auto & graphics = GetEntry()->DrawCommands;
+        graphics.PenColor = this->BorderColor;
+        Vec2 origin = Vec2::Create((float)absX, (float)absY);
+        graphics.DrawBezier(LineWidth, StartCap, EndCap, origin + p0, origin + cp0, origin + cp1, origin + p1);
+    }
+
 }

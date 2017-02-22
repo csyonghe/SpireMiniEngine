@@ -1491,7 +1491,7 @@ namespace GraphicsUI
 			Control::SetFont(pFont);
 			DoDpiChanged();
 		}
-		virtual bool DoMouseWheel(int delta) override
+		virtual bool DoMouseWheel(int delta, SHIFTSTATE) override
 		{
 			if (Visible && Enabled && vScroll->Visible)
 			{
