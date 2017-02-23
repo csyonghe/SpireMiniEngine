@@ -2,16 +2,34 @@
 #define GAME_ENGINE_SYSTEM_WINDOW_H
 
 #include "CoreLib/WinForm/WinForm.h"
-#include "LibUI/LibUI.h"
+#include "CoreLib/LibUI/LibUI.h"
 #include "HardwareRenderer.h"
+#include "UISystem_Windows.h"
 
 namespace GameEngine
 {
-    class SystemWindow : public CoreLib::WinForm::Form
+    class SystemWindow : public CoreLib::WinForm::BaseForm
     {
     private:
-        CoreLib::RefPtr<GraphicsUI::UIEntry> uiEntry;
-        CoreLib::RefPtr<WindowSurface> surface;
+        CoreLib::RefPtr<GraphicsUI::UIWindowContext> uiContext;
+    protected:
+        virtual void Create() override;
+        void WindowResized(CoreLib::Object* sender, CoreLib::WinForm::EventArgs e);
+        void WindowResizing(CoreLib::Object* sender, CoreLib::WinForm::ResizingEventArgs & e);
+
+    protected:
+        int ProcessMessage(CoreLib::WinForm::WinMessage & msg) override;
+    public:
+        SystemWindow(GraphicsUI::UIWindowsSystemInterface * sysInterface, int log2UIBufferSize);
+        ~SystemWindow();
+        GraphicsUI::UIEntry * GetUIEntry()
+        {
+            return uiContext->uiEntry.Ptr();
+        }
+        GraphicsUI::UIWindowContext * GetUIContext()
+        {
+            return uiContext.Ptr();
+        }
     };
 }
 

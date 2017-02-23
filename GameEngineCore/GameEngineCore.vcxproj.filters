@@ -144,6 +144,7 @@
     <ClCompile Include="ArcBallCameraController.cpp">
       <Filter>Actors</Filter>
     </ClCompile>
+    <ClCompile Include="SystemWindow.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />

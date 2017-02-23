@@ -398,6 +398,7 @@ namespace GraphicsUI
 	void ClipRectStack::Clear()
 	{
 		StackSize = 0;
+        graphics->SetClipRect(0, 0, WindowWidth, WindowHeight);
 	}
 
 	void ClipRectStack::AddRect(Rect nRect)
@@ -2408,6 +2409,8 @@ namespace GraphicsUI
 	void UIEntry::Draw(int absX,int absY)
 	{
 		drawChildren = false;
+        ClipRects->Clear();
+        
 		Container::Draw(absX,absY);
 		//Draw Forms
 		for (auto children : controls)

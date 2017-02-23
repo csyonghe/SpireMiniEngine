@@ -4,6 +4,7 @@
 #include "Engine.h"
 #include "Level.h"
 #include "CoreLib/LibUI/LibUI.h"
+#include "SystemWindow.h"
 
 using namespace GraphicsUI;
 using namespace GameEngine;
@@ -12,18 +13,26 @@ class TestUserActor : public Actor
 {
 private:
 	RefPtr<Drawable> boxDrawable;
+    RefPtr<SystemWindow> sysWindow;
 	Material material;
-	Form * uiForm = nullptr;
 public:
 	virtual EngineActorType GetEngineType() override
 	{
 		return EngineActorType::Drawable;
 	}
-	virtual void RegisterUI(GraphicsUI::UIEntry * entry) override
+	virtual void RegisterUI(GraphicsUI::UIEntry * /*entry*/) override
 	{
-		uiForm = new Form(entry);
-		uiForm->SetText("Color Control");
-		auto btnRed = new Button(uiForm);
+        sysWindow = Engine::Instance()->CreateSystemWindow();
+        sysWindow->SetClientHeight(600);
+        sysWindow->SetClientWidth(800);
+        sysWindow->SetText("Test User Control");
+        sysWindow->Show();
+
+        auto uiForm = sysWindow->GetUIEntry();
+        auto top = new Container(uiForm);
+        top->SetHeight(120);
+        top->DockStyle = GraphicsUI::Control::dsTop;
+		auto btnRed = new Button(top);
 		btnRed->SetText("Red");
 		btnRed->Posit(EM(1.0f), EM(1.5f), EM(3.0f), EM(1.5f));
 		btnRed->OnClick.Bind([this](UI_Base*)
@@ -31,7 +40,7 @@ public:
 			material.SetVariable("solidColor", DynamicVariable(Vec3::Create(1.0f, 0.0f, 0.0f)));
 		});
 
-		auto btnBlue = new Button(uiForm);
+		auto btnBlue = new Button(top);
 		btnBlue->SetText("Blue");
 		btnBlue->Posit(EM(4.5f), EM(1.5f), EM(3.0f), EM(1.5f));
 		btnBlue->OnClick.Bind([this](UI_Base*)
@@ -39,7 +48,7 @@ public:
 			material.SetVariable("solidColor", DynamicVariable(Vec3::Create(0.0f, 0.0f, 1.0f)));
 		});
 
-		auto slider = new ScrollBar(uiForm);
+		auto slider = new ScrollBar(top);
 		slider->Posit(EM(1.0f), EM(3.5f), EM(6.5f), EM(1.0f));
 		slider->SetValue(0, 2000, 1000, 50);
 		slider->OnChanged.Bind([=](UI_Base*)
@@ -48,6 +57,7 @@ public:
 		});
         auto container = new GraphicsUI::ScrollPanel(uiForm);
         container->Posit(10, EM(5.0), EM(40.0f), EM(35.0f));
+        container->DockStyle = GraphicsUI::Control::dsFill;
         auto updateContainer = [=](float zoom)
         {
             container->ClearChildren();
@@ -76,7 +86,13 @@ public:
         updateContainer(1.0f);
         container->EnableZoom = true;
         container->OnZoom.Bind([=](float /*zoom0*/, float zoom1) {updateContainer(zoom1); });
-        entry->ShowWindow(uiForm);
+
+        Engine::Instance()->GetInputDispatcher()->BindActionHandler("TestUserCtrl", [=](String, ActionInput)
+        {
+            sysWindow->SetVisible(true);
+            sysWindow->Show();
+            return true; 
+        });
 	}
 	virtual void OnLoad() override
 	{
@@ -86,8 +102,6 @@ public:
 	virtual void OnUnload() override
 	{
 		Actor::OnUnload();
-		if (uiForm)
-			Engine::Instance()->GetUiEntry()->RemoveForm(uiForm);
 	}
 	virtual void GetDrawables(const GetDrawablesParameter & param) override
 	{

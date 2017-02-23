@@ -2,16 +2,16 @@
 
 namespace GameEngine
 {
-	AsyncCommandBuffer::AsyncCommandBuffer(HardwareRenderer * hwRender)
+	AsyncCommandBuffer::AsyncCommandBuffer(HardwareRenderer * hwRender, int size)
 	{
-		for (int i = 0; i < commandBuffers.GetCapacity(); i++)
+		for (int i = 0; i < size; i++)
 			commandBuffers.Add(hwRender->CreateCommandBuffer());
 	}
 
 	CommandBuffer * AsyncCommandBuffer::BeginRecording(FrameBuffer * frameBuffer)
 	{
 		framePtr++;
-		framePtr %= CommandBufferMultiplier;
+		framePtr %= commandBuffers.Count();
 		auto rs = commandBuffers[framePtr].Ptr();
 		rs->BeginRecording(frameBuffer);
 		return rs;
@@ -20,7 +20,7 @@ namespace GameEngine
 	CommandBuffer * AsyncCommandBuffer::BeginRecording()
 	{
 		framePtr++;
-		framePtr %= CommandBufferMultiplier;
+		framePtr %= commandBuffers.Count();
 		auto rs = commandBuffers[framePtr].Ptr();
 		rs->BeginRecording();
 		return rs;

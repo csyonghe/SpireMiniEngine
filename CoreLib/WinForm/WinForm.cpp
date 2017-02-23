@@ -326,6 +326,7 @@ namespace CoreLib
 							Application::Terminate();
 						}
 					}
+                    rs = 0;
 				}
 				break;
 			case WM_KEYDOWN:

@@ -331,6 +331,7 @@ namespace CoreLib
 					rect->top = args.Top;
 					rect->bottom = args.Top + args.Height;
 					rect->right = args.Left + args.Width;
+                    rs = 0;
 				}
 				break;
 			case WM_SIZE:

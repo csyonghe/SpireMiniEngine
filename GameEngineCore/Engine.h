@@ -11,21 +11,31 @@
 #include "CoreLib/WinForm/Debug.h"
 #include "GraphicsSettings.h"
 #include "DrawCallStatForm.h"
+#include "SystemWindow.h"
 #include "OS.h"
 
 namespace GameEngine
 {
-
+    struct AppLaunchParameters
+    {
+        bool EnableVideoCapture = false;
+        bool DumpRenderStats = false;
+        String RenderStatsDumpFileName;
+        String Directory;
+        float Length = 10.0f;
+        int FramesPerSecond = 30;
+        int RunForFrames = 0; // run for this many frames and then terminate
+    };
 	class EngineInitArguments
 	{
 	public:
 		RenderAPI API;
-		WindowHandle Window;
         bool NoConsole = false;
 		int Width = 400, Height = 400;
 		int GpuId = 0;
 		bool RecompileShaders = false;
 		CoreLib::String GameDirectory, EngineDirectory, StartupLevelName;
+        AppLaunchParameters LaunchParams;
 	};
 	enum class EngineThread
 	{
@@ -39,18 +49,18 @@ namespace GameEngine
 	{
 		Natural, Fixed
 	};
-	
+
 	class Engine
 	{
 	private:
 		static Engine * instance;
+        AppLaunchParameters params;
 		TimingMode timingMode = TimingMode::Natural;
 		float fixedFrameDuration = 1.0f / 30.0f;
 		unsigned int frameCounter = 0;
 		bool inDataTransfer = false;
 		GraphicsSettings graphicsSettings;
 		CoreLib::String levelToLoad;
-        CoreLib::RefPtr<WindowSurface> mainSurface;
 		CoreLib::List<RefPtr<Fence>> syncFences;
 	private:
 		bool enableInput = true;
@@ -62,20 +72,19 @@ namespace GameEngine
 		CoreLib::RefPtr<Renderer> renderer;
 		CoreLib::RefPtr<InputDispatcher> inputDispatcher;
 		
-		CoreLib::RefPtr<RenderTargetLayout> uiFrameBufferLayout;
-		CoreLib::RefPtr<GraphicsUI::UIEntry> uiEntry;
+        CoreLib::RefPtr<SystemWindow> mainWindow;
 
 		CoreLib::Array<RenderStat, 16> renderStats;
 		GraphicsUI::CommandForm * uiCommandForm = nullptr;
 		DrawCallStatForm * drawCallStatForm = nullptr;
 		CoreLib::RefPtr<GraphicsUI::UIWindowsSystemInterface> uiSystemInterface;
-
+        void MainLoop(CoreLib::Object *, CoreLib::WinForm::EventArgs);
 		bool OnToggleConsoleAction(const CoreLib::String & actionName, ActionInput input);
-		void RefreshUI();
 		Engine() {};
 		void InternalInit(const EngineInitArguments & args);
 		~Engine();
 	public:
+		void RefreshUI();
 		GraphicsSettings & GetGraphicsSettings()
 		{
 			return graphicsSettings;
@@ -110,16 +119,19 @@ namespace GameEngine
 		{
 			return inputDispatcher.Ptr();
 		}
+        SystemWindow * GetMainWindow()
+        {
+            return mainWindow.Ptr();
+        }
 		GraphicsUI::UIEntry * GetUiEntry()
 		{
-			return uiEntry.Ptr();
+			return mainWindow->GetUIEntry();
 		}
 		Texture2D * GetRenderResult(bool withUI);
 		CoreLib::ArrayView<RenderStat> GetRenderStats()
 		{
 			return renderStats.GetArrayView();
 		}
-		
 	public:
 		Actor * CreateActor(const CoreLib::String & name);
 		void RegisterActorClass(const CoreLib::String &name, const CoreLib::Func<Actor*> & actorCreator);
@@ -133,6 +145,7 @@ namespace GameEngine
 		void Resize(int w, int h);
 		void EnableInput(bool value);
 		void OnCommand(CoreLib::String command);
+        SystemWindow * CreateSystemWindow(int log2BufferSize = 21);
 		int HandleWindowsMessage(HWND hwnd, UINT message, WPARAM &wparam, LPARAM &lparam);
 	public:
 		int GpuId = 0;
@@ -144,6 +157,7 @@ namespace GameEngine
 			return instance;
 		}
 		static void Init(const EngineInitArguments & args);
+        static void Run();
 		static void Destroy();
 		template<typename ...Args>
 		static void Print(const char * message, Args... args)

@@ -6,14 +6,13 @@
 
 namespace GameEngine
 {
-	const int CommandBufferMultiplier = 12;
 	class AsyncCommandBuffer
 	{
 	private:
 		int framePtr = 0;
-		CoreLib::Array<CoreLib::RefPtr<CommandBuffer>, CommandBufferMultiplier> commandBuffers;
+		CoreLib::List<CoreLib::RefPtr<CommandBuffer>> commandBuffers;
 	public:
-		AsyncCommandBuffer(HardwareRenderer * hwRender);
+		AsyncCommandBuffer(HardwareRenderer * hwRender, int size = 12);
 		CommandBuffer * BeginRecording(FrameBuffer * frameBuffer);
 		CommandBuffer * BeginRecording();
 		CommandBuffer * GetBuffer();

@@ -7,95 +7,6 @@
 #include "Engine.h"
 #include "CoreLib/Imaging/Bitmap.h"
 
-namespace GameEngine
-{
-	using namespace CoreLib;
-	using namespace CoreLib::WinForm;
-
-	struct AppLaunchParameters
-	{
-		bool EnableVideoCapture = false;
-		bool DumpRenderStats = false;
-		String RenderStatsDumpFileName;
-		String Directory;
-		float Length = 10.0f;
-		int FramesPerSecond = 30;
-		int RunForFrames = 0; // run for this many frames and then terminate
-	};
-
-	class MainForm : public CoreLib::WinForm::Form
-	{
-	private:
-		AppLaunchParameters params;
-	protected:
-		int ProcessMessage(WinMessage & msg) override
-		{
-			auto engine = Engine::Instance();
-			int rs = -1;
-			if (engine)
-			{
-				rs = engine->HandleWindowsMessage(msg.hWnd, msg.message, msg.wParam, msg.lParam);
-			}
-			if (rs == -1)
-				return BaseForm::ProcessMessage(msg);
-			return rs;
-		}
-	public:
-		MainForm(const AppLaunchParameters & pParams)
-		{
-			wantChars = true;
-			params = pParams;
-			SetText("Game Engine");
-			OnResized.Bind(this, &MainForm::FormResized);
-			OnFocus.Bind([](auto, auto) {Engine::Instance()->EnableInput(true); });
-			OnLostFocus.Bind([](auto, auto) {Engine::Instance()->EnableInput(false); });
-			SetClientWidth(1920);
-			SetClientHeight(1080);
-		}
-		
-		void FormResized(Object *, EventArgs)
-		{
-			Engine::Instance()->Resize(GetClientWidth(), GetClientHeight());
-		}
-		void MainLoop(Object *, EventArgs)
-		{
-			static int frameId = 0;
-			auto instance = Engine::Instance();
-			if (instance)
-			{
-				instance->Tick();
-				if (params.EnableVideoCapture)
-				{
-					auto image = instance->GetRenderResult(true);
-					Engine::SaveImage(image, CoreLib::IO::Path::Combine(params.Directory, String(frameId) + ".png"));
-					if (Engine::Instance()->GetTime() >= params.Length)
-						Close();
-				}
-				frameId++;
-				if (frameId == params.RunForFrames)
-				{
-					if (params.DumpRenderStats)
-					{
-						auto renderStats = Engine::Instance()->GetRenderStats();
-						StringBuilder sb;
-						for (auto rs : renderStats)
-						{
-							if (rs.Divisor != 0)
-							{
-								sb << String(rs.CpuTime * 1000.0f / rs.Divisor, "%.1f") << "\t" << String(rs.TotalTime * 1000.0f / rs.Divisor, "%.1f") 
-									<< "\t" << rs.NumDrawCalls / rs.Divisor << "\n";
-							}
-						}
-						CoreLib::IO::File::WriteAllText(params.RenderStatsDumpFileName, sb.ProduceString());
-					}
-					Close();
-				}
-			}
-		}
-	};
-
-}
-
 using namespace GameEngine;
 using namespace CoreLib::WinForm;
 
@@ -127,7 +38,7 @@ int wWinMain(
 	Application::Init();
 	{
 		EngineInitArguments args;
-		AppLaunchParameters appParams;
+		auto & appParams = args.LaunchParams;
 		try
 		{
 			int w = 1920;
@@ -183,14 +94,8 @@ int wWinMain(
 				h = StringToInt(parser.GetOptionValue("-height"));
 			}
 
-			auto form = new MainForm(appParams);
-			Application::SetMainLoopEventHandler(new CoreLib::WinForm::NotifyEvent(form, &MainForm::MainLoop));
-			form->SetClientWidth(w);
-			form->SetClientHeight(h);
-
-			args.Width = form->GetClientWidth();
-			args.Height = form->GetClientHeight();
-			args.Window = (WindowHandle)form->GetHandle();
+            args.Width = w;
+			args.Height = h;
 
 			RegisterTestUserActor();
 
@@ -206,7 +111,7 @@ int wWinMain(
 				Engine::Instance()->SetTimingMode(GameEngine::TimingMode::Fixed);
 				Engine::Instance()->SetFrameDuration(1.0f / appParams.FramesPerSecond);
 			}
-			Application::Run(form, true);
+			Engine::Run();
 		}
 		catch (const Exception & e)
 		{

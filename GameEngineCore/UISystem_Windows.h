@@ -7,6 +7,8 @@
 #include "CoreLib/WinForm/WinTimer.h"
 #include "CoreLib/MemoryPool.h"
 #include "HardwareRenderer.h"
+#include "AsyncCommandBuffer.h"
+#include "EngineLimits.h"
 
 namespace GraphicsUI
 {
@@ -133,6 +135,32 @@ namespace GraphicsUI
 
 	class GLUIRenderer;
 
+    class UIWindowContext : public CoreLib::Object
+    {
+    private:
+        void TickTimerTick(CoreLib::Object *, CoreLib::WinForm::EventArgs e);
+        void HoverTimerTick(CoreLib::Object *, CoreLib::WinForm::EventArgs e);
+    public:
+        int screenWidth, screenHeight;
+        int bufferSize;
+        HWND handle;
+        GameEngine::HardwareRenderer * hwRenderer;
+        UIWindowsSystemInterface * sysInterface;
+        CoreLib::RefPtr<GameEngine::WindowSurface> surface;
+        CoreLib::RefPtr<GameEngine::Buffer> vertexBuffer, indexBuffer, primitiveBuffer;
+        CoreLib::RefPtr<GraphicsUI::UIEntry> uiEntry;
+        CoreLib::RefPtr<GameEngine::Texture2D> uiOverlayTexture;
+        CoreLib::RefPtr<GameEngine::FrameBuffer> frameBuffer;
+        CoreLib::RefPtr<GameEngine::Buffer> uniformBuffer;
+        CoreLib::WinForm::Timer tmrHover, tmrTick;
+        CoreLib::Array<CoreLib::RefPtr<GameEngine::DescriptorSet>, GameEngine::DynamicBufferLengthMultiplier> descSets;
+        VectorMath::Matrix4 orthoMatrix;
+        CoreLib::RefPtr<GameEngine::AsyncCommandBuffer> cmdBuffer, blitCmdBuffer;
+        void SetSize(int w, int h);
+        UIWindowContext();
+        ~UIWindowContext();
+    };
+
 	class UIWindowsSystemInterface : public ISystemInterface
 	{
 	private:
@@ -143,13 +171,11 @@ namespace GraphicsUI
 		VectorMath::Vec4 ColorToVec(GraphicsUI::Color c);
 		CoreLib::RefPtr<WindowsFont> defaultFont, titleFont, symbolFont;
 		GameEngine::Fence* textBufferFence = nullptr;
-		CoreLib::WinForm::Timer tmrHover, tmrTick;
-		UIEntry * entry = nullptr;
+		
 		int GetCurrentDpi();
-		void TickTimerTick(CoreLib::Object *, CoreLib::WinForm::EventArgs e);
-		void HoverTimerTick(CoreLib::Object *, CoreLib::WinForm::EventArgs e);
 	public:
 		GLUIRenderer * uiRenderer;
+		CoreLib::EnumerableDictionary<HWND, UIWindowContext*> windowContexts;
 		GameEngine::HardwareRenderer * rendererApi = nullptr;
 		virtual void SetClipboardText(const CoreLib::String & text) override;
 		virtual CoreLib::String GetClipboardText() override;
@@ -169,18 +195,18 @@ namespace GraphicsUI
 		{
 			return (int)(buffer - textBuffer);
 		}
-		GameEngine::Texture2D * GetRenderedImage();
 		GameEngine::Buffer * GetTextBufferObject()
 		{
 			return textBufferObj.Ptr();
 		}
 		IFont * LoadFont(const Font & f);
 		IImage * CreateImageObject(const CoreLib::Imaging::Bitmap & bmp);
-		void SetResolution(int w, int h);
-		void TransferDrawCommands(GameEngine::Texture2D* baseTexture, CoreLib::List<DrawCommand> & commands);
-		void ExecuteDrawCommands(GameEngine::Fence* fence);
-		void SetEntry(UIEntry * pentry);
+		void TransferDrawCommands(UIWindowContext * ctx, GameEngine::Texture2D* baseTexture, CoreLib::List<DrawCommand> & commands);
+		void ExecuteDrawCommands(UIWindowContext * ctx, GameEngine::Fence* fence);
 		int HandleSystemMessage(HWND hWnd, UINT message, WPARAM &wParam, LPARAM &lParam);
+        GameEngine::FrameBuffer * CreateFrameBuffer(GameEngine::Texture2D * texture);
+        CoreLib::RefPtr<UIWindowContext> CreateWindowContext(HWND handle, int w, int h, int log2BufferSize);
+        void UnregisterWindowContext(UIWindowContext * ctx);
 	};
 }
 

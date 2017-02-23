@@ -205,6 +205,7 @@
     <ClCompile Include="SSAO.cpp" />
     <ClCompile Include="StandardRenderProcedure.cpp" />
     <ClCompile Include="StaticMeshActor.cpp" />
+    <ClCompile Include="SystemWindow.cpp" />
     <ClCompile Include="TerrainActor.cpp" />
     <ClCompile Include="TextureCompressor.cpp" />
     <ClCompile Include="TextureTool\LibSquish.cpp" />

@@ -4,6 +4,7 @@
 #include "CoreLib/LibIO.h"
 #include "CoreLib/Tokenizer.h"
 #include "EngineLimits.h"
+#include "CoreLib/WinForm/WinApp.h"
 
 #ifndef DWORD
 typedef unsigned long DWORD;
@@ -31,13 +32,47 @@ namespace GameEngine
 
     }
 
-	bool Engine::OnToggleConsoleAction(const CoreLib::String & /*actionName*/, ActionInput /*val*/)
+    void Engine::MainLoop(CoreLib::Object *, CoreLib::WinForm::EventArgs)
+    {
+        static int frameId = 0;
+        if (instance)
+        {
+            instance->Tick();
+            if (params.EnableVideoCapture)
+            {
+                auto image = instance->GetRenderResult(true);
+                Engine::SaveImage(image, CoreLib::IO::Path::Combine(params.Directory, String(frameId) + ".png"));
+                if (Engine::Instance()->GetTime() >= params.Length)
+                    mainWindow->Close();
+            }
+            frameId++;
+            if (frameId == params.RunForFrames)
+            {
+                if (params.DumpRenderStats)
+                {
+                    StringBuilder sb;
+                    for (auto rs : renderStats)
+                    {
+                        if (rs.Divisor != 0)
+                        {
+                            sb << String(rs.CpuTime * 1000.0f / rs.Divisor, "%.1f") << "\t" << String(rs.TotalTime * 1000.0f / rs.Divisor, "%.1f")
+                                << "\t" << rs.NumDrawCalls / rs.Divisor << "\n";
+                        }
+                    }
+                    CoreLib::IO::File::WriteAllText(params.RenderStatsDumpFileName, sb.ProduceString());
+                }
+                mainWindow->Close();
+            }
+        }
+    }
+
+    bool Engine::OnToggleConsoleAction(const CoreLib::String & /*actionName*/, ActionInput /*val*/)
 	{
 		if (uiCommandForm)
 			if (uiCommandForm->Visible)
-				uiEntry->CloseWindow(uiCommandForm);
+				mainWindow->GetUIEntry()->CloseWindow(uiCommandForm);
 			else
-				uiEntry->ShowWindow(uiCommandForm);
+                mainWindow->GetUIEntry()->ShowWindow(uiCommandForm);
 		return true;
 	}
 
@@ -45,12 +80,17 @@ namespace GameEngine
 	{
 		if (!inDataTransfer)
 		{
-			renderer->GetHardwareRenderer()->BeginDataTransfer();
-			auto uiCommands = uiEntry->DrawUI();
-			uiSystemInterface->TransferDrawCommands(renderer->GetRenderedImage(), uiCommands);
-			renderer->GetHardwareRenderer()->EndDataTransfer();
-			uiSystemInterface->ExecuteDrawCommands(nullptr);
-			renderer->GetHardwareRenderer()->Present(mainSurface.Ptr(), uiSystemInterface->GetRenderedImage());
+            for (auto sysWindow : uiSystemInterface->windowContexts)
+            {
+                renderer->GetHardwareRenderer()->BeginDataTransfer();
+                auto entry = sysWindow.Value->uiEntry.Ptr();
+                auto uiCommands = entry->DrawUI();
+                uiSystemInterface->TransferDrawCommands(sysWindow.Value, renderer->GetRenderedImage(), uiCommands);
+                renderer->GetHardwareRenderer()->EndDataTransfer();
+                uiSystemInterface->ExecuteDrawCommands(sysWindow.Value, nullptr);
+                renderer->GetHardwareRenderer()->Present(sysWindow.Value->surface.Ptr(), sysWindow.Value->uiOverlayTexture.Ptr());
+
+            }
 			renderer->Wait();
 		}
 	}
@@ -65,6 +105,7 @@ namespace GameEngine
 			
 			GpuId = args.GpuId;
 			RecompileShaders = args.RecompileShaders;
+            params = args.LaunchParams;
 
 			gameDir = args.GameDirectory;
 			engineDir = args.EngineDirectory;
@@ -75,33 +116,43 @@ namespace GameEngine
 			auto graphicsSettingsFile = FindFile("graphics.settings", ResourceType::Settings);
 			if (graphicsSettingsFile.Length())
 				graphicsSettings.LoadFromFile(graphicsSettingsFile);
-
-			// initialize input dispatcher
-			inputDispatcher = new InputDispatcher(CreateHardwareInputInterface(args.Window));
-			auto bindingFile = Path::Combine(gameDir, "bindings.config");
-			if (File::Exists(bindingFile))
-				inputDispatcher->LoadMapping(bindingFile);
-			inputDispatcher->BindActionHandler("ToggleConsole", ActionInputHandlerFunc(this, &Engine::OnToggleConsoleAction));
+            			
 			// initialize renderer
 			renderer = CreateRenderer(args.API);
 			renderer->Resize(args.Width, args.Height);
-            mainSurface = renderer->GetHardwareRenderer()->CreateSurface(args.Window, args.Width, args.Height);
+            
 			uiSystemInterface = new UIWindowsSystemInterface(renderer->GetHardwareRenderer());
 			Global::Colors = CreateDarkColorTable();
-			uiEntry = new UIEntry(args.Width, args.Height, uiSystemInterface.Ptr());
-			uiSystemInterface->SetEntry(uiEntry.Ptr());
-			renderer->GetHardwareRenderer()->BeginDataTransfer();
-			uiSystemInterface->SetResolution(args.Width, args.Height);
+			
+            renderer->GetHardwareRenderer()->BeginDataTransfer();
+           
+            // create main window
+            mainWindow = new SystemWindow(uiSystemInterface.Ptr(), 22);
+            mainWindow->SetText("Game Engine");
+            mainWindow->OnResized.Bind([=](Object*, CoreLib::WinForm::EventArgs) 
+            {
+                Engine::Instance()->Resize(mainWindow->GetClientWidth(), mainWindow->GetClientHeight()); 
+            });
+            mainWindow->CenterScreen();
+            CoreLib::WinForm::Application::SetMainLoopEventHandler(new CoreLib::WinForm::NotifyEvent(this, &Engine::MainLoop));
+
+            // initialize input dispatcher
+            inputDispatcher = new InputDispatcher(CreateHardwareInputInterface(mainWindow->GetHandle()));
+            auto bindingFile = Path::Combine(gameDir, "bindings.config");
+            if (File::Exists(bindingFile))
+                inputDispatcher->LoadMapping(bindingFile);
+            inputDispatcher->BindActionHandler("ToggleConsole", ActionInputHandlerFunc(this, &Engine::OnToggleConsoleAction));
+
 			renderer->GetHardwareRenderer()->EndDataTransfer();
 
-			uiCommandForm = new CommandForm(uiEntry.Ptr());
+			uiCommandForm = new CommandForm(mainWindow->GetUIEntry());
 			uiCommandForm->OnCommand.Bind(this, &Engine::OnCommand);
-			drawCallStatForm = new DrawCallStatForm(uiEntry.Ptr());
+			drawCallStatForm = new DrawCallStatForm(mainWindow->GetUIEntry());
 			drawCallStatForm->Posit(args.Width - drawCallStatForm->GetWidth() - 10, 10, drawCallStatForm->GetWidth(), drawCallStatForm->GetHeight());
 			if (args.NoConsole)
 			{
-				uiEntry->CloseWindow(drawCallStatForm);
-                uiEntry->CloseWindow(uiCommandForm);
+                mainWindow->GetUIEntry()->CloseWindow(drawCallStatForm);
+                mainWindow->GetUIEntry()->CloseWindow(uiCommandForm);
 			}
 			renderStats.SetSize(renderStats.GetCapacity());
 
@@ -143,11 +194,10 @@ namespace GameEngine
 	{
 		renderer->Wait();
 		level = nullptr;
-		uiEntry = nullptr;
-		uiSystemInterface = nullptr;
-        mainSurface = nullptr;
 		for (auto & fence : syncFences)
 			fence = nullptr;
+        mainWindow = nullptr;
+		uiSystemInterface = nullptr;
 		renderer = nullptr;
 	}
 
@@ -179,7 +229,7 @@ namespace GameEngine
 		auto thisGameLogicTime = PerformanceCounter::Start();
 		gameLogicTimeDelta = PerformanceCounter::EndSeconds(lastGameLogicTime);
 
-		if (enableInput && !uiEntry->KeyInputConsumed && frameCounter > 2)
+		if (enableInput && mainWindow->Focused() && !mainWindow->GetUIEntry()->KeyInputConsumed && frameCounter > 2)
 			inputDispatcher->DispatchInput();
 
 		if (!level)
@@ -207,23 +257,31 @@ namespace GameEngine
 
 		inDataTransfer = true;
 		syncFences[frameCounter % DynamicBufferLengthMultiplier]->Wait();
-		//renderer->Wait();
+
 		auto cpuTimePoint = CoreLib::Diagnostics::PerformanceCounter::Start();
 		renderer->GetHardwareRenderer()->BeginDataTransfer();
 		renderer->TakeSnapshot();
-		auto uiCommands = uiEntry->DrawUI();
-		uiSystemInterface->TransferDrawCommands(renderer->GetRenderedImage(), uiCommands);
-		renderer->GetHardwareRenderer()->EndDataTransfer();
-		inDataTransfer = false;
+        renderer->GetHardwareRenderer()->EndDataTransfer();
+        renderer->RenderFrame();
+        stats.CpuTime += CoreLib::Diagnostics::PerformanceCounter::EndSeconds(cpuTimePoint);
 
-		renderer->RenderFrame();
+        for (auto sysWindow : uiSystemInterface->windowContexts)
+        {
+            renderer->GetHardwareRenderer()->BeginDataTransfer();
+            auto uiEntry = sysWindow.Value->uiEntry.Ptr();
+            auto uiCommands = uiEntry->DrawUI();
+            Texture2D * backgroundImage = nullptr;
+            if (mainWindow->GetHandle() == sysWindow.Key)
+                backgroundImage = renderer->GetRenderedImage();
+            uiSystemInterface->TransferDrawCommands(sysWindow.Value, backgroundImage, uiCommands);
+            inDataTransfer = false;
+            renderer->GetHardwareRenderer()->EndDataTransfer();
 
-		stats.CpuTime += CoreLib::Diagnostics::PerformanceCounter::EndSeconds(cpuTimePoint);
-		
-		uiSystemInterface->ExecuteDrawCommands(syncFences[frameCounter % DynamicBufferLengthMultiplier].Ptr());
-		aggregateTime += renderingTimeDelta;
+            uiSystemInterface->ExecuteDrawCommands(sysWindow.Value, syncFences[frameCounter % DynamicBufferLengthMultiplier].Ptr());
+            aggregateTime += renderingTimeDelta;
 
-		renderer->GetHardwareRenderer()->Present(mainSurface.Ptr(), uiSystemInterface->GetRenderedImage());
+            renderer->GetHardwareRenderer()->Present(sysWindow.Value->surface.Ptr(), sysWindow.Value->uiOverlayTexture.Ptr());
+        }
 
 		if (aggregateTime > 1.0f)
 		{
@@ -253,8 +311,6 @@ namespace GameEngine
 		{
 			renderer->GetHardwareRenderer()->BeginDataTransfer();
 			renderer->Resize(w, h);
-            mainSurface->Resize(w, h);
-			uiSystemInterface->SetResolution(w, h);
 			renderer->GetHardwareRenderer()->EndDataTransfer();
 		}
 	}
@@ -302,17 +358,31 @@ namespace GameEngine
 		}
 	}
 
+    SystemWindow * Engine::CreateSystemWindow(int log2BufferSize)
+    {
+        auto rs = new SystemWindow(uiSystemInterface.Ptr(), log2BufferSize);
+        rs->GetUIEntry()->BackColor = GraphicsUI::Color(50, 50, 50);
+        return rs;
+    }
+
 	int Engine::HandleWindowsMessage(HWND hwnd, UINT message, WPARAM & wparam, LPARAM & lparam)
 	{
-		if (uiSystemInterface)
-			return uiSystemInterface->HandleSystemMessage(hwnd, message, wparam, lparam);
+        if (uiSystemInterface)
+        {
+            renderer->GetHardwareRenderer()->BeginDataTransfer();
+			auto ret = uiSystemInterface->HandleSystemMessage(hwnd, message, wparam, lparam);
+            renderer->GetHardwareRenderer()->EndDataTransfer();
+            return ret;
+        }
+        if (message == WM_PAINT)
+            return 0;
 		return -1;
 	}
 
 	Texture2D * Engine::GetRenderResult(bool withUI)
 	{
-		if (withUI)
-			return uiSystemInterface->GetRenderedImage();
+        if (withUI)
+            return mainWindow->GetUIContext()->uiOverlayTexture.Ptr();
 		else
 			return renderer->GetRenderedImage();
 	}
@@ -413,6 +483,10 @@ namespace GameEngine
 	{
 		instance->InternalInit(args);
 	}
+    void Engine::Run()
+    {
+        CoreLib::WinForm::Application::Run(Engine::Instance()->mainWindow.Ptr(), true);
+    }
 	void Engine::Destroy()
 	{
 		delete instance;

@@ -2559,7 +2559,7 @@ namespace GLL
 
 			// Present rendered image to screen
             GLWindowSurface * glsurface = (GLWindowSurface*)surface;
-            wglMakeContextCurrentARB(glsurface->hdc, glsurface->hdc, glsurface->glRC);
+            wglMakeCurrent(glsurface->hdc, glsurface->glRC);
 			SetReadFrameBuffer(srcFrameBuffer);
 			SetWriteFrameBuffer(GLL::FrameBuffer());
             int width, height;
@@ -2567,7 +2567,7 @@ namespace GLL
             glViewport(0, 0, width, height);
 			CopyFrameBuffer(0, 0, width, height, 0, 0, width, height, true, false, false);
 			SwapBuffers(glsurface->hdc);
-            wglMakeContextCurrentARB(hdc, hdc, hrc);
+            wglMakeCurrent(hdc, hrc);
 
 			switch (reinterpret_cast<GLL::Texture2D*>(srcImage)->format)
 			{

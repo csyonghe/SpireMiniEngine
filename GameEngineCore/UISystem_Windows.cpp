@@ -7,7 +7,6 @@
 #include "Spire/Spire.h"
 #include "OS.h"
 #include "EngineLimits.h"
-#include "AsyncCommandBuffer.h"
 #include "ShaderCompiler.h"
 
 //#define WINDOWS_10_SCALING
@@ -93,29 +92,29 @@ namespace GraphicsUI
 		return dpi;
 	}
 
-	void UIWindowsSystemInterface::TickTimerTick(CoreLib::Object *, CoreLib::WinForm::EventArgs e)
-	{
-		entry->DoTick();
-	}
 
-	void UIWindowsSystemInterface::HoverTimerTick(Object *, CoreLib::WinForm::EventArgs e)
-	{
-		entry->DoMouseHover();
-	}
 
-	void UIWindowsSystemInterface::SetEntry(UIEntry * pEntry)
-	{
-		this->entry = pEntry;
-		tmrHover.Interval = Global::HoverTimeThreshold;
-		tmrHover.OnTick.Bind(this, &UIWindowsSystemInterface::HoverTimerTick);
-	}
+    void UIWindowContext::TickTimerTick(CoreLib::Object *, CoreLib::WinForm::EventArgs e)
+    {
+        uiEntry->DoTick();
+    }
 
+    void UIWindowContext::HoverTimerTick(Object *, CoreLib::WinForm::EventArgs e)
+    {
+        uiEntry->DoMouseHover();
+    }
+    
 	int UIWindowsSystemInterface::HandleSystemMessage(HWND hWnd, UINT message, WPARAM &wParam, LPARAM &lParam)
 	{
 		int rs = -1;
 		unsigned short Key;
 		UIMouseEventArgs Data;
-
+        UIWindowContext * ctx = nullptr;
+        if (!windowContexts.TryGetValue(hWnd, ctx))
+        {
+            return -1;
+        }
+        auto entry = ctx->uiEntry.Ptr();
 		switch (message)
 		{
 		case WM_CHAR:
@@ -168,7 +167,7 @@ namespace GraphicsUI
 		}
 		case WM_MOUSEMOVE:
 		{
-			tmrHover.StartTimer();
+			ctx->tmrHover.StartTimer();
 			TranslateMouseMessage(Data, wParam, lParam);
 			entry->DoMouseMove(Data.X, Data.Y);
 			break;
@@ -177,7 +176,7 @@ namespace GraphicsUI
 		case WM_MBUTTONDOWN:
 		case WM_RBUTTONDOWN:
 		{
-			tmrHover.StartTimer();
+            ctx->tmrHover.StartTimer();
 			TranslateMouseMessage(Data, wParam, lParam);
 			entry->DoMouseDown(Data.X, Data.Y, Data.Shift);
 			SetCapture(hWnd);
@@ -187,7 +186,7 @@ namespace GraphicsUI
 		case WM_MBUTTONUP:
 		case WM_LBUTTONUP:
 		{
-			tmrHover.StopTimer();
+            ctx->tmrHover.StopTimer();
 			ReleaseCapture();
 			TranslateMouseMessage(Data, wParam, lParam);
 			if (message == WM_RBUTTONUP)
@@ -234,7 +233,7 @@ namespace GraphicsUI
 		case WM_NCRBUTTONDOWN:
 		case WM_NCLBUTTONDOWN:
 		{
-			tmrHover.StopTimer();
+            ctx->tmrHover.StopTimer();
 			entry->DoClosePopup();
 		}
 		break;
@@ -345,15 +344,7 @@ namespace GraphicsUI
 			text.ToWString(&len);
 			(::TextOut(Handle, X, Y, text.ToWString(), len));
 		}
-		/*int DrawText(const CoreLib::String & text, int X, int Y, int W)
-		{
-		RECT R;
-		R.left = X;
-		R.top = Y;
-		R.right = X + W;
-		R.bottom = 1024;
-		return ::DrawText(Handle, text.Buffer(), text.Length(), &R, DT_WORDBREAK | DT_NOPREFIX);
-		}*/
+
 		TextSize GetTextSize(const CoreLib::String& Text)
 		{
 			SIZE sText;
@@ -496,8 +487,6 @@ namespace GraphicsUI
 	{
 	private:
 		GameEngine::HardwareRenderer * rendererApi;
-		int screenWidth, screenHeight;
-		Matrix4 orthoMatrix;
 		const char * uberSpireShader = R"(
 			pipeline EnginePipeline
 			{
@@ -651,16 +640,9 @@ namespace GraphicsUI
 	private:
 		RefPtr<Shader> uberVs, uberFs;
 		RefPtr<Pipeline> pipeline;
-		CoreLib::RefPtr<Texture2D> uiOverlayTexture;
-		RefPtr<Buffer> vertexBuffer, indexBuffer, primitiveBuffer, uniformBuffer;
-		const int primitiveBufferSize = 1 << 25;
-		const int indexBufferSize = 1 << 25;
-		const int vertexBufferSize = 1 << 25;
 		RefPtr<TextureSampler> linearSampler;
 		RefPtr<RenderTargetLayout> renderTargetLayout;
-		Array<RefPtr<DescriptorSet>, DynamicBufferLengthMultiplier> descSets;
-		RefPtr<FrameBuffer> frameBuffer;
-		RefPtr<AsyncCommandBuffer> cmdBuffer, blitCmdBuffer;
+        RefPtr<DescriptorSetLayout> descLayout;
 		List<UniformField> uniformFields;
 		List<UberVertex> vertexStream;
 		List<int> indexStream;
@@ -720,7 +702,7 @@ namespace GraphicsUI
 			vformat.Attributes.Add(VertexAttributeDesc(DataType::Int, 0, 16, 2));
 			pipeBuilder->SetVertexLayout(vformat);
 			auto binding = compileResult.BindingLayouts.First().Value;
-			RefPtr<DescriptorSetLayout> descLayout = rendererApi->CreateDescriptorSetLayout(MakeArray(
+			descLayout = rendererApi->CreateDescriptorSetLayout(MakeArray(
 				DescriptorLayout(sfGraphics, 0, BindingType::UniformBuffer, binding.Descriptors[0].LegacyBindingPoints.First()),
 				DescriptorLayout(sfGraphics, 1, BindingType::StorageBuffer, binding.Descriptors[1].LegacyBindingPoints.First()),
 				DescriptorLayout(sfGraphics, 2, BindingType::StorageBuffer, binding.Descriptors[2].LegacyBindingPoints.First())).GetArrayView());
@@ -730,57 +712,30 @@ namespace GraphicsUI
 			pipeBuilder->FixedFunctionStates.BlendMode = BlendMode::AlphaBlend;
 			pipeBuilder->FixedFunctionStates.DepthCompareFunc = CompareFunc::Disabled;
 
-			uniformBuffer = rendererApi->CreateMappedBuffer(BufferUsage::UniformBuffer, sizeof(orthoMatrix));
-			primitiveBuffer = rendererApi->CreateMappedBuffer(BufferUsage::StorageBuffer, primitiveBufferSize * DynamicBufferLengthMultiplier);
-			vertexBuffer = rendererApi->CreateMappedBuffer(BufferUsage::ArrayBuffer, vertexBufferSize * DynamicBufferLengthMultiplier);
-			indexBuffer = rendererApi->CreateMappedBuffer(BufferUsage::ArrayBuffer, indexBufferSize * DynamicBufferLengthMultiplier);
+			
 
 			Array<AttachmentLayout, 1> frameBufferLayout;
 			frameBufferLayout.Add(AttachmentLayout(TextureUsage::SampledColorAttachment, StorageFormat::RGBA_8));
 
 			renderTargetLayout = rendererApi->CreateRenderTargetLayout(frameBufferLayout.GetArrayView());
 			pipeBuilder->SetDebugName("ui");
-			pipeline = pipeBuilder->ToPipeline(renderTargetLayout.Ptr());
-
-			cmdBuffer = new AsyncCommandBuffer(rendererApi);
-			blitCmdBuffer = new AsyncCommandBuffer(rendererApi);
+            pipeline = pipeBuilder->ToPipeline(renderTargetLayout.Ptr());
 
 			linearSampler = rendererApi->CreateTextureSampler();
 			linearSampler->SetFilter(TextureFilter::Linear);
-
-			uiOverlayTexture = rendererApi->CreateTexture2D(TextureUsage::SampledColorAttachment, 4, 4, 1, StorageFormat::RGBA_8);
-			frameBuffer = renderTargetLayout->CreateFrameBuffer(MakeArrayView(uiOverlayTexture.Ptr()));
-
-			for (int i = 0; i < descSets.GetCapacity(); i++)
-			{
-				auto descSet = rendererApi->CreateDescriptorSet(descLayout.Ptr());
-				descSet->BeginUpdate();
-				descSet->Update(0, uniformBuffer.Ptr());
-				descSet->Update(1, primitiveBuffer.Ptr(), i * primitiveBufferSize, primitiveBufferSize);
-				descSet->Update(2, system->GetTextBufferObject());
-				descSet->EndUpdate();
-				descSets.Add(descSet);
-			}
 		}
 		~GLUIRenderer()
 		{
 
 		}
-
-		Texture2D * GetRenderedImage()
-		{
-			return uiOverlayTexture.Ptr();
-		}
-		void SetScreenResolution(int w, int h)
-		{
-			screenWidth = w;
-			screenHeight = h;
-			rendererApi->Wait();
-			Matrix4::CreateOrthoMatrix(orthoMatrix, 0.0f, (float)screenWidth, 0.0f, (float)screenHeight, 1.0f, -1.0f);
-			uniformBuffer->SetData(&orthoMatrix, sizeof(orthoMatrix)); 
-			uiOverlayTexture = rendererApi->CreateTexture2D(TextureUsage::SampledColorAttachment, w, h, 1, StorageFormat::RGBA_8);
-			frameBuffer = renderTargetLayout->CreateFrameBuffer(MakeArrayView(uiOverlayTexture.Ptr()));
-		}
+        DescriptorSetLayout * GetDescLayout()
+        {
+            return descLayout.Ptr();
+        }
+        FrameBuffer * CreateFrameBuffer(Texture2D * texture)
+        {
+            return renderTargetLayout->CreateFrameBuffer(MakeArrayView(texture));
+        }
 		void BeginUIDrawing()
 		{
 			vertexStream.Clear();
@@ -788,31 +743,33 @@ namespace GraphicsUI
 			indexStream.Clear();
 			primCounter = 0;
 		}
-		void EndUIDrawing(Texture2D * baseTexture)
+		void EndUIDrawing(UIWindowContext * wndCtx, Texture2D * baseTexture)
 		{
 			frameId = frameId % DynamicBufferLengthMultiplier;
-			indexBuffer->SetDataAsync(frameId * indexBufferSize, indexStream.Buffer(), sizeof(int) * indexStream.Count());
-			vertexBuffer->SetDataAsync(frameId * vertexBufferSize, vertexStream.Buffer(), sizeof(UberVertex) * vertexStream.Count());
-			primitiveBuffer->SetDataAsync(frameId * primitiveBufferSize, uniformFields.Buffer(), sizeof(UniformField) * uniformFields.Count());
+			wndCtx->indexBuffer->SetDataAsync(frameId * wndCtx->bufferSize, indexStream.Buffer(), sizeof(int) * indexStream.Count());
+			wndCtx->vertexBuffer->SetDataAsync(frameId * wndCtx->bufferSize, vertexStream.Buffer(), sizeof(UberVertex) * vertexStream.Count());
+			wndCtx->primitiveBuffer->SetDataAsync(frameId * wndCtx->bufferSize, uniformFields.Buffer(), sizeof(UniformField) * uniformFields.Count());
 			
-			auto cmdBuf = blitCmdBuffer->BeginRecording();
+			auto cmdBuf = wndCtx->blitCmdBuffer->BeginRecording();
 			if (baseTexture)
-				cmdBuf->Blit(uiOverlayTexture.Ptr(), baseTexture);
+				cmdBuf->Blit(wndCtx->uiOverlayTexture.Ptr(), baseTexture);
 			cmdBuf->EndRecording();
 
-			cmdBuf = cmdBuffer->BeginRecording(frameBuffer.Ptr());
+			cmdBuf = wndCtx->cmdBuffer->BeginRecording(wndCtx->frameBuffer.Ptr());
+            if (!baseTexture)
+                cmdBuf->ClearAttachments(wndCtx->frameBuffer.Ptr());
 			cmdBuf->BindPipeline(pipeline.Ptr());
-			cmdBuf->BindVertexBuffer(vertexBuffer.Ptr(), frameId * vertexBufferSize);
-			cmdBuf->BindIndexBuffer(indexBuffer.Ptr(), frameId * indexBufferSize);
-			cmdBuf->BindDescriptorSet(0, descSets[frameId].Ptr());
-			cmdBuf->SetViewport(0, 0, screenWidth, screenHeight);
+			cmdBuf->BindVertexBuffer(wndCtx->vertexBuffer.Ptr(), frameId * wndCtx->bufferSize);
+			cmdBuf->BindIndexBuffer(wndCtx->indexBuffer.Ptr(), frameId * wndCtx->bufferSize);
+			cmdBuf->BindDescriptorSet(0, wndCtx->descSets[frameId].Ptr());
+			cmdBuf->SetViewport(0, 0, wndCtx->screenWidth, wndCtx->screenHeight);
 			cmdBuf->DrawIndexed(0, indexStream.Count());
 			cmdBuf->EndRecording();
 		}
-		void SubmitCommands(GameEngine::Fence * fence)
+		void SubmitCommands(UIWindowContext * wndCtx, GameEngine::Fence * fence)
 		{
 			frameId++;
-			rendererApi->ExecuteCommandBuffers(frameBuffer.Ptr(), MakeArray(blitCmdBuffer->GetBuffer(), cmdBuffer->GetBuffer()).GetArrayView(), fence);
+			rendererApi->ExecuteCommandBuffers(wndCtx->frameBuffer.Ptr(), MakeArray(wndCtx->blitCmdBuffer->GetBuffer(), wndCtx->cmdBuffer->GetBuffer()).GetArrayView(), fence);
 		}
 		void DrawLine(const Color & color, float x0, float y0, float x1, float y1)
 		{
@@ -1134,13 +1091,8 @@ namespace GraphicsUI
 			return symbolFont.Ptr();
 		}
 	}
-
-	void UIWindowsSystemInterface::SetResolution(int w, int h)
-	{
-		uiRenderer->SetScreenResolution(w, h);
-	}
-
-	void UIWindowsSystemInterface::TransferDrawCommands(Texture2D* baseTexture, CoreLib::List<DrawCommand>& commands)
+    
+	void UIWindowsSystemInterface::TransferDrawCommands(UIWindowContext * ctx, Texture2D* baseTexture, CoreLib::List<DrawCommand>& commands)
 	{
 		uiRenderer->BeginUIDrawing();
 		int ptr = 0;
@@ -1209,13 +1161,13 @@ namespace GraphicsUI
 			}
 			ptr++;
 		}
-		uiRenderer->EndUIDrawing(baseTexture);
+		uiRenderer->EndUIDrawing(ctx, baseTexture);
 	}
 
-	void UIWindowsSystemInterface::ExecuteDrawCommands(GameEngine::Fence* fence)
+	void UIWindowsSystemInterface::ExecuteDrawCommands(UIWindowContext * ctx, GameEngine::Fence* fence)
 	{
 		textBufferFence = fence;
-		uiRenderer->SubmitCommands(fence);
+		uiRenderer->SubmitCommands(ctx, fence);
 	}
 
 	void UIWindowsSystemInterface::SwitchCursor(CursorType c)
@@ -1276,34 +1228,23 @@ namespace GraphicsUI
 		textBuffer = (unsigned char*)textBufferObj->Map();
 		textBufferPool.Init(textBuffer, Log2TextBufferBlockSize, TextBufferSize >> Log2TextBufferBlockSize);
 		uiRenderer = new GLUIRenderer(this, ctx);
-		tmrHover.Interval = Global::HoverTimeThreshold;
-		tmrHover.OnTick.Bind(this, &UIWindowsSystemInterface::HoverTimerTick);
-		tmrTick.Interval = 50;
-		tmrTick.OnTick.Bind(this, &UIWindowsSystemInterface::TickTimerTick);
-		tmrTick.StartTimer();
 	}
 
 	UIWindowsSystemInterface::~UIWindowsSystemInterface()
 	{
-		tmrTick.StopTimer();
 		textBufferObj->Unmap();
 		delete uiRenderer;
 	}
 
 	void UIWindowsSystemInterface::WaitForDrawFence()
 	{
-		//if (textBufferFence)
-		//	textBufferFence->Wait();
+		if (textBufferFence)
+			textBufferFence->Wait();
 	}
 
 	unsigned char * UIWindowsSystemInterface::AllocTextBuffer(int size)
 	{
 		return textBufferPool.Alloc(size);
-	}
-
-	GameEngine::Texture2D * UIWindowsSystemInterface::GetRenderedImage()
-	{
-		return uiRenderer->GetRenderedImage();
 	}
 
 	IFont * UIWindowsSystemInterface::LoadFont(const Font & f)
@@ -1439,6 +1380,76 @@ namespace GraphicsUI
 		if (textBuffer)
 			system->FreeTextBuffer(textBuffer, BufferSize);
 	}
+
+    void UIWindowContext::SetSize(int w, int h)
+    {
+        hwRenderer->Wait();
+        hwRenderer->BeginDataTransfer();
+        surface->Resize(w, h);
+        uiEntry->Posit(0, 0, w, h);
+        uiOverlayTexture = hwRenderer->CreateTexture2D(TextureUsage::SampledColorAttachment, w, h, 1, StorageFormat::RGBA_8);
+        frameBuffer = sysInterface->CreateFrameBuffer(uiOverlayTexture.Ptr());
+        screenWidth = w;
+        screenHeight = h;
+        Matrix4::CreateOrthoMatrix(orthoMatrix, 0.0f, (float)screenWidth, 0.0f, (float)screenHeight, 1.0f, -1.0f);
+        uniformBuffer->SetData(&orthoMatrix, sizeof(orthoMatrix));
+        hwRenderer->EndDataTransfer();
+    }
+
+    UIWindowContext::UIWindowContext()
+    {
+        tmrHover.Interval = Global::HoverTimeThreshold;
+        tmrHover.OnTick.Bind(this, &UIWindowContext::HoverTimerTick);
+        tmrTick.Interval = 50;
+        tmrTick.OnTick.Bind(this, &UIWindowContext::TickTimerTick);
+        tmrTick.StartTimer();
+    }
+
+    UIWindowContext::~UIWindowContext()
+    {
+        tmrTick.StopTimer();
+        sysInterface->UnregisterWindowContext(this);
+    }
+    GameEngine::FrameBuffer * UIWindowsSystemInterface::CreateFrameBuffer(GameEngine::Texture2D * texture)
+    {
+        return uiRenderer->CreateFrameBuffer(texture);
+    }
+
+    void UIWindowsSystemInterface::UnregisterWindowContext(UIWindowContext * ctx)
+    {
+        windowContexts.Remove(ctx->handle);
+    }
+
+    RefPtr<UIWindowContext> UIWindowsSystemInterface::CreateWindowContext(HWND handle, int w, int h, int log2BufferSize)
+    {
+        RefPtr<UIWindowContext> rs = new UIWindowContext();
+        rs->handle = handle;
+        rs->sysInterface = this;
+        rs->hwRenderer = rendererApi;
+        rs->surface = rendererApi->CreateSurface(handle, w, h);
+        rs->uiEntry = new UIEntry(w, h, this);
+        rs->uniformBuffer = rendererApi->CreateMappedBuffer(BufferUsage::UniformBuffer, sizeof(VectorMath::Matrix4));
+        rs->cmdBuffer = new AsyncCommandBuffer(rendererApi);
+        rs->blitCmdBuffer = new AsyncCommandBuffer(rendererApi);
+        rs->bufferSize = 1 << log2BufferSize;
+        rs->primitiveBuffer = rendererApi->CreateMappedBuffer(BufferUsage::StorageBuffer, rs->bufferSize * DynamicBufferLengthMultiplier);
+        rs->vertexBuffer = rendererApi->CreateMappedBuffer(BufferUsage::ArrayBuffer, rs->bufferSize * DynamicBufferLengthMultiplier);
+        rs->indexBuffer = rendererApi->CreateMappedBuffer(BufferUsage::ArrayBuffer, rs->bufferSize * DynamicBufferLengthMultiplier);
+
+        for (int i = 0; i < rs->descSets.GetCapacity(); i++)
+        {
+            auto descSet = rendererApi->CreateDescriptorSet(uiRenderer->GetDescLayout());
+            descSet->BeginUpdate();
+            descSet->Update(0, rs->uniformBuffer.Ptr());
+            descSet->Update(1, rs->primitiveBuffer.Ptr(), i * rs->bufferSize, rs->bufferSize);
+            descSet->Update(2, textBufferObj.Ptr());
+            descSet->EndUpdate();
+            rs->descSets.Add(descSet);
+        }
+        rs->SetSize(w, h);
+        windowContexts[rs->handle] = rs.Ptr();
+        return rs;
+    }
 
 }
 
