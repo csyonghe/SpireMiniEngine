@@ -12,10 +12,9 @@ namespace GameEngine
     {
         Create();
         this->wantChars = true;
-        this->uiContext = psysInterface->CreateWindowContext(GetHandle(), GetClientWidth(), GetClientHeight(), log2UIBufferSize);
+        this->uiContext = psysInterface->CreateWindowContext(this, GetClientWidth(), GetClientHeight(), log2UIBufferSize);
         OnResized.Bind(this, &SystemWindow::WindowResized);
         OnResizing.Bind(this, &SystemWindow::WindowResizing);
-
     }
 
     SystemWindow::~SystemWindow()
@@ -26,7 +25,7 @@ namespace GameEngine
     void SystemWindow::Create()
     {
         handle = CreateWindowW(CoreLib::WinForm::Application::GLFormClassName, 0, WS_OVERLAPPEDWINDOW,
-            CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, NULL, NULL, CoreLib::WinForm::Application::GetHandle(), NULL);
+            CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, CoreLib::WinForm::Application::GetHandle(), NULL);
         if (!handle)
         {
             throw "Failed to create window.";
@@ -53,7 +52,7 @@ namespace GameEngine
         int rs = -1;
         if (engine)
         {
-            rs = engine->HandleWindowsMessage(msg.hWnd, msg.message, msg.wParam, msg.lParam);
+            rs = engine->HandleWindowsMessage(this, msg.message, msg.wParam, msg.lParam);
         }
         if (rs == -1)
             return BaseForm::ProcessMessage(msg);

@@ -10,7 +10,7 @@
 #include "AsyncCommandBuffer.h"
 #include "EngineLimits.h"
 
-namespace GraphicsUI
+namespace GameEngine
 {
 	class Font
 	{
@@ -57,6 +57,7 @@ namespace GraphicsUI
 	};
 
 	class DIBImage;
+    class SystemWindow;
 
 	struct TextSize
 	{
@@ -90,7 +91,7 @@ namespace GraphicsUI
 	};
 
 
-	class BakedText : public IBakedText
+	class BakedText : public GraphicsUI::IBakedText
 	{
 	public:
 		UIWindowsSystemInterface* system;
@@ -109,14 +110,14 @@ namespace GraphicsUI
 	};
 
 
-	class WindowsFont : public IFont
+	class WindowsFont : public GraphicsUI::IFont
 	{
 	private:
 		CoreLib::RefPtr<TextRasterizer> rasterizer;
 		UIWindowsSystemInterface * system;
-		GraphicsUI::Font fontDesc;
+		Font fontDesc;
 	public:
-		WindowsFont(UIWindowsSystemInterface * ctx, int dpi, const GraphicsUI::Font & font)
+		WindowsFont(UIWindowsSystemInterface * ctx, int dpi, const Font & font)
 		{
 			system = ctx;
 			fontDesc = font;
@@ -127,9 +128,9 @@ namespace GraphicsUI
 		{
 			rasterizer->SetFont(fontDesc, dpi);
 		}
-		virtual Rect MeasureString(const CoreLib::String & text) override;
-		virtual Rect MeasureString(const CoreLib::List<unsigned int> & text) override;
-		virtual IBakedText * BakeString(const CoreLib::String & text, IBakedText * previous) override;
+		virtual GraphicsUI::Rect MeasureString(const CoreLib::String & text) override;
+		virtual GraphicsUI::Rect MeasureString(const CoreLib::List<unsigned int> & text) override;
+		virtual GraphicsUI::IBakedText * BakeString(const CoreLib::String & text, GraphicsUI::IBakedText * previous) override;
 
 	};
 
@@ -143,47 +144,46 @@ namespace GraphicsUI
     public:
         int screenWidth, screenHeight;
         int bufferSize;
-        HWND handle;
-        GameEngine::HardwareRenderer * hwRenderer;
+        SystemWindow * window;
+        HardwareRenderer * hwRenderer;
         UIWindowsSystemInterface * sysInterface;
-        CoreLib::RefPtr<GameEngine::WindowSurface> surface;
-        CoreLib::RefPtr<GameEngine::Buffer> vertexBuffer, indexBuffer, primitiveBuffer;
+        CoreLib::RefPtr<WindowSurface> surface;
+        CoreLib::RefPtr<Buffer> vertexBuffer, indexBuffer, primitiveBuffer;
         CoreLib::RefPtr<GraphicsUI::UIEntry> uiEntry;
-        CoreLib::RefPtr<GameEngine::Texture2D> uiOverlayTexture;
-        CoreLib::RefPtr<GameEngine::FrameBuffer> frameBuffer;
-        CoreLib::RefPtr<GameEngine::Buffer> uniformBuffer;
+        CoreLib::RefPtr<Texture2D> uiOverlayTexture;
+        CoreLib::RefPtr<FrameBuffer> frameBuffer;
+        CoreLib::RefPtr<Buffer> uniformBuffer;
         CoreLib::WinForm::Timer tmrHover, tmrTick;
-        CoreLib::Array<CoreLib::RefPtr<GameEngine::DescriptorSet>, GameEngine::DynamicBufferLengthMultiplier> descSets;
+        CoreLib::Array<CoreLib::RefPtr<DescriptorSet>, DynamicBufferLengthMultiplier> descSets;
         VectorMath::Matrix4 orthoMatrix;
-        CoreLib::RefPtr<GameEngine::AsyncCommandBuffer> cmdBuffer, blitCmdBuffer;
+        CoreLib::RefPtr<AsyncCommandBuffer> cmdBuffer, blitCmdBuffer;
         void SetSize(int w, int h);
         UIWindowContext();
         ~UIWindowContext();
     };
-
-	class UIWindowsSystemInterface : public ISystemInterface
+	class UIWindowsSystemInterface : public GraphicsUI::ISystemInterface
 	{
 	private:
 		unsigned char * textBuffer = nullptr;
 		CoreLib::Dictionary<CoreLib::String, CoreLib::RefPtr<WindowsFont>> fonts;
-		CoreLib::RefPtr<GameEngine::Buffer> textBufferObj;
+		CoreLib::RefPtr<Buffer> textBufferObj;
 		CoreLib::MemoryPool textBufferPool;
 		VectorMath::Vec4 ColorToVec(GraphicsUI::Color c);
 		CoreLib::RefPtr<WindowsFont> defaultFont, titleFont, symbolFont;
-		GameEngine::Fence* textBufferFence = nullptr;
+		Fence* textBufferFence = nullptr;
 		
 		int GetCurrentDpi();
 	public:
 		GLUIRenderer * uiRenderer;
-		CoreLib::EnumerableDictionary<HWND, UIWindowContext*> windowContexts;
-		GameEngine::HardwareRenderer * rendererApi = nullptr;
+		CoreLib::EnumerableDictionary<SystemWindow*, UIWindowContext*> windowContexts;
+		HardwareRenderer * rendererApi = nullptr;
 		virtual void SetClipboardText(const CoreLib::String & text) override;
 		virtual CoreLib::String GetClipboardText() override;
-		virtual IFont * LoadDefaultFont(DefaultFontType dt = DefaultFontType::Content) override;
-		virtual void SwitchCursor(CursorType c) override;
+		virtual GraphicsUI::IFont * LoadDefaultFont(GraphicsUI::DefaultFontType dt = GraphicsUI::DefaultFontType::Content) override;
+		virtual void SwitchCursor(GraphicsUI::CursorType c) override;
 		void UpdateCompositionWindowPos(HIMC hIMC, int x, int y);
 	public:
-		UIWindowsSystemInterface(GameEngine::HardwareRenderer * ctx);
+		UIWindowsSystemInterface(HardwareRenderer * ctx);
 		~UIWindowsSystemInterface();
 		void WaitForDrawFence();
 		unsigned char * AllocTextBuffer(int size);
@@ -195,17 +195,17 @@ namespace GraphicsUI
 		{
 			return (int)(buffer - textBuffer);
 		}
-		GameEngine::Buffer * GetTextBufferObject()
+		Buffer * GetTextBufferObject()
 		{
 			return textBufferObj.Ptr();
 		}
-		IFont * LoadFont(const Font & f);
-		IImage * CreateImageObject(const CoreLib::Imaging::Bitmap & bmp);
-		void TransferDrawCommands(UIWindowContext * ctx, GameEngine::Texture2D* baseTexture, CoreLib::List<DrawCommand> & commands);
-		void ExecuteDrawCommands(UIWindowContext * ctx, GameEngine::Fence* fence);
-		int HandleSystemMessage(HWND hWnd, UINT message, WPARAM &wParam, LPARAM &lParam);
-        GameEngine::FrameBuffer * CreateFrameBuffer(GameEngine::Texture2D * texture);
-        CoreLib::RefPtr<UIWindowContext> CreateWindowContext(HWND handle, int w, int h, int log2BufferSize);
+        GraphicsUI::IFont * LoadFont(const Font & f);
+        GraphicsUI::IImage * CreateImageObject(const CoreLib::Imaging::Bitmap & bmp);
+		void TransferDrawCommands(UIWindowContext * ctx, Texture2D* baseTexture, CoreLib::List<GraphicsUI::DrawCommand> & commands);
+		void ExecuteDrawCommands(UIWindowContext * ctx, Fence* fence);
+		int HandleSystemMessage(SystemWindow* window, UINT message, WPARAM &wParam, LPARAM &lParam);
+        FrameBuffer * CreateFrameBuffer(Texture2D * texture);
+        CoreLib::RefPtr<UIWindowContext> CreateWindowContext(SystemWindow* handle, int w, int h, int log2BufferSize);
         void UnregisterWindowContext(UIWindowContext * ctx);
 	};
 }

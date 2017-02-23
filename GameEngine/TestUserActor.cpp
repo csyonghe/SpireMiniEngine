@@ -22,7 +22,7 @@ public:
 	}
 	virtual void RegisterUI(GraphicsUI::UIEntry * /*entry*/) override
 	{
-        sysWindow = Engine::Instance()->CreateSystemWindow();
+        sysWindow = Engine::Instance()->CreateSystemWindow(23);
         sysWindow->SetClientHeight(600);
         sysWindow->SetClientWidth(800);
         sysWindow->SetText("Test User Control");
@@ -47,6 +47,13 @@ public:
 		{
 			material.SetVariable("solidColor", DynamicVariable(Vec3::Create(0.0f, 0.0f, 1.0f)));
 		});
+
+        auto cmb = new ComboBox(top);
+        cmb->Posit(EM(14.5f), EM(2.5f), EM(5.0f), EM(1.5f));
+        cmb->AddTextItem("item1");
+        cmb->AddTextItem("item2");
+        cmb->AddTextItem("item3");
+        cmb->AddTextItem("item4");
 
 		auto slider = new ScrollBar(top);
 		slider->Posit(EM(1.0f), EM(3.5f), EM(6.5f), EM(1.0f));
@@ -86,7 +93,7 @@ public:
         updateContainer(1.0f);
         container->EnableZoom = true;
         container->OnZoom.Bind([=](float /*zoom0*/, float zoom1) {updateContainer(zoom1); });
-
+        uiForm->SizeChanged();
         Engine::Instance()->GetInputDispatcher()->BindActionHandler("TestUserCtrl", [=](String, ActionInput)
         {
             sysWindow->SetVisible(true);

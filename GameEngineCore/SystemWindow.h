@@ -11,7 +11,7 @@ namespace GameEngine
     class SystemWindow : public CoreLib::WinForm::BaseForm
     {
     private:
-        CoreLib::RefPtr<GraphicsUI::UIWindowContext> uiContext;
+        CoreLib::RefPtr<UIWindowContext> uiContext;
     protected:
         virtual void Create() override;
         void WindowResized(CoreLib::Object* sender, CoreLib::WinForm::EventArgs e);
@@ -20,13 +20,13 @@ namespace GameEngine
     protected:
         int ProcessMessage(CoreLib::WinForm::WinMessage & msg) override;
     public:
-        SystemWindow(GraphicsUI::UIWindowsSystemInterface * sysInterface, int log2UIBufferSize);
+        SystemWindow(UIWindowsSystemInterface * sysInterface, int log2UIBufferSize);
         ~SystemWindow();
         GraphicsUI::UIEntry * GetUIEntry()
         {
             return uiContext->uiEntry.Ptr();
         }
-        GraphicsUI::UIWindowContext * GetUIContext()
+        UIWindowContext * GetUIContext()
         {
             return uiContext.Ptr();
         }

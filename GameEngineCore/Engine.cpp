@@ -265,13 +265,16 @@ namespace GameEngine
         renderer->RenderFrame();
         stats.CpuTime += CoreLib::Diagnostics::PerformanceCounter::EndSeconds(cpuTimePoint);
 
-        for (auto sysWindow : uiSystemInterface->windowContexts)
+        for (auto && sysWindow : uiSystemInterface->windowContexts)
         {
+            if (!sysWindow.Key->GetVisible())
+                continue;
+
             renderer->GetHardwareRenderer()->BeginDataTransfer();
             auto uiEntry = sysWindow.Value->uiEntry.Ptr();
             auto uiCommands = uiEntry->DrawUI();
             Texture2D * backgroundImage = nullptr;
-            if (mainWindow->GetHandle() == sysWindow.Key)
+            if (mainWindow == sysWindow.Key)
                 backgroundImage = renderer->GetRenderedImage();
             uiSystemInterface->TransferDrawCommands(sysWindow.Value, backgroundImage, uiCommands);
             inDataTransfer = false;
@@ -365,12 +368,12 @@ namespace GameEngine
         return rs;
     }
 
-	int Engine::HandleWindowsMessage(HWND hwnd, UINT message, WPARAM & wparam, LPARAM & lparam)
+	int Engine::HandleWindowsMessage(SystemWindow * window, UINT message, WPARAM & wparam, LPARAM & lparam)
 	{
         if (uiSystemInterface)
         {
             renderer->GetHardwareRenderer()->BeginDataTransfer();
-			auto ret = uiSystemInterface->HandleSystemMessage(hwnd, message, wparam, lparam);
+			auto ret = uiSystemInterface->HandleSystemMessage(window, message, wparam, lparam);
             renderer->GetHardwareRenderer()->EndDataTransfer();
             return ret;
         }

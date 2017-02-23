@@ -495,15 +495,6 @@ namespace GameEngine
 		}
 	}
 
-	int RoundUpToAlignment(int val, int alignment)
-	{
-		int r = val % alignment;
-		if (r == 0)
-			return val;
-		else
-			return val + alignment - r;
-	}
-
 	SpireShader * RendererSharedResource::LoadSpireShader(const char * key, const char * source)
 	{
 		SpireShader * rs = nullptr;
@@ -522,7 +513,7 @@ namespace GameEngine
 		rs.BufferLength = Math::Max(spModuleGetParameterBufferSize(shaderModule), uniformBufferSize);
 		if (rs.BufferLength > 0)
 		{
-			rs.BufferLength = RoundUpToAlignment(rs.BufferLength, hardwareRenderer->UniformBufferAlignment());;
+			rs.BufferLength = Math::RoundUpToAlignment(rs.BufferLength, hardwareRenderer->UniformBufferAlignment());;
 			auto ptr = (unsigned char *)uniformMemory->Alloc(rs.BufferLength * DynamicBufferLengthMultiplier);
 			rs.UniformMemory = uniformMemory;
 			rs.BufferOffset = (int)(ptr - (unsigned char*)uniformMemory->BufferPtr());

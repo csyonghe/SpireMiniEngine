@@ -35,10 +35,8 @@ namespace GraphicsUI
 	const int MSG_UI_KEYPRESS = 10;
 	const int MSG_UI_CHANGED = 11;
 	const int MSG_UI_RESIZE = 12;
-
-	// this message(TopLayer Draw) is sent by Entry to notify controls to do some drawing above any other controls if necessary.
-	const int MSG_UI_TOPLAYER_DRAW = 13;
-	const int MSG_UI_MOUSEWHEEL = 14;
+    const int MSG_UI_TOPLAYER_DRAW = 13;
+    const int MSG_UI_MOUSEWHEEL = 14;
 	// Form Messages
 	const int MSG_UI_FORM_ACTIVATE = 15;
 	const int MSG_UI_FORM_DEACTIVATE = 16;
@@ -2239,6 +2237,16 @@ namespace GraphicsUI
 		};
 	}
 
+    void UIEntry::RegisterTopLevelControl(Control * ctrl)
+    {
+        topLayerControls.Add(ctrl);
+    }
+
+    void UIEntry::RemoveTopLevelControl(Control * ctrl)
+    {
+        topLayerControls.Remove(ctrl);
+    }
+
 	void UIEntry::HandleMessage(const UI_MsgArgs *Args)
 	{
 		if (Args->Type == MSG_UI_FORM_DEACTIVATE)
@@ -2437,7 +2445,8 @@ namespace GraphicsUI
 		UI_MsgArgs Arg;
 		Arg.Sender = this;
 		Arg.Type = MSG_UI_TOPLAYER_DRAW;
-		InternalBroadcastMessage(&Arg);
+        for (auto && ctrl : topLayerControls)
+            ctrl->HandleMessage(&Arg);
 
 		//Draw IME 
 		if (FocusedControl && (FocusedControl->Type & CT_IME_RECEIVER))
@@ -4241,7 +4250,17 @@ namespace GraphicsUI
 		UnfocusedSelectionColor = BackColor;
 		BorderWidth = 1;
 		DoDpiChanged();
+        auto entry = GetEntry();
+        if (entry)
+            entry->RegisterTopLevelControl(this);
 	}
+
+    ComboBox::~ComboBox()
+    {
+        auto entry = GetEntry();
+        if (entry)
+            entry->RemoveTopLevelControl(this);
+    }
 
 	bool ComboBox::DoClosePopup()
 	{
@@ -4668,7 +4687,17 @@ namespace GraphicsUI
 		}
 		else
 			Padding = 2;
+        auto entry = GetEntry();
+        if (entry)
+            entry->RegisterTopLevelControl(this);
 	}
+
+    Menu::~Menu()
+    {
+        auto entry = GetEntry();
+        if (entry)
+            entry->RemoveTopLevelControl(this);
+    }
 
 	void Menu::SetFocus()
 	{

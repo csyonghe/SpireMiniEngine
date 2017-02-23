@@ -111,6 +111,14 @@ namespace CoreLib
 				return log2;
 			}
 			*/
+            static inline int RoundUpToAlignment(int val, int alignment)
+            {
+                int r = val % alignment;
+                if (r == 0)
+                    return val;
+                else
+                    return val + alignment - r;
+            }
 		};
 		inline int FloatAsInt(float val)
 		{

@@ -8,6 +8,7 @@
 #include "OS.h"
 #include "EngineLimits.h"
 #include "ShaderCompiler.h"
+#include "SystemWindow.h"
 
 //#define WINDOWS_10_SCALING
 
@@ -27,14 +28,14 @@
 
 using namespace CoreLib;
 using namespace VectorMath;
-using namespace GameEngine;
+using namespace GraphicsUI;
 
 const int TextBufferSize = 4 * 1024 * 1024;
 const int TextPixelBits = 4;
 const int Log2TextPixelsPerByte = Math::Log2Floor(8 / TextPixelBits);
 const int Log2TextBufferBlockSize = 6;
 
-namespace GraphicsUI
+namespace GameEngine
 {
 	SHIFTSTATE GetCurrentShiftState()
 	{
@@ -104,13 +105,13 @@ namespace GraphicsUI
         uiEntry->DoMouseHover();
     }
     
-	int UIWindowsSystemInterface::HandleSystemMessage(HWND hWnd, UINT message, WPARAM &wParam, LPARAM &lParam)
+	int UIWindowsSystemInterface::HandleSystemMessage(SystemWindow* window, UINT message, WPARAM &wParam, LPARAM &lParam)
 	{
 		int rs = -1;
 		unsigned short Key;
 		UIMouseEventArgs Data;
         UIWindowContext * ctx = nullptr;
-        if (!windowContexts.TryGetValue(hWnd, ctx))
+        if (!windowContexts.TryGetValue(window, ctx))
         {
             return -1;
         }
@@ -179,7 +180,7 @@ namespace GraphicsUI
             ctx->tmrHover.StartTimer();
 			TranslateMouseMessage(Data, wParam, lParam);
 			entry->DoMouseDown(Data.X, Data.Y, Data.Shift);
-			SetCapture(hWnd);
+			SetCapture(window->GetHandle());
 			break;
 		}
 		case WM_RBUTTONUP:
@@ -215,7 +216,7 @@ namespace GraphicsUI
 		case WM_SIZE:
 		{
 			RECT rect;
-			GetClientRect(hWnd, &rect);
+			GetClientRect(window->GetHandle(), &rect);
 			entry->SetWidth(rect.right - rect.left);
 			entry->SetHeight(rect.bottom - rect.top);
 		}
@@ -245,7 +246,7 @@ namespace GraphicsUI
 			break;
 		case WM_IME_COMPOSITION:
 		{
-			HIMC hIMC = ImmGetContext(hWnd);
+			HIMC hIMC = ImmGetContext(window->GetHandle());
 			VectorMath::Vec2i pos = entry->GetCaretScreenPos();
 			UpdateCompositionWindowPos(hIMC, pos.x, pos.y + 6);
 			if (lParam&GCS_COMPSTR)
@@ -262,7 +263,7 @@ namespace GraphicsUI
 				ResultStr[StrSize / sizeof(wchar_t)] = 0;
 				entry->ImeMessageHandler.StringInputed(String::FromWString(ResultStr));
 			}
-			ImmReleaseContext(hWnd, hIMC);
+			ImmReleaseContext(window->GetHandle(), hIMC);
 			rs = 0;
 		}
 		break;
@@ -1312,14 +1313,6 @@ namespace GraphicsUI
 		Bit->canvas->ChangeFont(Font, dpi);
 	}
 
-	int RoundUpToAlignment(int val, int alignment)
-	{
-		int r = val % alignment;
-		if (r == 0)
-			return val;
-		return val + (alignment - r);
-	}
-
 	TextRasterizationResult TextRasterizer::RasterizeText(UIWindowsSystemInterface * system, const CoreLib::String & text, unsigned char * existingBuffer, int existingBufferSize) // Set the text that is going to be displayed.
 	{
 		int TextWidth, TextHeight;
@@ -1338,7 +1331,7 @@ namespace GraphicsUI
 		int textPixelMask = (1 << TextPixelBits) - 1;
 		if (pixelCount & ((1 << Log2TextPixelsPerByte) - 1))
 			bytes++;
-		bytes = RoundUpToAlignment(bytes, 1 << Log2TextBufferBlockSize);
+		bytes = Math::RoundUpToAlignment(bytes, 1 << Log2TextBufferBlockSize);
 		auto buffer = bytes > existingBufferSize ? system->AllocTextBuffer(bytes) : existingBuffer;
 		if (buffer)
 		{
@@ -1417,16 +1410,16 @@ namespace GraphicsUI
 
     void UIWindowsSystemInterface::UnregisterWindowContext(UIWindowContext * ctx)
     {
-        windowContexts.Remove(ctx->handle);
+        windowContexts.Remove(ctx->window);
     }
 
-    RefPtr<UIWindowContext> UIWindowsSystemInterface::CreateWindowContext(HWND handle, int w, int h, int log2BufferSize)
+    RefPtr<UIWindowContext> UIWindowsSystemInterface::CreateWindowContext(SystemWindow* handle, int w, int h, int log2BufferSize)
     {
         RefPtr<UIWindowContext> rs = new UIWindowContext();
-        rs->handle = handle;
+        rs->window = handle;
         rs->sysInterface = this;
         rs->hwRenderer = rendererApi;
-        rs->surface = rendererApi->CreateSurface(handle, w, h);
+        rs->surface = rendererApi->CreateSurface(handle->GetHandle(), w, h);
         rs->uiEntry = new UIEntry(w, h, this);
         rs->uniformBuffer = rendererApi->CreateMappedBuffer(BufferUsage::UniformBuffer, sizeof(VectorMath::Matrix4));
         rs->cmdBuffer = new AsyncCommandBuffer(rendererApi);
@@ -1447,7 +1440,7 @@ namespace GraphicsUI
             rs->descSets.Add(descSet);
         }
         rs->SetSize(w, h);
-        windowContexts[rs->handle] = rs.Ptr();
+        windowContexts[rs->window] = rs.Ptr();
         return rs;
     }
 

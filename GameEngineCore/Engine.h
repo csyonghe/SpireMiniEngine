@@ -77,7 +77,7 @@ namespace GameEngine
 		CoreLib::Array<RenderStat, 16> renderStats;
 		GraphicsUI::CommandForm * uiCommandForm = nullptr;
 		DrawCallStatForm * drawCallStatForm = nullptr;
-		CoreLib::RefPtr<GraphicsUI::UIWindowsSystemInterface> uiSystemInterface;
+		CoreLib::RefPtr<UIWindowsSystemInterface> uiSystemInterface;
         void MainLoop(CoreLib::Object *, CoreLib::WinForm::EventArgs);
 		bool OnToggleConsoleAction(const CoreLib::String & actionName, ActionInput input);
 		Engine() {};
@@ -146,7 +146,7 @@ namespace GameEngine
 		void EnableInput(bool value);
 		void OnCommand(CoreLib::String command);
         SystemWindow * CreateSystemWindow(int log2BufferSize = 21);
-		int HandleWindowsMessage(HWND hwnd, UINT message, WPARAM &wparam, LPARAM &lparam);
+		int HandleWindowsMessage(SystemWindow * window, UINT message, WPARAM &wparam, LPARAM &lparam);
 	public:
 		int GpuId = 0;
 		bool RecompileShaders = false;

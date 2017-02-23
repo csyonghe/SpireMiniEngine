@@ -713,6 +713,7 @@ namespace GraphicsUI
 	{
 	private:
 		CoreLib::List<MouseMessageStack> controlStack;
+        CoreLib::EnumerableHashSet<Control*> topLayerControls;
 		CoreLib::EnumerableHashSet<Control*> tickEventSubscribers;
 		int lineHeight = 0;
 		float dpiScale = 1.0f;
@@ -735,6 +736,8 @@ namespace GraphicsUI
 		void RemoveForm(Form *Form);
 		void ShowWindow(Form *Form);
 		void CloseWindow(Form *Form);
+        void RegisterTopLevelControl(Control * ctrl);
+        void RemoveTopLevelControl(Control * ctrl);
 		void SubscribeTickEvent(Control * ctrl)
 		{
 			tickEventSubscribers.Add(ctrl);
@@ -895,6 +898,7 @@ namespace GraphicsUI
 		void EndListBoxFunctions();
 	public:
 		ComboBox(Container * parent);
+        ~ComboBox();
 	public:
 		TextBox *TextBox;
 		Button *btnDrop;
@@ -978,6 +982,7 @@ namespace GraphicsUI
 		void CloseMenu();
 		virtual bool DoClosePopup() override;
 		Menu(Container * parent, MenuStyle mstyle = msPopup);
+        ~Menu();
 		virtual bool DoMouseHover() override;
 		virtual bool DoMouseMove(int X, int Y) override;
 		virtual bool DoMouseDown(int X, int Y, SHIFTSTATE Shift) override;
