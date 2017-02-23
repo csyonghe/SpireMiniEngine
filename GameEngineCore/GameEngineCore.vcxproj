@@ -270,6 +270,7 @@
     <ClInclude Include="Spire\SpireAllSource.h" />
     <ClInclude Include="SSAO.h" />
     <ClInclude Include="StaticMeshActor.h" />
+    <ClInclude Include="SystemWindow.h" />
     <ClInclude Include="TerrainActor.h" />
     <ClInclude Include="TextureCompressor.h" />
     <ClInclude Include="TextureTool\LibSquish.h" />

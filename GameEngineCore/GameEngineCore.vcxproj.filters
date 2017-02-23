@@ -293,6 +293,7 @@
     <ClInclude Include="ArcBallCameraController.h">
       <Filter>Actors</Filter>
     </ClInclude>
+    <ClInclude Include="SystemWindow.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Spire">
