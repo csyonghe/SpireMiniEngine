@@ -41,7 +41,7 @@ namespace GraphicsUI
 	const int MSG_UI_FORM_ACTIVATE = 15;
 	const int MSG_UI_FORM_DEACTIVATE = 16;
 
-	Control * FindNextFocus(Control * ctrl);
+	Control * FindNextFocus(Control * ctrl, int level = 0);
 
 	void Graphics::DrawArc(int x, int y, int rad, float theta, float theta2)
 	{
@@ -2267,8 +2267,10 @@ namespace GraphicsUI
 		Container::DoDpiChanged();
 	}
 
-	Control * FindNextFocus(Control * ctrl)
+	Control * FindNextFocus(Control * ctrl, int level)
 	{
+        if (level == 32)
+            return ctrl;
 		if (auto ctn = dynamic_cast<Container*>(ctrl))
 		{
 			for (auto & child : ctn->GetChildren())
@@ -2277,7 +2279,7 @@ namespace GraphicsUI
 				{
 					if (child->TabStop)
 						return child.Ptr();
-					else if (auto tmpRs = FindNextFocus(child.Ptr()))
+					else if (auto tmpRs = FindNextFocus(child.Ptr(), level+1))
 						return tmpRs;
 				}
 			}
@@ -2303,7 +2305,7 @@ namespace GraphicsUI
 					if (parent->GetChildren()[i]->TabStop)
 						return parent->GetChildren()[i].Ptr();
 					else
-						return FindNextFocus(parent->GetChildren()[i].Ptr());
+						return FindNextFocus(parent->GetChildren()[i].Ptr(), level + 1);
 				}
 			}
 		}
@@ -2330,8 +2332,10 @@ namespace GraphicsUI
 		return ctn;
 	}
 
-	Control * FindPreviousFocus(Control * ctrl)
+	Control * FindPreviousFocus(Control * ctrl, int level = 0)
 	{
+        if (level == 32)
+            return ctrl;
 		auto parent = ctrl->Parent;
 		while (parent && parent->GetChildren().First() == ctrl)
 		{
@@ -2355,11 +2359,11 @@ namespace GraphicsUI
 						if (last->Visible && last->Enabled && last->TabStop)
 							return last;
 						else
-							return FindPreviousFocus(GetLastLeaf(ctn));
+							return FindPreviousFocus(GetLastLeaf(ctn), level+1);
 					}
 				}
 			}
-			return FindPreviousFocus(parent);
+			return FindPreviousFocus(parent, level + 1);
 		}
 		return nullptr;
 	}
