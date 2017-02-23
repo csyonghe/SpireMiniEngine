@@ -213,7 +213,6 @@
     <ClCompile Include="ViewResource.cpp" />
     <ClCompile Include="VulkanAPI\vkel.c" />
     <ClCompile Include="VulkanAPI\VulkanHardwareRenderer.cpp" />
-    <ClCompile Include="VulkanAPI\VulkanOneDescHardwareRenderer.cpp" />
     <ClCompile Include="WorldRenderPass.cpp" />
   </ItemGroup>
   <ItemGroup>

@@ -6,7 +6,7 @@ namespace GameEngine
 	typedef void* WindowHandle;
 	enum class RenderAPI
 	{
-		OpenGL, Vulkan, VulkanSingle
+		OpenGL, Vulkan
 	};
 
 }

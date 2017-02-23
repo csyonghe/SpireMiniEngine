@@ -725,17 +725,22 @@ namespace GameEngine
 		virtual void ClearAttachments(FrameBuffer * frameBuffer) = 0;
 	};
 
+    class WindowSurface : public CoreLib::RefObject
+    {
+    public:
+        virtual void * GetWindowHandle() = 0;
+        virtual void Resize(int width, int height) = 0;
+        virtual void GetSize(int & width, int & height) = 0;
+    };
+
 	class HardwareRenderer : public CoreLib::RefObject
 	{
 	protected:
 		HardwareRenderer() {};
 	public:
-		virtual void BindWindow(void* windowHandle, int width, int height) = 0;
-		virtual void * GetWindowHandle() = 0;
-		virtual void Resize(int width, int height) = 0;
 		virtual void ClearTexture(GameEngine::Texture2D* texture) = 0;
 		virtual void ExecuteCommandBuffers(FrameBuffer* frameBuffer, CoreLib::ArrayView<CommandBuffer*> commands, Fence* fence) = 0;
-		virtual void Present(Texture2D* srcImage) = 0;
+		virtual void Present(WindowSurface * surface, Texture2D* srcImage) = 0;
 		virtual void Blit(Texture2D* dstImage, Texture2D* srcImage) = 0;
 		virtual void Wait() = 0;
 		virtual Fence* CreateFence() = 0;
@@ -763,12 +768,12 @@ namespace GameEngine
 		virtual int StorageBufferAlignment() = 0;
 		virtual void BeginDataTransfer() = 0;
 		virtual void EndDataTransfer() = 0;
+        virtual WindowSurface * CreateSurface(void * windowHandle, int width, int height) = 0;
 	};
 
 	// HardwareRenderer instance constructors
 	HardwareRenderer* CreateGLHardwareRenderer();
 	HardwareRenderer* CreateVulkanHardwareRenderer(int gpuId);
-	HardwareRenderer* CreateVulkanOneDescHardwareRenderer(int gpuId);
 }
 
 #endif

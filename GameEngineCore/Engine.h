@@ -50,6 +50,7 @@ namespace GameEngine
 		bool inDataTransfer = false;
 		GraphicsSettings graphicsSettings;
 		CoreLib::String levelToLoad;
+        CoreLib::RefPtr<WindowSurface> mainSurface;
 		CoreLib::List<RefPtr<Fence>> syncFences;
 	private:
 		bool enableInput = true;

@@ -114,7 +114,7 @@ namespace GameEngine
 			renderProcedure->Run(frameTask, params);
 		}
 	public:
-		RendererImpl(WindowHandle window, RenderAPI api)
+		RendererImpl(RenderAPI api)
 			: sharedRes(api)
 		{
 			switch (api)
@@ -122,15 +122,11 @@ namespace GameEngine
 			case RenderAPI::Vulkan:
 				hardwareRenderer = CreateVulkanHardwareRenderer(Engine::Instance()->GpuId);
 				break;
-			case RenderAPI::VulkanSingle:
-				hardwareRenderer = CreateVulkanOneDescHardwareRenderer(Engine::Instance()->GpuId);
-				break;
 			case RenderAPI::OpenGL:
 				hardwareRenderer = CreateGLHardwareRenderer();
 				break;
 			}
 
-			hardwareRenderer->BindWindow(window, 640, 480);
 			hardwareRenderer->BeginDataTransfer();
 			sharedRes.Init(hardwareRenderer);
 			sharedRes.envMap = hardwareRenderer->CreateTextureCube(TextureUsage::SampledColorAttachment, 256, 8, StorageFormat::RGBA_F16);
@@ -271,7 +267,6 @@ namespace GameEngine
 		virtual void Resize(int w, int h) override
 		{
 			mainView->Resize(w, h);
-			hardwareRenderer->Resize(w, h);
 		}
 		Texture2D * GetRenderedImage()
 		{
@@ -281,8 +276,8 @@ namespace GameEngine
 		}
 	};
 
-	Renderer* CreateRenderer(WindowHandle window, RenderAPI api)
+	Renderer* CreateRenderer(RenderAPI api)
 	{
-		return new RendererImpl(window, api);
+		return new RendererImpl(api);
 	}
 }

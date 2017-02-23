@@ -101,9 +101,6 @@
       <Filter>Renderer</Filter>
     </ClCompile>
     <ClCompile Include="AsyncCommandBuffer.cpp" />
-    <ClCompile Include="VulkanAPI\VulkanOneDescHardwareRenderer.cpp">
-      <Filter>Renderer\RenderAPI\Vulkan API</Filter>
-    </ClCompile>
     <ClCompile Include="TerrainActor.cpp">
       <Filter>Actors</Filter>
     </ClCompile>

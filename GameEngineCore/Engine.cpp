@@ -50,7 +50,7 @@ namespace GameEngine
 			uiSystemInterface->TransferDrawCommands(renderer->GetRenderedImage(), uiCommands);
 			renderer->GetHardwareRenderer()->EndDataTransfer();
 			uiSystemInterface->ExecuteDrawCommands(nullptr);
-			renderer->GetHardwareRenderer()->Present(uiSystemInterface->GetRenderedImage());
+			renderer->GetHardwareRenderer()->Present(mainSurface.Ptr(), uiSystemInterface->GetRenderedImage());
 			renderer->Wait();
 		}
 	}
@@ -83,9 +83,9 @@ namespace GameEngine
 				inputDispatcher->LoadMapping(bindingFile);
 			inputDispatcher->BindActionHandler("ToggleConsole", ActionInputHandlerFunc(this, &Engine::OnToggleConsoleAction));
 			// initialize renderer
-			renderer = CreateRenderer(args.Window, args.API);
+			renderer = CreateRenderer(args.API);
 			renderer->Resize(args.Width, args.Height);
-
+            mainSurface = renderer->GetHardwareRenderer()->CreateSurface(args.Window, args.Width, args.Height);
 			uiSystemInterface = new UIWindowsSystemInterface(renderer->GetHardwareRenderer());
 			Global::Colors = CreateDarkColorTable();
 			uiEntry = new UIEntry(args.Width, args.Height, uiSystemInterface.Ptr());
@@ -112,9 +112,6 @@ namespace GameEngine
 				break;
 			case RenderAPI::OpenGL:
 				Print("using OpenGL renderer.\n");
-				break;
-			case RenderAPI::VulkanSingle:
-				Print("using VulkanOne renderer, on GPU %d\n", Engine::Instance()->GpuId);
 				break;
 			}
 
@@ -148,6 +145,7 @@ namespace GameEngine
 		level = nullptr;
 		uiEntry = nullptr;
 		uiSystemInterface = nullptr;
+        mainSurface = nullptr;
 		for (auto & fence : syncFences)
 			fence = nullptr;
 		renderer = nullptr;
@@ -225,7 +223,7 @@ namespace GameEngine
 		uiSystemInterface->ExecuteDrawCommands(syncFences[frameCounter % DynamicBufferLengthMultiplier].Ptr());
 		aggregateTime += renderingTimeDelta;
 
-		renderer->GetHardwareRenderer()->Present(uiSystemInterface->GetRenderedImage());
+		renderer->GetHardwareRenderer()->Present(mainSurface.Ptr(), uiSystemInterface->GetRenderedImage());
 
 		if (aggregateTime > 1.0f)
 		{
@@ -255,6 +253,7 @@ namespace GameEngine
 		{
 			renderer->GetHardwareRenderer()->BeginDataTransfer();
 			renderer->Resize(w, h);
+            mainSurface->Resize(w, h);
 			uiSystemInterface->SetResolution(w, h);
 			renderer->GetHardwareRenderer()->EndDataTransfer();
 		}

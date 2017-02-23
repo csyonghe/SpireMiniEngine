@@ -8,6 +8,7 @@
 #include "../VectorMath.h"
 #include "../Spire/Spire.h"
 #include "../WinForm/Debug.h"
+#include "../WinForm/WinForm.h"
 #include "../GameEngineCore/HardwareRenderer.h"
 #include "../Common.h"
 #include <assert.h>
@@ -325,6 +326,39 @@ namespace GLL
 		}
 
 	};
+
+    class GLWindowSurface : public WindowSurface
+    {
+    public:
+        HGLRC glRC;
+        HDC hdc;
+        HWND hwnd;
+        int width, height;
+
+        virtual void Resize(int pwidth, int pheight) override
+        {
+            width = pwidth;
+            height = pheight;
+        }
+
+        virtual void * GetWindowHandle() override
+        {
+            return this->hwnd;
+        }
+
+        virtual void GetSize(int & pwidth, int & pheight) override
+        {
+            pwidth = width;
+            pheight = height;
+        }
+
+        ~GLWindowSurface()
+        {
+            glFinish();
+            wglDeleteContext(glRC);
+            ReleaseDC(hwnd, hdc);
+        }
+    };
 
 	class RenderBuffer : public GL_Object
 	{
@@ -2007,11 +2041,9 @@ namespace GLL
 	class HardwareRenderer : public GameEngine::HardwareRenderer
 	{
 	private:
-		HWND hwnd;
+		RefPtr<CoreLib::WinForm::Form> defaultForm;
 		HDC hdc;
 		HGLRC hrc;
-		int width;
-		int height;
 		VertexArray currentVAO;
 		FrameBuffer srcFrameBuffer;
 		FrameBuffer dstFrameBuffer;
@@ -2046,7 +2078,6 @@ namespace GLL
 		bool isInDataTransfer = false;
 		HardwareRenderer()
 		{
-			hwnd = 0;
 			hdc = 0;
 			hrc = 0;
 			for (int i = 0; i < 160; i++)
@@ -2054,54 +2085,113 @@ namespace GLL
 				textureBindState[i] = 0;
 				samplerBindState[i] = 0;
 			}
+            InitContext();
 		}
+        
 		~HardwareRenderer()
 		{
 			DestroyVertexArray(currentVAO);
 			DestroyFrameBuffer(srcFrameBuffer);
 			DestroyFrameBuffer(dstFrameBuffer);
 		}
-		virtual void * GetWindowHandle() override
+
+        void SetupDC(HDC dc)
+        {
+            PIXELFORMATDESCRIPTOR pfd; // Create a new PIXELFORMATDESCRIPTOR (PFD)
+            memset(&pfd, 0, sizeof(PIXELFORMATDESCRIPTOR)); // Clear our  PFD
+            pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR); // Set the size of the PFD to the size of the class
+            pfd.dwFlags = PFD_DOUBLEBUFFER | PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW; // Enable double buffering, opengl support and drawing to a window
+            pfd.iPixelType = PFD_TYPE_RGBA; // Set our application to use RGBA pixels
+            pfd.cColorBits = 32; // Give us 32 bits of color information (the higher, the more colors)
+            pfd.cDepthBits = 24; // Give us 32 bits of depth information (the higher, the more depth levels)
+            pfd.cStencilBits = 8;
+            pfd.iLayerType = PFD_MAIN_PLANE; // Set the layer of the PFD
+
+            int nPixelFormat = ChoosePixelFormat(dc, &pfd); // Check if our PFD is valid and get a pixel format back
+            if (nPixelFormat == 0) // If it fails
+                throw HardwareRendererException("Requried pixel format is not supported.");
+
+            auto bResult = SetPixelFormat(dc, nPixelFormat, &pfd); // Try and set the pixel format based on our PFD
+            if (!bResult) // If it fails
+                throw HardwareRendererException("Requried pixel format is not supported.");
+        }
+		
+        void InitContext()
+        {
+            defaultForm = new CoreLib::WinForm::Form();
+
+            auto hwnd = (HWND)defaultForm->GetHandle();
+            hdc = GetDC(hwnd); // Get the device context for our window
+
+            SetupDC(hdc);
+
+            HGLRC tempOpenGLContext = wglCreateContext(hdc); // Create an OpenGL 2.1 context for our device context
+            wglMakeCurrent(hdc, tempOpenGLContext); // Make the OpenGL 2.1 context current and active
+            GLenum error = glewInit(); // Enable GLEW
+
+            if (error != GLEW_OK) // If GLEW fails
+                throw HardwareRendererException("Failed to load OpenGL.");
+
+            int contextFlags = WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
+#ifdef _DEBUG
+            contextFlags |= WGL_CONTEXT_DEBUG_BIT_ARB;
+#endif
+
+            int attributes[] =
+            {
+                WGL_CONTEXT_MAJOR_VERSION_ARB, TargetOpenGLVersion_Major,
+                WGL_CONTEXT_MINOR_VERSION_ARB, TargetOpenGLVersion_Minor,
+                WGL_CONTEXT_FLAGS_ARB, contextFlags, // Set our OpenGL context to be forward compatible
+                0
+            };
+
+            if (wglewIsSupported("WGL_ARB_create_context") == 1)
+            {
+                // If the OpenGL 3.x context creation extension is available
+                hrc = wglCreateContextAttribsARB(hdc, NULL, attributes); // Create and OpenGL 3.x context based on the given attributes
+                wglMakeCurrent(NULL, NULL); // Remove the temporary context from being active
+                wglDeleteContext(tempOpenGLContext); // Delete the temporary OpenGL 2.1 context
+                wglMakeCurrent(hdc, hrc); // Make our OpenGL 3.0 context current
+            }
+            else
+            {
+                hrc = tempOpenGLContext; // If we didn't have support for OpenGL 3.x and up, use the OpenGL 2.1 context
+            }
+
+            int glVersion[2] = { 0, 0 }; // Set some default values for the version
+            glGetIntegerv(GL_MAJOR_VERSION, &glVersion[0]); // Get back the OpenGL MAJOR version we are using
+            glGetIntegerv(GL_MINOR_VERSION, &glVersion[1]); // Get back the OpenGL MAJOR version we are using
+
+            CoreLib::Diagnostics::Debug::WriteLine("Using OpenGL: " + String(glVersion[0]) + "." + String(glVersion[1])); // Output which version of OpenGL we are using
+            if (glVersion[0] < TargetOpenGLVersion_Major || (glVersion[0] == TargetOpenGLVersion_Major && glVersion[1] < TargetOpenGLVersion_Minor))
+            {
+                // supported OpenGL version is too low
+                throw HardwareRendererException("OpenGL" + String(TargetOpenGLVersion_Major) + "." + String(TargetOpenGLVersion_Minor) + " is not supported.");
+            }
+            if (glDebugMessageCallback)
+                glDebugMessageCallback(GL_DebugCallback, this);
+            //#ifdef _DEBUG
+            glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+            contextFlags |= WGL_CONTEXT_DEBUG_BIT_ARB;
+            //#endif
+            glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+
+            FindExtensionSubstitutes();
+            // Set up source/dest framebuffer for presenting images
+            srcFrameBuffer = CreateFrameBuffer();
+            dstFrameBuffer = CreateFrameBuffer();
+            currentVAO = CreateVertexArray();
+            wglSwapIntervalEXT(0);
+            glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+        }
+        
+		virtual WindowSurface * CreateSurface(void* windowHandle, int pwidth, int pheight) override
 		{
-			return this->hwnd;
-		}
-		void BindWindow(void* windowHandle, int pwidth, int pheight)
-		{
-			this->hwnd = (HWND)windowHandle;
-			this->width = pwidth;
-			this->height = pheight;
-			hdc = GetDC(hwnd); // Get the device context for our window
-
-			PIXELFORMATDESCRIPTOR pfd; // Create a new PIXELFORMATDESCRIPTOR (PFD)
-			memset(&pfd, 0, sizeof(PIXELFORMATDESCRIPTOR)); // Clear our  PFD
-			pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR); // Set the size of the PFD to the size of the class
-			pfd.dwFlags = PFD_DOUBLEBUFFER | PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW; // Enable double buffering, opengl support and drawing to a window
-			pfd.iPixelType = PFD_TYPE_RGBA; // Set our application to use RGBA pixels
-			pfd.cColorBits = 32; // Give us 32 bits of color information (the higher, the more colors)
-			pfd.cDepthBits = 24; // Give us 32 bits of depth information (the higher, the more depth levels)
-			pfd.cStencilBits = 8;
-			pfd.iLayerType = PFD_MAIN_PLANE; // Set the layer of the PFD
-
-			int nPixelFormat = ChoosePixelFormat(hdc, &pfd); // Check if our PFD is valid and get a pixel format back
-			if (nPixelFormat == 0) // If it fails
-				throw HardwareRendererException("Requried pixel format is not supported.");
-
-			auto bResult = SetPixelFormat(hdc, nPixelFormat, &pfd); // Try and set the pixel format based on our PFD
-			if (!bResult) // If it fails
-				throw HardwareRendererException("Requried pixel format is not supported.");
-
-			HGLRC tempOpenGLContext = wglCreateContext(hdc); // Create an OpenGL 2.1 context for our device context
-			wglMakeCurrent(hdc, tempOpenGLContext); // Make the OpenGL 2.1 context current and active
-			GLenum error = glewInit(); // Enable GLEW
-
-			if (error != GLEW_OK) // If GLEW fails
-				throw HardwareRendererException("Failed to load OpenGL.");
-
+            GLWindowSurface * surface = new GLWindowSurface();
 			int contextFlags = WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
 #ifdef _DEBUG
 			contextFlags |= WGL_CONTEXT_DEBUG_BIT_ARB;
 #endif
-
 			int attributes[] = 
 			{
 				WGL_CONTEXT_MAJOR_VERSION_ARB, TargetOpenGLVersion_Major, 
@@ -2110,50 +2200,23 @@ namespace GLL
 				0
 			};
 
-			if (wglewIsSupported("WGL_ARB_create_context") == 1) 
-			{ 
-				// If the OpenGL 3.x context creation extension is available
-				hrc = wglCreateContextAttribsARB(hdc, NULL, attributes); // Create and OpenGL 3.x context based on the given attributes
-				wglMakeCurrent(NULL, NULL); // Remove the temporary context from being active
-				wglDeleteContext(tempOpenGLContext); // Delete the temporary OpenGL 2.1 context
-				wglMakeCurrent(hdc, hrc); // Make our OpenGL 3.0 context current
-			}
-			else 
-			{
-				hrc = tempOpenGLContext; // If we didn't have support for OpenGL 3.x and up, use the OpenGL 2.1 context
-			}
-
-			int glVersion[2] = { 0, 0 }; // Set some default values for the version
-			glGetIntegerv(GL_MAJOR_VERSION, &glVersion[0]); // Get back the OpenGL MAJOR version we are using
-			glGetIntegerv(GL_MINOR_VERSION, &glVersion[1]); // Get back the OpenGL MAJOR version we are using
-
-			CoreLib::Diagnostics::Debug::WriteLine("Using OpenGL: " + String(glVersion[0]) + "." + String(glVersion[1])); // Output which version of OpenGL we are using
-			if (glVersion[0] < TargetOpenGLVersion_Major || (glVersion[0] == TargetOpenGLVersion_Major && glVersion[1] < TargetOpenGLVersion_Minor))
-			{
-				// supported OpenGL version is too low
-				throw HardwareRendererException("OpenGL" + String(TargetOpenGLVersion_Major) + "." + String(TargetOpenGLVersion_Minor) + " is not supported.");
-			}
-			if (glDebugMessageCallback)
-				glDebugMessageCallback(GL_DebugCallback, this);
-//#ifdef _DEBUG
-			glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-			contextFlags |= WGL_CONTEXT_DEBUG_BIT_ARB;
-//#endif
-			glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
-
-			FindExtensionSubstitutes();
-			// Set up source/dest framebuffer for presenting images
-			srcFrameBuffer = CreateFrameBuffer();
-			dstFrameBuffer = CreateFrameBuffer();
-			currentVAO = CreateVertexArray();
-			wglSwapIntervalEXT(0);
-			glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
-		}
-
-		virtual void Resize(int pwidth, int pheight) override
-		{
-			width = pwidth;
-			height = pheight;
+			// If the OpenGL 3.x context creation extension is available
+            surface->hwnd = (HWND)windowHandle;
+            surface->hdc = GetDC(surface->hwnd);
+            SetupDC(surface->hdc);
+			surface->glRC = wglCreateContextAttribsARB(surface->hdc, hrc, attributes);
+            if (!surface->glRC)
+            {
+                int errCode = GetLastError();
+                CoreLib::Diagnostics::Debug::WriteLine("Context creatation error: " + String(errCode));
+            }
+            surface->width = pwidth;
+            surface->height = pheight;
+            wglMakeCurrent(surface->hdc, surface->glRC);
+            wglSwapIntervalEXT(0);
+            glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+			wglMakeCurrent(hdc, hrc); // Make our OpenGL 3.0 context current
+            return surface;
 		}
 
 		virtual int GetSpireTarget() override
@@ -2452,7 +2515,8 @@ namespace GLL
 				dstFrameBuffer.EnableRenderTargets(1);
 				break;
 			}
-
+            int width, height;
+            dstImage->GetSize(width, height);
 			// Blit from src to dst
 			SetReadFrameBuffer(srcFrameBuffer);
 			SetWriteFrameBuffer(dstFrameBuffer);
@@ -2477,7 +2541,7 @@ namespace GLL
 			}
 		}
 
-		void Present(GameEngine::Texture2D* srcImage)
+		void Present(GameEngine::WindowSurface * surface, GameEngine::Texture2D* srcImage)
 		{
 			switch (reinterpret_cast<GLL::Texture2D*>(srcImage)->format)
 			{
@@ -2494,11 +2558,16 @@ namespace GLL
 			}
 
 			// Present rendered image to screen
+            GLWindowSurface * glsurface = (GLWindowSurface*)surface;
+            wglMakeContextCurrentARB(glsurface->hdc, glsurface->hdc, glsurface->glRC);
 			SetReadFrameBuffer(srcFrameBuffer);
 			SetWriteFrameBuffer(GLL::FrameBuffer());
+            int width, height;
+            surface->GetSize(width, height);
+            glViewport(0, 0, width, height);
 			CopyFrameBuffer(0, 0, width, height, 0, 0, width, height, true, false, false);
-
-			SwapBuffers();
+			SwapBuffers(glsurface->hdc);
+            wglMakeContextCurrentARB(hdc, hdc, hrc);
 
 			switch (reinterpret_cast<GLL::Texture2D*>(srcImage)->format)
 			{
@@ -2524,7 +2593,7 @@ namespace GLL
 				wglDeleteContext(hrc); // Delete our rendering context
 			}
 			if (hdc)
-				ReleaseDC(hwnd, hdc); // Release the device context from our window
+				ReleaseDC(defaultForm->GetHandle(), hdc); // Release the device context from our window
 		}
 
 
@@ -2741,10 +2810,10 @@ namespace GLL
 				glStencilMask(stencilMode.StencilMask);
 			glStencilOp(TranslateStencilOp(stencilMode.Fail), TranslateStencilOp(stencilMode.DepthFail), TranslateStencilOp(stencilMode.DepthPass));
 		}
-		void SwapBuffers()
+		void SwapBuffers(HDC dc)
 		{
 			DebugErrorEnabled = false;
-			::SwapBuffers(hdc);
+			::SwapBuffers(dc);
 			DebugErrorEnabled = true;
 		}
 

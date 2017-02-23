@@ -140,8 +140,6 @@ int wWinMain(
 			CommandLineParser parser(Application::GetCommandLine());
 			if (parser.OptionExists("-vk"))
 				args.API = RenderAPI::Vulkan;
-			if (parser.OptionExists("-vk1"))
-				args.API = RenderAPI::VulkanSingle;
 			if (parser.OptionExists("-dir"))
 				args.GameDirectory = RemoveQuote(parser.GetOptionValue("-dir"));
 			if (parser.OptionExists("-enginedir"))

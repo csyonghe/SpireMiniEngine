@@ -35,7 +35,7 @@ namespace GameEngine
 		virtual HardwareRenderer * GetHardwareRenderer() = 0;
 	};
 
-	Renderer* CreateRenderer(WindowHandle window, RenderAPI api);
+	Renderer* CreateRenderer(RenderAPI api);
 }
 
 #endif
