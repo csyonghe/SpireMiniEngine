@@ -651,6 +651,15 @@ namespace GameEngine
 		UIWindowsSystemInterface * system;
 		Vec4 clipRect;
 		int frameId = 0;
+		int maxVertices = 0, maxIndices = 0, maxPrimitives = 0;
+		int bufferReservior = 128;
+	public:
+		void SetBufferLimit(int maxVerts, int maxIndex, int maxPrim)
+		{
+			maxVertices = maxVerts;
+			maxIndices = maxIndex;
+			maxPrimitives = maxPrim;
+		}
 	public:
 		GLUIRenderer(UIWindowsSystemInterface * pSystem, GameEngine::HardwareRenderer * hw)
 		{
@@ -747,9 +756,15 @@ namespace GameEngine
 		void EndUIDrawing(UIWindowContext * wndCtx, Texture2D * baseTexture)
 		{
 			frameId = frameId % DynamicBufferLengthMultiplier;
-			wndCtx->indexBuffer->SetDataAsync(frameId * wndCtx->bufferSize, indexStream.Buffer(), sizeof(int) * indexStream.Count());
-			wndCtx->vertexBuffer->SetDataAsync(frameId * wndCtx->bufferSize, vertexStream.Buffer(), sizeof(UberVertex) * vertexStream.Count());
-			wndCtx->primitiveBuffer->SetDataAsync(frameId * wndCtx->bufferSize, uniformFields.Buffer(), sizeof(UniformField) * uniformFields.Count());
+			int indexCount = indexStream.Count();
+			if (indexCount * (int)sizeof(int) > wndCtx->indexBufferSize)
+				indexCount = wndCtx->indexBufferSize / (int)sizeof(int);
+			wndCtx->indexBuffer->SetDataAsync(frameId * wndCtx->indexBufferSize, indexStream.Buffer(), 
+				Math::Min((int)sizeof(int) * indexStream.Count(), wndCtx->indexBufferSize));
+			wndCtx->vertexBuffer->SetDataAsync(frameId * wndCtx->vertexBufferSize, vertexStream.Buffer(),
+				Math::Min((int)sizeof(UberVertex) * vertexStream.Count(), wndCtx->vertexBufferSize));
+			wndCtx->primitiveBuffer->SetDataAsync(frameId * wndCtx->primitiveBufferSize, uniformFields.Buffer(), 
+				Math::Min((int)sizeof(UniformField) * uniformFields.Count(), wndCtx->primitiveBufferSize));
 			
 			auto cmdBuf = wndCtx->blitCmdBuffer->BeginRecording();
 			if (baseTexture)
@@ -760,11 +775,11 @@ namespace GameEngine
             if (!baseTexture)
                 cmdBuf->ClearAttachments(wndCtx->frameBuffer.Ptr());
 			cmdBuf->BindPipeline(pipeline.Ptr());
-			cmdBuf->BindVertexBuffer(wndCtx->vertexBuffer.Ptr(), frameId * wndCtx->bufferSize);
-			cmdBuf->BindIndexBuffer(wndCtx->indexBuffer.Ptr(), frameId * wndCtx->bufferSize);
+			cmdBuf->BindVertexBuffer(wndCtx->vertexBuffer.Ptr(), frameId * wndCtx->vertexBufferSize);
+			cmdBuf->BindIndexBuffer(wndCtx->indexBuffer.Ptr(), frameId * wndCtx->indexBufferSize);
 			cmdBuf->BindDescriptorSet(0, wndCtx->descSets[frameId].Ptr());
 			cmdBuf->SetViewport(0, 0, wndCtx->screenWidth, wndCtx->screenHeight);
-			cmdBuf->DrawIndexed(0, indexStream.Count());
+			cmdBuf->DrawIndexed(0, indexCount);
 			cmdBuf->EndRecording();
 		}
 		void SubmitCommands(UIWindowContext * wndCtx, GameEngine::Fence * fence)
@@ -772,8 +787,16 @@ namespace GameEngine
 			frameId++;
 			rendererApi->ExecuteCommandBuffers(wndCtx->frameBuffer.Ptr(), MakeArray(wndCtx->blitCmdBuffer->GetBuffer(), wndCtx->cmdBuffer->GetBuffer()).GetArrayView(), fence);
 		}
+		bool IsBufferFull()
+		{
+			return (indexStream.Count() + bufferReservior > maxIndices ||
+				vertexStream.Count() + bufferReservior > maxVertices ||
+				primCounter + bufferReservior > maxPrimitives);
+		}
 		void DrawLine(const Color & color, float width, float x0, float y0, float x1, float y1)
 		{
+			if (IsBufferFull())
+				return;
 			UberVertex points[4];
 			Vec2 p0 = Vec2::Create(x0, y0);
 			Vec2 p1 = Vec2::Create(x1, y1);
@@ -807,6 +830,8 @@ namespace GameEngine
 		}
         void DrawLineCap(Color color, Vec2 pos, Vec2 dir, float size)
         {
+			if (IsBufferFull())
+				return;
             Array<Vec2,3> points;
             points.SetSize(3);
             points[0] = pos + dir * size;
@@ -873,6 +898,8 @@ namespace GameEngine
         }
 		void DrawSolidPolygon(const Color & color, CoreLib::ArrayView<Vec2> points)
 		{
+			if (IsBufferFull())
+				return;
 			for (auto p : points)
 			{
 				UberVertex vtx;
@@ -894,6 +921,8 @@ namespace GameEngine
 
 		void DrawSolidQuad(const Color & color, float x, float y, float x1, float y1)
 		{
+			if (IsBufferFull())
+				return;
 			indexStream.Add(vertexStream.Count());
 			indexStream.Add(vertexStream.Count() + 1);
 			indexStream.Add(vertexStream.Count() + 2);
@@ -937,6 +966,8 @@ namespace GameEngine
 		}
 		void DrawTextQuad(BakedText * text, const Color & fontColor, float x, float y, float x1, float y1)
 		{
+			if (IsBufferFull())
+				return;
 			indexStream.Add(vertexStream.Count());
 			indexStream.Add(vertexStream.Count() + 1);
 			indexStream.Add(vertexStream.Count() + 2);
@@ -965,6 +996,8 @@ namespace GameEngine
 		}
 		void DrawRectangleShadow(const Color & color, float x, float y, float w, float h, float offsetX, float offsetY, float shadowSize)
 		{
+			if (IsBufferFull())
+				return;
 			indexStream.Add(vertexStream.Count());
 			indexStream.Add(vertexStream.Count() + 1);
 			indexStream.Add(vertexStream.Count() + 2);
@@ -1099,6 +1132,9 @@ namespace GameEngine
 	{
         const int MaxEllipseEdges = 32;
 		uiRenderer->BeginUIDrawing();
+		uiRenderer->SetBufferLimit(ctx->vertexBufferSize / sizeof(UberVertex), ctx->indexBufferSize / sizeof(int),
+			ctx->primitiveBufferSize / sizeof(UniformField));
+
 		int ptr = 0;
 		while (ptr < commands.Count())
 		{
@@ -1462,19 +1498,19 @@ namespace GameEngine
         rs->uniformBuffer = rendererApi->CreateMappedBuffer(BufferUsage::UniformBuffer, sizeof(VectorMath::Matrix4));
         rs->cmdBuffer = new AsyncCommandBuffer(rendererApi);
         rs->blitCmdBuffer = new AsyncCommandBuffer(rendererApi);
-        rs->bufferSize = 1 << log2BufferSize;
-        int vertBufferSize = rs->bufferSize / sizeof(UniformField) * sizeof(UberVertex) * 8;
-        int indexBufferSize = vertBufferSize >> 2;
-        rs->primitiveBuffer = rendererApi->CreateMappedBuffer(BufferUsage::StorageBuffer, rs->bufferSize * DynamicBufferLengthMultiplier);
-        rs->vertexBuffer = rendererApi->CreateMappedBuffer(BufferUsage::ArrayBuffer, vertBufferSize * DynamicBufferLengthMultiplier);
-        rs->indexBuffer = rendererApi->CreateMappedBuffer(BufferUsage::ArrayBuffer, indexBufferSize * DynamicBufferLengthMultiplier);
+        rs->primitiveBufferSize = 1 << log2BufferSize;
+        rs->vertexBufferSize = rs->primitiveBufferSize / sizeof(UniformField) * sizeof(UberVertex) * 16;
+        rs->indexBufferSize = rs->vertexBufferSize >> 2;
+        rs->primitiveBuffer = rendererApi->CreateMappedBuffer(BufferUsage::StorageBuffer, rs->primitiveBufferSize * DynamicBufferLengthMultiplier);
+        rs->vertexBuffer = rendererApi->CreateMappedBuffer(BufferUsage::ArrayBuffer, rs->vertexBufferSize * DynamicBufferLengthMultiplier);
+        rs->indexBuffer = rendererApi->CreateMappedBuffer(BufferUsage::ArrayBuffer, rs->indexBufferSize * DynamicBufferLengthMultiplier);
 
         for (int i = 0; i < rs->descSets.GetCapacity(); i++)
         {
             auto descSet = rendererApi->CreateDescriptorSet(uiRenderer->GetDescLayout());
             descSet->BeginUpdate();
             descSet->Update(0, rs->uniformBuffer.Ptr());
-            descSet->Update(1, rs->primitiveBuffer.Ptr(), i * rs->bufferSize, rs->bufferSize);
+            descSet->Update(1, rs->primitiveBuffer.Ptr(), i * rs->primitiveBufferSize, rs->primitiveBufferSize);
             descSet->Update(2, textBufferObj.Ptr());
             descSet->EndUpdate();
             rs->descSets.Add(descSet);

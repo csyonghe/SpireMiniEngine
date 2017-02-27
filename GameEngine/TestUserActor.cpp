@@ -22,7 +22,7 @@ public:
 	}
 	virtual void RegisterUI(GraphicsUI::UIEntry * /*entry*/) override
 	{
-        sysWindow = Engine::Instance()->CreateSystemWindow(23);
+        sysWindow = Engine::Instance()->CreateSystemWindow(15);
         sysWindow->SetClientHeight(600);
         sysWindow->SetClientWidth(800);
         sysWindow->SetText("Test User Control");
@@ -77,15 +77,15 @@ public:
         auto updateContainer = [=](float zoom)
         {
             container->ClearChildren();
-            for (int i = 0; i < 10; i++)
-                for (int j = 0; j < 10; j++)
+            for (int i = 0; i < 100; i++)
+                for (int j = 0; j < 100; j++)
                 {
                     auto bezier = new BezierCurve(container);
                     bezier->SetPoints(Math::Max(1.0f, 5.0f * zoom), Vec2::Create(30.0f + i * 100, 200.0f + j * 60)*zoom, Vec2::Create(40.0f + i * 100, 120.0f + j * 60)*zoom, Vec2::Create(240.0f + i * 100, 280.0f + j * 60)*zoom, Vec2::Create(250.0f + i * 100, 200.0f + j * 60)*zoom);
                     bezier->StartCap = bezier->EndCap = LineCap::Arrow;
                 }
-            for (int i = 0; i < 10; i++)
-                for (int j = 0; j < 10; j++)
+            for (int i = 0; i < 100; i++)
+                for (int j = 0; j < 100; j++)
                 {
                     auto circle = new GraphicsUI::Ellipse(container);
                     circle->BorderColor = Color(255, 127, 0, 255);

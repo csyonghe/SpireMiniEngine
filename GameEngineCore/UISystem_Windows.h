@@ -143,7 +143,7 @@ namespace GameEngine
         void HoverTimerTick(CoreLib::Object *, CoreLib::WinForm::EventArgs e);
     public:
         int screenWidth, screenHeight;
-        int bufferSize;
+        int primitiveBufferSize, vertexBufferSize, indexBufferSize;
         SystemWindow * window;
         HardwareRenderer * hwRenderer;
         UIWindowsSystemInterface * sysInterface;
