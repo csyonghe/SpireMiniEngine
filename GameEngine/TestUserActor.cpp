@@ -55,6 +55,15 @@ public:
         cmb->AddTextItem("item3");
         cmb->AddTextItem("item4");
 
+        auto line = new Line(top);
+        line->EndCap = LineCap::Arrow;
+        line->BorderWidth = 5.0f;
+        line->BorderColor = Color(255, 202, 40, 255);
+        line->SetPoints((float)EM(8.0f), (float)EM(1.5f), (float)EM(14.0f), (float)EM(1.5f), 2.0f);
+        
+        auto txt = GraphicsUI::CreateMultiLineTextBox(top);
+        txt->Posit(EM(20.0f), EM(0.5f), EM(12.0f), EM(5.0f));
+
 		auto slider = new ScrollBar(top);
 		slider->Posit(EM(1.0f), EM(3.5f), EM(6.5f), EM(1.0f));
 		slider->SetValue(0, 2000, 1000, 50);
@@ -68,17 +77,19 @@ public:
         auto updateContainer = [=](float zoom)
         {
             container->ClearChildren();
-            for (int i = 0; i < 1000; i++)
-                for (int j = 0; j < 100; j++)
+            for (int i = 0; i < 10; i++)
+                for (int j = 0; j < 10; j++)
                 {
                     auto bezier = new BezierCurve(container);
                     bezier->SetPoints(Math::Max(1.0f, 5.0f * zoom), Vec2::Create(30.0f + i * 100, 200.0f + j * 60)*zoom, Vec2::Create(40.0f + i * 100, 120.0f + j * 60)*zoom, Vec2::Create(240.0f + i * 100, 280.0f + j * 60)*zoom, Vec2::Create(250.0f + i * 100, 200.0f + j * 60)*zoom);
                     bezier->StartCap = bezier->EndCap = LineCap::Arrow;
                 }
-            for (int i = 0; i < 1000; i++)
-                for (int j = 0; j < 100; j++)
+            for (int i = 0; i < 10; i++)
+                for (int j = 0; j < 10; j++)
                 {
                     auto circle = new GraphicsUI::Ellipse(container);
+                    circle->BorderColor = Color(255, 127, 0, 255);
+                    circle->BorderWidth = 5.0f;
                     circle->FontColor = Color(255, 255, 255, 255);
                     circle->Posit((int)((140 + i * 140)*zoom), (int)((140 + j * 140)*zoom), (int)(60 * zoom), (int)(60 * zoom));
                     circle->OnMouseEnter.Bind([=](UI_Base*) 
@@ -92,7 +103,7 @@ public:
         };
         updateContainer(1.0f);
         container->EnableZoom = true;
-        container->OnZoom.Bind([=](float /*zoom0*/, float zoom1) {updateContainer(zoom1); });
+        container->OnZoom.Bind([=](ZoomEventArgs & e) {updateContainer(e.VerticalScale); });
         uiForm->SizeChanged();
         Engine::Instance()->GetInputDispatcher()->BindActionHandler("TestUserCtrl", [=](String, ActionInput)
         {

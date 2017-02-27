@@ -986,11 +986,11 @@ namespace GraphicsUI
 					return true;
 				if (key >= Keys::Space)
 				{
-					InsertText((wchar_t)key);
+					InsertText(CoreLib::IO::Encoding::UTF16->ToString((const char *)&key, sizeof(unsigned short)));
 				}
 				else if (key == Keys::Return)
 				{
-					InsertText((wchar_t)key);
+                    InsertText(CoreLib::IO::Encoding::UTF16->ToString((const char *)&key, sizeof(unsigned short)));
 					if (caretPos.Line > 0)
 					{
 						StringBuilder spacesStr;
@@ -998,7 +998,7 @@ namespace GraphicsUI
 						{
 							auto ch = textBuffer.Lines[caretPos.Line - 1].Chars[i];
 							if (ch == '\t' || ch == ' ')
-								spacesStr << (wchar_t)ch;
+								spacesStr << ch;
 							else
 								break;
 						}
@@ -1664,7 +1664,7 @@ namespace GraphicsUI
 					int absCursorPosX = screenPos.x;
 					int absCursorPosY = screenPos.y;
 					graphics.PenColor = Color(255 - BackColor.R, 255 - BackColor.G, 255 - BackColor.B, 255);
-					graphics.DrawLine(absCursorPosX, absCursorPosY - lineHeight, absCursorPosX, absCursorPosY);
+					graphics.DrawLine(LineCap::None, LineCap::None, (float)absCursorPosX + 0.5f, (float)(absCursorPosY - lineHeight) + 0.5f, (float)absCursorPosX + 0.5f, (float)absCursorPosY);
 				}
 			}
 			entry->ClipRects->PopRect();

@@ -483,7 +483,7 @@ namespace GameEngine
 			ShadowUniformFields ShadowParams;
 		};
 	};
-
+    
 	class GLUIRenderer
 	{
 	private:
@@ -772,15 +772,17 @@ namespace GameEngine
 			frameId++;
 			rendererApi->ExecuteCommandBuffers(wndCtx->frameBuffer.Ptr(), MakeArray(wndCtx->blitCmdBuffer->GetBuffer(), wndCtx->cmdBuffer->GetBuffer()).GetArrayView(), fence);
 		}
-		void DrawLine(const Color & color, float x0, float y0, float x1, float y1)
+		void DrawLine(const Color & color, float width, float x0, float y0, float x1, float y1)
 		{
 			UberVertex points[4];
 			Vec2 p0 = Vec2::Create(x0, y0);
 			Vec2 p1 = Vec2::Create(x1, y1);
 			Vec2 lineDir = (p1 - p0) * 0.5f;
 			lineDir = lineDir.Normalize();
-			lineDir = lineDir * 0.5f;
+			lineDir = lineDir;
 			Vec2 lineDirOtho = Vec2::Create(-lineDir.y, lineDir.x);
+            float halfWidth = width * 0.5f;
+            lineDirOtho *= halfWidth;
 			p0.x -= lineDir.x; p0.y -= lineDir.y;
 			//p1.x += lineDir.x; p1.y += lineDir.y;
 			points[0].x = p0.x - lineDirOtho.x; points[0].y = p0.y - lineDirOtho.y; points[0].inputIndex = primCounter;
@@ -860,13 +862,13 @@ namespace GameEngine
             }
             if (endCap == LineCap::Arrow)
             {
-                DrawLineCap(color, pos1, dir1, width * 4.0f);
+                DrawLineCap(color, pos1, dir1, width * 6.0f);
             }
             if (startCap == LineCap::Arrow)
             {
                 dir0.x = -dir0.x;
                 dir0.y = -dir0.y;
-                DrawLineCap(color, pos0, dir0, width * 4.0f);
+                DrawLineCap(color, pos0, dir0, width * 6.0f);
             }
         }
 		void DrawSolidPolygon(const Color & color, CoreLib::ArrayView<Vec2> points)
@@ -1095,6 +1097,7 @@ namespace GameEngine
     
 	void UIWindowsSystemInterface::TransferDrawCommands(UIWindowContext * ctx, Texture2D* baseTexture, CoreLib::List<DrawCommand>& commands)
 	{
+        const int MaxEllipseEdges = 32;
 		uiRenderer->BeginUIDrawing();
 		int ptr = 0;
 		while (ptr < commands.Count())
@@ -1106,8 +1109,14 @@ namespace GameEngine
 				uiRenderer->SetClipRect(cmd.x0, cmd.y0, cmd.x1, cmd.y1);
 				break;
 			case DrawCommandName::Line:
-				uiRenderer->DrawLine(cmd.SolidColorParams.color, cmd.x0, cmd.y0, cmd.x1, cmd.y1);
-				break;
+            {
+				uiRenderer->DrawLine(cmd.LineParams.color, cmd.LineParams.width, cmd.x0, cmd.y0, cmd.x1, cmd.y1);
+                if (cmd.LineParams.startCap != LineCap::None)
+                    uiRenderer->DrawLineCap(cmd.LineParams.color, Vec2::Create(cmd.x0, cmd.y0), (Vec2::Create(cmd.x0, cmd.y0) - Vec2::Create(cmd.x1, cmd.y1)).Normalize(), cmd.LineParams.width * 6.0f);
+                if (cmd.LineParams.endCap != LineCap::None)
+                    uiRenderer->DrawLineCap(cmd.LineParams.color, Vec2::Create(cmd.x1, cmd.y1), (Vec2::Create(cmd.x1, cmd.y1) - Vec2::Create(cmd.x0, cmd.y0)).Normalize(), cmd.LineParams.width * 6.0f);
+                break;
+            }
 			case DrawCommandName::SolidQuad:
 				uiRenderer->DrawSolidQuad(cmd.SolidColorParams.color, cmd.x0, cmd.y0, cmd.x1, cmd.y1);
 				break;
@@ -1132,8 +1141,8 @@ namespace GameEngine
 			}
 			case DrawCommandName::Ellipse:
 			{
-				Array<Vec2, 24> verts;
-				int edges = 20;
+				Array<Vec2, MaxEllipseEdges> verts;
+				int edges = Math::Clamp((int)sqrt(Math::Max(cmd.x1 - cmd.x0, cmd.y1-cmd.y0)) * 3, 4, verts.GetCapacity());
 				float dTheta = Math::Pi * 2.0f / edges;
 				float theta = 0.0f;
 				float dotX = (cmd.x0 + cmd.x1) * 0.5f;
@@ -1148,6 +1157,35 @@ namespace GameEngine
 				uiRenderer->DrawSolidPolygon(cmd.SolidColorParams.color, verts.GetArrayView());
                 break;
 			}
+            case DrawCommandName::Arc:
+            {
+                int totalEdges = Math::Clamp((int)sqrt(Math::Max(cmd.x1 - cmd.x0, cmd.y1 - cmd.y0)) * 3, 4, MaxEllipseEdges);
+                float thetaDelta = Math::Pi / totalEdges * 2.0f;
+                float theta = cmd.ArcParams.angle1;
+                float dotX = (cmd.x0 + cmd.x1) * 0.5f;
+                float dotY = (cmd.y0 + cmd.y1) * 0.5f;
+                float radX = (cmd.x1 - cmd.x0) * 0.5f;
+                float radY = (cmd.y1 - cmd.y0) * 0.5f;
+                Vec2 pos = Vec2::Create(dotX + radX * cos(theta), dotY - radY * sin(theta));
+                Vec2 normal = Vec2::Create(radY * cos(theta), -radX * sin(theta)).Normalize();
+                Array<Vec2, 4> verts;
+                verts.SetSize(4);
+                while (theta < cmd.ArcParams.angle2)
+                {
+                    theta += thetaDelta;
+                    theta = Math::Min(theta, cmd.ArcParams.angle2);
+                    Vec2 pos2 = Vec2::Create(dotX + radX * cos(theta), dotY - radY * sin(theta));
+                    Vec2 normal2 = Vec2::Create(radY * cos(theta), -radX * sin(theta)).Normalize();
+                    verts[0] = pos;
+                    verts[1] = pos + normal * cmd.ArcParams.width;
+                    verts[2] = pos2 + normal2 * cmd.ArcParams.width;
+                    verts[3] = pos2;
+                    pos = pos2;
+                    normal = normal2;
+                    uiRenderer->DrawSolidPolygon(cmd.ArcParams.color, verts.GetArrayView());
+                }
+                break;
+            }
             case DrawCommandName::Bezier:
             {
                 uiRenderer->DrawBezier(cmd.BezierParams.width,
@@ -1425,9 +1463,11 @@ namespace GameEngine
         rs->cmdBuffer = new AsyncCommandBuffer(rendererApi);
         rs->blitCmdBuffer = new AsyncCommandBuffer(rendererApi);
         rs->bufferSize = 1 << log2BufferSize;
+        int vertBufferSize = rs->bufferSize / sizeof(UniformField) * sizeof(UberVertex) * 8;
+        int indexBufferSize = vertBufferSize >> 2;
         rs->primitiveBuffer = rendererApi->CreateMappedBuffer(BufferUsage::StorageBuffer, rs->bufferSize * DynamicBufferLengthMultiplier);
-        rs->vertexBuffer = rendererApi->CreateMappedBuffer(BufferUsage::ArrayBuffer, rs->bufferSize * DynamicBufferLengthMultiplier);
-        rs->indexBuffer = rendererApi->CreateMappedBuffer(BufferUsage::ArrayBuffer, rs->bufferSize * DynamicBufferLengthMultiplier);
+        rs->vertexBuffer = rendererApi->CreateMappedBuffer(BufferUsage::ArrayBuffer, vertBufferSize * DynamicBufferLengthMultiplier);
+        rs->indexBuffer = rendererApi->CreateMappedBuffer(BufferUsage::ArrayBuffer, indexBufferSize * DynamicBufferLengthMultiplier);
 
         for (int i = 0; i < rs->descSets.GetCapacity(); i++)
         {

@@ -154,6 +154,7 @@ namespace GraphicsUI
 		CoreLib::List<DrawCommand> commandBuffer;
 	public:
 		Color PenColor, SolidBrushColor;
+        float PenWidth = 1.0f;
 		void SetRenderTransform(int x, int y)
 		{
 			dx = x;
@@ -163,17 +164,15 @@ namespace GraphicsUI
 		void DrawShadowRect(Color color, int x0, int y0, int w, int h, int offsetX, int offsetY, float size);
 		void DrawTextQuad(IBakedText * text, int x, int y);
 		void DrawImage(IImage * image, int x, int y);
-		void DrawArc(int x, int y, int rad, float theta, float theta2);
+        void DrawArc(float x, float y, float x1, float y1, float theta, float theta2);
+
 		void DrawRectangle(int x1, int y1, int x2, int y2);
-		void FillRectangle(int x1, int y1, int x2, int y2);
+        void FillRectangle(int x1, int y1, int x2, int y2);
+        		void FillRectangle(float x1, float y1, float x2, float y2);
 		void FillEllipse(float x1, float y1, float x2, float y2);
 		void FillTriangle(int x0, int y0, int x1, int y1, int x2, int y2);
-		void DrawLine(float x1, float y1, float x2, float y2);
-        void DrawBezier(float width, LineCap startCap, LineCap endCap, VectorMath::Vec2 p0, VectorMath::Vec2 cp0, VectorMath::Vec2 cp1, VectorMath::Vec2 p1);
-		inline void DrawLine(int x1, int y1, int x2, int y2)
-		{
-			DrawLine((float)x1 + 0.5f, (float)y1 + 0.5f, (float)x2 + 0.5f, (float)y2 + 0.5f);
-		}
+		void DrawLine(LineCap startCap, LineCap endCap, float x1, float y1, float x2, float y2);
+        void DrawBezier(LineCap startCap, LineCap endCap, VectorMath::Vec2 p0, VectorMath::Vec2 cp0, VectorMath::Vec2 cp1, VectorMath::Vec2 p1);
 		void ClearCommands()
 		{
 			commandBuffer.Clear();
@@ -315,6 +314,8 @@ namespace GraphicsUI
 	public:
 		bool WantsTab = false;
 		bool AcceptsFocus = true;
+        float BorderWidth = 1.0f;
+
 		MarginValues Margin;
 		GraphicsUI::CursorType Cursor;
 		CoreLib::String Name;
@@ -403,12 +404,12 @@ namespace GraphicsUI
 	class Line : public Control
 	{
     private:
-        int x0, x1, y0, y1;
+        float x0, x1, y0, y1;
 	public:
         LineCap StartCap = LineCap::None;
         LineCap EndCap = LineCap::None;
 		Line(Container * owner);
-        void SetPoints(int x0, int y0, int x1, int y1);
+        void SetPoints(float x0, float y0, float x1, float y1, float lineWidth = 1.0f);
 		virtual void Draw(int absX, int absY);
 	};
 
@@ -423,7 +424,6 @@ namespace GraphicsUI
     {
     private:
         VectorMath::Vec2 p0, p1, cp0, cp1;
-        float LineWidth = 1.0f;
     public:
         LineCap StartCap = LineCap::None;
         LineCap EndCap = LineCap::None;
@@ -841,7 +841,7 @@ namespace GraphicsUI
 		bool Selecting = false;
 		bool HotTrack;
 		int SelOriX,SelOriY;
-		int BorderWidth;
+		int ContentPadding;
 		bool DownInItem;
 		int lastSelIdx = -1;
 		ScrollBar *ScrollBar;
@@ -1083,6 +1083,11 @@ namespace GraphicsUI
 		int GetClientHeight();
 	};
 
+    struct ZoomEventArgs
+    {
+        float HorizontalScale = 1.0f, VerticalScale = 1.0f;
+    };
+
     class ScrollPanel : public Container
     {
     private:
@@ -1093,10 +1098,12 @@ namespace GraphicsUI
         int cursorX = 0, cursorY = 0;
         int zoomLevel = 0;
         CoreLib::Dictionary<Control*, Rect> ctrlRects;
+        float horizontalScale = 1.0f, verticalScale = 1.0f;
     public:
         bool EnableZoom = false;
-        CoreLib::Event<float, float> OnZoom;
+        CoreLib::Event<ZoomEventArgs&> OnZoom;
         ScrollPanel(Container * parent);
+        void SetZoomLevel(int level);
         virtual CoreLib::List<CoreLib::RefPtr<Control>> & GetChildren() override
         {
             return content->GetChildren();

@@ -145,7 +145,7 @@ namespace GameEngine
 		void Resize(int w, int h);
 		void EnableInput(bool value);
 		void OnCommand(CoreLib::String command);
-        SystemWindow * CreateSystemWindow(int log2BufferSize = 21);
+        SystemWindow * CreateSystemWindow(int log2BufferSize = 20);
 		int HandleWindowsMessage(SystemWindow * window, UINT message, WPARAM &wparam, LPARAM &lparam);
 	public:
 		int GpuId = 0;

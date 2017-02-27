@@ -108,12 +108,24 @@ namespace GraphicsUI
 
 	enum class DrawCommandName
 	{
-		Line, Bezier, Ellipse, Triangle, SolidQuad, TextureQuad, ShadowQuad, TextQuad, ClipQuad
+		Line, Bezier, Arc, Ellipse, Triangle, SolidQuad, TextureQuad, ShadowQuad, TextQuad, ClipQuad
 	};
 	struct SolidColorCommand
 	{
 		Color color;
 	};
+    struct LineCommand
+    {
+        Color color;
+        float width;
+        LineCap startCap, endCap;
+    };
+    struct ArcCommand
+    {
+        Color color;
+        float angle1, angle2;
+        float width;
+    };
 	struct TextureCommand
 	{
 		IImage * image;
@@ -141,6 +153,7 @@ namespace GraphicsUI
         Color color;
         LineCap startCap, endCap;
     };
+
 	class DrawCommand
 	{
 	public:
@@ -149,6 +162,8 @@ namespace GraphicsUI
 		union
 		{
 			SolidColorCommand SolidColorParams;
+            LineCommand LineParams;
+            ArcCommand ArcParams;
 			TextureCommand TextureParams;
 			TextCommand TextParams;
 			ShadowCommand ShadowParams;

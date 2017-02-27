@@ -43,22 +43,19 @@ namespace GraphicsUI
 
 	Control * FindNextFocus(Control * ctrl);
 
-	void Graphics::DrawArc(int x, int y, int rad, float theta, float theta2)
+	void Graphics::DrawArc(float x, float y, float x1, float y1, float theta, float theta2)
 	{
-		float lastX = x + rad*cos(theta);
-		float lastY = y - rad*sin(theta);
-		int segs = rad;
-		float deltaPhi = (theta2-theta)/segs;
-		theta += deltaPhi;
-		for (int i=1; i < segs + 1; i++)
-		{	
-			float nx = x + rad*cos(theta);
-			float ny = y - rad*sin(theta);
-			DrawLine(lastX, lastY, nx, ny);
-			theta += deltaPhi;
-			lastX = nx;
-			lastY = ny;
-		}
+        DrawCommand cmd;
+        cmd.Name = DrawCommandName::Arc;
+        cmd.ArcParams.angle1 = theta;
+        cmd.ArcParams.angle2 = theta2;
+        cmd.ArcParams.color = PenColor;
+        cmd.ArcParams.width = PenWidth;
+        cmd.x0 = x;
+        cmd.y0 = y;
+        cmd.x1 = x1;
+        cmd.y1 = y1;
+        commandBuffer.Add(cmd);
 	}
 
 	void Graphics::FillEllipse(float x1, float y1, float x2, float y2)
@@ -87,13 +84,23 @@ namespace GraphicsUI
 
 	void Graphics::DrawRectangle(int x1, int y1, int x2, int y2)
 	{
-		DrawLine((float)x1 + 0.5f, (float)y1 + 0.5f, (float)x2, (float)y1 + 0.5f);
-		DrawLine((float)x1 + 0.5f, (float)y1 + 1.5f, (float)x1 + 0.5f, (float)y2);
-		DrawLine((float)x2 + 0.5f, (float)y1 + 0.5f, (float)x2 + 0.5f, (float)y2);
-		DrawLine((float)x2 + 0.5f, (float)y2 + 0.5f, (float)x1 + 0.5f, (float)y2 + 0.5f);
+		DrawLine(LineCap::None, LineCap::None, (float)x1 + 0.5f, (float)y1 + 0.5f, (float)x2, (float)y1 + 0.5f);
+		DrawLine(LineCap::None, LineCap::None, (float)x1 + 0.5f, (float)y1 + 1.5f, (float)x1 + 0.5f, (float)y2);
+		DrawLine(LineCap::None, LineCap::None, (float)x2 + 0.5f, (float)y1 + 0.5f, (float)x2 + 0.5f, (float)y2);
+		DrawLine(LineCap::None, LineCap::None, (float)x2 + 0.5f, (float)y2 + 0.5f, (float)x1 + 0.5f, (float)y2 + 0.5f);
 	}
 
-	void Graphics::FillRectangle(int x1, int y1, int x2, int y2)
+    void Graphics::FillRectangle(int x1, int y1, int x2, int y2)
+    {
+        DrawCommand cmd;
+        cmd.Name = DrawCommandName::SolidQuad;
+        cmd.SolidColorParams.color = SolidBrushColor;
+        cmd.x0 = (float)x1 + dx; cmd.y0 = (float)y1 + dy;
+        cmd.x1 = (float)x2 + dx; cmd.y1 = (float)y2 + dy;
+        commandBuffer.Add(cmd);
+    }
+
+	void Graphics::FillRectangle(float x1, float y1, float x2, float y2)
 	{
 		DrawCommand cmd;
 		cmd.Name = DrawCommandName::SolidQuad;
@@ -103,17 +110,20 @@ namespace GraphicsUI
 		commandBuffer.Add(cmd);
 	}
 
-	void Graphics::DrawLine(float x1, float y1, float x2, float y2)
+	void Graphics::DrawLine(LineCap startCap, LineCap endCap, float x1, float y1, float x2, float y2)
 	{
 		DrawCommand cmd;
 		cmd.Name = DrawCommandName::Line;
 		cmd.x0 = x1 + dx; cmd.y0 = y1 + dy;
 		cmd.x1 = x2 + dx; cmd.y1 = y2 + dy;
-		cmd.SolidColorParams.color = PenColor;
+		cmd.LineParams.color = PenColor;
+        cmd.LineParams.width = PenWidth;
+        cmd.LineParams.startCap = startCap;
+        cmd.LineParams.endCap = endCap;
 		commandBuffer.Add(cmd);
 	}
 
-    void Graphics::DrawBezier(float width, LineCap startCap, LineCap endCap, VectorMath::Vec2 p0, VectorMath::Vec2 cp0, VectorMath::Vec2 cp1, VectorMath::Vec2 p1)
+    void Graphics::DrawBezier(LineCap startCap, LineCap endCap, VectorMath::Vec2 p0, VectorMath::Vec2 cp0, VectorMath::Vec2 cp1, VectorMath::Vec2 p1)
     {
         DrawCommand cmd;
         cmd.Name = DrawCommandName::Bezier;
@@ -126,7 +136,7 @@ namespace GraphicsUI
         cmd.BezierParams.cx1 = cp1.x;
         cmd.BezierParams.cy0 = cp0.y;
         cmd.BezierParams.cy1 = cp1.y;
-        cmd.BezierParams.width = width;
+        cmd.BezierParams.width = PenWidth;
         commandBuffer.Add(cmd);
     }
 
@@ -826,25 +836,26 @@ namespace GraphicsUI
 		DarkColor.G = (unsigned char)ClampInt(BorderColor.G - COLOR_LIGHTEN, 0, 255);
 		DarkColor.B = (unsigned char)ClampInt(BorderColor.B - COLOR_LIGHTEN, 0, 255);
 		DarkColor.A = BorderColor.A;
+        entry->DrawCommands.PenWidth = BorderWidth;
 		if (BorderStyle == BS_RAISED)
 		{
 			entry->DrawCommands.PenColor = LightColor;
-			entry->DrawCommands.DrawLine(absX, absY, absX + Width - 1, absY);
-			entry->DrawCommands.DrawLine(absX, absY, absX, absY + Height - 1);
+			entry->DrawCommands.DrawLine(LineCap::None, LineCap::None, (float)(absX) + 0.5f, (float)(absY) + 0.5f, (float)(absX + Width) - 0.5f, (float)(absY) + 0.5f);
+			entry->DrawCommands.DrawLine(LineCap::None, LineCap::None, (float)(absX) + 0.5f, (float)(absY) + 0.5f, (float)(absX) + 0.5f, (float)(absY + Height) - 0.5f);
 
 			entry->DrawCommands.PenColor = DarkColor;
-			entry->DrawCommands.DrawLine(absX + Width - 1, absY, absX + Width - 1, absY + Height - 1);
-			entry->DrawCommands.DrawLine(absX + Width - 1, absY + Height - 1, absX, absY + Height - 1);
+			entry->DrawCommands.DrawLine(LineCap::None, LineCap::None, (float)(absX + Width) - 0.5f, (float)absY + 0.5f, (float)(absX + Width) - 0.5f, (float)(absY + Height) - 0.5f);
+			entry->DrawCommands.DrawLine(LineCap::None, LineCap::None, (float)(absX + Width) - 0.5f, (float)(absY + Height) - 0.5f, (float)absX + 0.5f, (float)(absY + Height) - 0.5f);
 		}
 		else if (BorderStyle == BS_LOWERED)
 		{
 			entry->DrawCommands.PenColor = DarkColor;
-			entry->DrawCommands.DrawLine(absX, absY, absX + Width - 1, absY);
-			entry->DrawCommands.DrawLine(absX, absY, absX, absY + Height - 1);
+            entry->DrawCommands.DrawLine(LineCap::None, LineCap::None, (float)(absX)+0.5f, (float)(absY)+0.5f, (float)(absX + Width) - 0.5f, (float)(absY)+0.5f);
+            entry->DrawCommands.DrawLine(LineCap::None, LineCap::None, (float)(absX)+0.5f, (float)(absY)+0.5f, (float)(absX)+0.5f, (float)(absY + Height) - 0.5f);
 
 			entry->DrawCommands.PenColor = LightColor;
-			entry->DrawCommands.DrawLine(absX + Width - 1, absY, absX + Width - 1, absY + Height - 1);
-			entry->DrawCommands.DrawLine(absX + Width - 1, absY + Height - 1, absX, absY + Height - 1);
+            entry->DrawCommands.DrawLine(LineCap::None, LineCap::None, (float)(absX + Width) - 0.5f, (float)absY + 0.5f, (float)(absX + Width) - 0.5f, (float)(absY + Height) - 0.5f);
+            entry->DrawCommands.DrawLine(LineCap::None, LineCap::None, (float)(absX + Width) - 0.5f, (float)(absY + Height) - 0.5f, (float)absX + 0.5f, (float)(absY + Height) - 0.5f);
 		}
 		else if (BorderStyle == BS_FLAT_)
 		{
@@ -2616,11 +2627,15 @@ namespace GraphicsUI
 			lightColor = darkColor = Global::Colors.ControlBorderColor;
 		}
 		graphics.PenColor = darkColor;
-		graphics.DrawLine(absX, absY + checkBoxTop, absX + checkBoxSize, absY + checkBoxTop);
-		graphics.DrawLine(absX, absY + checkBoxTop + 1, absX, absY + checkBoxSize + checkBoxTop);
+        graphics.PenWidth = BorderWidth;
+		graphics.DrawLine(LineCap::None, LineCap::None, (float)(absX) + 0.5f, (float)(absY + checkBoxTop) + 0.5f, 
+            (float)(absX + checkBoxSize + checkBoxTop) - 0.5f, (float)(absY + checkBoxTop) + 0.5f);
+		graphics.DrawLine(LineCap::None, LineCap::None, (float)(absX) + 0.5f, (float)(absY + checkBoxTop) + 1.5f, (float)(absX) + 0.5f, (float)(absY + checkBoxSize + checkBoxTop) - 0.5f);
 		graphics.PenColor = lightColor;
-		graphics.DrawLine(absX + checkBoxSize, absY + checkBoxTop, absX + checkBoxSize, absY + checkBoxSize + checkBoxTop);
-		graphics.DrawLine(absX + checkBoxSize - 1, absY + checkBoxSize + checkBoxTop, absX + 1, absY + checkBoxSize + checkBoxTop);
+		graphics.DrawLine(LineCap::None, LineCap::None, (float)(absX + checkBoxSize) - 0.5f, (float)(absY + checkBoxTop) + 1.5f, 
+            (float)(absX + checkBoxSize) - 0.5f, (float)(absY + checkBoxSize + checkBoxTop) - 1.5f);
+		graphics.DrawLine(LineCap::None, LineCap::None, (float)(absX + checkBoxSize) - 1.5f, (float)(absY + checkBoxSize + checkBoxTop) - 0.5f, 
+            (float)(absX) + 1.5f, (float)(absY + checkBoxSize + checkBoxTop) - 0.5f);
 		// Draw check mark
 		if (Checked)
 		{
@@ -2715,13 +2730,13 @@ namespace GraphicsUI
 		absY = absY + Top;
 		auto entry = GetEntry();
 		int checkBoxSize = GetEntry()->CheckmarkLabel->TextWidth;
-		int rad = checkBoxSize / 2 + 1;
-		int dotX = absX + rad;
-		int dotY = absY + (Height >> 1);
+		float rad = (float)(checkBoxSize / 2 + 1);
+		float dotX = (float)(absX + rad);
+        float dotY = (float)(absY + (Height >> 1));
 		auto & graphics = entry->DrawCommands;
+        graphics.PenWidth = 1.0f;
 		graphics.SolidBrushColor = Global::Colors.EditableAreaBackColor;
 		graphics.FillEllipse((float)dotX - rad, (float)dotY - rad, (float)dotX + rad, (float)dotY + rad);
-
 		if (BorderStyle == BS_LOWERED)
 		{
 			//Draw Check Box
@@ -2735,14 +2750,14 @@ namespace GraphicsUI
 			DarkColor.B = (unsigned char)ClampInt(Global::Colors.ControlBorderColor.B - COLOR_LIGHTEN, 0, 255);
 			DarkColor.A = (unsigned char)ClampInt(Global::Colors.ControlBorderColor.A + COLOR_LIGHTEN, 0, 255);
 			graphics.PenColor = DarkColor;
-			graphics.DrawArc(dotX, dotY, rad, Math::Pi / 4, Math::Pi * 5 / 4);
+			graphics.DrawArc(dotX, dotY, dotX + rad, dotY + rad, Math::Pi * 0.25f, Math::Pi * 1.25f);
 			graphics.PenColor = LightColor;
-			graphics.DrawArc(dotX, dotY, rad, PI * 5 / 4, PI * 9 / 4);
+			graphics.DrawArc(dotX, dotY, dotX + rad, dotY + rad, PI * 1.25f, PI * 2.25f);
 		}
 		else
 		{
 			graphics.PenColor = Global::Colors.ControlBorderColor;
-			graphics.DrawArc(dotX, dotY, rad, 0.0f, Math::Pi * 2.0f);
+			graphics.DrawArc(dotX, dotY, dotX + rad, dotY + rad, 0.0f, Math::Pi * 2.0f);
 		}
 		float dotRad = rad * 0.5f;
 		if (Checked)
@@ -3332,7 +3347,8 @@ namespace GraphicsUI
 			AbsCursorPosX = absX+csX;
 			AbsCursorPosY = absY+Height-TextBorderX;
 			graphics.PenColor = Color(255 - BackColor.R, 255 - BackColor.G, 255 - BackColor.B, 255);
-			graphics.DrawLine(AbsCursorPosX, absY + TextBorderX, AbsCursorPosX, AbsCursorPosY);
+            graphics.PenWidth = BorderWidth;
+            graphics.DrawLine(LineCap::None, LineCap::None, (float)(AbsCursorPosX) + 0.5f, (float)(absY + TextBorderX) + 0.5f, (float)(AbsCursorPosX) + 0.5f, (float)(AbsCursorPosY) - 0.5f);
 		}
 
 	}
@@ -3830,7 +3846,7 @@ namespace GraphicsUI
 		ScrollBar = new GraphicsUI::ScrollBar(this);
 		ScrollBar->SetOrientation(SO_VERTICAL);
 		ScrollBar->Visible = false;
-		BorderWidth = 2;
+		ContentPadding = 2;
 		DoDpiChanged();
 	}
 
@@ -3852,7 +3868,7 @@ namespace GraphicsUI
 		int ShowCount = Height / ItemHeight +1;
 		int bdr = (ScrollBar->Visible?ScrollBar->GetWidth():0);
 		auto entry = GetEntry();
-		entry->ClipRects->AddRect(Rect(absX+BorderWidth, absY + BorderWidth, Width-BorderWidth*2 - bdr, Height-BorderWidth*2));
+		entry->ClipRects->AddRect(Rect(absX+ContentPadding, absY + ContentPadding, Width-ContentPadding*2 - bdr, Height-ContentPadding*2));
 		bool focused = IsFocused();
 		auto & graphics = entry->DrawCommands;
 		for (int i=ScrollBar->GetPosition();i<=ScrollBar->GetPosition()+ShowCount && i<Items.Count();i++)
@@ -3875,20 +3891,20 @@ namespace GraphicsUI
 				CurItem->BackColor = BackColor;
 				CurItem->FontColor = FontColor;
 			}
-			CurItem->Posit(BorderWidth,BorderWidth+(i-ScrollBar->GetPosition())*ItemHeight,Width-BorderWidth*2-bdr, ItemHeight);
+			CurItem->Posit(ContentPadding,ContentPadding+(i-ScrollBar->GetPosition())*ItemHeight,Width-ContentPadding*2-bdr, ItemHeight);
 			graphics.SolidBrushColor = CurItem->BackColor;
-			graphics.FillRectangle(absX + BorderWidth, absY + CurItem->Top, absX + Width - BorderWidth, absY + CurItem->Top + CurItem->GetHeight());
+			graphics.FillRectangle(absX + ContentPadding, absY + CurItem->Top, absX + Width - ContentPadding, absY + CurItem->Top + CurItem->GetHeight());
 			CurItem->Draw(absX,absY);
 		}
 		if (focused && AcceptsFocus)
 		{
 			int FID =SelectedIndex;
 			if (FID==-1) FID =0;
-			bdr = BorderWidth*2;
+			bdr = ContentPadding*2;
 			if (ScrollBar->Visible)	bdr += ScrollBar->GetWidth()+1;
-			int RectX1 = BorderWidth+absX;
+			int RectX1 = ContentPadding+absX;
 			int RectX2 = RectX1 + Width - bdr;
-			int RectY1 = (FID-ScrollBar->GetPosition())*ItemHeight+absY+BorderWidth-1;
+			int RectY1 = (FID-ScrollBar->GetPosition())*ItemHeight+absY+ContentPadding-1;
 			int RectY2 = RectY1+ItemHeight+1;
 			graphics.PenColor = Global::Colors.FocusRectColor;
 			graphics.DrawRectangle(RectX1, RectY1, RectX2, RectY2);
@@ -3899,7 +3915,7 @@ namespace GraphicsUI
 
 	void ListBox::SizeChanged()
 	{
-		ScrollBar->Posit(Width - Global::SCROLLBAR_BUTTON_SIZE - BorderWidth, BorderWidth, Global::SCROLLBAR_BUTTON_SIZE, Height - BorderWidth*2);
+		ScrollBar->Posit(Width - Global::SCROLLBAR_BUTTON_SIZE - ContentPadding, ContentPadding, Global::SCROLLBAR_BUTTON_SIZE, Height - ContentPadding*2);
 		ListChanged();
 	}
 
@@ -3934,7 +3950,7 @@ namespace GraphicsUI
 			{
 				Selecting = true;
 				SelOriX = X;
-				SelOriY = Y+ScrollBar->GetPosition()*ItemHeight+BorderWidth;
+				SelOriY = Y+ScrollBar->GetPosition()*ItemHeight+ContentPadding;
 			}
 		}
 		if (hitTest != ScrollBar)
@@ -3967,7 +3983,7 @@ namespace GraphicsUI
 				SelectionChanged();
 					
 			}
-			int sy =(SelectedIndex-ScrollBar->GetPosition())*ItemHeight+BorderWidth-1;
+			int sy =(SelectedIndex-ScrollBar->GetPosition())*ItemHeight+ContentPadding-1;
 			if (sy<=5)
 			{
 				ScrollBar->SetPosition(ClampInt(SelectedIndex,0,ScrollBar->GetMax()));
@@ -4017,7 +4033,7 @@ namespace GraphicsUI
 			Selection.Clear();
 			int cX,cY;
 			cX = X;
-			cY = Y - BorderWidth + ScrollBar->GetPosition()*ItemHeight;
+			cY = Y - ContentPadding + ScrollBar->GetPosition()*ItemHeight;
 			if (SelOriY>cY)
 			{
 				int tmpY = cY;
@@ -4248,7 +4264,7 @@ namespace GraphicsUI
 		SelectionColor = BackColor;
 		SelectionForeColor = FontColor;
 		UnfocusedSelectionColor = BackColor;
-		BorderWidth = 1;
+		ContentPadding = 1;
 		DoDpiChanged();
         auto entry = GetEntry();
         if (entry)
@@ -4277,18 +4293,18 @@ namespace GraphicsUI
 	void ComboBox::DoDpiChanged()
 	{
 		ListBox::DoDpiChanged();
-		Posit(Left, Top, Width, Global::SCROLLBAR_BUTTON_SIZE + BorderWidth * 4);
+		Posit(Left, Top, Width, Global::SCROLLBAR_BUTTON_SIZE + ContentPadding * 4);
 	}
 
 	void ComboBox::Posit(int x, int y, int w, int)
 	{
-		ListBox::Posit(x, y, w, Global::SCROLLBAR_BUTTON_SIZE + BorderWidth * 4);
+		ListBox::Posit(x, y, w, Global::SCROLLBAR_BUTTON_SIZE + ContentPadding * 4);
 	}
 
 	void ComboBox::SizeChanged()
 	{
-		TextBox->Posit(BorderWidth, 0, Width - Global::SCROLLBAR_BUTTON_SIZE - BorderWidth * 2, Height);
-		btnDrop->Posit(Width - Global::SCROLLBAR_BUTTON_SIZE - BorderWidth, BorderWidth, Global::SCROLLBAR_BUTTON_SIZE, Height - BorderWidth * 2);
+		TextBox->Posit(ContentPadding, 0, Width - Global::SCROLLBAR_BUTTON_SIZE - ContentPadding * 2, Height);
+		btnDrop->Posit(Width - Global::SCROLLBAR_BUTTON_SIZE - ContentPadding, ContentPadding, Global::SCROLLBAR_BUTTON_SIZE, Height - ContentPadding * 2);
 	}
 	void ComboBox::Draw(int absX, int absY)
 	{
@@ -4504,7 +4520,7 @@ namespace GraphicsUI
 			}
 			else
 			{
-				int sy = (HighLightID - ScrollBar->GetPosition())*ItemHeight + BorderWidth - 1;
+				int sy = (HighLightID - ScrollBar->GetPosition())*ItemHeight + ContentPadding - 1;
 				if (sy < 0)
 				{
 					ScrollBar->SetPosition(ClampInt(HighLightID, 0, ScrollBar->GetMax()));
@@ -4870,7 +4886,9 @@ namespace GraphicsUI
 		graphics.FillRectangle(Padding.Left, Padding.Top, ItemHeight + Padding.Left, Height - Padding.Bottom);
 		graphics.PenColor = Global::Colors.MenuBorderColor;
 		graphics.DrawRectangle(0, 0, Width - 1, Height - 1);
-		graphics.DrawLine(ItemHeight+Padding.Left, Padding.Top, ItemHeight + Padding.Left, Height - Padding.Bottom - 1);
+        graphics.PenWidth = BorderWidth;
+        graphics.DrawLine(LineCap::None, LineCap::None, (float)(ItemHeight + Padding.Left) + 0.5f, (float)(Padding.Top) + 0.5f,
+            (float)(ItemHeight + Padding.Left) + 0.5f, (float)(Height - Padding.Bottom) - 1.5f);
 		int cposY = 0;
 		for (int i =0; i<Items.Count(); i++)
 		{
@@ -5596,7 +5614,8 @@ namespace GraphicsUI
 		if (isSeperator)
 		{
 			graphics.PenColor = Global::Colors.MenuItemDisabledForeColor;
-			graphics.DrawLine(itemHeight + separatorHeading, Height >> 1, width, Height >> 1);
+            graphics.PenWidth = BorderWidth;
+			graphics.DrawLine(LineCap::None, LineCap::None, (float)(itemHeight + separatorHeading) + 0.5f, (float)(Height >> 1) + 0.5f, (float)(width) - 0.5f, (float)(Height >> 1) + 0.5f);
 		}
 		else
 		{
@@ -5890,7 +5909,8 @@ namespace GraphicsUI
 		if (ButtonStyle == bsSeperator)
 		{
 			graphics.PenColor = Global::Colors.ToolButtonSeperatorColor;
-			graphics.DrawLine(absX+1,absY+1, absX+1, absY+Height-2);
+            graphics.PenWidth = BorderWidth;
+            graphics.DrawLine(LineCap::None, LineCap::None, (float)(absX) + 0.5f, (float)(absY) + 0.5f, (float)(absX) + 0.5f, (float)(absY + Height) - 0.5f);
 			return;
 		}
 		bool drawbkg = true;
@@ -6590,7 +6610,7 @@ namespace GraphicsUI
 		int maxWidth = Width-16;
 		if (CanClose)
 			Width -= 16;
-		int cw = 0;
+		float cw = 0.0f;
 		TabPage * page = GetSelectedItem();
 		auto entry = GetEntry();
 		if (page)
@@ -6601,10 +6621,10 @@ namespace GraphicsUI
 		}
 		auto & graphics = entry->DrawCommands;
 		graphics.SetRenderTransform(absX, absY);
-		int h0 = Height-headerHeight-1;
+        float h0 = (float)(Height - headerHeight - 1);
 		for (int i=0; i<pages.Count(); i++)
 		{
-			int pw = pages[i]->MeasureWidth(TabStyle) + HeaderPadding.Horizontal();
+			float pw = (float)(pages[i]->MeasureWidth(TabStyle) + HeaderPadding.Horizontal());
 			if (cw + pw > maxWidth)
 				break;
 			if (SelectedIndex != i && highlightItem != i)
@@ -6620,47 +6640,48 @@ namespace GraphicsUI
 				graphics.SolidBrushColor = Global::Colors.TabPageItemHighlightBackColor1;
 			}
 			graphics.PenColor = Global::Colors.TabPageBorderColor;
+            graphics.PenWidth = BorderWidth;
 			if (TabPosition == tpTop)
-			{
-				graphics.FillRectangle(cw, 0, cw+pw, headerHeight);
-				graphics.DrawLine(cw,0,cw+pw,0);
-				graphics.DrawLine(cw,0, cw, headerHeight - 2);
-				graphics.DrawLine(cw+pw,0, cw+pw, headerHeight - 2);
-				if (SelectedIndex != i)
-				{
-					graphics.DrawLine(cw, headerHeight - 1, cw+pw, headerHeight - 1);
-				}
-				pages[i]->DrawHeader(cw, 0, headerHeight, HeaderPadding, TabStyle);
-			}
-			else
-			{
-				graphics.FillRectangle(cw, h0+headerHeight, cw+pw, h0);
-				graphics.DrawLine(cw,h0, cw, h0+headerHeight);
-				graphics.DrawLine(cw+pw,h0, cw+pw, h0+headerHeight);
-				graphics.DrawLine(cw, h0+headerHeight, cw+pw, h0+headerHeight);
-				if (SelectedIndex != i)
-				{
-					graphics.DrawLine(cw,h0,cw+pw,h0);
-				}
-				pages[i]->DrawHeader(cw, h0, headerHeight, HeaderPadding, TabStyle);
-			}
-				
-			cw += pw;
-		}
-			
-		if (TabPosition == tpTop)
-		{
-			graphics.DrawLine(cw,headerHeight, Width, headerHeight);
-			graphics.DrawLine(0,headerHeight,0,Height-1);
-			graphics.DrawLine(Width-1,headerHeight,Width-1,Height-1);
-			graphics.DrawLine(0,Height-1,Width,Height-1);
-		}
-		else
-		{
-			graphics.DrawLine(cw,h0, Width, h0);
-			graphics.DrawLine(0,0,0,Height-headerHeight);
-			graphics.DrawLine(Width-1,0,Width-1,Height-1-headerHeight);
-			graphics.DrawLine(0,0,Width,0);
+            {
+                graphics.FillRectangle(cw, 0.0f, cw + pw, (float)headerHeight);
+                graphics.DrawLine(LineCap::None, LineCap::None, cw, 0.5f, cw + pw, 0.5f);
+                graphics.DrawLine(LineCap::None, LineCap::None, cw + 0.5f, 1.0f, cw + 0.5f, (float)(headerHeight) - 0.5f);
+                graphics.DrawLine(LineCap::None, LineCap::None, cw + pw + 0.5f, 0.0f, cw + pw + 0.5f, (float)(headerHeight) - 0.5f);
+                if (SelectedIndex != i)
+                {
+                    graphics.DrawLine(LineCap::None, LineCap::None, cw, (float)headerHeight - 1.0f, cw + pw, (float)(headerHeight - 1));
+                }
+                pages[i]->DrawHeader((int)cw, 0, headerHeight, HeaderPadding, TabStyle);
+            }
+            else
+            {
+                graphics.FillRectangle(cw, h0 + headerHeight, cw + pw, h0);
+                graphics.DrawLine(LineCap::None, LineCap::None, cw + 0.5f, h0, cw + 0.5f, (float)(h0 + headerHeight));
+                graphics.DrawLine(LineCap::None, LineCap::None, cw + pw + 0.5f, h0, cw + pw + 0.5f, (float)(h0 + headerHeight));
+                graphics.DrawLine(LineCap::None, LineCap::None, cw, (float)(h0 + headerHeight) + 0.5f, cw + pw, (float)(h0 + headerHeight) + 0.5f);
+                if (SelectedIndex != i)
+                {
+                    graphics.DrawLine(LineCap::None, LineCap::None, cw, h0, cw + pw, h0);
+                }
+                pages[i]->DrawHeader((int)cw, (int)h0, headerHeight, HeaderPadding, TabStyle);
+            }
+
+            cw += pw;
+        }
+
+        if (TabPosition == tpTop)
+        {
+            graphics.DrawLine(LineCap::None, LineCap::None, cw, (float)headerHeight + 0.5f, (float)Width, (float)headerHeight + 0.5f);
+            graphics.DrawLine(LineCap::None, LineCap::None, 0.5f, (float)headerHeight + 1.5f, 0.5f, (float)Height - 1.5f);
+            graphics.DrawLine(LineCap::None, LineCap::None, (float)Width - 0.5f, (float)headerHeight + 1.5f, (float)Width - 0.5f, (float)Height - 1.5f);
+            graphics.DrawLine(LineCap::None, LineCap::None, 0.5f, (float)Height - 0.5f, (float)Width - 0.5f, (float)Height - 0.5f);
+        }
+        else
+        {
+            graphics.DrawLine(LineCap::None, LineCap::None, cw + 0.5f, h0, (float)Width, h0);
+            graphics.DrawLine(LineCap::None, LineCap::None, 0.5f, 1.0f, 0.5f, (float)(Height - headerHeight) + 0.5f);
+            graphics.DrawLine(LineCap::None, LineCap::None, (float)Width - 0.5f, 0.5f, (float)(Width) - 0.5f, (float)(Height - headerHeight) + 0.5f);
+            graphics.DrawLine(LineCap::None, LineCap::None, 0.5f, 0.5f, (float)Width - 0.5f, 0.5f);
 		}
 		graphics.SetRenderTransform(0, 0);
 	}
@@ -6940,6 +6961,23 @@ namespace GraphicsUI
         BorderStyle = content->BorderStyle = BS_NONE;
         BackColor.A = content->BackColor.A = 0;
     }
+    void ScrollPanel::SetZoomLevel(int level)
+    {
+        int vPos = vscrollBar->GetPosition();
+        int hPos = hscrollBar->GetPosition();
+        float contentPosY = (vPos + cursorY) / verticalScale;
+        float contentPosX = (hPos + cursorX) / horizontalScale;
+        ZoomEventArgs e;
+        e.VerticalScale = e.HorizontalScale = pow(1.1f, zoomLevel);
+        OnZoom(e);
+        zoomLevel = level;
+        verticalScale = e.VerticalScale;
+        horizontalScale = e.HorizontalScale;
+        int newVPos = (int)(contentPosY * verticalScale) - cursorY;
+        int newHPos = (int)(contentPosX * horizontalScale) - cursorX;
+        vscrollBar->SetPosition(Math::Clamp(newVPos, 0, vscrollBar->GetMax()));
+        hscrollBar->SetPosition(Math::Clamp(newHPos, 0, hscrollBar->GetMax()));
+    }
     void ScrollPanel::SizeChanged()
     {
         content->SizeChanged();
@@ -7006,21 +7044,11 @@ namespace GraphicsUI
         }
         else if (EnableZoom && (shift & SS_CONTROL) == SS_CONTROL)
         {
-            int vPos = vscrollBar->GetPosition();
-            int hPos = hscrollBar->GetPosition();
-            float oriZoomFactor = pow(1.1f, zoomLevel);
-            float contentPosY = (vPos + cursorY) / oriZoomFactor;
-            float contentPosX = (hPos + cursorX) / oriZoomFactor;
             if (delta > 0)
-                zoomLevel++;
+                SetZoomLevel(zoomLevel + 1);
             else
-                zoomLevel--;
-            float zoomFactor = pow(1.1f, zoomLevel);
-            OnZoom(oriZoomFactor, zoomFactor);
-            int newVPos = (int)(contentPosY * zoomFactor) - cursorY;
-            int newHPos = (int)(contentPosX * zoomFactor) - cursorX;
-            vscrollBar->SetPosition(Math::Clamp(newVPos, 0, vscrollBar->GetMax()));
-            hscrollBar->SetPosition(Math::Clamp(newHPos, 0, hscrollBar->GetMax()));
+                SetZoomLevel(zoomLevel - 1);
+           
             return true;
         }
         return false;
@@ -7057,23 +7085,27 @@ namespace GraphicsUI
 	Line::Line(Container * owner)
 		: Control(owner)
 	{
+        BorderColor = Global::Colors.ControlFontColor;
 	}
-    void Line::SetPoints(int px0, int py0, int px1, int py1)
+    void Line::SetPoints(float px0, float py0, float px1, float py1, float lineWidth)
     {
-        x0 = px0;
-        x1 = px1;
-        y0 = py0;
-        y1 = py1;
-        Left = Math::Min(x0, x1);
-        Top = Math::Min(y0, y1);
-        Width = Math::Max(x0, x1) - Left;
-        Height = Math::Max(y0, y1) - Top;
+        x0 = px0 + 0.5f;
+        x1 = px1 + 0.5f;
+        y0 = py0 + 0.5f;
+        y1 = py1 + 0.5f;
+        BorderWidth = lineWidth;
+        float margin = BorderWidth * 6.0f;
+        Left = (int)(Math::Min(x0, x1) - margin);
+        Top = (int)(Math::Min(y0, y1) - margin);
+        Width = (int)(Math::Max(x0, x1) - Left + margin);
+        Height = (int)(Math::Max(y0, y1) - Top + margin);
     }
 	void Line::Draw(int absX, int absY)
 	{
 		auto & graphics = GetEntry()->DrawCommands;
 		graphics.PenColor = BorderColor;
-		graphics.DrawLine(absX + x0, absY + y0, absX + x1, absY + y1);
+        graphics.PenWidth = this->BorderWidth;
+		graphics.DrawLine(StartCap, EndCap, (float)absX + x0, (float)absY + y0, (float)absX + x1, (float)absY + y1);
 	}
     Ellipse::Ellipse(Container * owner)
         : Control(owner)
@@ -7083,7 +7115,13 @@ namespace GraphicsUI
     {
         auto & graphics = GetEntry()->DrawCommands;
         graphics.SolidBrushColor = this->FontColor;
-        graphics.FillEllipse((float)absX + Left, (float)absY + Top, (float)absX + Left + Width, (float)absY + Top + Height);
+        graphics.FillEllipse((float)(absX + Left + BorderWidth), (float)(absY + Top + BorderWidth), (float)(absX + Left + Width - BorderWidth), (float)(absY + Top + Height - BorderWidth));
+        if (BorderColor.A)
+        {
+            graphics.PenColor = BorderColor;
+            graphics.PenWidth = BorderWidth;
+            graphics.DrawArc((float)(absX + Left+ BorderWidth), (float)(absY + Top + BorderWidth), (float)(absX + Left + Width - BorderWidth), (float)(absY + Top + Height - BorderWidth), 0.0f, Math::Pi * 2.0f);
+        }
     }
 	CommandForm::CommandForm(UIEntry * parent)
 		:Form(parent)
@@ -7161,6 +7199,7 @@ namespace GraphicsUI
     BezierCurve::BezierCurve(Container * owner)
         : Control(owner)
     {
+        BorderColor = Global::Colors.ControlFontColor;
     }
 
     void BezierCurve::SetPoints(float lineWidth, VectorMath::Vec2 tp0, VectorMath::Vec2 tcp0, VectorMath::Vec2 tcp1, VectorMath::Vec2 tp1)
@@ -7169,12 +7208,12 @@ namespace GraphicsUI
         p1 = tp1;
         cp0 = tcp0;
         cp1 = tcp1;
-        LineWidth = lineWidth;
-        int lineWidth4 = (int)(lineWidth * 4.0f);
-        Left = (int)(Math::Min(p0.x, p1.x, Math::Min(cp0.x, cp1.x)) - lineWidth4);
-        Top = (int)(Math::Min(p0.y, p1.y, Math::Min(cp0.y, cp1.y)) - lineWidth4);
-        Width = (int)(Math::Max(p0.x, p1.x, Math::Max(cp0.x, cp1.x)) - Left + lineWidth4 * 2);
-        Height = (int)(Math::Max(p0.y, p1.y, Math::Max(cp0.y, cp1.y)) - Top + lineWidth4 * 2);
+        int lineWidth6 = (int)(lineWidth * 6.0f);
+        BorderWidth = lineWidth;
+        Left = (int)(Math::Min(p0.x, p1.x, Math::Min(cp0.x, cp1.x)) - lineWidth6);
+        Top = (int)(Math::Min(p0.y, p1.y, Math::Min(cp0.y, cp1.y)) - lineWidth6);
+        Width = (int)(Math::Max(p0.x, p1.x, Math::Max(cp0.x, cp1.x)) - Left + lineWidth6 * 2);
+        Height = (int)(Math::Max(p0.y, p1.y, Math::Max(cp0.y, cp1.y)) - Top + lineWidth6 * 2);
     }
 
     void BezierCurve::Draw(int absX, int absY)
@@ -7182,7 +7221,8 @@ namespace GraphicsUI
         auto & graphics = GetEntry()->DrawCommands;
         graphics.PenColor = this->BorderColor;
         Vec2 origin = Vec2::Create((float)absX, (float)absY);
-        graphics.DrawBezier(LineWidth, StartCap, EndCap, origin + p0, origin + cp0, origin + cp1, origin + p1);
+        graphics.PenWidth = BorderWidth;
+        graphics.DrawBezier(StartCap, EndCap, origin + p0, origin + cp0, origin + cp1, origin + p1);
     }
 
 }
