@@ -1142,7 +1142,7 @@ namespace GameEngine
 			case DrawCommandName::Ellipse:
 			{
 				Array<Vec2, MaxEllipseEdges> verts;
-				int edges = Math::Clamp((int)sqrt(Math::Max(cmd.x1 - cmd.x0, cmd.y1-cmd.y0)) * 3, 4, verts.GetCapacity());
+				int edges = Math::Clamp((int)sqrt(Math::Max(cmd.x1 - cmd.x0, cmd.y1-cmd.y0)) * 4, 6, verts.GetCapacity());
 				float dTheta = Math::Pi * 2.0f / edges;
 				float theta = 0.0f;
 				float dotX = (cmd.x0 + cmd.x1) * 0.5f;
@@ -1159,7 +1159,7 @@ namespace GameEngine
 			}
             case DrawCommandName::Arc:
             {
-                int totalEdges = Math::Clamp((int)sqrt(Math::Max(cmd.x1 - cmd.x0, cmd.y1 - cmd.y0)) * 3, 4, MaxEllipseEdges);
+                int totalEdges = Math::Clamp((int)sqrt(Math::Max(cmd.x1 - cmd.x0, cmd.y1 - cmd.y0)) * 4, 6, MaxEllipseEdges);
                 float thetaDelta = Math::Pi / totalEdges * 2.0f;
                 float theta = cmd.ArcParams.angle1;
                 float dotX = (cmd.x0 + cmd.x1) * 0.5f;

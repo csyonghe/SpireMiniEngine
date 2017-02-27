@@ -1,4 +1,5 @@
 #include "LibUI.h"
+#include "../WinForm/Debug.h"
 
 namespace GraphicsUI
 {
@@ -3609,8 +3610,8 @@ namespace GraphicsUI
 
 	void ScrollBar::SetValue(int AMin, int AMax, int APos, int pageSize)
 	{
-		int FreeSlide = (Orientation==SO_HORIZONTAL)?Width-(Global::SCROLLBAR_BUTTON_SIZE+1)*2:
-														Height-(Global::SCROLLBAR_BUTTON_SIZE+1)*2;
+		int FreeSlide = (Orientation==SO_HORIZONTAL)?Width-(Global::SCROLLBAR_BUTTON_SIZE)*2:
+														Height-(Global::SCROLLBAR_BUTTON_SIZE)*2;
 		if (AMin>=0 && AMax>AMin && APos>=AMin && APos<=AMax)
 		{
 			bool Changed = (AMin != Min || AMax !=Max || APos !=Position);
@@ -3627,9 +3628,10 @@ namespace GraphicsUI
 			}
 				
 			PageSize = pageSize;
-			float p = PageSize/(float)(PageSize+AMax-AMin);
+			float p = Math::Min(PageSize/(float)(AMax-AMin), 1.0f);
 			int slideSize = Math::Max((int)(p*FreeSlide), GetEntry()->GetLineHeight());
-			int spos = (int)((FreeSlide - slideSize)*(APos/(float)(AMax-AMin))) + Global::SCROLLBAR_BUTTON_SIZE + 1;
+			int spos = (int)(FreeSlide*(APos/(float)(AMax-AMin)));
+            spos = Math::Min(Math::Max(0, FreeSlide - slideSize), spos) + Global::SCROLLBAR_BUTTON_SIZE;
 			if (Orientation == SO_HORIZONTAL)
 			{	
 				Slider->Left = spos;
@@ -3697,8 +3699,8 @@ namespace GraphicsUI
 		if (DownInSlider)
 		{
 			Range = Max-Min;
-			int slideSize = (Orientation == SO_HORIZONTAL?Slider->GetWidth():Slider->GetHeight());
-			FreeSpace = (Orientation == SO_HORIZONTAL?Width:Height)-(Global::SCROLLBAR_BUTTON_SIZE+1)*2-slideSize;
+			//int slideSize = (Orientation == SO_HORIZONTAL?Slider->GetWidth():Slider->GetHeight());
+			FreeSpace = (Orientation == SO_HORIZONTAL?Width:Height)-(Global::SCROLLBAR_BUTTON_SIZE)*2;
 			if (Orientation == SO_HORIZONTAL)
 			{
 				Delta = X-DownPosX;
@@ -3708,8 +3710,8 @@ namespace GraphicsUI
 				Delta = Y-DownPosY;
 			}
 			APos = OriPos + (int)(Delta*(float)Range/(float)FreeSpace);
+			APos = Math::Min(Max - PageSize, APos);
 			APos = Math::Max(Min, APos);
-			APos = Math::Min(Max, APos);
 			SetPosition(APos);
 		}
 		auto hitTest = Container::FindControlAtPosition(X, Y);
@@ -4206,7 +4208,7 @@ namespace GraphicsUI
 		{
 			//需要显示滚动条
 			ScrollBar->Visible = true;
-			ScrollBar->SetValue(0,Items.Count()-PageSize,(SelectedIndex==-1)?0:ClampInt(SelectedIndex,0,Items.Count()-PageSize), PageSize);
+			ScrollBar->SetValue(0,Items.Count(),(SelectedIndex==-1)?0:ClampInt(SelectedIndex,0,Items.Count()-PageSize), PageSize);
 		}
 	}
 
@@ -6846,7 +6848,7 @@ namespace GraphicsUI
 				SizeChanged();
 				return;
 			}
-			int vmax = maxY - Height;
+			int vmax = maxY;
 			vscrollBar->SetValue(0, vmax, Math::Clamp(vscrollBar->GetPosition(), 0, vmax), Height);
 			vscrollBar->Visible = true;
 		}
@@ -6972,7 +6974,7 @@ namespace GraphicsUI
         float contentPosY = (vPos + cursorY) / verticalScale;
         float contentPosX = (hPos + cursorX) / horizontalScale;
         ZoomEventArgs e;
-        e.VerticalScale = e.HorizontalScale = pow(1.1f, zoomLevel);
+        e.VerticalScale = e.HorizontalScale = pow(1.1f, level);
         OnZoom(e);
         zoomLevel = level;
         verticalScale = e.VerticalScale;
@@ -6982,23 +6984,29 @@ namespace GraphicsUI
         vscrollBar->SetPosition(Math::Clamp(newVPos, 0, vscrollBar->GetMax()));
         hscrollBar->SetPosition(Math::Clamp(newHPos, 0, hscrollBar->GetMax()));
     }
+    void ScrollPanel::ResetView()
+    {
+        SetZoomLevel(0);
+        vscrollBar->SetPosition(0);
+        hscrollBar->SetPosition(0);
+    }
     void ScrollPanel::SizeChanged()
     {
         content->SizeChanged();
         //for (auto & ctrl : content->GetChildren())
         //	maxY = Math::Max(ctrl->Top + ctrl->GetHeight(), maxY);
         int maxY = content->GetHeight();
-        auto entry = GetEntry();
         vscrollBar->LargeChange = Math::Max(Height - 30, 10);
         if (maxY > Height - Global::SCROLLBAR_BUTTON_SIZE)
         {
-            maxY += entry->GetLineHeight() * 3;
-            int vmax = maxY - Height + Global::SCROLLBAR_BUTTON_SIZE;
+            int vmax = maxY + Global::SCROLLBAR_BUTTON_SIZE;
             vscrollBar->SetValue(0, vmax, Math::Clamp(vscrollBar->GetPosition(), 0, vmax), Height - Global::SCROLLBAR_BUTTON_SIZE);
+            vscrollBar->Visible = true;
         }
         else
         {
-            vscrollBar->SetPosition(0);
+            vscrollBar->Visible = false;
+            vscrollBar->SetValue(0, Height - Global::SCROLLBAR_BUTTON_SIZE, 0, Height - Global::SCROLLBAR_BUTTON_SIZE);
         }
         vscrollBar->Posit(0, 0, Global::SCROLLBAR_BUTTON_SIZE, Height - Global::SCROLLBAR_BUTTON_SIZE);
 
@@ -7006,13 +7014,14 @@ namespace GraphicsUI
         hscrollBar->LargeChange = Math::Max(Width - 30, 10);
         if (maxX > Width - Global::SCROLLBAR_BUTTON_SIZE)
         {
-            maxX += entry->GetLineHeight() * 3;
-            int hmax = maxX - Width + Global::SCROLLBAR_BUTTON_SIZE;
+            int hmax = maxX + Global::SCROLLBAR_BUTTON_SIZE;
             hscrollBar->SetValue(0, hmax, Math::Clamp(hscrollBar->GetPosition(), 0, hmax), Width - Global::SCROLLBAR_BUTTON_SIZE);
+            hscrollBar->Visible = true;
         }
         else
         {
-            hscrollBar->SetPosition(0);
+            hscrollBar->Visible = false;
+            hscrollBar->SetValue(0, Width - Global::SCROLLBAR_BUTTON_SIZE, 0, Width - Global::SCROLLBAR_BUTTON_SIZE);
         }
         hscrollBar->Posit(0, 0, Width - Global::SCROLLBAR_BUTTON_SIZE, Global::SCROLLBAR_BUTTON_SIZE);
 
@@ -7035,19 +7044,20 @@ namespace GraphicsUI
         if ((shift & (SS_ALT|SS_CONTROL|SS_SHIFT)) == 0)
         {
             int nPos = vscrollBar->GetPosition() + (delta < 0 ? 1 : -1) * GetEntry()->GetLineHeight() * 3;
-            nPos = Math::Clamp(nPos, vscrollBar->GetMin(), vscrollBar->GetMax());
+            nPos = Math::Clamp(nPos, vscrollBar->GetMin(), vscrollBar->GetMax() - vscrollBar->GetPageSize());
             vscrollBar->SetPosition(nPos);
             return true;
         }
         else if ((shift & SS_ALT) == SS_ALT)
         {
             int nPos = hscrollBar->GetPosition() + (delta < 0 ? 1 : -1) * GetEntry()->GetLineHeight() * 3;
-            nPos = Math::Clamp(nPos, hscrollBar->GetMin(), hscrollBar->GetMax());
+            nPos = Math::Clamp(nPos, hscrollBar->GetMin(), hscrollBar->GetMax() - hscrollBar->GetPageSize());
             hscrollBar->SetPosition(nPos);
             return true;
         }
         else if (EnableZoom && (shift & SS_CONTROL) == SS_CONTROL)
         {
+            CoreLib::Diagnostics::Debug::WriteLine(String("delta ") + delta);
             if (delta > 0)
                 SetZoomLevel(zoomLevel + 1);
             else

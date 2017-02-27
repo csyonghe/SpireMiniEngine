@@ -1104,6 +1104,7 @@ namespace GraphicsUI
         CoreLib::Event<ZoomEventArgs&> OnZoom;
         ScrollPanel(Container * parent);
         void SetZoomLevel(int level);
+        void ResetView();
         virtual CoreLib::List<CoreLib::RefPtr<Control>> & GetChildren() override
         {
             return content->GetChildren();
