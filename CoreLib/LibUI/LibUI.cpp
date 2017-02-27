@@ -2634,7 +2634,7 @@ namespace GraphicsUI
 		graphics.PenColor = darkColor;
         graphics.PenWidth = BorderWidth;
 		graphics.DrawLine(LineCap::None, LineCap::None, (float)(absX) + 0.5f, (float)(absY + checkBoxTop) + 0.5f, 
-            (float)(absX + checkBoxSize + checkBoxTop) - 0.5f, (float)(absY + checkBoxTop) + 0.5f);
+            (float)(absX + checkBoxSize) - 0.5f, (float)(absY + checkBoxTop) + 0.5f);
 		graphics.DrawLine(LineCap::None, LineCap::None, (float)(absX) + 0.5f, (float)(absY + checkBoxTop) + 1.5f, (float)(absX) + 0.5f, (float)(absY + checkBoxSize + checkBoxTop) - 0.5f);
 		graphics.PenColor = lightColor;
 		graphics.DrawLine(LineCap::None, LineCap::None, (float)(absX + checkBoxSize) - 0.5f, (float)(absY + checkBoxTop) + 1.5f, 
