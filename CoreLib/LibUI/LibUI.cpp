@@ -479,6 +479,8 @@ namespace GraphicsUI
 			Global::MouseCaptureControl = nullptr;
 		if (entry && entry->FocusedControl == this)
 			entry->FocusedControl = nullptr;
+        if (lastFocusedCtrl == this)
+            lastFocusedCtrl = nullptr;
 	}
 
 	bool Control::DoClosePopup()
