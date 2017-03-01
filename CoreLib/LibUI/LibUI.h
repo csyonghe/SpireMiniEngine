@@ -74,6 +74,8 @@ namespace GraphicsUI
 		const int PageDown = 0x22;
 		const int Insert = 0x2D;
 		const int Tab = 0x09;
+		const int Z = 0x5A;
+		const int C = 0x43;
 	}
 
 	struct MarginValues
@@ -1090,7 +1092,7 @@ namespace GraphicsUI
 
     class ScrollPanel : public Container
     {
-    private:
+    protected:
         ScrollBar * vscrollBar = nullptr;
         ScrollBar * hscrollBar = nullptr;
         Container * content = nullptr;
@@ -1109,6 +1111,7 @@ namespace GraphicsUI
         {
             return content->GetChildren();
         }
+		VectorMath::Vec2 DocumentToView(VectorMath::Vec2 v);
         virtual void SizeChanged() override;
         virtual void AddChild(Control *nControl) override;
         virtual void RemoveChild(Control *AControl) override;
@@ -1123,6 +1126,7 @@ namespace GraphicsUI
         void ClearChildren();
         int GetClientWidth();
         int GetClientHeight();
+		void CenterViewOnPoint(VectorMath::Vec2 documentPos);
     };
 
 	class ToolStrip;

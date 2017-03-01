@@ -825,7 +825,7 @@ namespace GraphicsUI
 		if (BackColor.A)
 		{
 			entry->DrawCommands.SolidBrushColor = BackColor;
-			entry->DrawCommands.FillRectangle(absX + 1, absY + 1, absX + Width - 1, absY + Height - 1);
+			entry->DrawCommands.FillRectangle(absX, absY, absX + Width, absY + Height);
 		}
 		//Draw Border
 		Color LightColor, DarkColor;
@@ -6810,6 +6810,7 @@ namespace GraphicsUI
 		}
 		return entryCache;
 	}
+	
 	void VScrollPanel::ScrollBar_Changed(UI_Base * /*sender*/)
 	{
 		content->Top = -vscrollBar->GetPosition();
@@ -6922,12 +6923,26 @@ namespace GraphicsUI
 		return content->GetHeight();
 	}
 
+	void ScrollPanel::CenterViewOnPoint(Vec2 scaledDocumentPos)
+	{
+		int hpos = Math::Clamp((int)(scaledDocumentPos.x - Width * 0.5f), 0, hscrollBar->GetMax() - hscrollBar->GetPageSize());
+		int vpos = Math::Clamp((int)(scaledDocumentPos.y - Height * 0.5f), 0, vscrollBar->GetMax() - vscrollBar->GetPageSize());
+		hscrollBar->SetPosition(hpos);
+		vscrollBar->SetPosition(vpos);
+	}
 
     void ScrollPanel::ScrollBar_Changed(UI_Base * /*sender*/)
     {
         content->Top = -vscrollBar->GetPosition();
         content->Left = -hscrollBar->GetPosition();
     }
+
+	Vec2 ScrollPanel::DocumentToView(Vec2 pos)
+	{
+		float zoomFactor = pow(1.1f, zoomLevel);
+		Vec2 rs = pos * zoomFactor - Vec2::Create((float)hscrollBar->GetPosition(), (float)vscrollBar->GetPosition());
+		return rs;
+	}
 
     ScrollPanel::ScrollPanel(Container * parent)
         : Container(parent)
@@ -7116,9 +7131,11 @@ namespace GraphicsUI
     }
 	void Line::Draw(int absX, int absY)
 	{
+		if (!Visible)
+			return;
 		auto & graphics = GetEntry()->DrawCommands;
 		graphics.PenColor = BorderColor;
-        graphics.PenWidth = this->BorderWidth;
+		graphics.PenWidth = this->BorderWidth;
 		graphics.DrawLine(StartCap, EndCap, (float)absX + x0, (float)absY + y0, (float)absX + x1, (float)absY + y1);
 	}
     Ellipse::Ellipse(Container * owner)
