@@ -22,7 +22,7 @@ public:
 	}
 	virtual void RegisterUI(GraphicsUI::UIEntry * /*entry*/) override
 	{
-        sysWindow = Engine::Instance()->CreateSystemWindow(15);
+        sysWindow = Engine::Instance()->CreateSystemWindow(25);
         sysWindow->SetClientHeight(600);
         sysWindow->SetClientWidth(800);
         sysWindow->SetText("Test User Control");

@@ -10,7 +10,7 @@
 #include "ShaderCompiler.h"
 #include "SystemWindow.h"
 
-//#define WINDOWS_10_SCALING
+#define WINDOWS_10_SCALING
 
 #ifdef WINDOWS_10_SCALING
 #include <ShellScalingApi.h>
@@ -81,15 +81,26 @@ namespace GameEngine
 		Data.Y = GET_Y_LPARAM(lParam);
 	}
 
-	int UIWindowsSystemInterface::GetCurrentDpi()
+	int UIWindowsSystemInterface::GetCurrentDpi(HWND windowHandle)
 	{
 		int dpi = 96;
 #ifdef WINDOWS_10_SCALING
-		if (IsWindows8Point1OrGreater())
-			GetDpiForMonitor(MonitorFromWindow((HWND)rendererApi->GetWindowHandle(), MONITOR_DEFAULTTOPRIMARY), MDT_EFFECTIVE_DPI, (UINT*)&dpi, (UINT*)&dpi);
-		else
+        void*(WINAPI *RtlGetVersion)(LPOSVERSIONINFOEXW);
+        OSVERSIONINFOEXW osInfo;
+        *(FARPROC*)&RtlGetVersion = GetProcAddress(GetModuleHandleA("ntdll"), "RtlGetVersion");
+
+        if (RtlGetVersion)
+        {
+            osInfo.dwOSVersionInfoSize = sizeof(osInfo);
+            RtlGetVersion(&osInfo);
+            if (osInfo.dwMajorVersion > 8 || (osInfo.dwMajorVersion == 8 && osInfo.dwMinorVersion >= 1))
+            {
+                GetDpiForMonitor(MonitorFromWindow(windowHandle, MONITOR_DEFAULTTOPRIMARY), MDT_EFFECTIVE_DPI, (UINT*)&dpi, (UINT*)&dpi);
+                return dpi;
+            }
+        }
 #endif
-			dpi = GetDeviceCaps(NULL, LOGPIXELSY);
+    	dpi = GetDeviceCaps(NULL, LOGPIXELSY);
 		return dpi;
 	}
 
@@ -277,14 +288,14 @@ namespace GameEngine
 		{
 #ifdef WINDOWS_10_SCALING
 			int dpi = 96;
-			GetDpiForMonitor(MonitorFromWindow((HWND)rendererApi->GetWindowHandle(), MONITOR_DEFAULTTOPRIMARY), MDT_EFFECTIVE_DPI, (UINT*)&dpi, (UINT*)&dpi);
-			defaultFont->UpdateFontContext(dpi);
-			titleFont->UpdateFontContext(dpi);
-			symbolFont->UpdateFontContext(dpi);
-			for (auto & f : fonts)
-				f.Value->UpdateFontContext(dpi);
+			GetDpiForMonitor(MonitorFromWindow((HWND)window->GetHandle(), MONITOR_DEFAULTTOPRIMARY), MDT_EFFECTIVE_DPI, (UINT*)&dpi, (UINT*)&dpi);
+            for (auto & f : fonts)
+            {
+                if (f.Value->GetWindowHandle() == window->GetHandle())
+				    f.Value->UpdateFontContext(dpi);
+            }
 			RECT* const prcNewWindow = (RECT*)lParam;
-			SetWindowPos(hWnd,
+			SetWindowPos(window->GetHandle(),
 				NULL,
 				prcNewWindow->left,
 				prcNewWindow->top,
@@ -1115,16 +1126,16 @@ namespace GameEngine
 		return txt;
 	}
 
-	IFont * UIWindowsSystemInterface::LoadDefaultFont(DefaultFontType dt)
+	IFont * UIWindowsSystemInterface::LoadDefaultFont(GraphicsUI::UIWindowContext * ctx, DefaultFontType dt)
 	{
 		switch (dt)
 		{
 		case DefaultFontType::Content:
-			return defaultFont.Ptr();
+			return LoadFont((UIWindowContext*)ctx, Font("Segoe UI", 11));
 		case DefaultFontType::Title:
-			return titleFont.Ptr();
+			return LoadFont((UIWindowContext*)ctx, Font("Segoe UI", 11, true, false, false));
 		default:
-			return symbolFont.Ptr();
+			return LoadFont((UIWindowContext*)ctx, Font("Webdings", 11));
 		}
 	}
     
@@ -1295,14 +1306,14 @@ namespace GameEngine
 	UIWindowsSystemInterface::UIWindowsSystemInterface(GameEngine::HardwareRenderer * ctx)
 	{
 		rendererApi = ctx;
-		int dpi = GetCurrentDpi();
-		defaultFont = new WindowsFont(this, dpi, Font("Segoe UI", 13));
-		titleFont = new WindowsFont(this, dpi, Font("Segoe UI", 13, true, false, false));
-		symbolFont = new WindowsFont(this, dpi, Font("Webdings", 13));
+		
 		textBufferObj = ctx->CreateMappedBuffer(BufferUsage::StorageBuffer, TextBufferSize);
 		textBuffer = (unsigned char*)textBufferObj->Map();
 		textBufferPool.Init(textBuffer, Log2TextBufferBlockSize, TextBufferSize >> Log2TextBufferBlockSize);
 		uiRenderer = new GLUIRenderer(this, ctx);
+#ifdef WINDOWS_10_SCALING
+        SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
+#endif
 	}
 
 	UIWindowsSystemInterface::~UIWindowsSystemInterface()
@@ -1322,13 +1333,13 @@ namespace GameEngine
 		return textBufferPool.Alloc(size);
 	}
 
-	IFont * UIWindowsSystemInterface::LoadFont(const Font & f)
+	IFont * UIWindowsSystemInterface::LoadFont(UIWindowContext * ctx, const Font & f)
 	{
-		auto identifier = f.ToString();
+		auto identifier = f.ToString() + "_" + String((long long)(void*)ctx->window->GetHandle());
 		RefPtr<WindowsFont> font;
 		if (!fonts.TryGetValue(identifier, font))
 		{
-			font = new WindowsFont(this, GetCurrentDpi(), f);
+			font = new WindowsFont(this, ctx->window->GetHandle(), GetCurrentDpi(ctx->window->GetHandle()), f);
 			fonts[identifier] = font;
 		}
 		return font.Ptr();
@@ -1494,7 +1505,8 @@ namespace GameEngine
         rs->sysInterface = this;
         rs->hwRenderer = rendererApi;
         rs->surface = rendererApi->CreateSurface(handle->GetHandle(), w, h);
-        rs->uiEntry = new UIEntry(w, h, this);
+        
+        rs->uiEntry = new UIEntry(w, h, rs.Ptr(), this);
         rs->uniformBuffer = rendererApi->CreateMappedBuffer(BufferUsage::UniformBuffer, sizeof(VectorMath::Matrix4));
         rs->cmdBuffer = new AsyncCommandBuffer(rendererApi);
         rs->blitCmdBuffer = new AsyncCommandBuffer(rendererApi);

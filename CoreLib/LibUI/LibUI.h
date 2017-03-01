@@ -314,6 +314,7 @@ namespace GraphicsUI
 		Control(Container * parent, bool addToParent);
 		~Control();
 	public:
+        CoreLib::RefPtr<IFont> defaultFont, defaultSymbolFont, defaultTitleFont;
 		bool WantsTab = false;
 		bool AcceptsFocus = true;
         float BorderWidth = 1.0f;
@@ -722,7 +723,7 @@ namespace GraphicsUI
 	protected:
 		void DeactivateAllForms();
 	public:
-		UIEntry(int WndWidth, int WndHeight, ISystemInterface * pSystem);
+		UIEntry(int WndWidth, int WndHeight, UIWindowContext * ctx, ISystemInterface * pSystem);
 		ISystemInterface * System = nullptr;
 	public:
 		bool KeyInputConsumed = false, MouseInputConsumed = false;

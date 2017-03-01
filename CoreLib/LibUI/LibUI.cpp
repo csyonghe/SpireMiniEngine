@@ -958,7 +958,7 @@ namespace GraphicsUI
 		auto entry = GetEntry();
 		if (font == nullptr)
 		{
-			font = entry->System->LoadDefaultFont();
+			font = entry->defaultFont.Ptr();
 			FChanged = true;
 			UpdateText();
 		}
@@ -1020,7 +1020,7 @@ namespace GraphicsUI
 		absY = absY + Top;
 		auto entry = GetEntry();
 		if (font == nullptr)
-			font = entry->System->LoadDefaultFont();
+			font = entry->defaultFont.Ptr();
 		if (FChanged || !text)
 		{
 			text = font->BakeString(FCaption, text.Ptr());
@@ -1454,14 +1454,14 @@ namespace GraphicsUI
 		lblTitle = new Label(this);
 		lblClose = new Label(this);
 		lblClose->SetText("\x72");
-		lblClose->SetFont(GetEntry()->System->LoadDefaultFont(GraphicsUI::DefaultFontType::Symbol));
+		lblClose->SetFont(GetEntry()->defaultSymbolFont.Ptr());
 		btnClose->Visible = false;
 		lblTitle->Visible = false;
 		lblClose->Visible = false;
 		btnClose->BorderStyle = BS_NONE;
 		btnClose->BackColor.A = 0;
 		formStyle = Global::Colors.DefaultFormStyle;
-		formStyle.TitleFont = parent->GetEntry()->System->LoadDefaultFont(GraphicsUI::DefaultFontType::Title);
+		formStyle.TitleFont = parent->GetEntry()->defaultTitleFont.Ptr();
 		content = new Container(this);
 		content->DockStyle = dsFill;
 		content->BackColor.A = 0;
@@ -1790,11 +1790,13 @@ namespace GraphicsUI
 		return false;
 	}
 
-	UIEntry::UIEntry(int WndWidth, int WndHeight, ISystemInterface * pSystem)
+	UIEntry::UIEntry(int WndWidth, int WndHeight, UIWindowContext * windowHandle, ISystemInterface * pSystem)
 		: Container(nullptr)
 	{
 		this->System = pSystem;
-		this->font = pSystem->LoadDefaultFont();
+		this->defaultFont = this->font = pSystem->LoadDefaultFont(windowHandle, DefaultFontType::Content);
+        this->defaultTitleFont = pSystem->LoadDefaultFont(windowHandle, DefaultFontType::Title);
+        this->defaultSymbolFont = pSystem->LoadDefaultFont(windowHandle, DefaultFontType::Symbol);
 		ClipRects = new ClipRectStack(&DrawCommands);
 		Left = Top =0;
 		Global::EventGUID = 0;
@@ -1809,7 +1811,7 @@ namespace GraphicsUI
 		CheckmarkLabel = new Label(this);
 		CheckmarkLabel->AutoSize = true;
 		CheckmarkLabel->Visible = false;
-		CheckmarkLabel->SetFont(pSystem->LoadDefaultFont(DefaultFontType::Symbol));
+		CheckmarkLabel->SetFont(defaultSymbolFont.Ptr());
 		CheckmarkLabel->SetText("a");
 		
 		ImeMessageHandler.Init(this);
@@ -3300,7 +3302,7 @@ namespace GraphicsUI
 		auto entry = GetEntry();
 		if (font == nullptr)
 		{
-			font = entry->System->LoadDefaultFont();
+			font = entry->defaultFont.Ptr();
 			Changed = true;
 		}
 		if (cursorPosChanged)
@@ -3474,8 +3476,8 @@ namespace GraphicsUI
 		btnDec->TabStop = false;
 		btnInc->BackColor.A = 0;
 		btnDec->BackColor.A = 0;
-		btnInc->SetFont(GetEntry()->System->LoadDefaultFont(DefaultFontType::Symbol));
-		btnDec->SetFont(GetEntry()->System->LoadDefaultFont(DefaultFontType::Symbol));
+		btnInc->SetFont(GetEntry()->defaultSymbolFont.Ptr());
+		btnDec->SetFont(GetEntry()->defaultSymbolFont.Ptr());
 		Min = 0; Max = 100; Position = 0;
 		btnInc->OnMouseDown.Bind(this, &ScrollBar::BtnIncMouseDown);
 		btnDec->OnMouseDown.Bind(this, &ScrollBar::BtnDecMouseDown);
@@ -4256,7 +4258,7 @@ namespace GraphicsUI
 		btnDrop = new Button(this);
 		btnDrop->AcceptsFocus = false;
 		btnDrop->TabStop = false;
-		btnDrop->SetFont(GetEntry()->System->LoadDefaultFont(DefaultFontType::Symbol));
+		btnDrop->SetFont(GetEntry()->defaultSymbolFont.Ptr());
 		btnDrop->SetText("6");
 		btnDrop->BorderColor.A = 0;
 		TextBox = new GraphicsUI::TextBox(this);
@@ -6717,9 +6719,9 @@ namespace GraphicsUI
 		btnDown->SetHeight(Height/2);
 		btnUp->SetWidth(Width);
 		btnDown->SetWidth(Width);
-		auto symFont = GetEntry()->System->LoadDefaultFont(DefaultFontType::Symbol);
-		btnUp->SetFont(symFont);
-		btnDown->SetFont(symFont);
+		auto symFont = GetEntry()->defaultSymbolFont;
+		btnUp->SetFont(symFont.Ptr());
+		btnDown->SetFont(symFont.Ptr());
 		btnUp->SetText("5");
 		btnDown->SetText("6");
 	}

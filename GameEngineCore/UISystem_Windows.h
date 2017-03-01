@@ -115,11 +115,13 @@ namespace GameEngine
 	private:
 		CoreLib::RefPtr<TextRasterizer> rasterizer;
 		UIWindowsSystemInterface * system;
+        HWND wndHandle;
 		Font fontDesc;
 	public:
-		WindowsFont(UIWindowsSystemInterface * ctx, int dpi, const Font & font)
+		WindowsFont(UIWindowsSystemInterface * ctx, HWND wnd, int dpi, const Font & font)
 		{
 			system = ctx;
+            wndHandle = wnd;
 			fontDesc = font;
 			rasterizer = new TextRasterizer();
 			UpdateFontContext(dpi);
@@ -128,6 +130,10 @@ namespace GameEngine
 		{
 			rasterizer->SetFont(fontDesc, dpi);
 		}
+        HWND GetWindowHandle()
+        {
+            return wndHandle;
+        }
 		virtual GraphicsUI::Rect MeasureString(const CoreLib::String & text) override;
 		virtual GraphicsUI::Rect MeasureString(const CoreLib::List<unsigned int> & text) override;
 		virtual GraphicsUI::IBakedText * BakeString(const CoreLib::String & text, GraphicsUI::IBakedText * previous) override;
@@ -136,7 +142,7 @@ namespace GameEngine
 
 	class GLUIRenderer;
 
-    class UIWindowContext : public CoreLib::Object
+    class UIWindowContext : public GraphicsUI::UIWindowContext
     {
     private:
         void TickTimerTick(CoreLib::Object *, CoreLib::WinForm::EventArgs e);
@@ -169,17 +175,16 @@ namespace GameEngine
 		CoreLib::RefPtr<Buffer> textBufferObj;
 		CoreLib::MemoryPool textBufferPool;
 		VectorMath::Vec4 ColorToVec(GraphicsUI::Color c);
-		CoreLib::RefPtr<WindowsFont> defaultFont, titleFont, symbolFont;
 		Fence* textBufferFence = nullptr;
 		
-		int GetCurrentDpi();
+		int GetCurrentDpi(HWND windowHandle);
 	public:
 		GLUIRenderer * uiRenderer;
 		CoreLib::EnumerableDictionary<SystemWindow*, UIWindowContext*> windowContexts;
 		HardwareRenderer * rendererApi = nullptr;
 		virtual void SetClipboardText(const CoreLib::String & text) override;
 		virtual CoreLib::String GetClipboardText() override;
-		virtual GraphicsUI::IFont * LoadDefaultFont(GraphicsUI::DefaultFontType dt = GraphicsUI::DefaultFontType::Content) override;
+		virtual GraphicsUI::IFont * LoadDefaultFont(GraphicsUI::UIWindowContext * ctx, GraphicsUI::DefaultFontType dt = GraphicsUI::DefaultFontType::Content) override;
 		virtual void SwitchCursor(GraphicsUI::CursorType c) override;
 		void UpdateCompositionWindowPos(HIMC hIMC, int x, int y);
 	public:
@@ -199,7 +204,7 @@ namespace GameEngine
 		{
 			return textBufferObj.Ptr();
 		}
-        GraphicsUI::IFont * LoadFont(const Font & f);
+        GraphicsUI::IFont * LoadFont(UIWindowContext * ctx, const Font & f);
         GraphicsUI::IImage * CreateImageObject(const CoreLib::Imaging::Bitmap & bmp);
 		void TransferDrawCommands(UIWindowContext * ctx, Texture2D* baseTexture, CoreLib::List<GraphicsUI::DrawCommand> & commands);
 		void ExecuteDrawCommands(UIWindowContext * ctx, Fence* fence);
