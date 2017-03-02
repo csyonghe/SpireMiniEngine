@@ -170,17 +170,16 @@ namespace GameEngine
 	class UIWindowsSystemInterface : public GraphicsUI::ISystemInterface
 	{
 	private:
-        bool isWindows10OrGreater = false;
         bool isWindows81OrGreater = false;
-        BOOL (WINAPI*EnableNonClientDpiScaling)(HWND hwnd) = nullptr;
+        HRESULT (WINAPI *getDpiForMonitor)(void* hmonitor, int dpiType, unsigned int *dpiX, unsigned int *dpiY);
 
+    private:
 		unsigned char * textBuffer = nullptr;
 		CoreLib::Dictionary<CoreLib::String, CoreLib::RefPtr<WindowsFont>> fonts;
 		CoreLib::RefPtr<Buffer> textBufferObj;
 		CoreLib::MemoryPool textBufferPool;
 		VectorMath::Vec4 ColorToVec(GraphicsUI::Color c);
 		Fence* textBufferFence = nullptr;
-		
 		int GetCurrentDpi(HWND windowHandle);
 	public:
 		GLUIRenderer * uiRenderer;

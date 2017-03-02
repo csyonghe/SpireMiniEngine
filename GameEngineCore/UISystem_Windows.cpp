@@ -10,14 +10,6 @@
 #include "ShaderCompiler.h"
 #include "SystemWindow.h"
 
-#define WINDOWS_10_SCALING
-
-#ifdef WINDOWS_10_SCALING
-#include <ShellScalingApi.h>
-#include <VersionHelpers.h>
-#pragma comment(lib,"Shcore.lib")
-#endif
-
 #pragma comment(lib,"imm32.lib")
 #ifndef GET_X_LPARAM
 #define GET_X_LPARAM(lParam)	((int)(short)LOWORD(lParam))
@@ -84,22 +76,11 @@ namespace GameEngine
 	int UIWindowsSystemInterface::GetCurrentDpi(HWND windowHandle)
 	{
 		int dpi = 96;
-#ifdef WINDOWS_10_SCALING
-        void*(WINAPI *RtlGetVersion)(LPOSVERSIONINFOEXW);
-        OSVERSIONINFOEXW osInfo;
-        *(FARPROC*)&RtlGetVersion = GetProcAddress(GetModuleHandleA("ntdll"), "RtlGetVersion");
-
-        if (RtlGetVersion)
+        if (isWindows81OrGreater)
         {
-            osInfo.dwOSVersionInfoSize = sizeof(osInfo);
-            RtlGetVersion(&osInfo);
-            if (osInfo.dwMajorVersion > 8 || (osInfo.dwMajorVersion == 8 && osInfo.dwMinorVersion >= 1))
-            {
-                GetDpiForMonitor(MonitorFromWindow(windowHandle, MONITOR_DEFAULTTOPRIMARY), MDT_EFFECTIVE_DPI, (UINT*)&dpi, (UINT*)&dpi);
-                return dpi;
-            }
+            getDpiForMonitor(MonitorFromWindow(windowHandle, MONITOR_DEFAULTTOPRIMARY), 0, (UINT*)&dpi, (UINT*)&dpi);
+            return dpi;
         }
-#endif
     	dpi = GetDeviceCaps(NULL, LOGPIXELSY);
 		return dpi;
 	}
@@ -286,9 +267,9 @@ namespace GameEngine
 			break;
 		case WM_DPICHANGED:
 		{
-#ifdef WINDOWS_10_SCALING
 			int dpi = 96;
-			GetDpiForMonitor(MonitorFromWindow((HWND)window->GetHandle(), MONITOR_DEFAULTTOPRIMARY), MDT_EFFECTIVE_DPI, (UINT*)&dpi, (UINT*)&dpi);
+            if (getDpiForMonitor)
+			    getDpiForMonitor(MonitorFromWindow((HWND)window->GetHandle(), MONITOR_DEFAULTTOPRIMARY), 0, (UINT*)&dpi, (UINT*)&dpi);
             for (auto & f : fonts)
             {
                 if (f.Value->GetWindowHandle() == window->GetHandle())
@@ -303,16 +284,9 @@ namespace GameEngine
 				prcNewWindow->bottom - prcNewWindow->top,
 				SWP_NOZORDER | SWP_NOACTIVATE);
 			entry->DoDpiChanged();
-#endif
 			rs = 0;
 			break;
 		}
-        case WM_NCCREATE:
-        {
-            if (EnableNonClientDpiScaling)
-                EnableNonClientDpiScaling(window->GetHandle());
-            break;
-        }
 		}
 		return rs;
 	}
@@ -1317,7 +1291,7 @@ namespace GameEngine
 		textBuffer = (unsigned char*)textBufferObj->Map();
 		textBufferPool.Init(textBuffer, Log2TextBufferBlockSize, TextBufferSize >> Log2TextBufferBlockSize);
 		uiRenderer = new GLUIRenderer(this, ctx);
-#ifdef WINDOWS_10_SCALING
+
         void*(WINAPI *RtlGetVersion)(LPOSVERSIONINFOEXW);
         OSVERSIONINFOEXW osInfo;
         *(FARPROC*)&RtlGetVersion = GetProcAddress(GetModuleHandleA("ntdll"), "RtlGetVersion");
@@ -1328,16 +1302,17 @@ namespace GameEngine
             RtlGetVersion(&osInfo);
             if (osInfo.dwMajorVersion > 8 || (osInfo.dwMajorVersion == 8 && osInfo.dwMinorVersion >= 1))
                 isWindows81OrGreater = true;
-            if (osInfo.dwMajorVersion >= 10)
-                isWindows10OrGreater = true;
         }
-        if (isWindows81OrGreater)
-            SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
-        if (isWindows10OrGreater)
+        HRESULT(WINAPI*setProcessDpiAwareness)(int value);
+        *(FARPROC*)&setProcessDpiAwareness = GetProcAddress(GetModuleHandleA("Shcore"), "SetProcessDpiAwareness");
+        *(FARPROC*)&getDpiForMonitor = GetProcAddress(GetModuleHandleA("Shcore"), "GetDpiForMonitor");
+        if (setProcessDpiAwareness)
         {
-            *(FARPROC*)&EnableNonClientDpiScaling = GetProcAddress(GetModuleHandleA("User32"), "EnableNonClientDpiScaling");
+            if (isWindows81OrGreater)
+                setProcessDpiAwareness(2); // PROCESS_PER_MONITOR_DPI_AWARE
+            else
+                setProcessDpiAwareness(1); // PROCESS_SYSTEM_DPI_AWARE
         }
-#endif
 	}
 
 	UIWindowsSystemInterface::~UIWindowsSystemInterface()
