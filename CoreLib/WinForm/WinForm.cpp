@@ -15,8 +15,9 @@ namespace CoreLib
             {
                 if (Application::EnableNonClientDpiScaling)
                     Application::EnableNonClientDpiScaling(hWnd);
+                return DefWindowProc(hWnd, message, wParam, lParam);
             }
-			if (message == WM_DESTROY && hWnd == Application::GetMainFormHandle())
+			else if (message == WM_DESTROY && hWnd == Application::GetMainFormHandle())
 			{
 				Application::Terminate();
 				PostQuitMessage(0);
