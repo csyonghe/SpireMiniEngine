@@ -11,6 +11,11 @@ namespace CoreLib
 	{
 		LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		{
+            if (message == WM_NCCREATE)
+            {
+                if (Application::EnableNonClientDpiScaling)
+                    Application::EnableNonClientDpiScaling(hWnd);
+            }
 			if (message == WM_DESTROY && hWnd == Application::GetMainFormHandle())
 			{
 				Application::Terminate();

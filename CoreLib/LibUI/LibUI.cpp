@@ -7142,6 +7142,11 @@ namespace GraphicsUI
 		graphics.PenWidth = this->BorderWidth;
 		graphics.DrawLine(StartCap, EndCap, (float)absX + x0, (float)absY + y0, (float)absX + x1, (float)absY + y1);
 	}
+    void Line::DoDpiChanged()
+    {
+        auto scale = GetEntry()->GetDpiScale();
+        SetPoints(x0 * scale, y0 * scale, x1 * scale, y1 * scale, BorderWidth * scale);
+    }
     Ellipse::Ellipse(Container * owner)
         : Control(owner)
     {
@@ -7157,6 +7162,11 @@ namespace GraphicsUI
             graphics.PenWidth = BorderWidth;
             graphics.DrawArc((float)(absX + Left+ BorderWidth), (float)(absY + Top + BorderWidth), (float)(absX + Left + Width - BorderWidth), (float)(absY + Top + Height - BorderWidth), 0.0f, Math::Pi * 2.0f);
         }
+    }
+    void Ellipse::DoDpiChanged()
+    {
+        BorderWidth *= this->GetEntry()->GetDpiScale();
+        Control::DoDpiChanged();
     }
 	CommandForm::CommandForm(UIEntry * parent)
 		:Form(parent)
@@ -7258,6 +7268,12 @@ namespace GraphicsUI
         Vec2 origin = Vec2::Create((float)absX, (float)absY);
         graphics.PenWidth = BorderWidth;
         graphics.DrawBezier(StartCap, EndCap, origin + p0, origin + cp0, origin + cp1, origin + p1);
+    }
+
+    void BezierCurve::DoDpiChanged()
+    {
+        auto scale = GetEntry()->GetDpiScale();
+        SetPoints(BorderWidth * scale, p0 * scale, cp0 * scale, cp1 * scale, p1 * scale);
     }
 
 }

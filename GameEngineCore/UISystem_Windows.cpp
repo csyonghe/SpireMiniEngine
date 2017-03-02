@@ -307,6 +307,12 @@ namespace GameEngine
 			rs = 0;
 			break;
 		}
+        case WM_NCCREATE:
+        {
+            if (EnableNonClientDpiScaling)
+                EnableNonClientDpiScaling(window->GetHandle());
+            break;
+        }
 		}
 		return rs;
 	}
@@ -1312,7 +1318,25 @@ namespace GameEngine
 		textBufferPool.Init(textBuffer, Log2TextBufferBlockSize, TextBufferSize >> Log2TextBufferBlockSize);
 		uiRenderer = new GLUIRenderer(this, ctx);
 #ifdef WINDOWS_10_SCALING
-        SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
+        void*(WINAPI *RtlGetVersion)(LPOSVERSIONINFOEXW);
+        OSVERSIONINFOEXW osInfo;
+        *(FARPROC*)&RtlGetVersion = GetProcAddress(GetModuleHandleA("ntdll"), "RtlGetVersion");
+
+        if (RtlGetVersion)
+        {
+            osInfo.dwOSVersionInfoSize = sizeof(osInfo);
+            RtlGetVersion(&osInfo);
+            if (osInfo.dwMajorVersion > 8 || (osInfo.dwMajorVersion == 8 && osInfo.dwMinorVersion >= 1))
+                isWindows81OrGreater = true;
+            if (osInfo.dwMajorVersion >= 10)
+                isWindows10OrGreater = true;
+        }
+        if (isWindows81OrGreater)
+            SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
+        if (isWindows10OrGreater)
+        {
+            *(FARPROC*)&EnableNonClientDpiScaling = GetProcAddress(GetModuleHandleA("User32"), "EnableNonClientDpiScaling");
+        }
 #endif
 	}
 
@@ -1502,6 +1526,7 @@ namespace GameEngine
     {
         RefPtr<UIWindowContext> rs = new UIWindowContext();
         rs->window = handle;
+                
         rs->sysInterface = this;
         rs->hwRenderer = rendererApi;
         rs->surface = rendererApi->CreateSurface(handle->GetHandle(), w, h);

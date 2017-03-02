@@ -414,13 +414,15 @@ namespace GraphicsUI
 		Line(Container * owner);
         void SetPoints(float x0, float y0, float x1, float y1, float lineWidth = 1.0f);
 		virtual void Draw(int absX, int absY);
+        virtual void DoDpiChanged() override;
 	};
 
     class Ellipse : public Control
     {
     public:
         Ellipse(Container * owner);
-        virtual void Draw(int absX, int absY);
+        virtual void Draw(int absX, int absY) override;
+        virtual void DoDpiChanged() override;
     };
 
     class BezierCurve : public Control
@@ -432,7 +434,9 @@ namespace GraphicsUI
         LineCap EndCap = LineCap::None;
         BezierCurve(Container * owner);
         void SetPoints(float lineWidth, VectorMath::Vec2 p0, VectorMath::Vec2 cp0, VectorMath::Vec2 cp1, VectorMath::Vec2 p1);
-        virtual void Draw(int absX, int absY);
+        virtual void Draw(int absX, int absY) override;
+        virtual void DoDpiChanged() override;
+
     };
 
 	enum class ContainerLayoutType

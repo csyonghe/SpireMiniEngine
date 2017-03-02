@@ -170,6 +170,10 @@ namespace GameEngine
 	class UIWindowsSystemInterface : public GraphicsUI::ISystemInterface
 	{
 	private:
+        bool isWindows10OrGreater = false;
+        bool isWindows81OrGreater = false;
+        BOOL (WINAPI*EnableNonClientDpiScaling)(HWND hwnd) = nullptr;
+
 		unsigned char * textBuffer = nullptr;
 		CoreLib::Dictionary<CoreLib::String, CoreLib::RefPtr<WindowsFont>> fonts;
 		CoreLib::RefPtr<Buffer> textBufferObj;

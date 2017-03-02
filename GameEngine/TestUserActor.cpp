@@ -62,7 +62,7 @@ public:
         line->SetPoints((float)EM(8.0f), (float)EM(1.5f), (float)EM(14.0f), (float)EM(1.5f), 2.0f);
         
         auto txt = GraphicsUI::CreateMultiLineTextBox(top);
-        txt->Posit(EM(20.0f), EM(0.5f), EM(12.0f), EM(5.0f));
+        txt->Posit(EM(20.0f), EM(0.5f), EM(12.0f), EM(4.0f));
 
 		auto slider = new ScrollBar(top);
 		slider->Posit(EM(1.0f), EM(3.5f), EM(6.5f), EM(1.0f));
