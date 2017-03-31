@@ -45,6 +45,7 @@ namespace CoreLib
 		bool Application::terminate = false;
 		NotifyEvent * Application::onMainLoop = 0;
 		DWORD Application::uiThreadId = 0;
+        BOOL(WINAPI*Application::EnableNonClientDpiScaling)(HWND hwnd);
 
 		bool Application::IsUIThread()
 		{
@@ -97,6 +98,7 @@ namespace CoreLib
 				ICC_WIN95_CLASSES;
 			InitCommonControlsEx(&picce);
 
+            *(FARPROC*)&EnableNonClientDpiScaling = GetProcAddress(GetModuleHandleA("User32"), "EnableNonClientDpiScaling");
 		}
 
 		void Application::SetMainLoopEventHandler(NotifyEvent * mainLoop)
@@ -202,7 +204,6 @@ namespace CoreLib
 		void Application::ProcessMessage(MSG & msg)
 		{
 			HWND hwnd = GetActiveWindow();
-	
 			bool processed = false;
 			for (auto & form : forms)
 				if (!form->GetWantChars() && IsDialogMessage(form->GetHandle(), &msg))

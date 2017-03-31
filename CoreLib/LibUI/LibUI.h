@@ -74,6 +74,8 @@ namespace GraphicsUI
 		const int PageDown = 0x22;
 		const int Insert = 0x2D;
 		const int Tab = 0x09;
+		const int Z = 0x5A;
+		const int C = 0x43;
 	}
 
 	struct MarginValues
@@ -312,6 +314,7 @@ namespace GraphicsUI
 		Control(Container * parent, bool addToParent);
 		~Control();
 	public:
+        CoreLib::RefPtr<IFont> defaultFont, defaultSymbolFont, defaultTitleFont;
 		bool WantsTab = false;
 		bool AcceptsFocus = true;
         float BorderWidth = 1.0f;
@@ -411,13 +414,15 @@ namespace GraphicsUI
 		Line(Container * owner);
         void SetPoints(float x0, float y0, float x1, float y1, float lineWidth = 1.0f);
 		virtual void Draw(int absX, int absY);
+        virtual void DoDpiChanged() override;
 	};
 
     class Ellipse : public Control
     {
     public:
         Ellipse(Container * owner);
-        virtual void Draw(int absX, int absY);
+        virtual void Draw(int absX, int absY) override;
+        virtual void DoDpiChanged() override;
     };
 
     class BezierCurve : public Control
@@ -429,7 +434,9 @@ namespace GraphicsUI
         LineCap EndCap = LineCap::None;
         BezierCurve(Container * owner);
         void SetPoints(float lineWidth, VectorMath::Vec2 p0, VectorMath::Vec2 cp0, VectorMath::Vec2 cp1, VectorMath::Vec2 p1);
-        virtual void Draw(int absX, int absY);
+        virtual void Draw(int absX, int absY) override;
+        virtual void DoDpiChanged() override;
+
     };
 
 	enum class ContainerLayoutType
@@ -720,7 +727,7 @@ namespace GraphicsUI
 	protected:
 		void DeactivateAllForms();
 	public:
-		UIEntry(int WndWidth, int WndHeight, ISystemInterface * pSystem);
+		UIEntry(int WndWidth, int WndHeight, UIWindowContext * ctx, ISystemInterface * pSystem);
 		ISystemInterface * System = nullptr;
 	public:
 		bool KeyInputConsumed = false, MouseInputConsumed = false;
@@ -1090,7 +1097,7 @@ namespace GraphicsUI
 
     class ScrollPanel : public Container
     {
-    private:
+    protected:
         ScrollBar * vscrollBar = nullptr;
         ScrollBar * hscrollBar = nullptr;
         Container * content = nullptr;
@@ -1109,6 +1116,7 @@ namespace GraphicsUI
         {
             return content->GetChildren();
         }
+		VectorMath::Vec2 DocumentToView(VectorMath::Vec2 v);
         virtual void SizeChanged() override;
         virtual void AddChild(Control *nControl) override;
         virtual void RemoveChild(Control *AControl) override;
@@ -1123,6 +1131,7 @@ namespace GraphicsUI
         void ClearChildren();
         int GetClientWidth();
         int GetClientHeight();
+		void CenterViewOnPoint(VectorMath::Vec2 documentPos);
     };
 
 	class ToolStrip;

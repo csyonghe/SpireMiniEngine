@@ -71,7 +71,7 @@ namespace GraphicsUI
 		virtual int GetWidth() = 0;
 	};
 
-	class IBakedText
+	class IBakedText : public CoreLib::RefObject
 	{
 	public:
 		virtual int GetWidth() = 0;
@@ -79,7 +79,7 @@ namespace GraphicsUI
 		virtual ~IBakedText() {}
 	};
 
-	class IFont
+	class IFont : public CoreLib::RefObject
 	{
 	public:
 		virtual Rect MeasureString(const CoreLib::String & text) = 0;
@@ -173,13 +173,15 @@ namespace GraphicsUI
 		DrawCommand() {}
 	};
 
+    class UIWindowContext : public CoreLib::RefObject {};
+
 	class ISystemInterface : public CoreLib::Object
 	{
 	public:
 		virtual void SwitchCursor(GraphicsUI::CursorType cursor) = 0;
 		virtual void SetClipboardText(const CoreLib::String & text) = 0;
 		virtual CoreLib::String GetClipboardText() = 0;
-		virtual IFont * LoadDefaultFont(DefaultFontType dt = DefaultFontType::Content) = 0;
+		virtual IFont * LoadDefaultFont(UIWindowContext * windowHandle, DefaultFontType dt = DefaultFontType::Content) = 0;
 	};
 }
 

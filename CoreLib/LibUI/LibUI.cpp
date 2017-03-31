@@ -479,6 +479,8 @@ namespace GraphicsUI
 			Global::MouseCaptureControl = nullptr;
 		if (entry && entry->FocusedControl == this)
 			entry->FocusedControl = nullptr;
+        if (lastFocusedCtrl == this)
+            lastFocusedCtrl = nullptr;
 	}
 
 	bool Control::DoClosePopup()
@@ -825,7 +827,7 @@ namespace GraphicsUI
 		if (BackColor.A)
 		{
 			entry->DrawCommands.SolidBrushColor = BackColor;
-			entry->DrawCommands.FillRectangle(absX + 1, absY + 1, absX + Width - 1, absY + Height - 1);
+			entry->DrawCommands.FillRectangle(absX, absY, absX + Width, absY + Height);
 		}
 		//Draw Border
 		Color LightColor, DarkColor;
@@ -956,7 +958,7 @@ namespace GraphicsUI
 		auto entry = GetEntry();
 		if (font == nullptr)
 		{
-			font = entry->System->LoadDefaultFont();
+			font = entry->defaultFont.Ptr();
 			FChanged = true;
 			UpdateText();
 		}
@@ -1018,7 +1020,7 @@ namespace GraphicsUI
 		absY = absY + Top;
 		auto entry = GetEntry();
 		if (font == nullptr)
-			font = entry->System->LoadDefaultFont();
+			font = entry->defaultFont.Ptr();
 		if (FChanged || !text)
 		{
 			text = font->BakeString(FCaption, text.Ptr());
@@ -1452,14 +1454,14 @@ namespace GraphicsUI
 		lblTitle = new Label(this);
 		lblClose = new Label(this);
 		lblClose->SetText("\x72");
-		lblClose->SetFont(GetEntry()->System->LoadDefaultFont(GraphicsUI::DefaultFontType::Symbol));
+		lblClose->SetFont(GetEntry()->defaultSymbolFont.Ptr());
 		btnClose->Visible = false;
 		lblTitle->Visible = false;
 		lblClose->Visible = false;
 		btnClose->BorderStyle = BS_NONE;
 		btnClose->BackColor.A = 0;
 		formStyle = Global::Colors.DefaultFormStyle;
-		formStyle.TitleFont = parent->GetEntry()->System->LoadDefaultFont(GraphicsUI::DefaultFontType::Title);
+		formStyle.TitleFont = parent->GetEntry()->defaultTitleFont.Ptr();
 		content = new Container(this);
 		content->DockStyle = dsFill;
 		content->BackColor.A = 0;
@@ -1788,11 +1790,13 @@ namespace GraphicsUI
 		return false;
 	}
 
-	UIEntry::UIEntry(int WndWidth, int WndHeight, ISystemInterface * pSystem)
+	UIEntry::UIEntry(int WndWidth, int WndHeight, UIWindowContext * windowHandle, ISystemInterface * pSystem)
 		: Container(nullptr)
 	{
 		this->System = pSystem;
-		this->font = pSystem->LoadDefaultFont();
+		this->defaultFont = this->font = pSystem->LoadDefaultFont(windowHandle, DefaultFontType::Content);
+        this->defaultTitleFont = pSystem->LoadDefaultFont(windowHandle, DefaultFontType::Title);
+        this->defaultSymbolFont = pSystem->LoadDefaultFont(windowHandle, DefaultFontType::Symbol);
 		ClipRects = new ClipRectStack(&DrawCommands);
 		Left = Top =0;
 		Global::EventGUID = 0;
@@ -1807,7 +1811,7 @@ namespace GraphicsUI
 		CheckmarkLabel = new Label(this);
 		CheckmarkLabel->AutoSize = true;
 		CheckmarkLabel->Visible = false;
-		CheckmarkLabel->SetFont(pSystem->LoadDefaultFont(DefaultFontType::Symbol));
+		CheckmarkLabel->SetFont(defaultSymbolFont.Ptr());
 		CheckmarkLabel->SetText("a");
 		
 		ImeMessageHandler.Init(this);
@@ -3298,7 +3302,7 @@ namespace GraphicsUI
 		auto entry = GetEntry();
 		if (font == nullptr)
 		{
-			font = entry->System->LoadDefaultFont();
+			font = entry->defaultFont.Ptr();
 			Changed = true;
 		}
 		if (cursorPosChanged)
@@ -3472,8 +3476,8 @@ namespace GraphicsUI
 		btnDec->TabStop = false;
 		btnInc->BackColor.A = 0;
 		btnDec->BackColor.A = 0;
-		btnInc->SetFont(GetEntry()->System->LoadDefaultFont(DefaultFontType::Symbol));
-		btnDec->SetFont(GetEntry()->System->LoadDefaultFont(DefaultFontType::Symbol));
+		btnInc->SetFont(GetEntry()->defaultSymbolFont.Ptr());
+		btnDec->SetFont(GetEntry()->defaultSymbolFont.Ptr());
 		Min = 0; Max = 100; Position = 0;
 		btnInc->OnMouseDown.Bind(this, &ScrollBar::BtnIncMouseDown);
 		btnDec->OnMouseDown.Bind(this, &ScrollBar::BtnDecMouseDown);
@@ -4254,7 +4258,7 @@ namespace GraphicsUI
 		btnDrop = new Button(this);
 		btnDrop->AcceptsFocus = false;
 		btnDrop->TabStop = false;
-		btnDrop->SetFont(GetEntry()->System->LoadDefaultFont(DefaultFontType::Symbol));
+		btnDrop->SetFont(GetEntry()->defaultSymbolFont.Ptr());
 		btnDrop->SetText("6");
 		btnDrop->BorderColor.A = 0;
 		TextBox = new GraphicsUI::TextBox(this);
@@ -6715,9 +6719,9 @@ namespace GraphicsUI
 		btnDown->SetHeight(Height/2);
 		btnUp->SetWidth(Width);
 		btnDown->SetWidth(Width);
-		auto symFont = GetEntry()->System->LoadDefaultFont(DefaultFontType::Symbol);
-		btnUp->SetFont(symFont);
-		btnDown->SetFont(symFont);
+		auto symFont = GetEntry()->defaultSymbolFont;
+		btnUp->SetFont(symFont.Ptr());
+		btnDown->SetFont(symFont.Ptr());
 		btnUp->SetText("5");
 		btnDown->SetText("6");
 	}
@@ -6810,6 +6814,7 @@ namespace GraphicsUI
 		}
 		return entryCache;
 	}
+	
 	void VScrollPanel::ScrollBar_Changed(UI_Base * /*sender*/)
 	{
 		content->Top = -vscrollBar->GetPosition();
@@ -6922,12 +6927,26 @@ namespace GraphicsUI
 		return content->GetHeight();
 	}
 
+	void ScrollPanel::CenterViewOnPoint(Vec2 scaledDocumentPos)
+	{
+		int hpos = Math::Clamp((int)(scaledDocumentPos.x - Width * 0.5f), 0, hscrollBar->GetMax() - hscrollBar->GetPageSize());
+		int vpos = Math::Clamp((int)(scaledDocumentPos.y - Height * 0.5f), 0, vscrollBar->GetMax() - vscrollBar->GetPageSize());
+		hscrollBar->SetPosition(hpos);
+		vscrollBar->SetPosition(vpos);
+	}
 
     void ScrollPanel::ScrollBar_Changed(UI_Base * /*sender*/)
     {
         content->Top = -vscrollBar->GetPosition();
         content->Left = -hscrollBar->GetPosition();
     }
+
+	Vec2 ScrollPanel::DocumentToView(Vec2 pos)
+	{
+		float zoomFactor = pow(1.1f, zoomLevel);
+		Vec2 rs = pos * zoomFactor - Vec2::Create((float)hscrollBar->GetPosition(), (float)vscrollBar->GetPosition());
+		return rs;
+	}
 
     ScrollPanel::ScrollPanel(Container * parent)
         : Container(parent)
@@ -7116,11 +7135,18 @@ namespace GraphicsUI
     }
 	void Line::Draw(int absX, int absY)
 	{
+		if (!Visible)
+			return;
 		auto & graphics = GetEntry()->DrawCommands;
 		graphics.PenColor = BorderColor;
-        graphics.PenWidth = this->BorderWidth;
+		graphics.PenWidth = this->BorderWidth;
 		graphics.DrawLine(StartCap, EndCap, (float)absX + x0, (float)absY + y0, (float)absX + x1, (float)absY + y1);
 	}
+    void Line::DoDpiChanged()
+    {
+        auto scale = GetEntry()->GetDpiScale();
+        SetPoints(x0 * scale, y0 * scale, x1 * scale, y1 * scale, BorderWidth * scale);
+    }
     Ellipse::Ellipse(Container * owner)
         : Control(owner)
     {
@@ -7136,6 +7162,11 @@ namespace GraphicsUI
             graphics.PenWidth = BorderWidth;
             graphics.DrawArc((float)(absX + Left+ BorderWidth), (float)(absY + Top + BorderWidth), (float)(absX + Left + Width - BorderWidth), (float)(absY + Top + Height - BorderWidth), 0.0f, Math::Pi * 2.0f);
         }
+    }
+    void Ellipse::DoDpiChanged()
+    {
+        BorderWidth *= this->GetEntry()->GetDpiScale();
+        Control::DoDpiChanged();
     }
 	CommandForm::CommandForm(UIEntry * parent)
 		:Form(parent)
@@ -7237,6 +7268,12 @@ namespace GraphicsUI
         Vec2 origin = Vec2::Create((float)absX, (float)absY);
         graphics.PenWidth = BorderWidth;
         graphics.DrawBezier(StartCap, EndCap, origin + p0, origin + cp0, origin + cp1, origin + p1);
+    }
+
+    void BezierCurve::DoDpiChanged()
+    {
+        auto scale = GetEntry()->GetDpiScale();
+        SetPoints(BorderWidth * scale, p0 * scale, cp0 * scale, cp1 * scale, p1 * scale);
     }
 
 }

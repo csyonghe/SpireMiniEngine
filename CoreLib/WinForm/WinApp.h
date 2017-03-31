@@ -40,6 +40,8 @@ namespace CoreLib
 			static void RegisterFormClass();
 			static void RegisterGLFormClass();
 			static void ProcessMessage(MSG & msg);
+        public:
+            static BOOL(WINAPI*EnableNonClientDpiScaling)(HWND hwnd);
 		public:
 			static const wchar_t * ControlClassName;
 			static const wchar_t * FormClassName;
