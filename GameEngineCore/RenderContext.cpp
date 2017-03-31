@@ -64,7 +64,7 @@ namespace GameEngine
 					},
 						[&](int alignment)
 					{
-						if (auto m = (int)((long long)(void*)ptr) % alignment)
+						if (auto m = (int)(((unsigned long long)(void*)ptr) % alignment))
 						{
 							ptr += (alignment - m);
 						}
