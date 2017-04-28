@@ -130,6 +130,7 @@ namespace GameEngine
 			hardwareRenderer->BeginDataTransfer();
 			sharedRes.Init(hardwareRenderer);
 			sharedRes.envMap = hardwareRenderer->CreateTextureCube(TextureUsage::SampledColorAttachment, 256, 8, StorageFormat::RGBA_F16);
+			
 			mainView = new ViewResource(hardwareRenderer);
 			mainView->Resize(1024, 1024);
 			

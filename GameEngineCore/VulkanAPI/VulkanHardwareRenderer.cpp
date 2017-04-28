@@ -1942,7 +1942,15 @@ namespace VK
 	{
 	public:
 		TextureCube(TextureUsage usage, int psize, int mipLevels, StorageFormat format)
-			: VK::Texture(usage, psize, psize, 1, mipLevels, 6, 1, format, vk::ImageCreateFlagBits::eCubeCompatible), size(psize) {};
+			: VK::Texture(usage, psize, psize, 1, mipLevels, 6, 1, format, vk::ImageCreateFlagBits::eCubeCompatible), size(psize)
+		{
+			List<float> zeroMem;
+			zeroMem.SetSize(psize * psize * 6 * 4);
+			for (int i = 0; i < zeroMem.Count(); i++)
+				zeroMem[i] = 0.0f;
+			for (int i = 0; i < (int)Math::Log2Ceil(psize); i++)
+				VK::Texture::SetData(i, 0, 0, 0, 0, psize >> i, psize >> i, 1, 6, DataType::Float4, zeroMem.Buffer());
+		};
 		int size = 0;
 		virtual void GetSize(int & psize) override
 		{
