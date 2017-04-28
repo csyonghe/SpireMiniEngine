@@ -39,6 +39,7 @@ namespace GameEngine
 		descLayouts.SetSize(rs.BindingLayouts.Count());
 		for (auto & desc : rs.BindingLayouts)
 		{
+			if (desc.Value.BindingPoint == -1) continue;
 			if (desc.Value.BindingPoint >= descLayouts.Count())
 				descLayouts.SetSize(desc.Value.BindingPoint + 1);
 			descLayouts[desc.Value.BindingPoint] = hwRenderer->CreateDescriptorSetLayout(desc.Value.Descriptors.GetArrayView());

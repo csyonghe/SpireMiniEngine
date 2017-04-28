@@ -31,16 +31,36 @@ namespace Spire
 
 		void CLikeCodeGen::PrintType(StringBuilder & sbCode, ILType* type)
 		{
-			PrintTypeName(sbCode, type);
+			if (auto arrType = dynamic_cast<ILArrayType*>(type))
+			{
+				PrintType(sbCode, arrType->BaseType.Ptr());
+				if (arrType->ArrayLength > 0)
+					sbCode << "[" << arrType->ArrayLength << "]";
+				else
+					sbCode << "[]";
+			}
+			else
+				PrintTypeName(sbCode, type);
 		}
 
 		void CLikeCodeGen::PrintDef(StringBuilder & sbCode, ILType* type, const String & name)
 		{
-			PrintType(sbCode, type);
-			sbCode << " ";
-			sbCode << name;
-			if (name.Length() == 0)
-				throw InvalidProgramException("unnamed instruction.");
+			if (auto arrType = dynamic_cast<ILArrayType*>(type))
+			{
+				PrintDef(sbCode, arrType->BaseType.Ptr(), name);
+				if (arrType->ArrayLength > 0)
+					sbCode << "[" << arrType->ArrayLength << "]";
+				else
+					sbCode << "[]";
+			}
+			else
+			{
+				PrintType(sbCode, type);
+				sbCode << " ";
+				sbCode << name;
+				if (name.Length() == 0)
+					throw InvalidProgramException("unnamed instruction.");
+			}
 		}
 		
 		String CLikeCodeGen::GetFuncOriginalName(const String & name)
@@ -75,6 +95,8 @@ namespace Spire
 					ctx.Body << makeFloat(c->FloatValues[0]);
 				else if (type->IsInt())
 					ctx.Body << (c->IntValues[0]);
+				else if (type->IsUInt())
+					ctx.Body << (unsigned int)(c->IntValues[0]) << "u";
 				else if (type->IsBool())
 					ctx.Body << ((c->IntValues[0] != 0) ? "true" : "false");
 				else if (auto baseType = dynamic_cast<ILBasicType*>(type))
@@ -518,7 +540,7 @@ namespace Spire
 
 		bool CLikeCodeGen::AppearAsExpression(ILInstruction & instr, bool force)
 		{
-			if (instr.Is<LoadInputInstruction>() || instr.Is<ProjectInstruction>())
+			if (instr.Is<LoadInputInstruction>() || instr.Is<ProjectInstruction>() || instr.Is<MemberLoadInstruction>())
 				return true;
 			if (auto arg = instr.As<FetchArgInstruction>())
 			{
@@ -769,6 +791,7 @@ namespace Spire
 			intrinsicTextureFunctions.Add("SampleGrad");
 			intrinsicTextureFunctions.Add("SampleLevel");
 			intrinsicTextureFunctions.Add("SampleCmp");
+			intrinsicTextureFunctions.Add("Load");
 		}
 
 		void CLikeCodeGen::GenerateShaderMetaData(ShaderMetaData & result, ILProgram* /*program*/, ILShader * shader, DiagnosticSink * /*err*/)
@@ -811,8 +834,8 @@ namespace Spire
 					sb << "struct " << st->TypeName << "\n{\n";
 					for (auto & f : st->Members)
 					{
-						sb << f.Type->ToString();
-						sb << " " << f.FieldName << ";\n";
+						PrintDef(sb, f.Type.Ptr(), f.FieldName);
+						sb << ";\n";
 					}
 					sb << "};\n";
 				}
@@ -913,6 +936,12 @@ namespace Spire
 					info.SystemVar = ExternComponentCodeGenInfo::SystemVarType::PatchVertexCount;
 					if (!input.Type->IsInt())
                         getSink()->diagnose(input.Position, Diagnostics::invalidPatchVertexCountType);
+				}
+				else if (input.Attributes.ContainsKey("InstanceId"))
+				{
+					info.SystemVar = ExternComponentCodeGenInfo::SystemVarType::InstanceId;
+					if (!input.Type->IsInt())
+                        getSink()->diagnose(input.Position, Diagnostics::invalidTypeForSystemVar, "InstanceId", input.Type);
 				}
 			}
 			return info;

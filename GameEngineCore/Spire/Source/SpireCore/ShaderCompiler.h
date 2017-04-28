@@ -45,12 +45,13 @@ namespace Spire
 			RefPtr<ProgramSyntaxNode> SyntaxNode;
 		};
 
-		class CompilationContext
+		class CompilationContext : public CoreLib::Basic::RefObject
 		{
 		public:
 			SymbolTable Symbols;
 			EnumerableDictionary<String, RefPtr<ShaderClosure>> ShaderClosures;
 			RefPtr<ILProgram> Program;
+			void MergeWith(CompilationContext * ctx);
 		};
 
 		class ShaderCompiler : public CoreLib::Basic::Object

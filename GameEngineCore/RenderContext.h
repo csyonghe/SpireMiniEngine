@@ -150,6 +150,7 @@ namespace GameEngine
 		CoreLib::RefPtr<TextureSampler> textureSampler, nearestSampler, linearSampler, shadowSampler;
 		CoreLib::EnumerableDictionary<SpireModuleStruct*, CoreLib::RefPtr<DescriptorSetLayout>> descLayouts;
 		SpireCompilationContext * spireContext = nullptr;
+		SpireDiagnosticSink * spireSink = nullptr;
 		ShadowMapResource shadowMapResources;
 		SpireShader * LoadSpireShader(const char * key, const char * source);
 		void CreateModuleInstance(ModuleInstance & mInst, SpireModule * shaderModule, DeviceMemory * uniformMemory, int uniformBufferSize = 0);

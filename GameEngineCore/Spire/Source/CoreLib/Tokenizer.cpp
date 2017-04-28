@@ -410,6 +410,12 @@ namespace CoreLib
 						pos += 2;
 						state = State::MultiComment;
 					}
+					else if (curChar == '.' && IsDigit(nextChar))
+					{
+						tokenBuilder.Append("0.");
+						state = State::Fixed;
+						pos++;
+					}
 					else if (IsPunctuation(curChar))
 					{
 						state = State::Operator;
@@ -498,6 +504,13 @@ namespace CoreLib
 						state = State::Hex;
 						tokenBuilder.Append(curChar);
 						pos++;
+					}
+					else if (curChar == 'u')
+					{
+						pos++;
+						tokenBuilder.Append(curChar);
+						InsertToken(TokenType::IntLiterial);
+						state = State::Start;
 					}
 					else
 					{
@@ -615,14 +628,18 @@ namespace CoreLib
 					pos++;
 					break;
 				case State::SingleComment:
-					if (curChar == '\n')
+					if( curChar == '\n' )
+					{
 						state = State::Start;
+						tokenFlags |= TokenFlag::AtStartOfLine | TokenFlag::AfterWhitespace;
+					}
 					pos++;
 					break;
 				case State::MultiComment:
 					if (curChar == '*' && nextChar == '/')
 					{
 						state = State::Start;
+						tokenFlags |= TokenFlag::AfterWhitespace;
 						pos += 2;
 					}
 					else

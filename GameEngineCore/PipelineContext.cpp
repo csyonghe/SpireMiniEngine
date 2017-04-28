@@ -151,6 +151,8 @@ namespace GameEngine
 		List<RefPtr<DescriptorSetLayout>> descSetLayouts;
 		for (auto & descSet : rs.BindingLayouts)
 		{
+			if (descSet.Value.BindingPoint == -1)
+				continue;
 			if (descSet.Key == "NoAnimation")
 			{
 				for (auto & desc : descSet.Value.Descriptors)

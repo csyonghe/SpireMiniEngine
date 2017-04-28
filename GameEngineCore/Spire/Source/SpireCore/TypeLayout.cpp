@@ -73,6 +73,7 @@ struct DefaultLayoutRulesImpl : LayoutRulesImpl
         case ILBaseType::Int:
         case ILBaseType::UInt:
         case ILBaseType::Float:
+		case ILBaseType::Bool:
             return{ 4, 4 };
 
         case ILBaseType::Int2:      return GetVectorLayout(GetScalarLayout(ILBaseType::Int),    2);
@@ -179,9 +180,62 @@ struct PackedLayoutRulesImpl : DefaultLayoutRulesImpl
 {
 };
 
+struct HLSLLayoutRulesImpl : Std140LayoutRulesImpl
+{
+	LayoutInfo GetVectorLayout(LayoutInfo elementInfo, size_t elementCount) override
+	{
+		LayoutInfo vectorInfo;
+		vectorInfo.size = elementInfo.size * elementCount;
+		vectorInfo.alignment = elementInfo.alignment;
+		vectorInfo.avoid16ByteBoundary = true;
+		return vectorInfo;
+	}
+
+	LayoutInfo BeginStructLayout() override
+	{
+		LayoutInfo structInfo;
+		structInfo.size = 0;
+		structInfo.alignment = 16;
+		structInfo.avoid16ByteBoundary = true;
+		return structInfo;
+	}
+
+	size_t AddStructField(LayoutInfo* ioStructInfo, LayoutInfo fieldInfo) override
+	{
+		ioStructInfo->size = RoundToAlignment(ioStructInfo->size, fieldInfo.alignment);
+
+        // If this field would straddle a 16-byte boundary, then round up to the start
+        // of a 16-byte boundary. Note that the computation is for the *last* byte
+        // offset for the field, and *not* the byte offset of the end of the field.
+        // It is okay for a field to end right on a 16-byte boundary without triggering
+        // this rule.
+        size_t firstOffset = ioStructInfo->size;
+        size_t lastOffset = firstOffset + fieldInfo.size - 1;
+        if( (firstOffset / 16) != (lastOffset / 16) )
+        {
+            ioStructInfo->size = RoundToAlignment(firstOffset, 16u);
+            if( ioStructInfo->size != firstOffset )
+            {
+                int f = 9;
+            }
+        }
+
+		size_t fieldOffset = ioStructInfo->size;
+		ioStructInfo->size += fieldInfo.size;
+		return fieldOffset;
+	}
+
+
+	void EndStructLayout(LayoutInfo* ioStructInfo) override
+	{
+		ioStructInfo->size = RoundToAlignment(ioStructInfo->size, ioStructInfo->alignment);
+	}
+};
+
 Std140LayoutRulesImpl kStd140LayoutRulesImpl;
 Std430LayoutRulesImpl kStd430LayoutRulesImpl;
 PackedLayoutRulesImpl kPackedLayoutRulesImpl;
+HLSLLayoutRulesImpl kHlslLayoutRulesImpl;
 
 LayoutRulesImpl* GetLayoutRulesImpl(LayoutRule rule)
 {
@@ -189,6 +243,7 @@ LayoutRulesImpl* GetLayoutRulesImpl(LayoutRule rule)
     {
     case LayoutRule::Std140: return &kStd140LayoutRulesImpl;
     case LayoutRule::Std430: return &kStd430LayoutRulesImpl;
+	case LayoutRule::HLSL: return &kHlslLayoutRulesImpl;
     case LayoutRule::Packed: return &kPackedLayoutRulesImpl;
     default:
         return nullptr;

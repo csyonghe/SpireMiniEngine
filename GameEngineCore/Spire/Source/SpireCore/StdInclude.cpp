@@ -15,6 +15,15 @@ __intrinsic vec4 dFdx(vec4 v);
 __intrinsic vec4 dFdy(vec4 v);
 __intrinsic vec4 fwidth(vec4 v);
 
+__intrinsic float ddx(float v);
+__intrinsic float ddy(float v);
+__intrinsic vec2 ddx(vec2 v);
+__intrinsic vec2 ddy(vec2 v);
+__intrinsic vec3 ddx(vec3 v);
+__intrinsic vec3 ddy(vec3 v);
+__intrinsic vec4 ddx(vec4 v);
+__intrinsic vec4 ddy(vec4 v);
+
 __intrinsic float intBitsToFloat(int x);
 __intrinsic int floatBitsToInt(float x);
 
@@ -110,8 +119,10 @@ __intrinsic vec3 smoothstep(vec3 e0, vec3 e1, vec3 v);
 __intrinsic vec4 smoothstep(vec4 e0, vec4 e1, vec4 v);
 __intrinsic vec4 Sample(Texture2D tex, SamplerState sampler, vec2 uv);
 __intrinsic vec4 Sample(Texture2D tex, SamplerState sampler, vec2 uv, ivec2 offset);
+__intrinsic vec4 Sample(Texture2DArray tex, SamplerState sampler, vec3 uv, ivec3 offset);
 __intrinsic vec4 Sample(TextureCube tex, SamplerState sampler, vec3 uv);
 __intrinsic vec4 Sample(Texture3D tex, SamplerState sampler, vec3 uv);
+__intrinsic vec4 Sample(Texture2DArray tex, SamplerState sampler, vec3 uv);
 __intrinsic vec4 SampleLevel(Texture2D tex, SamplerState sampler, vec2 uv, float lod);
 __intrinsic vec4 SampleLevel(TextureCube tex, SamplerState sampler, vec3 uv, float lod);
 __intrinsic vec4 SampleLevel(Texture3D tex, SamplerState sampler, vec3 uv, float lod);
@@ -125,6 +136,10 @@ __intrinsic vec4 SampleGrad(TextureCube tex, SamplerState sampler, vec3 uv, vec3
 __intrinsic vec4 SampleBias(Texture2D tex, SamplerState sampler, vec2 uv, float bias);
 __intrinsic vec4 SampleBias(Texture2D tex, SamplerState sampler, vec2 uv, float bias, ivec2 offset);
 __intrinsic vec4 SampleBias(TextureCube tex, SamplerState sampler, vec3 uv, float bias);
+__intrinsic vec4 SampleBias(Texture2DArray tex, SamplerState sampler, vec3 uv, float bias);
+__intrinsic vec4 Load(Texture2D tex, int3 location);
+__intrinsic vec4 Load(Texture2D tex, int3 location, ivec2 offset);
+__intrinsic vec4 Load(Texture3D tex, int4 location);
 __intrinsic float diff(float v);
 __intrinsic float mod(float x, float y);
 __intrinsic float max(float v);
@@ -166,6 +181,15 @@ __intrinsic float mix(float v0, float v1, float t);
 __intrinsic vec3 mix(vec3 v0, vec3 v1, vec3 t);
 __intrinsic vec4 mix(vec4 v0, vec4 v1, vec4 t);
 __intrinsic vec2 mix(vec2 v0, vec2 v1, vec2 t);
+
+__intrinsic vec3 lerp(vec3 v0, vec3 v1, float t);
+__intrinsic vec4 lerp(vec4 v0, vec4 v1, float t);
+__intrinsic vec2 lerp(vec2 v0, vec2 v1, float t);
+__intrinsic float lerp(float v0, float v1, float t);
+__intrinsic vec3 lerp(vec3 v0, vec3 v1, vec3 t);
+__intrinsic vec4 lerp(vec4 v0, vec4 v1, vec4 t);
+__intrinsic vec2 lerp(vec2 v0, vec2 v1, vec2 t);
+
 __intrinsic mat3 mat3(vec3 a, vec3 b, vec3 c);
 __intrinsic mat3 mat3(float a0, float a1, float a2, float a3, float a4, float a5, float a6, float a7, float a8);
 __intrinsic mat4 mat4(vec4 a, vec4 b, vec4 c, vec4 d);
@@ -231,6 +255,11 @@ __intrinsic vec4 vec4(uvec4 val);
 __intrinsic mat3 transpose(mat3 in);
 __intrinsic mat4 transpose(mat4 in);
 __intrinsic mat3 mat3(mat4 in);
+
+__intrinsic float saturate(float v);
+__intrinsic vec2 saturate(vec2 v);
+__intrinsic vec3 saturate(vec3 v);
+__intrinsic vec4 saturate(vec4 v);
 
 struct trait __intrinsic {};
 __intrinsic trait IsTriviallyPassable(float);

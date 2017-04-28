@@ -448,9 +448,17 @@ namespace Spire
 									{
 										// modify function name to resolved name
 										if (auto memberExpr = arg->Expression.As<MemberExpressionSyntaxNode>())
-											memberExpr->MemberName = funcType->Component->Name;
+										{
+											auto basicType = new BasicExpressionType(BaseType::Function);
+											basicType->Component = funcType->Component;
+											memberExpr->Type = basicType;
+											//memberExpr->MemberName = funcType->Component->Name;
+										}
 										else if (auto varExpr = arg->Expression.As<VarExpressionSyntaxNode>())
-											varExpr->Variable = funcType->Component->Name;
+										{
+											varExpr->Type = funcType;
+											//varExpr->Variable = funcType->Component->Name;
+										}
 									}
 									else
 										getSink()->diagnose(arg.Ptr(), Diagnostics::ordinaryFunctionAsModuleArgument);
@@ -935,7 +943,7 @@ namespace Spire
 				{
 					if (!shader->SemanticallyChecked)
 					{
-						VisitShaderPass2(shader->SyntaxNode);
+						VisitShaderPass2(shader->SyntaxNode.Ptr());
 						shader->SemanticallyChecked = true;
 					}
 				}
@@ -1163,6 +1171,8 @@ namespace Spire
 				expr->LeftExpression = expr->LeftExpression->Accept(this).As<ExpressionSyntaxNode>();
 				expr->RightExpression = expr->RightExpression->Accept(this).As<ExpressionSyntaxNode>();
 				auto & leftType = expr->LeftExpression->Type;
+				if (!leftType)
+					printf("Break");
 				auto & rightType = expr->RightExpression->Type;
 				RefPtr<ExpressionType> matchedType;
 				auto checkAssign = [&]()
@@ -1223,6 +1233,9 @@ namespace Spire
 				{
 				case ConstantExpressionSyntaxNode::ConstantType::Int:
 					expr->Type = ExpressionType::Int;
+					break;
+				case ConstantExpressionSyntaxNode::ConstantType::UInt:
+					expr->Type = ExpressionType::UInt;
 					break;
 				case ConstantExpressionSyntaxNode::ConstantType::Bool:
 					expr->Type = ExpressionType::Bool;
@@ -1391,9 +1404,20 @@ namespace Spire
 						funcType->BaseType = BaseType::Function;
 						funcType->Component = func;
 						memberExpr->Type = funcType;
-						memberExpr->MemberName = func->Name;
 						invoke->Type = func->Implementations.First()->SyntaxNode->Type;
 						return invoke;
+					}
+					else
+					{
+						StringBuilder argList;
+						for (int i = 0; i < arguments.Count(); i++)
+						{
+							argList << arguments[i]->Type->ToString();
+							if (i != arguments.Count() - 1)
+								argList << ", ";
+						}
+						getSink()->diagnose(invoke, Diagnostics::noApplicationFunction, memberExpr->MemberName, argList.ProduceString());
+						invoke->Type = ExpressionType::Error;
 					}
 				}
 				else
@@ -1531,7 +1555,7 @@ namespace Spire
 				{
 					if (!func->SyntaxNode->IsExtern())
 					{
-						varExpr->Variable = func->SyntaxNode->InternalName;
+						//varExpr->Variable = func->SyntaxNode->InternalName;
 						if (currentFunc)
 							currentFunc->ReferencedFunctions.Add(func->SyntaxNode->InternalName);
 					}
@@ -1579,6 +1603,7 @@ namespace Spire
 
 			RefPtr<ExpressionSyntaxNode> ResolveInvoke(InvokeExpressionSyntaxNode * expr)
 			{
+
 				if (auto varExpr = expr->FunctionExpr.As<VarExpressionSyntaxNode>())
 				{
 					return ResolveFunctionOverload(expr, varExpr.Ptr(), expr->Arguments);

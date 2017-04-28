@@ -152,7 +152,7 @@ namespace Spire
 					}
 				}
 				// generate definitions
-				Dictionary<ShaderClosure*, ModuleInstanceIR*> moduleInstanceMap;
+				EnumerableDictionary<ShaderClosure*, ModuleInstanceIR*> moduleInstanceMap;
 				auto createModuleInstance = [&](ShaderClosure * closure)
 				{
 					ModuleInstanceIR * inst;
@@ -180,6 +180,7 @@ namespace Spire
 					if (namePath.Count() == 1)
 						sbBindingName << namePath[0];
 					inst = new ModuleInstanceIR();
+					inst->IsTopLevel = namePath.Count() <= 2;
 					inst->SyntaxNode = closure->ModuleSyntaxNode;
 					inst->BindingIndex = closure->BindingIndex;
 					inst->UsingPosition = closure->UsingPosition;
@@ -235,6 +236,22 @@ namespace Spire
 						}
 					}
 					result->DefinitionsByComponent[comp.Key] = defs;
+				}
+				// now that all module instances are generated, sort out sub module instances
+				for (auto & module : moduleInstanceMap)
+				{
+					auto closure = module.Key;
+					// find first parent of this module, and add the module to the parent's children list
+					while (closure->Parent)
+					{
+						closure = closure->Parent;
+						ModuleInstanceIR * parentModule;
+						if (closure->Parent && moduleInstanceMap.TryGetValue(closure, parentModule))
+						{
+							parentModule->SubModuleInstances.Add(module.Value);
+							break;
+						}
+					}
 				}
 				bool changed = true;
 				while (changed)
@@ -461,7 +478,7 @@ namespace Spire
 							return;
 						// generate IL code
 						
-						RefPtr<ICodeGenerator> codeGen = CreateCodeGenerator(&symTable, result);
+						RefPtr<ICodeGenerator> codeGen = CreateCodeGenerator(&symTable, result, backend);
 						if (context.Program)
 						{
 							result.Program->Functions = context.Program->Functions;
@@ -602,5 +619,29 @@ namespace Spire
 			return new ShaderCompilerImpl();
 		}
 
-	}
+		void CompilationContext::MergeWith(CompilationContext * ctx)
+		{
+			Symbols.MergeWith(ctx->Symbols);
+			if (ctx->Program != Program)
+			{
+				for (auto & f : ctx->Program->Functions)
+					Program->Functions[f.Key] = f.Value;
+				HashSet<ILStructType*> existingStructs;
+				for (auto & s : Program->Structs)
+					existingStructs.Add(s.Ptr());
+				for (auto & s : ctx->Program->Structs)
+					if (existingStructs.Add(s.Ptr()))
+						Program->Structs.Add(s);
+				HashSet<ILShader*> existingShaders;
+				for (auto & s : Program->Shaders)
+					existingShaders.Add(s.Ptr());
+				for (auto & s : ctx->Program->Shaders)
+					if (existingShaders.Add(s.Ptr()))
+						Program->Shaders.Add(s);
+			}
+			for (auto & s : ctx->ShaderClosures)
+				ShaderClosures[s.Key] = s.Value;
+		}
+
+}
 }

@@ -93,7 +93,7 @@ namespace Spire
 		public:
 			bool IsAbstract = false;
 			bool SemanticallyChecked = false;
-			ShaderSyntaxNode * SyntaxNode = nullptr;
+			RefPtr<ShaderSyntaxNode> SyntaxNode = nullptr;
 
 			List<ShaderComponentSymbol*> GetComponentDependencyOrder();
 			EnumerableHashSet<ShaderSymbol*> DependentShaders;
@@ -210,6 +210,7 @@ namespace Spire
 			List<ImportPath> FindImplicitImportOperatorChain(PipelineSymbol * pipe, String worldSrc, String worldDest, RefPtr<ExpressionType> type);
 
             Decl* LookUp(String const& name);
+			void MergeWith(SymbolTable & symTable);
 		};
 
 		class UniqueIdGenerator

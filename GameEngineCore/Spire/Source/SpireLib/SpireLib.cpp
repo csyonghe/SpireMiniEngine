@@ -17,13 +17,24 @@ struct SpireDiagnosticSink
 	CoreLib::List<Spire::Compiler::Diagnostic> diagnostics;
 };
 
+struct SpireUniformFieldImpl
+{
+	int offset;
+	int size;
+	String name;
+	String type;
+};
+
 struct SpireParameterSet
 {
 	ILModuleParameterSet * paramSet = nullptr;
 	int bindingSlotCount = 0;
 	int uniformBufferLegacyBindingPoint = -1;
 	List<SpireResourceBindingInfo> bindings;
+	List<SpireParameterSet> subsets;
+	List<SpireUniformFieldImpl> uniforms;
 };
+
 
 class ComponentMetaData
 {
@@ -36,6 +47,9 @@ public:
 	int Offset = 0;
 	int Alignment = 0;
 	int Size = 0;
+	BindableResourceType bindableType;
+	int typeSpecificBindingIndex = -1;
+	int typeAgnosticBindingIndex = -1;
 	int GetHashCode()
 	{
 		return Name.GetHashCode();
@@ -46,13 +60,21 @@ public:
 	}
 };
 
+struct CompilerState;
+
 struct SpireModule
 {
 	String Name;
 	int Id = 0;
+	int UniformBufferSize = 0;
+	int UniformBufferOffset = 0;
+	SpireBindingIndex BindingIndex;
 	List<ComponentMetaData> Parameters;
+	EnumerableDictionary<String, ComponentMetaData> ParameterMap;
 	List<ComponentMetaData> Requirements;
 	Dictionary<String, String> Attribs;
+	List<RefPtr<SpireModule>> SubModules;
+	CompilerState * State = nullptr;
 	static int IdAllocator;
 };
 
@@ -303,6 +325,7 @@ namespace SpireLib
 				}
 				else
 				{
+                    // TODO(tfoley): Should use the correct layout rule here, and not assume `Std140`
 					writer << "buffer(" << entry.Value->BufferOffset << ", "
 						<< (int)GetTypeSize(entry.Value->Type.Ptr(), LayoutRule::Std140) << ")";
 				}
@@ -420,407 +443,635 @@ namespace SpireLib
 		FromString(src);
 	}
 
+	
+}
 
-	class Shader
+using namespace SpireLib;
+
+
+struct ShaderParameter
+{
+	String TypeName;
+	String Name;
+	int BindingId;
+};
+
+class Shader
+{
+	friend class ::CompilationContext;
+private:
+	String shaderName;
+	String src;
+public:
+	int Id;
+	List<ShaderParameter> Parameters;
+	RefPtr<Decl> Syntax;
+	Shader(String name, String source)
 	{
-		friend class CompilationContext;
-	private:
-		String shaderName;
-		String src;
-	public:
-		int Id;
-		Shader(String name, String source)
-		{
-			static int idAllocator = 0;
-			Id = idAllocator++;
-			shaderName = name;
-			src = source;
-		}
-		String GetName() const
-		{
-			return shaderName;
-		}
-		String GetSource() const
-		{
-			return src;
-		}
-	};
-
-	class CompileResult
+		static int idAllocator = 0;
+		Id = idAllocator++;
+		shaderName = name;
+		src = source;
+	}
+	String GetName() const
 	{
-	public:
-		CoreLib::EnumerableDictionary<String, CompiledShaderSource> Sources;
-		CoreLib::EnumerableDictionary<String, List<SpireParameterSet>> ParamSets;
-
-	};
-
-	class CompilationContext
+		return shaderName;
+	}
+	String GetSource() const
 	{
-	private:
-		bool useCache = false;
-		CoreLib::String cacheDir;
-		struct State
-		{
-			List<CompileUnit> moduleUnits;
-			HashSet<String> processedModuleUnits;
-			EnumerableDictionary<String, RefPtr<SpireModule>> modules;
-			int errorCount = 0;
-		};
-		Array<State, 128> states;
-		List<RefPtr<Spire::Compiler::CompilationContext>> compileContext;
-		RefPtr<ShaderCompiler> compiler;
+		return src;
+	}
+};
 
-		struct IncludeHandlerImpl : IncludeHandler
-		{
-			List<String> searchDirs;
+class CompileResult
+{
+public:
+	CoreLib::EnumerableDictionary<String, CompiledShaderSource> Sources;
+	CoreLib::EnumerableDictionary<String, List<SpireParameterSet>> ParamSets;
 
-			virtual bool TryToFindIncludeFile(
-				CoreLib::String const& pathToInclude,
-				CoreLib::String const& pathIncludedFrom,
-				CoreLib::String* outFoundPath,
-				CoreLib::String* outFoundSource) override
+};
+
+struct CompilerState : public RefObject
+{
+	List<CompileUnit> moduleUnits;
+	HashSet<String> processedModuleUnits;
+	EnumerableDictionary<String, RefPtr<SpireModule>> modules;
+	EnumerableDictionary<String, RefPtr<Shader>> shaders;
+	RefPtr<Spire::Compiler::CompilationContext> context;
+	RefPtr<CompilerState> Parent;
+	// the version of this state
+	int Version = 0;
+	// the version of parent states cached in this state
+	int CachedParentVersion = 0;
+	void Update() // update this state to include latest version of parent
+	{
+		if (Parent)
+		{
+			Parent->Update();
+			if (Parent->Version != CachedParentVersion)
 			{
-				String path = Path::Combine(Path::GetDirectoryName(pathIncludedFrom), pathToInclude);
+				context->MergeWith(Parent->context.Ptr());
+				CachedParentVersion = Parent->Version;
+				Version++;
+			}
+		}
+	}
+
+	int errorCount = 0;
+	CompilerState()
+	{
+		context = new Spire::Compiler::CompilationContext();
+	}
+	CompilerState(RefPtr<CompilerState> parent)
+	{
+		this->Parent = parent;
+
+		// Do the ugly thing to copy parent's symbol table to child
+		if (parent)
+			context = new Spire::Compiler::CompilationContext(*parent->context);
+	}
+	~CompilerState()
+	{
+		printf("break");
+	}
+};
+
+class CompilationContext;
+
+struct SpireCompilationEnvironment
+{
+	::CompilationContext * context;
+	RefPtr<::CompilerState> state;
+};
+
+class CompilationContext
+{
+public:
+	bool useCache = false;
+	CoreLib::String cacheDir;
+
+	List<RefPtr<::CompilerState>> states;
+	RefPtr<ShaderCompiler> compiler;
+
+	struct IncludeHandlerImpl : IncludeHandler
+	{
+		List<String> searchDirs;
+
+		virtual bool TryToFindIncludeFile(
+			CoreLib::String const& pathToInclude,
+			CoreLib::String const& pathIncludedFrom,
+			CoreLib::String* outFoundPath,
+			CoreLib::String* outFoundSource) override
+		{
+			String path = Path::Combine(Path::GetDirectoryName(pathIncludedFrom), pathToInclude);
+			if (File::Exists(path))
+			{
+				*outFoundPath = path;
+				*outFoundSource = File::ReadAllText(path);
+				return true;
+			}
+
+			for (auto & dir : searchDirs)
+			{
+				path = Path::Combine(dir, pathToInclude);
 				if (File::Exists(path))
 				{
 					*outFoundPath = path;
 					*outFoundSource = File::ReadAllText(path);
 					return true;
 				}
-
-				for (auto & dir : searchDirs)
-				{
-					path = Path::Combine(dir, pathToInclude);
-					if (File::Exists(path))
-					{
-						*outFoundPath = path;
-						*outFoundSource = File::ReadAllText(path);
-						return true;
-					}
-				}
-				return false;
 			}
-		};
-		IncludeHandlerImpl includeHandler;
-
-	public:
-		CompileOptions Options;
-
-		CompilationContext(bool /*pUseCache*/, CoreLib::String /*pCacheDir*/)
-		{
-			compiler = CreateShaderCompiler();
-			compileContext.Add(new Spire::Compiler::CompilationContext());
-			states.Add(State());
-			LoadModuleSource(SpireStdLib::GetCode(), "stdlib", NULL);
-		}
-
-		~CompilationContext()
-		{
-			SpireStdLib::Finalize();
-		}
-
-		SpireModule * FindModule(CoreLib::String moduleName)
-		{
-			auto ptr = states.Last().modules.TryGetValue(moduleName);
-			if (ptr)
-				return ptr->Ptr();
-			else
-				return nullptr;
-		}
-
-		StringBuilder moduleKeyBuilder;
-		SpireModule * SpecializeModule(SpireModule * module, int * params, int numParams, SpireDiagnosticSink * sink)
-		{
-			moduleKeyBuilder.Clear();
-			moduleKeyBuilder.Append(module->Name);
-			for (auto & param : module->Parameters)
-			{
-				if (param.IsSpecialize)
-				{
-					int id = -1;
-					for (int i = 0; i < numParams; i++)
-					{
-						moduleKeyBuilder.Append(params[id]);
-						moduleKeyBuilder.Append('_');
-					}
-				}
-			}
-			if (auto smodule = states.Last().modules.TryGetValue(moduleKeyBuilder.Buffer()))
-				return smodule->Ptr();
-			RefPtr<ShaderSymbol> originalModule;
-			compileContext.Last()->Symbols.Shaders.TryGetValue(module->Name, originalModule);
-			CompileUnit unit;
-			unit.SyntaxNode = new ProgramSyntaxNode();
-			CloneContext cloneCtx;
-			auto newModule = originalModule->SyntaxNode->Clone(cloneCtx);
-			newModule->Name.Content = moduleKeyBuilder.ToString();
-			int id = 0;
-			for (auto & member : newModule->Members)
-			{
-				if (auto param = member.As<ComponentSyntaxNode>())
-				{
-					if (auto specialize = param->FindSpecializeModifier())
-					{
-						if (id >= numParams)
-						{
-							return nullptr;
-						}
-						auto newParam = param->Clone(cloneCtx);
-						newParam->modifiers.first = nullptr;
-						newParam->modifiers.flags = ModifierFlag::Public;
-						param->BlockStatement = nullptr;
-						auto expr = new ConstantExpressionSyntaxNode();
-						if (param->Type->Equals(ExpressionType::Bool))
-							expr->ConstType = ConstantExpressionSyntaxNode::ConstantType::Bool;
-						else
-							expr->ConstType = ConstantExpressionSyntaxNode::ConstantType::Int;
-						expr->IntValue = params[id];
-						newParam->Expression = expr;
-						newModule->Members.Add(newParam);
-						param->Name.Content = param->Name.Content + "placeholder";
-						id++;
-					}
-				}
-			}
-			unit.SyntaxNode->Members.Add(newModule);
-			List<CompileUnit> units;
-			units.Add(unit);
-			UpdateModuleLibrary(units, sink);
-			return FindModule(newModule->Name.Content);
-		}
-
-		void UpdateModuleLibrary(List<CompileUnit> & units, SpireDiagnosticSink * sink)
-		{
-			Spire::Compiler::CompileResult result;
-			compiler->Compile(result, *compileContext.Last(), units, Options);
-			for (auto & shader : compileContext.Last()->Symbols.Shaders)
-			{
-				if (!states.Last().modules.ContainsKey(shader.Key))
-				{
-					RefPtr<SpireModule> newModule = new SpireModule();
-					auto & meta = *newModule;
-					meta.Id = SpireModule::IdAllocator++;
-					meta.Name = shader.Key;
-					int offset = 0;
-					for (auto attrib : shader.Value->SyntaxNode->GetModifiersOfType<SimpleAttribute>())
-						meta.Attribs[attrib->Key] = attrib->Value.Content;
-					for (auto & comp : shader.Value->Components)
-					{
-						if (comp.Value->Implementations.Count() != 1)
-							continue;
-						auto impl = comp.Value->Implementations.First();
-						if (!impl->SyntaxNode->IsRequire() && !impl->SyntaxNode->IsParam())
-							continue;
-						ComponentMetaData compMeta;
-						compMeta.Name = comp.Key;
-						compMeta.Type = comp.Value->Type->DataType;
-						compMeta.TypeName = compMeta.Type->ToString();
-						if (auto specialize = impl->SyntaxNode->FindSpecializeModifier())
-						{
-							for (auto val : specialize->Values)
-							{
-								compMeta.Values.Add(dynamic_cast<ConstantExpressionSyntaxNode*>(val.Ptr())->IntValue);
-							}
-							compMeta.IsSpecialize = true;
-						}
-						if (compMeta.Type->GetBindableResourceType() == BindableResourceType::NonBindable)
-						{
-							compMeta.Alignment = (int)GetTypeAlignment(compMeta.Type.Ptr(), LayoutRule::Std140);
-							compMeta.Size = (int)GetTypeSize(compMeta.Type.Ptr(), LayoutRule::Std140);
-							offset = RoundToAlignment(offset, compMeta.Alignment);
-							compMeta.Offset = offset;
-							offset += compMeta.Size;
-						}
-						if (impl->SyntaxNode->IsRequire())
-							meta.Requirements.Add(compMeta);
-						else
-							meta.Parameters.Add(compMeta);
-					}
-					states.Last().modules.Add(shader.Key, newModule);
-				}
-			}
-			if (sink)
-			{
-				sink->diagnostics.AddRange(result.sink.diagnostics);
-				sink->errorCount += result.GetErrorCount();
-			}
-		}
-
-		int LoadModuleSource(CoreLib::String src, CoreLib::String fileName, SpireDiagnosticSink* sink)
-		{
-			List<CompileUnit> units;
-			int errCount = LoadModuleUnits(units, src, fileName, sink);
-			states.Last().moduleUnits.AddRange(units);
-			UpdateModuleLibrary(units, sink);
-			return errCount;
-		}
-
-		int LoadModuleUnits(List<CompileUnit> & units, CoreLib::String src, CoreLib::String fileName, SpireDiagnosticSink* sink)
-		{
-			auto & processedUnits = states.Last().processedModuleUnits;
-
-			Spire::Compiler::CompileResult result;
-			List<String> unitsToInclude;
-			unitsToInclude.Add(fileName);
-			processedUnits.Add(fileName);
-			auto searchDirs = Options.SearchDirectories;
-			searchDirs.Add(Path::GetDirectoryName(fileName));
-			searchDirs.Reverse();
-			for (int i = 0; i < unitsToInclude.Count(); i++)
-			{
-				auto inputFileName = unitsToInclude[i];
-				try
-				{
-					String source = src;
-					if (i > 0)
-						source = File::ReadAllText(inputFileName);
-					auto unit = compiler->Parse(result, source, inputFileName, &includeHandler, Options.PreprocessorDefinitions);
-					units.Add(unit);
-					if (unit.SyntaxNode)
-					{
-						for (auto inc : unit.SyntaxNode->GetUsings())
-						{
-							bool found = false;
-							for (auto & dir : searchDirs)
-							{
-								String includeFile = Path::Combine(dir, inc->fileName.Content);
-								if (File::Exists(includeFile))
-								{
-									if (processedUnits.Add(includeFile))
-									{
-										unitsToInclude.Add(includeFile);
-									}
-									found = true;
-									break;
-								}
-							}
-							if (!found)
-							{
-								result.GetErrorWriter()->diagnose(inc->fileName.Position, Diagnostics::cannotFindFile, inc->fileName);
-							}
-						}
-					}
-				}
-				catch (IOException)
-				{
-					result.GetErrorWriter()->diagnose(CodePosition(0, 0, 0, ""), Diagnostics::cannotOpenFile, inputFileName);
-				}
-			}
-			if (sink)
-			{
-				sink->diagnostics.AddRange(result.sink.diagnostics);
-				sink->errorCount += result.GetErrorCount();
-			}
-			return result.GetErrorCount();
-		}
-		Shader * NewShaderFromSource(const char * source, const char * fileName)
-		{
-			Spire::Compiler::CompileResult result;
-			auto unit = compiler->Parse(result, source, fileName, nullptr, Dictionary<String, String>());
-			auto list = unit.SyntaxNode->GetMembersOfType<TemplateShaderSyntaxNode>();
-			if (list.Count())
-				return new Shader((*list.begin())->Name.Content, String(source));
-			return nullptr;
-		}
-		Shader * NewShaderFromFile(const char * fileName)
-		{
-			try
-			{
-				return NewShaderFromSource(File::ReadAllText(fileName).Buffer(), fileName);
-			}
-			catch (Exception)
-			{
-				return nullptr;
-			}
-		}
-		void PushContext()
-		{
-			states.Add(states.Last());
-			compileContext.Add(new Spire::Compiler::CompilationContext(*compileContext.Last()));
-		}
-		void PopContext()
-		{
-			compileContext.Last() = nullptr;
-			compileContext.SetSize(compileContext.Count() - 1);
-			states.Last() = State();
-			states.SetSize(states.Count() - 1);
-		}
-		bool Compile(CompileResult & result, const Shader & shader, ArrayView<SpireModule*> modulesArgs, const char * additionalSource, SpireDiagnosticSink* sink)
-		{
-			Options.SymbolToCompile = shader.GetName();
-			Options.TemplateShaderArguments.Clear();
-			for (auto module : modulesArgs)
-				Options.TemplateShaderArguments.Add(module->Name);
-			return Compile(result, additionalSource + shader.GetSource(), shader.GetName(), sink);
-		}
-		bool Compile(CompileResult & result, CoreLib::String source, CoreLib::String fileName, SpireDiagnosticSink* sink)
-		{
-			if (states.Last().errorCount != 0)
-				return false;
-			PushContext();
-			List<CompileUnit> units;
-			states.Last().errorCount += LoadModuleUnits(units, source, fileName, sink);
-			if (states.Last().errorCount != 0)
-			{
-				PopContext();
-				return false;
-			}
-
-			Spire::Compiler::CompileResult cresult;
-			compiler->Compile(cresult, *compileContext.Last(), units, Options);
-			result.Sources = cresult.CompiledSource;
-			states.Last().errorCount += cresult.GetErrorCount();
-			if (sink)
-			{
-				sink->diagnostics.AddRange(cresult.sink.diagnostics);
-				sink->errorCount += cresult.GetErrorCount();
-			}
-			if (states.Last().errorCount == 0)
-			{
-				for (auto shader : result.Sources)
-				{
-					List<SpireParameterSet> paramSets;
-					for (auto & pset : shader.Value.MetaData.ParameterSets)
-					{
-						SpireParameterSet set;
-						set.paramSet = pset.Value.Ptr();
-						set.uniformBufferLegacyBindingPoint = pset.Value->UniformBufferLegacyBindingPoint;
-						for (auto & item : pset.Value->Parameters)
-						{
-							auto resType = item.Value->Type->GetBindableResourceType();
-							if (resType != BindableResourceType::NonBindable)
-							{
-								SpireResourceBindingInfo info;
-								info.Type = (SpireBindableResourceType)resType;
-								info.NumLegacyBindingPoints = item.Value->BindingPoints.Count();
-								info.LegacyBindingPoints = item.Value->BindingPoints.Buffer();
-								info.Name = item.Value->Name.Buffer();
-								set.bindings.Add(info);
-							}
-						}
-						paramSets.Add(_Move(set));
-					}
-					result.ParamSets[shader.Key] = _Move(paramSets);
-				}
-			}
-			bool succ = states.Last().errorCount == 0;
-			PopContext();
-			return succ;
+			return false;
 		}
 	};
-}
+	IncludeHandlerImpl includeHandler;
 
-using namespace SpireLib;
+public:
+	CompileOptions Options;
+
+	CompilationContext(bool /*pUseCache*/, CoreLib::String /*pCacheDir*/)
+	{
+		compiler = CreateShaderCompiler();
+		states.Add(new ::CompilerState());
+		LoadModuleSource(states.First().Ptr(), SpireStdLib::GetCode(), "stdlib", NULL);
+	}
+
+	~CompilationContext()
+	{
+		SpireStdLib::Finalize();
+	}
+
+	SpireModule * FindModule(CoreLib::String moduleName)
+	{
+		auto ptr = states.Last()->modules.TryGetValue(moduleName);
+		if (ptr)
+			return ptr->Ptr();
+		else
+			return nullptr;
+	}
+
+	StringBuilder moduleKeyBuilder;
+	SpireModule * SpecializeModule(SpireModule * module, int * params, int numParams, SpireDiagnosticSink * sink)
+	{
+		moduleKeyBuilder.Clear();
+		moduleKeyBuilder.Append(module->Name);
+		for (auto & param : module->Parameters)
+		{
+			if (param.IsSpecialize)
+			{
+				int id = -1;
+				for (int i = 0; i < numParams; i++)
+				{
+					moduleKeyBuilder.Append(params[id]);
+					moduleKeyBuilder.Append('_');
+				}
+			}
+		}
+		if (auto smodule = module->State->modules.TryGetValue(moduleKeyBuilder.Buffer()))
+			return smodule->Ptr();
+		RefPtr<ShaderSymbol> originalModule;
+		module->State->context->Symbols.Shaders.TryGetValue(module->Name, originalModule);
+		CompileUnit unit;
+		unit.SyntaxNode = new ProgramSyntaxNode();
+		CloneContext cloneCtx;
+		auto newModule = originalModule->SyntaxNode->Clone(cloneCtx);
+		newModule->Name.Content = moduleKeyBuilder.ToString();
+		int id = 0;
+		for (auto & member : newModule->Members)
+		{
+			if (auto param = member.As<ComponentSyntaxNode>())
+			{
+				if (auto specialize = param->FindSpecializeModifier())
+				{
+					if (id >= numParams)
+					{
+						return nullptr;
+					}
+					auto newParam = param->Clone(cloneCtx);
+					newParam->modifiers.first = nullptr;
+					newParam->modifiers.flags = ModifierFlag::Public;
+					param->BlockStatement = nullptr;
+					auto expr = new ConstantExpressionSyntaxNode();
+					if (param->Type->Equals(ExpressionType::Bool))
+						expr->ConstType = ConstantExpressionSyntaxNode::ConstantType::Bool;
+					else
+						expr->ConstType = ConstantExpressionSyntaxNode::ConstantType::Int;
+					expr->IntValue = params[id];
+					newParam->Expression = expr;
+					newModule->Members.Add(newParam);
+					param->Name.Content = param->Name.Content + "placeholder";
+					id++;
+				}
+			}
+		}
+		unit.SyntaxNode->Members.Add(newModule);
+		List<CompileUnit> units;
+		units.Add(unit);
+		UpdateModuleLibrary(module->State, units, sink);
+		return FindModule(newModule->Name.Content);
+	}
+
+	LayoutRule GetUniformBufferLayoutRule()
+	{
+		if (this->Options.Target == CodeGenTarget::HLSL)
+			return LayoutRule::HLSL;
+		else
+			return LayoutRule::Std140;
+	}
+
+	RefPtr<SpireModule> CreateModule(CompilerState * state, Spire::Compiler::ShaderSymbol * shader, LayoutInfo & parentParamStruct, SpireBindingIndex & bindingIndex)
+	{
+		RefPtr<SpireModule> newModule = new SpireModule();
+		newModule->State = state;
+		auto & meta = *newModule;
+		meta.Id = SpireModule::IdAllocator++;
+		meta.Name = shader->SyntaxNode->Name.Content;
+		meta.BindingIndex = bindingIndex;
+		int offsets[2] = { 0, 0 };
+		for (auto attrib : shader->SyntaxNode->GetModifiersOfType<Spire::Compiler::SimpleAttribute>())
+			meta.Attribs[attrib->Key] = attrib->Value.Content;
+		auto layout = GetLayoutRulesImpl(GetUniformBufferLayoutRule());
+		LayoutInfo requireStruct = layout->BeginStructLayout();
+		bool firstCompEncountered = false;
+		for (auto & comp : shader->Components)
+		{
+			if (comp.Value->Implementations.Count() != 1)
+				continue;
+			auto impl = comp.Value->Implementations.First();
+			if (!impl->SyntaxNode->IsRequire() && !impl->SyntaxNode->IsParam())
+				continue;
+			if (comp.Value->Implementations.First()->SyntaxNode->IsComponentFunction())
+				continue;
+			auto & structInfo = impl->SyntaxNode->IsParam() ? parentParamStruct : requireStruct;
+			ComponentMetaData compMeta;
+			compMeta.Name = comp.Key;
+			compMeta.Type = comp.Value->Type->DataType;
+			compMeta.TypeName = compMeta.Type->ToString();
+			if (auto specialize = impl->SyntaxNode->FindSpecializeModifier())
+			{
+				for (auto val : specialize->Values)
+				{
+					compMeta.Values.Add(dynamic_cast<ConstantExpressionSyntaxNode*>(val.Ptr())->IntValue);
+				}
+				compMeta.IsSpecialize = true;
+			}
+			auto bindableType = compMeta.Type->GetBindableResourceType();
+			if (compMeta.Type->GetBindableResourceType() == BindableResourceType::NonBindable)
+			{
+				if (!firstCompEncountered)
+				{
+                    // TODO(tfoley): This logic seems very wrong.
+                    // We should be handling things by adding a field to the `parentParamStruct`
+                    // (which should handle whatever layout rules it wants to use)
+                    // rather than doing this ad hoc logic to special-case HLSL...
+
+					firstCompEncountered = true;
+					if (GetUniformBufferLayoutRule() == LayoutRule::HLSL)
+						parentParamStruct.size = (size_t)RoundToAlignment((int)parentParamStruct.size, 16);
+					meta.UniformBufferOffset = (int)parentParamStruct.size;
+				}
+				compMeta.Alignment = (int)GetTypeAlignment(compMeta.Type.Ptr(), GetUniformBufferLayoutRule());
+				compMeta.Size = (int)GetTypeSize(compMeta.Type.Ptr(), GetUniformBufferLayoutRule());
+				auto fieldInfo = GetLayout(compMeta.Type.Ptr(), layout);
+				compMeta.Offset = (int)layout->AddStructField(&structInfo, fieldInfo);
+			}
+			else
+			{
+				switch (bindableType)
+				{
+				case BindableResourceType::Texture:
+					compMeta.typeSpecificBindingIndex = bindingIndex.texture;
+					bindingIndex.texture++;
+					break;
+				case BindableResourceType::Sampler:
+					compMeta.typeSpecificBindingIndex = bindingIndex.sampler;
+					bindingIndex.sampler++;
+					break;
+				case BindableResourceType::Buffer:
+					compMeta.typeSpecificBindingIndex = bindingIndex.uniformBuffer;
+					bindingIndex.uniformBuffer++;
+					break; 
+				case BindableResourceType::StorageBuffer:
+					compMeta.typeSpecificBindingIndex = bindingIndex.storageBuffer;
+					bindingIndex.storageBuffer++;
+					break;
+				}
+				compMeta.typeAgnosticBindingIndex = bindingIndex.general;
+				bindingIndex.general++;
+			}
+			if (impl->SyntaxNode->IsRequire())
+				meta.Requirements.Add(compMeta);
+			else
+			{
+				meta.Parameters.Add(compMeta);
+				meta.ParameterMap[compMeta.Name] = compMeta;
+			}
+		}
+		layout->EndStructLayout(&requireStruct);
+		
+		for (auto sub : shader->SyntaxNode->GetMembersOfType<ImportSyntaxNode>())
+		{
+			newModule->SubModules.Add(CreateModule(state, state->context->Symbols.Shaders[sub->ShaderName.Content]().Ptr(), parentParamStruct, bindingIndex));
+		}
+		meta.UniformBufferSize = (int)(parentParamStruct.size - meta.UniformBufferOffset);
+		return newModule;
+	}
+
+	void UpdateModuleLibrary(CompilerState * state, List<CompileUnit> & units, SpireDiagnosticSink * sink)
+	{
+		Spire::Compiler::CompileResult result;
+		compiler->Compile(result, *state->context, units, Options);
+		state->Version++;
+		for (auto & shader : state->context->Symbols.Shaders)
+		{
+			if (!state->modules.ContainsKey(shader.Key))
+			{
+				SpireBindingIndex bindingIndex;
+				auto layout = GetLayoutRulesImpl(GetUniformBufferLayoutRule());
+				LayoutInfo paramStruct = layout->BeginStructLayout();
+				RefPtr<SpireModule> newModule = CreateModule(state, shader.Value.Ptr(), paramStruct, bindingIndex);
+				newModule->BindingIndex;
+				layout->EndStructLayout(&paramStruct);
+				newModule->UniformBufferSize = (int)paramStruct.size;
+				state->modules.Add(shader.Key, newModule);
+			}
+		}
+		for (auto & unit : units)
+		{
+			for (auto & shader : unit.SyntaxNode->GetMembersOfType<TemplateShaderSyntaxNode>())
+			{
+				RefPtr<Shader> rs = new Shader(shader->Name.Content, "");
+				int i = 0;
+				rs->Syntax = shader;
+				for (auto & param : shader->Parameters)
+				{
+					ShaderParameter p;
+					p.BindingId = i;
+					p.Name = param->ModuleName.Content;
+					p.TypeName = param->InterfaceName.Content;
+					rs->Parameters.Add(p);
+					i++;
+				}
+				state->shaders[shader->Name.Content] = rs;
+			}
+			for (auto & shader : unit.SyntaxNode->GetMembersOfType<ShaderSyntaxNode>())
+			{
+				if (shader->IsModule)
+					continue;
+				RefPtr<Shader> rs = new Shader(shader->Name.Content, "");
+				rs->Syntax = shader;
+				HashSet<int> usedIds;
+				for (auto & imp : unit.SyntaxNode->GetMembersOfType<ImportSyntaxNode>())
+				{
+					ShaderParameter param;
+					param.TypeName = imp->ShaderName.Content;
+					param.Name = imp->ObjectName.Content;
+					param.BindingId = -1;
+					String binding;
+					if (imp->FindSimpleAttribute("Binding", binding))
+					{
+						param.BindingId = StringToInt(binding);
+						usedIds.Add(param.BindingId);
+					}
+					rs->Parameters.Add(param);
+				}
+				int idAlloc = 0;
+				for (auto & param : rs->Parameters)
+				{
+					if (param.BindingId == -1)
+					{
+						while (usedIds.Contains(idAlloc))
+							idAlloc++;
+						param.BindingId = idAlloc;
+						idAlloc++;
+					}
+				}
+				state->shaders[shader->Name.Content] = rs;
+			}
+		}
+		if (sink)
+		{
+			sink->diagnostics.AddRange(result.sink.diagnostics);
+			sink->errorCount += result.GetErrorCount();
+		}
+	}
+
+	int LoadModuleSource(CompilerState * state, CoreLib::String src, CoreLib::String fileName, SpireDiagnosticSink* sink)
+	{
+		List<CompileUnit> units;
+		int errCount = LoadModuleUnits(state, units, src, fileName, sink);
+		state->moduleUnits.AddRange(units);
+		UpdateModuleLibrary(state, units, sink);
+		return errCount;
+	}
+
+	int LoadModuleUnits(CompilerState * state, List<CompileUnit> & units, CoreLib::String src, CoreLib::String fileName, SpireDiagnosticSink* sink)
+	{
+		auto & processedUnits = state->processedModuleUnits;
+		Spire::Compiler::CompileResult result;
+		List<String> unitsToInclude;
+		unitsToInclude.Add(fileName);
+		processedUnits.Add(fileName);
+		auto searchDirs = Options.SearchDirectories;
+		searchDirs.Add(Path::GetDirectoryName(fileName));
+		searchDirs.Reverse();
+		for (int i = 0; i < unitsToInclude.Count(); i++)
+		{
+			auto inputFileName = unitsToInclude[i];
+			try
+			{
+				String source = src;
+				if (i > 0)
+					source = File::ReadAllText(inputFileName);
+				auto unit = compiler->Parse(result, source, inputFileName, &includeHandler, Options.PreprocessorDefinitions);
+				units.Add(unit);
+				if (unit.SyntaxNode)
+				{
+					for (auto inc : unit.SyntaxNode->GetUsings())
+					{
+						bool found = false;
+						for (auto & dir : searchDirs)
+						{
+							String includeFile = Path::Combine(dir, inc->fileName.Content);
+							if (File::Exists(includeFile))
+							{
+								if (processedUnits.Add(includeFile))
+								{
+									unitsToInclude.Add(includeFile);
+								}
+								found = true;
+								break;
+							}
+						}
+						if (!found)
+						{
+							result.GetErrorWriter()->diagnose(inc->fileName.Position, Diagnostics::cannotFindFile, inc->fileName);
+						}
+					}
+				}
+			}
+			catch (IOException)
+			{
+				result.GetErrorWriter()->diagnose(CodePosition(0, 0, 0, ""), Diagnostics::cannotOpenFile, inputFileName);
+			}
+		}
+		if (sink)
+		{
+			sink->diagnostics.AddRange(result.sink.diagnostics);
+			sink->errorCount += result.GetErrorCount();
+		}
+		return result.GetErrorCount();
+	}
+	Shader * FindShader(const char * name)
+	{
+		RefPtr<Shader> rs;
+		if (states.Last()->shaders.TryGetValue(name, rs))
+			return rs.Ptr();
+		return nullptr;
+	}
+	Shader * GetShader(int index)
+	{
+		int i = 0;
+		for (auto & shader : states.Last()->shaders)
+		{
+			if (i == index)
+				return shader.Value.Ptr();
+			i++;
+		}
+		return nullptr;
+	}
+	int GetShaderCount()
+	{
+		if (states.Count())
+			return states.Last()->shaders.Count();
+		return 0;
+	}
+	Shader * NewShaderFromSource(CompilerState * state, const char * source, const char * fileName, SpireDiagnosticSink * sink)
+	{
+		int shaderCount = GetShaderCount();
+		LoadModuleSource(state, source, fileName, sink);
+		int newShaderCount = GetShaderCount();
+		if (newShaderCount > shaderCount)
+			return GetShader(shaderCount);
+		return nullptr;
+	}
+	Shader * NewShaderFromFile(CompilerState * state, const char * fileName, SpireDiagnosticSink * sink)
+	{
+		try
+		{
+			return NewShaderFromSource(state, File::ReadAllText(fileName).Buffer(), fileName, sink);
+		}
+		catch (Exception)
+		{
+			return nullptr;
+		}
+	}
+	void PushContext()
+	{
+		states.Add(new CompilerState(states.Last()));
+	}
+	void PopContext()
+	{
+		states.Last() = nullptr;
+		states.SetSize(states.Count() - 1);
+	}
+	bool Compile(::CompileResult & result, RefPtr<CompilerState> currentState, const Shader & shader, ArrayView<SpireModule*> modulesArgs, const char * additionalSource, SpireDiagnosticSink* sink)
+	{
+		Options.SymbolToCompile = shader.GetName();
+		Options.TemplateShaderArguments.Clear();
+		for (auto module : modulesArgs)
+			Options.TemplateShaderArguments.Add(module->Name);
+		return Compile(result, currentState, shader.Syntax, additionalSource, shader.GetName(), sink);
+	}
+	SpireParameterSet GetParameterSet(ILModuleParameterSet * module)
+	{
+		SpireParameterSet set;
+		set.paramSet = module;
+		set.uniformBufferLegacyBindingPoint = module->UniformBufferLegacyBindingPoint;
+		for (auto & item : module->Parameters)
+		{
+			auto resType = item.Value->Type->GetBindableResourceType();
+			if (resType != BindableResourceType::NonBindable)
+			{
+				SpireResourceBindingInfo info;
+				info.Type = (SpireBindableResourceType)resType;
+				info.NumLegacyBindingPoints = item.Value->BindingPoints.Count();
+				info.LegacyBindingPoints = item.Value->BindingPoints.Buffer();
+				info.Name = item.Value->Name.Buffer();
+				set.bindings.Add(info);
+			}
+			else
+			{
+				SpireUniformFieldImpl ufield;
+				ufield.name = item.Key.Buffer();
+				ufield.offset = item.Value->BufferOffset;
+				ufield.size = item.Value->Size;
+				StringBuilder sb;
+				item.Value->Type->Serialize(sb);
+				ufield.type = sb.ProduceString();
+				set.uniforms.Add(ufield);
+			}
+		}
+		for (auto & submodule : module->SubModules)
+			set.subsets.Add(GetParameterSet(submodule.Ptr()));
+		return set;
+	}
+	bool Compile(::CompileResult & result, RefPtr<CompilerState> currentState, RefPtr<Decl> entryPoint, CoreLib::String source, CoreLib::String fileName, SpireDiagnosticSink* sink)
+	{
+		if (currentState->errorCount != 0)
+			return false;
+		currentState->Update();
+		List<CompileUnit> units;
+		currentState->errorCount += LoadModuleUnits(currentState.Ptr(), units, source, fileName, sink);
+		if (currentState->errorCount != 0)
+		{
+			return false;
+		}
+		if (entryPoint)
+		{
+			CompileUnit newUnit;
+			newUnit.SyntaxNode = new ProgramSyntaxNode();
+			newUnit.SyntaxNode->Members.Add(entryPoint);
+			units.Add(newUnit);
+		}
+		
+		Spire::Compiler::CompileResult cresult;
+		compiler->Compile(cresult, *(currentState->context), units, Options);
+		result.Sources = cresult.CompiledSource;
+		currentState->errorCount += cresult.GetErrorCount();
+		if (sink)
+		{
+			sink->diagnostics.AddRange(cresult.sink.diagnostics);
+			sink->errorCount += cresult.GetErrorCount();
+		}
+		if (currentState->errorCount == 0)
+		{
+			for (auto shader : result.Sources)
+			{
+				List<SpireParameterSet> paramSets;
+				for (auto & pset : shader.Value.MetaData.ParameterSets)
+				{
+					if (!pset.Value->IsTopLevel)
+						continue;
+					paramSets.Add(GetParameterSet(pset.Value.Ptr()));
+				}
+				result.ParamSets[shader.Key] = _Move(paramSets);
+			}
+		}
+		bool succ = currentState->errorCount == 0;
+		return succ;
+	}
+};
 
 // implementation of C interface
 
-#define CTX(x) reinterpret_cast<SpireLib::CompilationContext *>(x)
-#define SHADER(x) reinterpret_cast<SpireLib::Shader*>(x)
-#define RS(x) reinterpret_cast<SpireLib::CompileResult*>(x)
+#define CTX(x) reinterpret_cast<::CompilationContext *>(x)
+#define SHADER(x) reinterpret_cast<::Shader*>(x)
+#define RS(x) reinterpret_cast<::CompileResult*>(x)
 
 SpireCompilationContext * spCreateCompilationContext(const char * cacheDir)
 {
-	return reinterpret_cast<SpireCompilationContext *>(new SpireLib::CompilationContext((cacheDir ? true : false), cacheDir));
+	return reinterpret_cast<SpireCompilationContext *>(new ::CompilationContext((cacheDir ? true : false), cacheDir));
 }
 
 void spSetCodeGenTarget(SpireCompilationContext * ctx, int target)
@@ -879,12 +1130,22 @@ void spDestroyDiagnosticSink(SpireDiagnosticSink* sink)
 
 void spLoadModuleLibrary(SpireCompilationContext * ctx, const char * fileName, SpireDiagnosticSink* sink)
 {
-	CTX(ctx)->LoadModuleSource(File::ReadAllText(fileName), fileName, sink);
+	CTX(ctx)->LoadModuleSource(CTX(ctx)->states.Last().Ptr(), File::ReadAllText(fileName), fileName, sink);
+}
+
+void spEnvLoadModuleLibrary(SpireCompilationEnvironment * env, const char * fileName, SpireDiagnosticSink * sink)
+{
+	env->context->LoadModuleSource(env->state.Ptr(), File::ReadAllText(fileName), fileName, sink);
 }
 
 void spLoadModuleLibraryFromSource(SpireCompilationContext * ctx, const char * source, const char * fileName, SpireDiagnosticSink* sink)
 {
-	CTX(ctx)->LoadModuleSource(source, fileName, sink);
+	CTX(ctx)->LoadModuleSource(CTX(ctx)->states.Last().Ptr(), source, fileName, sink);
+}
+
+void spEnvLoadModuleLibraryFromSource(SpireCompilationEnvironment * env, const char * source, const char * fileName, SpireDiagnosticSink * sink)
+{
+	env->context->LoadModuleSource(env->state.Ptr(), source, fileName, sink);
 }
 
 void spPushContext(SpireCompilationContext * ctx)
@@ -897,14 +1158,89 @@ void spPopContext(SpireCompilationContext * ctx)
 	CTX(ctx)->PopContext();
 }
 
-SpireShader* spCreateShaderFromSource(SpireCompilationContext * ctx, const char * source)
+SpireCompilationEnvironment * spGetCurrentEnvironment(SpireCompilationContext * ctx)
 {
-	return reinterpret_cast<SpireShader*>(CTX(ctx)->NewShaderFromSource(source, ""));
+	auto rs = new SpireCompilationEnvironment();
+	rs->context = CTX(ctx);
+	rs->state = CTX(ctx)->states.Last();
+	return rs;
 }
 
-SpireShader* spCreateShaderFromFile(SpireCompilationContext * ctx, const char * fileName)
+SpireCompilationEnvironment * spCreateEnvironment(SpireCompilationContext * ctx, SpireCompilationEnvironment * forkOrigin)
 {
-	return reinterpret_cast<SpireShader*>(CTX(ctx)->NewShaderFromFile(fileName));
+	auto rs = new SpireCompilationEnvironment();
+	rs->context = CTX(ctx);
+	if (forkOrigin)
+		rs->state = new CompilerState(*forkOrigin->state);
+	else
+		rs->state = new CompilerState();
+	return rs;
+}
+
+void spReleaseEnvironment(SpireCompilationEnvironment * env)
+{
+	delete env;
+}
+
+SpireShader* spCreateShaderFromSource(SpireCompilationContext * ctx, const char * source, SpireDiagnosticSink * sink)
+{
+	return reinterpret_cast<SpireShader*>(CTX(ctx)->NewShaderFromSource(CTX(ctx)->states.Last().Ptr(), source, "", sink));
+}
+
+SpireShader * spEnvCreateShaderFromSource(SpireCompilationEnvironment * env, const char * source, SpireDiagnosticSink * sink)
+{
+	return reinterpret_cast<SpireShader*>(env->context->NewShaderFromSource(env->state.Ptr(), source, "", sink));
+}
+
+SpireShader * spFindShader(SpireCompilationContext * ctx, const char * name)
+{
+	return reinterpret_cast<SpireShader*>(CTX(ctx)->FindShader(name));
+}
+
+SpireShader * spEnvFindShader(SpireCompilationEnvironment * env, const char * name)
+{
+	RefPtr<Shader> rs;
+	if (env->state->shaders.TryGetValue(name, rs))
+		return reinterpret_cast<SpireShader*>(rs.Ptr());
+	return nullptr;
+}
+
+int spGetShaderCount(SpireCompilationContext * ctx)
+{
+	return CTX(ctx)->GetShaderCount();
+}
+
+int spEnvGetShaderCount(SpireCompilationEnvironment * env)
+{
+	return env->state->shaders.Count();
+}
+
+SpireShader * spGetShader(SpireCompilationContext * ctx, int index)
+{
+	return reinterpret_cast<SpireShader*>(CTX(ctx)->GetShader(index));
+}
+
+SpireShader * spEnvGetShader(SpireCompilationEnvironment * env, int index)
+{
+	int i = 0;
+	for (auto & shader : env->state->shaders)
+	{
+		if (i == index)
+			return reinterpret_cast<SpireShader*>(shader.Value.Ptr());
+		i++;
+	}
+	return nullptr;
+}
+
+SpireShader* spCreateShaderFromFile(SpireCompilationContext * ctx, const char * fileName, SpireDiagnosticSink * sink)
+{
+	return reinterpret_cast<SpireShader*>(CTX(ctx)->NewShaderFromFile(CTX(ctx)->states.Last().Ptr(), fileName, sink));
+}
+
+SpireShader * spEnvCreateShaderFromFile(SpireCompilationEnvironment * env, const char * fileName, SpireDiagnosticSink * sink)
+{
+	return reinterpret_cast<SpireShader*>(env->context->NewShaderFromFile(env->state.Ptr(), fileName, sink));
+
 }
 
 unsigned int spShaderGetId(SpireShader * shader)
@@ -917,9 +1253,44 @@ const char* spShaderGetName(SpireShader * shader)
 	return SHADER(shader)->GetName().Buffer();
 }
 
+const char * spShaderGetParameterType(SpireShader * shader, int i)
+{
+	if (shader && i >= 0 && i < SHADER(shader)->Parameters.Count())
+		return SHADER(shader)->Parameters[i].TypeName.Buffer();
+	return nullptr;
+}
+
+const char * spShaderGetParameterName(SpireShader * shader, int i)
+{
+	if (shader && i >= 0 && i < SHADER(shader)->Parameters.Count())
+		return SHADER(shader)->Parameters[i].Name.Buffer();
+	return nullptr;
+}
+
+int spShaderGetParameterBinding(SpireShader * shader, int i)
+{
+	if (shader && i >= 0 && i < SHADER(shader)->Parameters.Count())
+		return SHADER(shader)->Parameters[i].BindingId;
+	return -1;
+}
+
+int spShaderGetParameterCount(SpireShader * shader)
+{
+	return SHADER(shader)->Parameters.Count();
+}
+
 SpireModule * spFindModule(SpireCompilationContext * ctx, const char * moduleName)
 {
 	return CTX(ctx)->FindModule(moduleName);
+}
+
+SpireModule * spEnvFindModule(SpireCompilationEnvironment * env, const char * moduleName)
+{
+	auto ptr = env->state->modules.TryGetValue(moduleName);
+	if (ptr)
+		return ptr->Ptr();
+	else
+		return nullptr;
 }
 
 unsigned int spGetModuleUID(SpireModule * module)
@@ -946,11 +1317,7 @@ int spModuleGetParameterCount(SpireModule * module)
 }
 int spModuleGetParameterBufferSize(SpireModule * module)
 {
-	auto moduleNode = module;
-	int size = 0;
-	for (auto & param : moduleNode->Parameters)
-		size = Math::Max(size, param.Size + param.Offset);
-	return size;
+	return module->UniformBufferSize;
 }
 int spModuleHasAttrib(SpireModule * module, const char * name)
 {
@@ -968,6 +1335,44 @@ int spModuleGetParameter(SpireModule * module, int index, SpireComponentInfo * r
 	result->Name = param.Name.Buffer();
 	result->BindableResourceType = (int)param.Type->GetBindableResourceType();
 	result->Specialize = param.IsSpecialize;
+	return 1;
+}
+
+int spModuleGetParameterByName(SpireModule * module, const char * name, SpireComponentInfo * result)
+{
+	ComponentMetaData param;
+	if (module->ParameterMap.TryGetValue(name, param))
+	{
+		result->TypeName = param.TypeName.Buffer();
+		result->Size = param.Size;
+		result->Offset = param.Offset;
+		result->Alignment = param.Alignment;
+		result->Name = param.Name.Buffer();
+		result->BindableResourceType = (int)param.Type->GetBindableResourceType();
+		result->Specialize = param.IsSpecialize;
+		return 1;
+	}
+	return 0;
+}
+
+int spModuleGetSubModuleCount(SpireModule * module)
+{
+	return module->SubModules.Count();
+}
+
+SpireModule * spModuleGetSubModule(SpireModule * module, int index)
+{
+	return module->SubModules[index].Ptr();
+}
+
+int spModuleGetBufferOffset(SpireModule * module)
+{
+	return module->UniformBufferOffset;
+}
+
+int spModuleGetBindingOffset(SpireModule * module, SpireBindingIndex * pIndexOut)
+{
+	*pIndexOut = module->BindingIndex;
 	return 0;
 }
 
@@ -994,7 +1399,7 @@ int spModuleGetRequiredComponents(SpireModule * module, SpireComponentInfo * buf
 
 void spDestroyShader(SpireShader * shader)
 {
-	delete SHADER(shader);
+	//delete SHADER(shader);
 }
 
 SpireCompilationResult * spCompileShader(SpireCompilationContext * ctx, SpireShader * shader,
@@ -1003,15 +1408,26 @@ SpireCompilationResult * spCompileShader(SpireCompilationContext * ctx, SpireSha
 	const char * additionalSource,
 	SpireDiagnosticSink* sink)
 {
-	SpireLib::CompileResult * rs = new SpireLib::CompileResult();
-	CTX(ctx)->Compile(*rs, *SHADER(shader), ArrayView<SpireModule*>(args, argCount), additionalSource, sink);
+	::CompileResult * rs = new ::CompileResult();
+	CTX(ctx)->PushContext();
+	CTX(ctx)->Compile(*rs, CTX(ctx)->states.Last(), *SHADER(shader), ArrayView<SpireModule*>(args, argCount), additionalSource, sink);
+	CTX(ctx)->PopContext();
+	return reinterpret_cast<SpireCompilationResult*>(rs);
+}
+
+SPIRE_API SpireCompilationResult * spEnvCompileShader(SpireCompilationEnvironment * env, SpireShader * shader, SpireModule ** args, int argCount, const char * additionalSource, SpireDiagnosticSink * sink)
+{
+	::CompileResult * rs = new ::CompileResult();
+	env->context->Compile(*rs, env->state, *SHADER(shader), ArrayView<SpireModule*>(args, argCount), additionalSource, sink);
 	return reinterpret_cast<SpireCompilationResult*>(rs);
 }
 
 SpireCompilationResult * spCompileShaderFromSource(SpireCompilationContext * ctx, const char * source, const char * fileName, SpireDiagnosticSink* sink)
 {
-	SpireLib::CompileResult * rs = new SpireLib::CompileResult();
-	CTX(ctx)->Compile(*rs, source, fileName, sink);
+	::CompileResult * rs = new ::CompileResult();
+	CTX(ctx)->PushContext();
+	CTX(ctx)->Compile(*rs, CTX(ctx)->states.Last(), nullptr, source, fileName, sink);
+	CTX(ctx)->PopContext();
 	return reinterpret_cast<SpireCompilationResult*>(rs);
 }
 
@@ -1158,19 +1574,19 @@ const char * spGetShaderStageSource(SpireCompilationResult * result, const char 
 int spGetShaderParameterSetCount(SpireCompilationResult * result, const char * shaderName)
 {
 	auto rs = RS(result);
-	CompiledShaderSource * src = nullptr;
+	List<SpireParameterSet> * list = nullptr;
 	if (shaderName == nullptr)
 	{
-		if (rs->Sources.Count())
-			src = &rs->Sources.First().Value;
+		if (rs->ParamSets.Count())
+			list = &rs->ParamSets.First().Value;
 	}
 	else
 	{
-		src = rs->Sources.TryGetValue(shaderName);
+		list = rs->ParamSets.TryGetValue(shaderName);
 	}
-	if (src)
+	if (list)
 	{
-		return src->MetaData.ParameterSets.Count();
+		return list->Count();
 	}
 	return 0;
 }
@@ -1196,6 +1612,38 @@ SpireParameterSet * spGetShaderParameterSet(SpireCompilationResult * result, con
 int spParameterSetGetBufferSize(SpireParameterSet * set)
 {
 	return set->paramSet->BufferSize;
+}
+int spParameterSetGetBufferOffset(SpireParameterSet * set)
+{
+	return set->paramSet->UniformBufferOffset;
+}
+int spParameterSetGetStartBindingIndex(SpireParameterSet * set, SpireBindingIndex * pIndexOut)
+{
+	pIndexOut->texture = set->paramSet->TextureBindingStartIndex;
+	pIndexOut->sampler = set->paramSet->SamplerBindingStartIndex;
+	pIndexOut->storageBuffer = set->paramSet->StorageBufferBindingStartIndex;
+	pIndexOut->uniformBuffer = set->paramSet->UniformBindingStartIndex;
+	return 0;
+}
+int spParameterSetGetUniformField(SpireParameterSet * set, int index, SpireUniformField * pUniformLayout)
+{
+	pUniformLayout->name = set->uniforms[index].name.Buffer();
+	pUniformLayout->type = set->uniforms[index].type.Buffer();
+	pUniformLayout->offset = set->uniforms[index].offset;
+	pUniformLayout->size = set->uniforms[index].size;
+	return 0;
+}
+int spParameterSetGetUniformFieldCount(SpireParameterSet * set)
+{
+	return set->uniforms.Count();
+}
+int spParameterSetGetSubSetCount(SpireParameterSet * set)
+{
+	return set->subsets.Count();
+}
+SpireParameterSet * spParameterSetGetSubSet(SpireParameterSet * set, int index)
+{
+	return &set->subsets[index];
 }
 const char * spParameterSetGetBindingName(SpireParameterSet * set)
 {

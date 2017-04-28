@@ -702,7 +702,7 @@ namespace GameEngine
 			vformat.Attributes.Add(VertexAttributeDesc(DataType::Float2, 0, 8, 1));
 			vformat.Attributes.Add(VertexAttributeDesc(DataType::Int, 0, 16, 2));
 			pipeBuilder->SetVertexLayout(vformat);
-			auto binding = compileResult.BindingLayouts.First().Value;
+			auto & binding = compileResult.BindingLayouts["UberUIShaderParams"]();
 			descLayout = rendererApi->CreateDescriptorSetLayout(MakeArray(
 				DescriptorLayout(sfGraphics, 0, BindingType::UniformBuffer, binding.Descriptors[0].LegacyBindingPoints.First()),
 				DescriptorLayout(sfGraphics, 1, BindingType::StorageBuffer, binding.Descriptors[1].LegacyBindingPoints.First()),

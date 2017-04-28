@@ -90,14 +90,17 @@ extern "C"
 	- spSetBackendParameter()
 	*/
 	struct SpireCompilationContext {};
+	struct SpireCompilationEnvironment;
 
 	/*!
-	@brief Represents a shader. A SpireShader can be assembled by calling spCreateShader().
-	Modules can be added to a shader by calling spShaderAddModule().
+	@brief Represents a shader. A SpireShader can be created by calling spCreateShaderFromSource(), or by loading a module library via spLoadModuleLibrary()
 
 	Related Functions
 	- spShaderGetName()
 	- spCompileShader()
+	- spShaderGetParameterType()
+	- spShaderGetParameterName()
+	- spShaderGetParameterBinding()
 	*/
 	struct SpireShader {};
 
@@ -133,6 +136,23 @@ extern "C"
 	- spDestroyCompilationResult()
 	*/
 	struct SpireCompilationResult {};
+
+	struct SpireBindingIndex
+	{
+		int texture = 0;
+		int sampler = 0;
+		int storageBuffer = 0;
+		int uniformBuffer = 0;
+		int general = 0;
+	};
+
+	struct SpireUniformField
+	{
+		int offset;
+		int size;
+		const char * name;
+		const char * type;
+	};
 
     /*!
     @brief A collection of diagnostic messages output by the compiler.
@@ -269,6 +289,7 @@ extern "C"
     @param sink The sink where diagnostic output should be sent, or NULL to ignore messages.
 	*/
 	SPIRE_API void spLoadModuleLibrary(SpireCompilationContext * ctx, const char * fileName, SpireDiagnosticSink* sink);
+	SPIRE_API void spEnvLoadModuleLibrary(SpireCompilationEnvironment * env, const char * fileName, SpireDiagnosticSink* sink);
 
 	/*!
 	@brief Load and precompile spire modules from spire source code in memory. Compilation status and error messages can be obtained via spIsCompilationSucessful(),
@@ -279,6 +300,8 @@ extern "C"
     @param sink The sink where diagnostic output should be sent, or NULL to ignore messages.
 	*/
 	SPIRE_API void spLoadModuleLibraryFromSource(SpireCompilationContext * ctx, const char * source, const char * fileName, SpireDiagnosticSink* sink);
+	SPIRE_API void spEnvLoadModuleLibraryFromSource(SpireCompilationEnvironment * env, const char * source, const char * fileName, SpireDiagnosticSink* sink);
+
 
 	/*!
 	@brief Store current compilation context to a stack. spLoadModuleLibrary() and spLoadModuleLibraryFromSource() load new symbols to
@@ -293,20 +316,51 @@ extern "C"
 	*/
 	void spPopContext(SpireCompilationContext * ctx);
 
+	SPIRE_API SpireCompilationEnvironment * spGetCurrentEnvironment(SpireCompilationContext * ctx);
+	SPIRE_API SpireCompilationEnvironment * spCreateEnvironment(SpireCompilationContext * ctx, SpireCompilationEnvironment * forkOrigin);
+	SPIRE_API void spReleaseEnvironment(SpireCompilationEnvironment* env);
+
 	/*!
-	@brief Create a template shader object from Spire source code.
+	@brief Create a template shader object from Spire source code. This is equivalent to calling spLoadModuleLibrary() and spGetShader().
 	@param ctx The compilation context.
 	@param name The source code of the shader.
 	*/
-	SPIRE_API SpireShader* spCreateShaderFromSource(SpireCompilationContext * ctx, const char * source);
+	SPIRE_API SpireShader* spCreateShaderFromSource(SpireCompilationContext * ctx, const char * source, SpireDiagnosticSink * sink);
+	SPIRE_API SpireShader* spEnvCreateShaderFromSource(SpireCompilationEnvironment * env, const char * source, SpireDiagnosticSink * sink);
 
 	/*!
 	@brief Create a template shader object from a Spire source file.
 	@param ctx The compilation context.
 	@param name The source code of the shader.
 	*/
-	SPIRE_API SpireShader* spCreateShaderFromFile(SpireCompilationContext * ctx, const char * fileName);
+	SPIRE_API SpireShader* spCreateShaderFromFile(SpireCompilationContext * ctx, const char * fileName, SpireDiagnosticSink * sink);
+	SPIRE_API SpireShader* spEnvCreateShaderFromFile(SpireCompilationEnvironment * env, const char * fileName, SpireDiagnosticSink * sink);
 
+	/*!
+	@brief Find a template shader from current context.
+	@param ctx The compilation context in which to find shaders.
+	@param name The name of the shader object to find.
+	@return A handle to the template shader object that can be used for code generation and reflection. NULL if the shader with specified name does not exist.
+	*/
+	SPIRE_API SpireShader* spFindShader(SpireCompilationContext * ctx, const char * name);
+	SPIRE_API SpireShader* spEnvFindShader(SpireCompilationEnvironment * env, const char * name);
+
+	/*!
+	@brief Returns the total number of entry point shaders in current compilation context.
+	@param ctx The compilation context.
+	*/
+	SPIRE_API int spGetShaderCount(SpireCompilationContext * ctx);
+	SPIRE_API int spEnvGetShaderCount(SpireCompilationEnvironment * env);
+
+	/*!
+	@brief Retrieves the handle to the specified shader object.
+	@param ctx The compilation context in which to retrieve shaders.
+	@param name The index of the shader object to retrieve.
+	@return A handle to the template shader object that can be used for code generation and reflection. NULL if the shader at specified index does not exist.
+	*/
+	SPIRE_API SpireShader* spGetShader(SpireCompilationContext * ctx, int index);
+	SPIRE_API SpireShader* spEnvGetShader(SpireCompilationEnvironment * ctx, int index);
+	
 	/*!
 	@brief Retrieves the runtime unique Id of a shader.
 	@param shader The shader object whose Id to retrieve.
@@ -321,6 +375,12 @@ extern "C"
 	*/
 	SPIRE_API const char * spShaderGetName(SpireShader * shader);
 
+	SPIRE_API const char * spShaderGetParameterType(SpireShader * shader, int i);
+	SPIRE_API const char * spShaderGetParameterName(SpireShader * shader, int i);
+
+	SPIRE_API int spShaderGetParameterBinding(SpireShader * shader, int i);
+	SPIRE_API int spShaderGetParameterCount(SpireShader * shader);
+
 	/*!
 	@brief Find a precompiled module in a SpireCompilationContext.
 	@param ctx The compilation context.
@@ -329,6 +389,8 @@ extern "C"
 	@note All SpireModule objects are destroyed when its containing SpireCompilationContext is destroyed.
 	*/
 	SPIRE_API SpireModule * spFindModule(SpireCompilationContext * ctx, const char * moduleName);
+	SPIRE_API SpireModule * spEnvFindModule(SpireCompilationEnvironment * env, const char * moduleName);
+
 	
 	/*!
 	@brief Retrieve the run-time unique Id of a SpireModule.
@@ -390,6 +452,11 @@ extern "C"
 	- SPIRE_ERROR_INVALID_PARAMETER if any of the parameters are invalid.
 	*/
 	SPIRE_API int spModuleGetParameter(SpireModule * module, int index, SpireComponentInfo * result);
+	SPIRE_API int spModuleGetParameterByName(SpireModule * module, const char * name, SpireComponentInfo * result);
+	SPIRE_API int spModuleGetSubModuleCount(SpireModule * module);
+	SPIRE_API SpireModule * spModuleGetSubModule(SpireModule * module, int index);
+	SPIRE_API int spModuleGetBufferOffset(SpireModule * module);
+	SPIRE_API int spModuleGetBindingOffset(SpireModule * module, SpireBindingIndex * pIndexOut);
 	
 	/*!
 	@brief Retrieve a list of components that are required by the specified module.
@@ -428,6 +495,13 @@ extern "C"
 	SPIRE_API SpireCompilationResult* spCompileShader(SpireCompilationContext * ctx, 
 		SpireShader * shader, 
 		SpireModule** args, 
+		int argCount,
+		const char * additionalSource,
+		SpireDiagnosticSink* sink);
+
+	SPIRE_API SpireCompilationResult* spEnvCompileShader(SpireCompilationEnvironment * env,
+		SpireShader * shader,
+		SpireModule** args,
 		int argCount,
 		const char * additionalSource,
 		SpireDiagnosticSink* sink);
@@ -544,6 +618,26 @@ extern "C"
 	@return Required uniform buffer size.
 	*/
 	SPIRE_API int spParameterSetGetBufferSize(SpireParameterSet * set);
+
+	/*!
+	@brief Get the uniform buffer offset of a SpireParameterSet object.
+	@param set A SpireParameterSet object whose uniform buffer offset to get.
+	@return uniform buffer offset.
+	*/
+	SPIRE_API int spParameterSetGetBufferOffset(SpireParameterSet * set);
+
+	/*!
+	@brief Get the uniform buffer offset of a SpireParameterSet object.
+	@param set A SpireParameterSet object whose uniform buffer offset to get.
+	@return uniform buffer offset.
+	*/
+	SPIRE_API int spParameterSetGetStartBindingIndex(SpireParameterSet * set, SpireBindingIndex * pIndexOut);
+
+	SPIRE_API int spParameterSetGetUniformField(SpireParameterSet * set, int index, SpireUniformField * pUniformLayout);
+	SPIRE_API int spParameterSetGetUniformFieldCount(SpireParameterSet * set);
+
+	SPIRE_API int spParameterSetGetSubSetCount(SpireParameterSet * set);
+	SPIRE_API SpireParameterSet* spParameterSetGetSubSet(SpireParameterSet * set, int index);
 
 	/*!
 	@brief Get the binding name of a SpireParameterSet object.

@@ -534,6 +534,10 @@ namespace Spire
                 {
                     modifiers.flags |= ModifierFlag::In;
                 }
+				else if (AdvanceIf(parser, "inout"))
+				{
+					modifiers.flags |= ModifierFlag::InOut;
+				}
                 else if (AdvanceIf(parser, "input"))
                 {
                     modifiers.flags |= ModifierFlag::Input;
@@ -1848,8 +1852,16 @@ namespace Spire
 				FillPosition(constExpr.Ptr());
 				if (token.Type == TokenType::IntLiterial)
 				{
-					constExpr->ConstType = ConstantExpressionSyntaxNode::ConstantType::Int;
-					constExpr->IntValue = StringToInt(token.Content);
+					if (token.Content.EndsWith("u") || token.Content.EndsWith("U"))
+					{
+						constExpr->ConstType = ConstantExpressionSyntaxNode::ConstantType::UInt;
+						constExpr->IntValue = StringToUInt(token.Content);
+					}
+					else
+					{
+						constExpr->ConstType = ConstantExpressionSyntaxNode::ConstantType::Int;
+						constExpr->IntValue = StringToInt(token.Content);
+					}
 				}
 				else if (token.Type == TokenType::DoubleLiterial)
 				{

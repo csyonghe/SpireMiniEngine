@@ -21,6 +21,11 @@ namespace Spire
 			OutputStrategy * CreatePackedBufferOutputStrategy(ILWorld * world) override;
 			OutputStrategy * CreateArrayOutputStrategy(ILWorld * world, bool pIsPatch, int pArraySize, String arrayIndex) override;
 
+            LayoutRule GetDefaultLayoutRule() override
+            {
+                return LayoutRule::Std140;
+            }
+
 			void PrintOp(CodeGenContext & ctx, ILOperand * op, bool forceExpression = false) override
 			{
 				if (!useVulkanBinding && op->Type->IsSamplerState())
@@ -672,8 +677,8 @@ namespace Spire
 				}
 				if (!useVulkanBinding)
 				{
-					for (auto & shader : program->Shaders)
-						for (auto & pset : shader->ModuleParamSets)
+					for (auto & s : program->Shaders)
+						for (auto & pset : s->ModuleParamSets)
 							for (auto & p : pset.Value->Parameters)
 								if (p.Value->Type->IsSamplerState())
 									p.Value->BindingPoints.Clear();

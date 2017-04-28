@@ -500,7 +500,7 @@ namespace GameEngine
 		SpireShader * rs = nullptr;
 		if (entryPointShaders.TryGetValue(key, rs))
 			return rs;
-		rs = spCreateShaderFromSource(spireContext, source);
+		rs = spCreateShaderFromSource(spireContext, source, spireSink);
 		entryPointShaders[key] = rs;
 		return rs;
 	}
@@ -586,7 +586,6 @@ namespace GameEngine
 		auto utilDefFile = Engine::Instance()->FindFile("Utils.shader", ResourceType::Shader);
 		if (!utilDefFile.Length())
 			throw InvalidOperationException("'Utils.shader' not found. Engine directory is not setup correctly.");
-		SpireDiagnosticSink * spireSink = spCreateDiagnosticSink(spireContext);
 		spLoadModuleLibrary(spireContext, pipelineDefFile.Buffer(), spireSink);
 		spLoadModuleLibrary(spireContext, utilDefFile.Buffer(), spireSink);
 		if (spDiagnosticSinkHasAnyErrors(spireSink))
@@ -594,7 +593,6 @@ namespace GameEngine
 			Diagnostics::Debug::WriteLine(GetSpireOutput(spireSink));
 			throw HardwareRendererException("shader compilation error.");
 		}
-		spDestroyDiagnosticSink(spireSink);
 	}
 
 	void RendererSharedResource::Init(HardwareRenderer * phwRenderer)
@@ -634,9 +632,12 @@ namespace GameEngine
 
 		indexBufferMemory.Init(hardwareRenderer.Ptr(), BufferUsage::IndexBuffer, false, 26, 256);
 		vertexBufferMemory.Init(hardwareRenderer.Ptr(), BufferUsage::ArrayBuffer, false, 28, 256);
+
+		spireSink = spCreateDiagnosticSink(spireContext);
 	}
 	void RendererSharedResource::Destroy()
 	{
+		spDestroyDiagnosticSink(spireSink);
 		shadowMapResources.Destroy();
 		textureSampler = nullptr;
 		nearestSampler = nullptr;

@@ -27,6 +27,8 @@ namespace Spire
 			ILConstOperand * CreateConstant(float val, float val1, float val2);
 			ILConstOperand * CreateConstant(float val, float val1, float val2, float val3);
 			ILConstOperand * CreateConstant(bool b);
+			ILConstOperand * CreateConstantU(unsigned int u);
+
 			ILOperand * CreateDefaultValue(ILType * type);
 			ILUndefinedOperand * GetUndefinedOperand();
 			ConstantPool();
@@ -74,6 +76,7 @@ namespace Spire
 		public:
 			ILModuleParameterSet * Module = nullptr;
 			int BufferOffset = -1;
+			int Size = 0;
 			List<int> BindingPoints; // for legacy API, usually one item. Samplers may have multiple binding points in OpenGL.
 			virtual String ToString()
 			{
@@ -81,14 +84,22 @@ namespace Spire
 			}
 		};
 
-		class ILModuleParameterSet
+		class ILModuleParameterSet : public RefObject
 		{
 		public:
 			int BufferSize = 0;
 			String BindingName;
 			int DescriptorSetId = -1;
 			int UniformBufferLegacyBindingPoint = -1;
+			bool IsTopLevel = false;
+			
+			// for sub parameter sets: these are starting indices for each type of resource (for vk they should be the same)
+			int TextureBindingStartIndex = 0, SamplerBindingStartIndex = 0, StorageBufferBindingStartIndex = 0, UniformBindingStartIndex = 0;
+			
+			// for sub parameter sets: this is the offset into parent's uniform buffer where fields of this parameter set started.
+			int UniformBufferOffset = 0;
 			EnumerableDictionary<String, RefPtr<ILModuleParameterInstance>> Parameters;
+			List<RefPtr<ILModuleParameterSet>> SubModules;
 		};
 
 		class ILShader

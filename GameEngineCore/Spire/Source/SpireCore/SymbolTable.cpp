@@ -320,6 +320,10 @@ namespace Spire
 				if (!refComp->IsRequire())
 				{
 					result.Component = refComp.Ptr();
+
+                    // HACK(tfoley): I'm not sure if this is a valid bug fix or not.
+                    result.IsAccessible = true;
+
 					return result;
 				}
 			}
@@ -507,6 +511,21 @@ namespace Spire
                 return decl;
             return nullptr;
         }
+
+		void SymbolTable::MergeWith(SymbolTable & symTable)
+		{
+			for (auto & f : symTable.FunctionOverloads)
+				FunctionOverloads[f.Key] = f.Value;
+			for (auto & f : symTable.Functions)
+				Functions[f.Key] = f.Value;
+			for (auto & f : symTable.Shaders)
+				Shaders[f.Key] = f.Value;
+			for (auto & f : symTable.Pipelines)
+				Pipelines[f.Key] = f.Value;
+			for (auto & f : symTable.globalDecls)
+				globalDecls[f.Key] = f.Value;
+			SortShaders();
+		}
 
 		int UniqueIdGenerator::currentGUID = 0;
 		void UniqueIdGenerator::Clear()

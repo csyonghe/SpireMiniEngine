@@ -41,6 +41,7 @@ namespace Spire
 			SymbolTable * symTable;
 			ILWorld * currentWorld = nullptr;
 			ComponentDefinitionIR * currentComponent = nullptr;
+			FunctionSymbol * currentFunc = nullptr;
 			ILOperand * returnRegister = nullptr;
 			ImportExpressionSyntaxNode * currentImport = nullptr;
 			ShaderIR * currentShader = nullptr;
@@ -51,6 +52,7 @@ namespace Spire
 			ScopeDictionary<String, ILOperand*> variables;
 			Dictionary<String, RefPtr<ILType>> genericTypeMappings;
 			Dictionary<StructSyntaxNode*, RefPtr<ILStructType>> structTypes;
+            LayoutRule defaultLayoutRule;
 
 			void PushStack(ILOperand * op)
 			{
@@ -135,14 +137,25 @@ namespace Spire
 			{
 				VisitStruct(st);
 			}
-
+			void SetSubModuleDescriptorSetId(ILModuleParameterSet * moduleParam, int id)
+			{
+				moduleParam->DescriptorSetId = id;
+				for (auto & submodule : moduleParam->SubModules)
+					SetSubModuleDescriptorSetId(submodule.Ptr(), id);
+			}
+            LayoutRule GetDefaultLayoutRule()
+            {
+                return defaultLayoutRule;
+            }
 			void GenerateParameterBindingInfo(ShaderIR * shader)
 			{
+                LayoutRule defaultLayoutRule = GetDefaultLayoutRule();
+
 				Dictionary<int, ModuleInstanceIR*> usedDescriptorSetBindings;
 				// initialize module parameter layouts for all module instances in this shader
 				for (auto module : shader->ModuleInstances)
 				{
-					if (module->BindingIndex != -1)
+					if (module->BindingIndex != -1 && module->IsTopLevel)
 					{
 						ModuleInstanceIR * existingModule;
 						if (usedDescriptorSetBindings.TryGetValue(module->BindingIndex, existingModule))
@@ -156,7 +169,7 @@ namespace Spire
 				// report error if shader uses a top-level module without specifying its binding
 				for (auto & module : shader->ModuleInstances)
 				{
-					if (module->BindingIndex == -1)
+					if (module->BindingIndex == -1 && module->IsTopLevel)
 					{
 						bool hasParam = false;
 						for (auto & comp : module->SyntaxNode->GetMembersOfType<ComponentSyntaxNode>())
@@ -172,14 +185,24 @@ namespace Spire
 				shader->ModuleInstances.Sort([](RefPtr<ModuleInstanceIR> & x, RefPtr<ModuleInstanceIR> & y) {return x->BindingIndex < y->BindingIndex; });
 				for (auto module : shader->ModuleInstances)
 				{
-					if (module->BindingIndex != -1)
-					{
-						auto set = new ILModuleParameterSet();
-						set->BindingName = module->BindingName;
-						set->DescriptorSetId = module->BindingIndex;
-						set->UniformBufferLegacyBindingPoint = set->DescriptorSetId;
-						compiledShader->ModuleParamSets[module->BindingName] = set;
-					}
+					auto set = new ILModuleParameterSet();
+					set->BindingName = module->BindingName;
+					set->DescriptorSetId = module->BindingIndex;
+					set->UniformBufferLegacyBindingPoint = set->DescriptorSetId;
+					set->IsTopLevel = module->IsTopLevel;
+					compiledShader->ModuleParamSets[module->BindingName] = set;
+				}
+				for (auto module : shader->ModuleInstances)
+				{
+					auto ilModule = compiledShader->ModuleParamSets[module->BindingName]();
+					for (auto subModule : module->SubModuleInstances)
+						ilModule->SubModules.Add(compiledShader->ModuleParamSets[subModule->BindingName]());
+				}
+				for (auto module : compiledShader->ModuleParamSets)
+				{
+					if (module.Value->IsTopLevel && module.Value->DescriptorSetId != -1 && module.Key != compiledShader->Name)
+						for (auto submodule : module.Value->SubModules)
+							SetSubModuleDescriptorSetId(submodule.Ptr(), module.Value->DescriptorSetId);
 				}
 				// allocate binding slots for shader resources (textures, buffers, samplers etc.), as required by legacy APIs
 				Dictionary<int, ComponentDefinitionIR*> usedTextureBindings, usedBufferBindings, usedSamplerBindings, usedStorageBufferBindings;
@@ -199,8 +222,8 @@ namespace Spire
 						if (resType == BindableResourceType::NonBindable)
 						{
 							param->BindingPoints.Clear();
-							param->BufferOffset = (int)RoundToAlignment(module->BufferSize, (int)GetTypeAlignment(param->Type.Ptr(), LayoutRule::Std140));
-							module->BufferSize = param->BufferOffset + (int)GetTypeSize(param->Type.Ptr(), LayoutRule::Std140);
+							param->BufferOffset = (int)RoundToAlignment(module->BufferSize, (int)GetTypeAlignment(param->Type.Ptr(), defaultLayoutRule));
+							module->BufferSize = param->BufferOffset + (int)GetTypeSize(param->Type.Ptr(), defaultLayoutRule);
 						}
 						else
 						{
@@ -243,7 +266,7 @@ namespace Spire
 								param->BindingPoints.Add(bindingVal);
 							}
 						}
-						module->Parameters.Add(def->UniqueName, param);
+						module->Parameters.Add(def->OriginalName, param);
 					}
 				}
 
@@ -253,7 +276,7 @@ namespace Spire
 					if (def->SyntaxNode->IsParam())
 					{
 						auto module = compiledShader->ModuleParamSets[def->ModuleInstance->BindingName]().Ptr();
-						auto & param = **module->Parameters.TryGetValue(def->UniqueName);
+						auto & param = **module->Parameters.TryGetValue(def->OriginalName);
 						auto bindableResType = param.Type->GetBindableResourceType();
 						if (bindableResType != BindableResourceType::NonBindable)
 						{
@@ -295,13 +318,14 @@ namespace Spire
 						}
 					}
 				}
+
 			}
 
             ParameterQualifier GetParamQualifier(ParameterSyntaxNode* paramDecl)
             {
-                if (paramDecl->modifiers.flags && ModifierFlag::InOut)
+                if ((paramDecl->modifiers.flags & ModifierFlag::InOut) == ModifierFlag::InOut)
                     return ParameterQualifier::InOut;
-                else if (paramDecl->modifiers.flags && ModifierFlag::Out)
+                else if (paramDecl->modifiers.flags & ModifierFlag::Out)
                     return ParameterQualifier::Out;
                 else
                     return ParameterQualifier::In;
@@ -451,14 +475,26 @@ namespace Spire
 					if (comp->SyntaxNode->IsComponentFunction())
 					{
 						auto funcName = GetComponentFunctionName(comp->SyntaxNode.Ptr());
-						if (result.Program->Functions.ContainsKey(funcName))
-							continue;
+						
+						// BUG FIX: The following line must be commented out.
+						/* we cannot really cached IL for previously generated component functions
+						  because the actual component function is dependent on component composition.
+						  example: module A, module B, module C. module A has requires void f(int) that can be
+						    provided by either B::f or C::f. because B::f and C::f may capture different environment,
+							their actual parameter list can be different, therefore if module A has a method g that calls f,
+							the implementation of g will differ based on wheither it is calling B::f or C::f.
+							simply caching an IL for A::g using function name as key is therefore not sufficient.
+						  the real bug fix should factor this into the function name, but for now just disable caching.
+					    */
+						/*if (result.Program->Functions.ContainsKey(funcName))
+							continue;*/
 						RefPtr<ILFunction> func = new ILFunction();
 						RefPtr<FunctionSymbol> funcSym = new FunctionSymbol();
 						func->Name = funcName;
 						func->ReturnType = TranslateExpressionType(comp->Type);
 						symTable->Functions[funcName] = funcSym;
 						result.Program->Functions[funcName] = func;
+						currentFunc = funcSym.Ptr();
 						for (auto dep : comp->GetComponentFunctionDependencyClosure())
 						{
 							if (dep->SyntaxNode->IsComponentFunction())
@@ -502,6 +538,7 @@ namespace Spire
 						{
 							comp->SyntaxNode->BlockStatement->Accept(this);
 						}
+						currentFunc = nullptr;
 						variables.PopScope();
 						func->Code = codeWriter.PopNode();
 					}
@@ -513,7 +550,7 @@ namespace Spire
 				{
 					for (auto & comp : *paramComps)
 					{
-						variables.Add(comp->UniqueName, compiledShader->ModuleParamSets[comp->ModuleInstance->BindingName]()->Parameters[comp->UniqueName]().Ptr());
+						variables.Add(comp->UniqueName, compiledShader->ModuleParamSets[comp->ModuleInstance->BindingName]()->Parameters[comp->OriginalName]().Ptr());
 					}
 				}
 				for (auto & world : pipeline->Worlds)
@@ -838,13 +875,7 @@ namespace Spire
 			}
 			void Assign(ILOperand * left, ILOperand * right)
 			{
-				if (auto add = dynamic_cast<AddInstruction*>(left))
-				{
-					auto baseOp = add->Operands[0].Ptr();
-					codeWriter.Update(baseOp, add->Operands[1].Ptr(), right);
-					add->Erase();
-				}
-				else if (auto swizzle = dynamic_cast<SwizzleInstruction*>(left))
+				if (auto swizzle = dynamic_cast<SwizzleInstruction*>(left))
 				{
 					auto baseOp = swizzle->Operand.Ptr();
 					int index = 0;
@@ -1019,23 +1050,19 @@ namespace Spire
 				}
 				else
 				{
-					op = result.Program->ConstantPool->CreateConstant(expr->IntValue);
+					if (expr->Type->Equals(ExpressionType::UInt))
+						op = result.Program->ConstantPool->CreateConstantU((unsigned int)(expr->IntValue));
+					else
+						op = result.Program->ConstantPool->CreateConstant(expr->IntValue);
 				}
 				PushStack(op);
 				return expr;
 			}
-			void GenerateIndexExpression(ILOperand * base, ILOperand * idx, bool read)
+			void GenerateIndexExpression(ILOperand * base, ILOperand * idx)
 			{
-				if (read)
-				{
-					auto ldInstr = codeWriter.Retrieve(base, idx);
-					ldInstr->Attribute = base->Attribute;
-					PushStack(ldInstr);
-				}
-				else
-				{
-					PushStack(codeWriter.Add(base, idx));
-				}
+				auto ldInstr = codeWriter.Retrieve(base, idx);
+				ldInstr->Attribute = base->Attribute;
+				PushStack(ldInstr);
 			}
 			virtual RefPtr<ExpressionSyntaxNode> VisitImportExpression(ImportExpressionSyntaxNode * expr) override
 			{
@@ -1080,8 +1107,7 @@ namespace Spire
 				expr->IndexExpression->Access = ExpressionAccess::Read;
 				expr->IndexExpression->Accept(this);
 				auto idx = PopStack();
-				GenerateIndexExpression(base, idx,
-					expr->Access == ExpressionAccess::Read);
+				GenerateIndexExpression(base, idx);
 				return expr;
 			}
 			virtual RefPtr<ExpressionSyntaxNode> VisitMemberExpression(MemberExpressionSyntaxNode * expr) override
@@ -1113,8 +1139,7 @@ namespace Spire
 						else if (memberName == 'w' || memberName == 'a')
 							idx = 3;
 
-						GenerateIndexExpression(base, result.Program->ConstantPool->CreateConstant(idx),
-							expr->Access == ExpressionAccess::Read);
+						GenerateIndexExpression(base, result.Program->ConstantPool->CreateConstant(idx));
 					};
 					if (expr->BaseExpression->Type->IsVectorType())
 					{
@@ -1135,8 +1160,7 @@ namespace Spire
 					else if (expr->BaseExpression->Type->IsStruct())
 					{
 						int id = expr->BaseExpression->Type->AsBasicType()->structDecl->FindFieldIndex(expr->MemberName);
-						GenerateIndexExpression(base, result.Program->ConstantPool->CreateConstant(id),
-							expr->Access == ExpressionAccess::Read);
+						GenerateIndexExpression(base, result.Program->ConstantPool->CreateConstant(id));
 					}
 					else
 						throw NotImplementedException("member expression codegen");
@@ -1193,6 +1217,8 @@ namespace Spire
 				{
 					currentWorld->ReferencedFunctions.Add(funcName);
 				}
+				if (currentFunc)
+					currentFunc->ReferencedFunctions.Add(funcName);
 				for (auto arg : expr->Arguments)
 				{
 					arg->Accept(this);
@@ -1363,8 +1389,8 @@ namespace Spire
 		private:
 			CodeGenerator & operator = (const CodeGenerator & other) = delete;
 		public:
-			CodeGenerator(SymbolTable * symbols, DiagnosticSink * pErr, CompileResult & _result)
-				: ICodeGenerator(pErr), symTable(symbols), result(_result)
+			CodeGenerator(SymbolTable * symbols, DiagnosticSink * pErr, CompileResult & _result, LayoutRule defaultLayoutRule)
+				: ICodeGenerator(pErr), symTable(symbols), result(_result), defaultLayoutRule(defaultLayoutRule)
 			{
 				result.Program = new ILProgram();
 				codeWriter.SetConstantPool(result.Program->ConstantPool.Ptr());
@@ -1445,9 +1471,9 @@ namespace Spire
 
 		};
 
-		ICodeGenerator * CreateCodeGenerator(SymbolTable * symbols, CompileResult & result)
+		ICodeGenerator * CreateCodeGenerator(SymbolTable * symbols, CompileResult & result, CodeGenBackend* backend)
 		{
-			return new CodeGenerator(symbols, result.GetErrorWriter(), result);
+			return new CodeGenerator(symbols, result.GetErrorWriter(), result, backend->GetDefaultLayoutRule());
 		}
 	}
 }

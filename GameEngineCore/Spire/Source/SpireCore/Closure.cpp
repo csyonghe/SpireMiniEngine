@@ -59,7 +59,7 @@ namespace Spire
 				rootShader = rs.Ptr();
 				rootShader->Pipeline = shader->ParentPipeline;
 			}
-			rs->ModuleSyntaxNode = shader->SyntaxNode;
+			rs->ModuleSyntaxNode = shader->SyntaxNode.Ptr();
 			rs->Name = shader->SyntaxNode->Name.Content;
 			rs->RefMap = pRefMap;
 			if (shader->ParentPipeline && rootShader->Pipeline)
@@ -138,6 +138,7 @@ namespace Spire
 						}
 						else
 						{
+							refClosure->Name = import->ObjectName.Content;
 							rs->SubClosures[import->ObjectName.Content] = refClosure;
 						}
 					}
@@ -369,12 +370,19 @@ namespace Spire
 				member->BaseExpression->Accept(this);
 				if (member->BaseExpression->Type->AsBasicType() && member->BaseExpression->Type->AsBasicType()->ShaderClosure)
 				{
-					if (auto comp = member->BaseExpression->Type->AsBasicType()->ShaderClosure->FindComponent(member->MemberName))
+					String memberName = member->MemberName;
+                    // HACK(tfoley): Is this a valid fix?
+                    if(member->Type->AsBasicType())
+					if (auto refComp = member->Type->AsBasicType()->Component)
+					{
+						memberName = refComp->Name;
+					}
+					if (auto comp = member->BaseExpression->Type->AsBasicType()->ShaderClosure->FindComponent(memberName))
 					{
 						member->Tags["ComponentReference"] = new StringObject(comp->UniqueName);
 						AddReference(comp.Ptr(), currentImport, member->Position);
 					}
-					else if (auto shader = member->BaseExpression->Type->AsBasicType()->ShaderClosure->FindClosure(member->MemberName))
+					else if (auto shader = member->BaseExpression->Type->AsBasicType()->ShaderClosure->FindClosure(memberName))
 					{
 						ShaderSymbol * originalShader = nullptr;
 						if (member->Type->AsBasicType())
