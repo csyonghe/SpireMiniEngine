@@ -1397,11 +1397,6 @@ int spModuleGetRequiredComponents(SpireModule * module, SpireComponentInfo * buf
 	return ptr;
 }
 
-void spDestroyShader(SpireShader * shader)
-{
-	//delete SHADER(shader);
-}
-
 SpireCompilationResult * spCompileShader(SpireCompilationContext * ctx, SpireShader * shader,
 	SpireModule** args,
 	int argCount,

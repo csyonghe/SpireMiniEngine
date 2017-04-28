@@ -645,8 +645,6 @@ namespace GameEngine
 		descLayouts = CoreLib::EnumerableDictionary<SpireModuleStruct*, CoreLib::RefPtr<GameEngine::DescriptorSetLayout>>();
 		fullScreenQuadVertBuffer = nullptr;
 		//ModuleInstance::ClosePool();
-		for (auto shader : entryPointShaders)
-			spDestroyShader(shader.Value);
 		spDestroyCompilationContext(spireContext);
 
 	}
