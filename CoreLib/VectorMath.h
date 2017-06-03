@@ -3,7 +3,8 @@
 #include <memory.h>
 #include <random>
 #include <cmath>
-#include <xmmintrin.h>
+#include <emmintrin.h>
+#include <smmintrin.h>
 #include "LibMath.h"
 #ifdef _M_X64
 #define NO_SIMD_ASM
