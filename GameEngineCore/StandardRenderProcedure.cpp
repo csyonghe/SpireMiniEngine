@@ -106,7 +106,7 @@ namespace GameEngine
 				if (useAtmosphere)
 					return viewRes->LoadSharedRenderTarget("litAtmosphereColor", StorageFormat::RGBA_F16).Ptr();
 				else
-					viewRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_F16).Ptr();
+					return viewRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_F16).Ptr();
 			}
 			return nullptr;
 		}
