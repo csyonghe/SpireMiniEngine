@@ -83,6 +83,20 @@ namespace GraphicsUI
 		commandBuffer.Add(cmd);
 	}
 
+	void Graphics::FillTriangle(float x0, float y0, float x1, float y1, float x2, float y2)
+	{
+		DrawCommand cmd;
+		cmd.Name = DrawCommandName::Triangle;
+		cmd.x0 = (float)x0 + dx;
+		cmd.x1 = (float)x1 + dx;
+		cmd.y0 = (float)y0 + dy;
+		cmd.y1 = (float)y1 + dy;
+		cmd.TriangleParams.x2 = (float)x2 + dx;
+		cmd.TriangleParams.y2 = (float)y2 + dy;
+		cmd.TriangleParams.color = SolidBrushColor;
+		commandBuffer.Add(cmd);
+	}
+
 	void Graphics::DrawRectangle(int x1, int y1, int x2, int y2)
 	{
 		DrawLine(LineCap::None, LineCap::None, (float)x1 + 0.5f, (float)y1 + 0.5f, (float)x2, (float)y1 + 0.5f);
@@ -7269,6 +7283,34 @@ namespace GraphicsUI
         graphics.PenWidth = BorderWidth;
         graphics.DrawBezier(StartCap, EndCap, origin + p0, origin + cp0, origin + cp1, origin + p1);
     }
+
+	Triangle::Triangle(Container * owner)
+		: Control(owner)
+	{
+	}
+
+	void Triangle::Draw(int absX, int absY)
+	{
+		auto & graphics = GetEntry()->DrawCommands;
+		graphics.SolidBrushColor = this->FontColor;
+		graphics.FillTriangle((float)(absX + x0), (float)(absY + y0), 
+			(float)(absX + x1), (float)(absY + y1),
+			(float)(absX + x2), (float)(absY + y2));
+	}
+
+	void Triangle::SetPoints(int px0, int py0, int px1, int py1, int px2, int py2)
+	{
+		x0 = px0;
+		y0 = py0;
+		x1 = px1;
+		y1 = py1;
+		x2 = px2;
+		y2 = py2;
+		Left = (int)(Math::Min(x0, x1, x2));
+		Top = (int)(Math::Min(y0, y1, y2));
+		Width = (int)(Math::Max(x0, x1, x2)) - Left;
+		Height = (int)(Math::Max(y0, y1, y2)) - Top;
+	}
 
     void BezierCurve::DoDpiChanged()
     {

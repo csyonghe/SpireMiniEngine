@@ -14,7 +14,7 @@
 // Only execute actions of DEBUG_ONLY in DEBUG mode
 #if _DEBUG
 #define DEBUG_ONLY(x) do { x; } while(0)
-#define USE_VALIDATION_LAYER 1
+#define USE_VALIDATION_LAYER 0
 #else
 #define DEBUG_ONLY(x) do {    } while(0)
 #endif
@@ -472,7 +472,7 @@ namespace VK
 
 		static void DestroyInstance()
 		{
-			DEBUG_ONLY(State().instance.destroyDebugReportCallbackEXT(State().callback));
+			//DEBUG_ONLY(State().instance.destroyDebugReportCallbackEXT(State().callback));
 			State().instance.destroy();
 		}
 

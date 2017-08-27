@@ -76,6 +76,7 @@ namespace GraphicsUI
 		const int Tab = 0x09;
 		const int Z = 0x5A;
 		const int C = 0x43;
+		const int R = 0x52;
 	}
 
 	struct MarginValues
@@ -173,6 +174,7 @@ namespace GraphicsUI
         		void FillRectangle(float x1, float y1, float x2, float y2);
 		void FillEllipse(float x1, float y1, float x2, float y2);
 		void FillTriangle(int x0, int y0, int x1, int y1, int x2, int y2);
+		void FillTriangle(float x0, float y0, float x1, float y1, float x2, float y2);
 		void DrawLine(LineCap startCap, LineCap endCap, float x1, float y1, float x2, float y2);
         void DrawBezier(LineCap startCap, LineCap endCap, VectorMath::Vec2 p0, VectorMath::Vec2 cp0, VectorMath::Vec2 cp1, VectorMath::Vec2 p1);
 		void ClearCommands()
@@ -421,9 +423,18 @@ namespace GraphicsUI
     {
     public:
         Ellipse(Container * owner);
-        virtual void Draw(int absX, int absY) override;
-        virtual void DoDpiChanged() override;
+		virtual void DoDpiChanged() override;
+        virtual void Draw(int absX, int absY);
     };
+
+	class Triangle : public Control
+	{
+	public:
+		Triangle(Container * owner);
+		int x0, x1, x2, y0, y1, y2;
+		virtual void Draw(int absX, int absY);
+		void SetPoints(int x0, int y0, int x1, int y1, int x2, int y2);
+	};
 
     class BezierCurve : public Control
     {

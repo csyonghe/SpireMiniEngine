@@ -87,7 +87,7 @@ namespace GameEngine
 		transformModule->SetUniformData((void*)&localTransform, sizeof(Matrix4));
 	}
 
-	void Drawable::UpdateTransformUniform(const VectorMath::Matrix4 & localTransform, const Pose & pose)
+	void Drawable::UpdateTransformUniform(const VectorMath::Matrix4 & localTransform, const Pose & pose, RetargetFile * retarget)
 	{
 		if (type != DrawableType::Skeletal)
 			throw InvalidOperationException("cannot update static drawable with skeletal transform data.");
@@ -100,7 +100,7 @@ namespace GameEngine
 		_ASSERT(transformModule->BufferLength >= poseMatrixSize);
 
 		List<Matrix4> matrices;
-		pose.GetMatrices(skeleton, matrices);
+		pose.GetMatrices(skeleton, matrices, true, retarget);
 		for (int i = 0; i < matrices.Count(); i++)
 		{
 			Matrix4::Multiply(matrices[i], localTransform, matrices[i]);
@@ -517,6 +517,7 @@ namespace GameEngine
 			auto ptr = (unsigned char *)uniformMemory->Alloc(rs.BufferLength * DynamicBufferLengthMultiplier);
 			rs.UniformMemory = uniformMemory;
 			rs.BufferOffset = (int)(ptr - (unsigned char*)uniformMemory->BufferPtr());
+			assert(rs.BufferOffset%hardwareRenderer->UniformBufferAlignment() == 0);
 		}
 		else
 			rs.UniformMemory = nullptr;
@@ -762,37 +763,40 @@ namespace GameEngine
 	void RenderPassInstance::SetDrawContent(PipelineContext & pipelineManager, CoreLib::List<Drawable*>& reorderBuffer, CoreLib::ArrayView<Drawable*> drawables)
 	{
 		reorderBuffer.Clear();
-		if (drawables.Count() != 0)
-		{
-			Material* lastMaterial = drawables[0]->GetMaterial();
+		Material* lastMaterial = nullptr;
 
+		if (drawables.Count())
+		{
+			lastMaterial = drawables[0]->GetMaterial();
 			pipelineManager.PushModuleInstance(&lastMaterial->MaterialGeometryModule);
 			pipelineManager.PushModuleInstance(&lastMaterial->MaterialPatternModule);
-
-			for (auto obj : drawables)
-			{
-				obj->ReorderKey = 0;
-				auto newMaterial = obj->GetMaterial();
-				if (newMaterial != lastMaterial)
-				{
-					pipelineManager.PopModuleInstance();
-					pipelineManager.PopModuleInstance();
-					pipelineManager.PushModuleInstance(&newMaterial->MaterialGeometryModule);
-					pipelineManager.PushModuleInstance(&newMaterial->MaterialPatternModule);
-					lastMaterial = newMaterial;
-				}
-				pipelineManager.PushModuleInstanceNoShaderChange(obj->GetTransformModule());
-				obj->ReorderKey = (obj->GetPipeline(renderPassId, pipelineManager)->Id << 18) + newMaterial->Id;
-				pipelineManager.PopModuleInstance();
-
-				reorderBuffer.Add(obj);
-			}
-
-			pipelineManager.PopModuleInstance();
-			pipelineManager.PopModuleInstance();
-			reorderBuffer.Sort([](Drawable* d1, Drawable* d2) {return d1->ReorderKey < d2->ReorderKey; });
-			SetFixedOrderDrawContent(pipelineManager, reorderBuffer.GetArrayView());
 		}
+
+		for (auto obj : drawables)
+		{
+			obj->ReorderKey = 0;
+			auto newMaterial = obj->GetMaterial();
+			if (newMaterial != lastMaterial)
+			{
+				pipelineManager.PopModuleInstance();
+				pipelineManager.PopModuleInstance();
+				pipelineManager.PushModuleInstance(&newMaterial->MaterialGeometryModule);
+				pipelineManager.PushModuleInstance(&newMaterial->MaterialPatternModule);
+				lastMaterial = newMaterial;
+			}
+			pipelineManager.PushModuleInstanceNoShaderChange(obj->GetTransformModule());
+			obj->ReorderKey = (obj->GetPipeline(renderPassId, pipelineManager)->Id << 18) + newMaterial->Id;
+			pipelineManager.PopModuleInstance();
+
+			reorderBuffer.Add(obj);
+		}
+		if (drawables.Count())
+		{
+			pipelineManager.PopModuleInstance();
+			pipelineManager.PopModuleInstance();
+		}
+		reorderBuffer.Sort([](Drawable* d1, Drawable* d2) {return d1->ReorderKey < d2->ReorderKey; });
+		SetFixedOrderDrawContent(pipelineManager, reorderBuffer.GetArrayView());
 
 	}
 	void RenderPassInstance::Execute(HardwareRenderer * hwRenderer)

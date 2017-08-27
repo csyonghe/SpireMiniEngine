@@ -108,7 +108,6 @@ namespace GameEngine
 				else
 					return viewRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_F16).Ptr();
 			}
-			return nullptr;
 		}
 		virtual void UpdateSharedResourceBinding() override
 		{

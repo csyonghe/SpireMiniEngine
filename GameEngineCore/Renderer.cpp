@@ -66,7 +66,7 @@ namespace GameEngine
 					renderer->sceneRes->RegisterMaterial(material);
 				RefPtr<Drawable> rs = CreateDrawableShared(mesh, material, cacheMesh);
 				rs->type = DrawableType::Static;
-				CreateTransformModuleInstance(*rs->transformModule, "NoAnimation", (int)(sizeof(Vec4) * 7));
+				CreateTransformModuleInstance(*rs->transformModule, "NoAnimation", (int)(sizeof(Vec4) * 4));
 				rs->vertFormat = mesh->GetVertexFormat();
 				return rs;
 			}
@@ -77,7 +77,7 @@ namespace GameEngine
 				RefPtr<Drawable> rs = CreateDrawableShared(mesh, material, cacheMesh);
 				rs->type = DrawableType::Skeletal;
 				rs->skeleton = skeleton;
-				int poseMatrixSize = skeleton->Bones.Count() * (sizeof(Vec4) * 7);
+				int poseMatrixSize = skeleton->Bones.Count() * (sizeof(Vec4) * 4);
 				CreateTransformModuleInstance(*rs->transformModule, "SkeletalAnimation", poseMatrixSize);
 				rs->vertFormat = mesh->GetVertexFormat();
 				return rs;

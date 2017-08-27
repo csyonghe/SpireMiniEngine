@@ -21,6 +21,10 @@ namespace VectorMath
 	const float PI = 3.1415926535f;
 	const float Epsilon = 1e-4f;
 	const int DefaultFloatUlps = 1024;
+	inline int Clamp(int val, int vmin, int vmax)
+	{
+		return val>vmax ? vmax : val<vmin ? vmin : val;
+	}
 	inline float Clamp(float val, float vmin, float vmax)
 	{
 		return val>vmax ? vmax : val<vmin ? vmin : val;
@@ -1696,6 +1700,10 @@ namespace VectorMath
 			rs.y = py;
 			return rs;
 		}
+		inline float Length()
+		{
+			return sqrt(float(x*x + y*y));
+		}
 
         Vec2i operator + (Vec2i v)
         {
@@ -1711,6 +1719,14 @@ namespace VectorMath
             rs.y = y - v.y;
             return rs;
         }
+		bool operator == (const Vec2i & v)
+		{
+			return x == v.x && y == v.y;
+		}
+		int GetHashCode()
+		{
+			return x ^ y;
+		}
 	};
 
 	class Vec3i
@@ -1963,15 +1979,6 @@ namespace VectorMath
 			else
 				return Lerp(q1, q3, t);
 		}
-
-        static inline void SetYawAngle(Quaternion & q, float yaw)
-        {
-            Matrix4 roty;
-            Matrix4::RotationY(roty, yaw);
-            Matrix4 original = q.ToMatrix4();
-            Matrix4::Multiply(original, roty, original);
-            q = Quaternion::FromMatrix(original.GetMatrix3());
-        }
 	};
 }
 

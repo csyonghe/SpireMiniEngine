@@ -35,12 +35,6 @@
     <ClCompile Include="EngineActorClasses.cpp">
       <Filter>Actors</Filter>
     </ClCompile>
-    <ClCompile Include="AnimationVisualizationActor.cpp">
-      <Filter>Actors</Filter>
-    </ClCompile>
-    <ClCompile Include="MotionGraphMeshActor.cpp">
-      <Filter>Actors</Filter>
-    </ClCompile>
     <ClCompile Include="FreeRoamCameraController.cpp">
       <Filter>Actors</Filter>
     </ClCompile>
@@ -48,9 +42,6 @@
       <Filter>Actors</Filter>
     </ClCompile>
     <ClCompile Include="Skeleton.cpp">
-      <Filter>Animation</Filter>
-    </ClCompile>
-    <ClCompile Include="MotionGraphAnimationSynthesizer.cpp">
       <Filter>Animation</Filter>
     </ClCompile>
     <ClCompile Include="AnimationSynthesizer.cpp">
@@ -140,11 +131,59 @@
     <ClCompile Include="ToneMappingActor.cpp">
       <Filter>Actors</Filter>
     </ClCompile>
+    <ClCompile Include="CompressedMotionGraphMeshActor.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
+    <ClCompile Include="MotionGraphMeshActor.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
+    <ClCompile Include="InterpolatedMotionGraphMeshActor.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
+    <ClCompile Include="SearchMeshActor.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
+    <ClCompile Include="ToneMappingPostRenderPass.cpp" />
+    <ClCompile Include="MaskMap.cpp">
+      <Filter>Animation</Filter>
+    </ClCompile>
+    <ClCompile Include="DatabaseViewActor.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
+    <ClCompile Include="SearchAnimationSynthesizer.cpp">
+      <Filter>Animation</Filter>
+    </ClCompile>
+    <ClCompile Include="EulerAngle.cpp">
+      <Filter>Animation</Filter>
+    </ClCompile>
+    <ClCompile Include="MultiSkeletalMeshActor.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
+    <ClCompile Include="MotionGraphAnimationSynthesizer.cpp">
+      <Filter>Animation</Filter>
+    </ClCompile>
+    <ClCompile Include="MotionStatusActor.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
     <ClCompile Include="ToneMappingPostRenderPass.cpp" />
     <ClCompile Include="ArcBallCameraController.cpp">
       <Filter>Actors</Filter>
     </ClCompile>
     <ClCompile Include="SystemWindow.cpp" />
+    <ClCompile Include="GraphVisualizerActor.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
+    <ClCompile Include="DatabaseControllerActor.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
+    <ClCompile Include="Heuristic.cpp" />
+    <ClCompile Include="SearchCharacterControllerActor.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
+    <ClCompile Include="StateMachine.cpp" />
+    <ClCompile Include="StateMachineMeshActor.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
@@ -184,12 +223,6 @@
     <ClInclude Include="SkeletalMeshActor.h">
       <Filter>Actors</Filter>
     </ClInclude>
-    <ClInclude Include="AnimationVisualizationActor.h">
-      <Filter>Actors</Filter>
-    </ClInclude>
-    <ClInclude Include="MotionGraphMeshActor.h">
-      <Filter>Actors</Filter>
-    </ClInclude>
     <ClInclude Include="FreeRoamCameraController.h">
       <Filter>Actors</Filter>
     </ClInclude>
@@ -197,9 +230,6 @@
       <Filter>Actors</Filter>
     </ClInclude>
     <ClInclude Include="Skeleton.h">
-      <Filter>Animation</Filter>
-    </ClInclude>
-    <ClInclude Include="MotionGraphAnimationSynthesizer.h">
       <Filter>Animation</Filter>
     </ClInclude>
     <ClInclude Include="AnimationSynthesizer.h">
@@ -279,8 +309,15 @@
     <ClInclude Include="PostRenderPass.h">
       <Filter>Renderer\PostProcess</Filter>
     </ClInclude>
-    <ClInclude Include="RenderProcedure.h">
-      <Filter>Renderer</Filter>
+    <ClInclude Include="DrawCallStatForm.h" />
+    <ClInclude Include="CompressedMotionGraphMeshActor.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="MotionGraphMeshActor.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="InterpolatedMotionGraphMeshActor.h">
+      <Filter>Actors</Filter>
     </ClInclude>
     <ClInclude Include="ToneMappingActor.h">
       <Filter>Actors</Filter>
@@ -291,10 +328,60 @@
     <ClInclude Include="ToneMapping.h">
       <Filter>Renderer\PostProcess</Filter>
     </ClInclude>
+    <ClInclude Include="SearchMeshActor.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="MaskMap.h">
+      <Filter>Animation</Filter>
+    </ClInclude>
+    <ClInclude Include="DatabaseViewActor.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="SearchAnimationSynthesizer.h">
+      <Filter>Animation</Filter>
+    </ClInclude>
+    <ClInclude Include="EulerAngle.h">
+      <Filter>Animation</Filter>
+    </ClInclude>
+    <ClInclude Include="MultiSkeletalMeshActor.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="MotionStatusActor.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="MotionGraphBaseActor.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="MotionGraphAnimationSynthesizer.h">
+      <Filter>Animation</Filter>
+    </ClInclude>
     <ClInclude Include="ArcBallCameraController.h">
       <Filter>Actors</Filter>
     </ClInclude>
     <ClInclude Include="SystemWindow.h" />
+    <ClInclude Include="GraphVisualizerActor.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="DatabaseControllerActor.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="Heuristic.h" />
+    <ClInclude Include="RingBuffer.h" />
+    <ClInclude Include="SearchGraphSynthesizer.h">
+      <Filter>Animation</Filter>
+    </ClInclude>
+    <ClInclude Include="SearchCharacterControllerActor.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="StateMachine.h" />
+    <ClInclude Include="StateMachineMeshActor.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="StateMachineSynthesizer.h">
+      <Filter>Animation</Filter>
+    </ClInclude>
+    <ClInclude Include="Statistics.h" />
+    <ClInclude Include="AnimationLib.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Spire">
