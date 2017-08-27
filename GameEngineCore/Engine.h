@@ -136,6 +136,7 @@ namespace GameEngine
 		Actor * CreateActor(const CoreLib::String & name);
 		void RegisterActorClass(const CoreLib::String &name, const CoreLib::Func<Actor*> & actorCreator);
 		void LoadLevel(const CoreLib::String & fileName);
+		Level* NewLevel();
 		CoreLib::RefPtr<Actor> ParseActor(GameEngine::Level * level, CoreLib::Text::TokenReader & parser);
 	public:
 		CoreLib::String FindFile(const CoreLib::String & fileName, ResourceType type);

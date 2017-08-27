@@ -116,7 +116,7 @@ module SkeletalAnimation
         for (int i = 0; i < 4; i++)
         {
             uint boneId = (boneIds >> (i*8)) & 255;
-            if (boneId == 255) continue;
+            if (boneId == 255) break;
             float boneWeight = float((boneWeights >> (i*8)) & 255) * (1.0/255.0);
             vec3 tp = (boneTransforms[boneId] * vec4(vertPos, 1.0)).xyz;
             result.pos += tp * boneWeight;

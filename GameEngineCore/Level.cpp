@@ -10,13 +10,19 @@ namespace GameEngine
 
 	Level::Level(const CoreLib::String & fileName)
 	{
-		Text::TokenReader parser(File::ReadAllText(fileName));
+		LoadFromText(File::ReadAllText(fileName));
+		
+	}
+	void Level::LoadFromText(CoreLib::String text)
+	{
+		Text::TokenReader parser(text);
 		while (!parser.IsEnd())
 		{
+			auto pos = parser.NextToken().Position;
 			auto actor = Engine::Instance()->ParseActor(this, parser);
 			if (!actor)
 			{
-				Print("error: ignoring object.\n");
+				Print("error: ignoring object at line %d.\n", pos.Line);
 			}
 			else
 			{
@@ -102,6 +108,23 @@ namespace GameEngine
 		}
 		return result.Ptr();
 	}
+	RetargetFile * Level::LoadRetargetFile(const CoreLib::String & fileName)
+	{
+		auto result = RetargetFiles.TryGetValue(fileName);
+		if (!result)
+		{
+			auto actualName = Engine::Instance()->FindFile(fileName, ResourceType::Mesh);
+			if (actualName.Length())
+			{
+				RetargetFile file;
+				file.LoadFromFile(actualName);
+				RetargetFiles[fileName] = _Move(file);
+			}
+			else
+				return nullptr;
+		}
+		return RetargetFiles.TryGetValue(fileName);
+	}
 	Material * Level::LoadMaterial(const CoreLib::String & fileName)
 	{
 		RefPtr<Material> result = nullptr;
@@ -150,26 +173,6 @@ namespace GameEngine
 		}
 		return result.Ptr();
 	}
-    MotionGraph * Level::LoadMotionGraph(const CoreLib::String & fileName)
-    {
-        RefPtr<MotionGraph> result = nullptr;
-        if (!MotionGraphs.TryGetValue(fileName, result))
-        {
-            auto actualName = Engine::Instance()->FindFile(fileName, ResourceType::Mesh);
-            if (actualName.Length())
-            {
-                result = new MotionGraph();
-                result->LoadFromFile(actualName);
-                MotionGraphs[fileName] = result;
-            }
-            else
-            {
-				Print("error: cannot load motion graph \'%S\'\n", fileName.ToWString());
-                return nullptr;
-            }
-        }
-        return result.Ptr();
-    }
 	Actor * Level::FindActor(const CoreLib::String & name)
 	{
 		RefPtr<Actor> result;

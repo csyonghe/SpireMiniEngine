@@ -83,7 +83,6 @@ namespace CoreLib
 		class List
 		{
 		private:
-
 			inline T * Allocate(int size)
 			{
 				return AllocateMethod<T, TAllocator>::Alloc(size);

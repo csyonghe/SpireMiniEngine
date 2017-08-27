@@ -132,7 +132,13 @@ namespace CoreLib
 			}
 			String ReadString()
 			{
+				String rs;
 				int len = ReadInt32();
+				if (len == 0)
+				{
+					return String("");
+				}
+
 				char * buffer = new char[len+1];
 				try
 				{

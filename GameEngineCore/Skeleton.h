@@ -83,9 +83,29 @@ namespace GameEngine
 		BoneTransformation BindPose;
 	};
 
+	class BoneRetargetInfo
+	{
+	public:
+		float ScaleX = 1.0f, ScaleY = 1.0f, ScaleZ = 1.0f;
+		VectorMath::Quaternion Rotation = VectorMath::Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
+	};
+
+	class RetargetFile
+	{
+	public:
+		CoreLib::String SourceSkeletonName, TargetSkeletonName;
+		CoreLib::List<BoneRetargetInfo> RetargetTransforms;
+		CoreLib::EnumerableDictionary<CoreLib::String, int> BoneMapping;
+		void SaveToStream(CoreLib::IO::Stream * stream);
+		void LoadFromStream(CoreLib::IO::Stream * stream);
+		void SaveToFile(const CoreLib::String & filename);
+		void LoadFromFile(const CoreLib::String & filename);
+	};
+
 	class Skeleton
 	{
 	public:
+		CoreLib::String Name;
 		CoreLib::List<Bone> Bones;
 		CoreLib::List<VectorMath::Matrix4> InversePose;
 		CoreLib::EnumerableDictionary<CoreLib::String, int> BoneMapping;
@@ -100,20 +120,46 @@ namespace GameEngine
 	{
 	public:
 		CoreLib::List<BoneTransformation> Transforms;
-		void GetMatrices(const Skeleton * skeleton, CoreLib::List<VectorMath::Matrix4> & matrices) const
+
+		// used in Rendering
+		void GetMatrices(const Skeleton * skeleton, CoreLib::List<VectorMath::Matrix4> & matrices, bool multiplyInversePose = true, RetargetFile * retarget = nullptr) const
 		{
 			matrices.Clear();
 			matrices.SetSize(Transforms.Count());
 			for (int i = 0; i < matrices.Count(); i++)
-				matrices[i] = Transforms[i].ToMatrix();
+			{
+				auto transform = Transforms[i];
+				if (retarget)
+				{
+					transform.Rotation = transform.Rotation * retarget->RetargetTransforms[i].Rotation;
+					// YONGH: Hack: use translation from mesh's own bind pose instead of translation data from animation file to 
+					//  adapt to different body heights. Because we don't want to modify the scale factors of that many bones.
+					// this is fine if we are only talking about human character animations
+
+					transform.Translation.x *= retarget->RetargetTransforms[i].ScaleX;
+					transform.Translation.y *= retarget->RetargetTransforms[i].ScaleY;
+					transform.Translation.z *= retarget->RetargetTransforms[i].ScaleZ;
+				}
+				else
+				{
+					// YONGH: Hack: use translation from mesh's own bind pose instead of translation data from animation file to 
+					//  adapt to different body heights.
+					if (i != 0)
+						transform.Translation = skeleton->Bones[i].BindPose.Translation;
+				}
+				matrices[i] = transform.ToMatrix();
+			}
 			for (int i = 0; i < skeleton->Bones.Count(); i++)
 			{
 				auto tmp = matrices[i];
 				if (skeleton->Bones[i].ParentId != -1)
 					VectorMath::Matrix4::Multiply(matrices[i], matrices[skeleton->Bones[i].ParentId], tmp);
 			}
-			for (int i = 0; i < matrices.Count(); i++)
-				VectorMath::Matrix4::Multiply(matrices[i], matrices[i], skeleton->InversePose[i]);
+			if (multiplyInversePose)
+			{
+				for (int i = 0; i < matrices.Count(); i++)
+					VectorMath::Matrix4::Multiply(matrices[i], matrices[i], skeleton->InversePose[i]);
+			}
 		}
 	};
 
@@ -145,7 +191,6 @@ namespace GameEngine
 		void SaveToFile(const CoreLib::String & filename);
 		void LoadFromFile(const CoreLib::String & filename);
 	};
-
 }
 
 #endif

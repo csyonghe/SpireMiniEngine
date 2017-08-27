@@ -30,7 +30,8 @@ namespace GameEngine
         void AddFrustum(VectorMath::Vec3 v1, VectorMath::Vec3 v2, float radius1, float radius2, int edges = 16);
 
         Mesh ToMesh();
-    };
+		static Mesh TransformMesh(Mesh & input, VectorMath::Matrix4 & transform);
+	};
 }
 
 #endif

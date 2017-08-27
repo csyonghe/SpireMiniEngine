@@ -33,10 +33,13 @@ namespace GameEngine
                 }
             }
         }
+		
         for (auto & bone : result.Bones)
             bone.ParentId = bone.ParentId == -1?-1:boneMapping[bone.ParentId]();
+		
         for (auto & mapping : BoneMapping)
             result.BoneMapping[mapping.Key] = boneMapping[mapping.Value]();
+
         return result;
     }
 
@@ -123,6 +126,51 @@ namespace GameEngine
 		stream->Close();
 	}
 	void SkeletalAnimation::LoadFromFile(const CoreLib::String & filename)
+	{
+		RefPtr<FileStream> stream = new FileStream(filename, FileMode::Open);
+		LoadFromStream(stream.Ptr());
+		stream->Close();
+	}
+	void RetargetFile::SaveToStream(CoreLib::IO::Stream * stream)
+	{
+		BinaryWriter writer(stream);
+		writer.Write(SourceSkeletonName);
+		writer.Write(TargetSkeletonName);
+		writer.Write(RetargetTransforms.Count());
+		writer.Write(RetargetTransforms.Buffer(), RetargetTransforms.Count());
+		writer.Write(BoneMapping.Count());
+		for (auto & kv : BoneMapping)
+		{
+			writer.Write(kv.Key);
+			writer.Write(kv.Value);
+		}
+		writer.ReleaseStream();
+	}
+	void RetargetFile::LoadFromStream(CoreLib::IO::Stream * stream)
+	{
+		BinaryReader reader(stream);
+		reader.Read(SourceSkeletonName);
+		reader.Read(TargetSkeletonName);
+		int retargetTransformCount;
+		reader.Read(retargetTransformCount);
+		RetargetTransforms.SetSize(retargetTransformCount);
+		reader.Read(RetargetTransforms.Buffer(), RetargetTransforms.Count());
+		int mappingCount = reader.ReadInt32();
+		for (int i = 0; i <mappingCount; i++)
+		{
+			auto key = reader.ReadString();
+			auto value = reader.ReadInt32();
+			BoneMapping[key] = value;
+		}
+		reader.ReleaseStream();
+	}
+	void RetargetFile::SaveToFile(const CoreLib::String & filename)
+	{
+		RefPtr<FileStream> stream = new FileStream(filename, FileMode::Create);
+		SaveToStream(stream.Ptr());
+		stream->Close();
+	}
+	void RetargetFile::LoadFromFile(const CoreLib::String & filename)
 	{
 		RefPtr<FileStream> stream = new FileStream(filename, FileMode::Open);
 		LoadFromStream(stream.Ptr());

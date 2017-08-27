@@ -32,7 +32,7 @@ namespace GameEngine
 					parser.ReadToken();
 					while (!parser.IsEnd())
 					{
-						auto src = parser.ReadWord();
+						auto src = parser.ReadStringLiteral();
 						parser.Read("=");
 						auto dest = parser.ReadWord();
 						Mapping[src] = dest;

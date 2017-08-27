@@ -2,6 +2,7 @@
 #include "CoreLib/LibIO.h"
 #include "Skeleton.h"
 #include "Mesh.h"
+#include "MeshBuilder.h"
 #include "WinForm/WinButtons.h"
 #include "WinForm/WinCommonDlg.h"
 #include "WinForm/WinForm.h"
@@ -35,31 +36,10 @@ public:
 	bool FlipYZ = true;
 };
 
-//Quaternion FlipYZ(Quaternion q)
-//{
-//	return Quaternion::FromAxisAngle(Vec3::Create(1.0f, 0.0f, 0.0f), -Math::Pi*0.5f) * q * Quaternion::FromAxisAngle(Vec3::Create(1.0f, 0.0f, 0.0f), Math::Pi*0.5f);
-//}
-//
 Vec3 FlipYZ(const Vec3 & v)
 {
 	return Vec3::Create(v.x, v.z, -v.y);
 }
-//
-//Matrix4 FlipYZ(const Matrix4 & v)
-//{
-//	Matrix4 rs = v;
-//	for (int i = 0; i < 4; i++)
-//	{
-//		rs.m[1][i] = v.m[2][i];
-//		rs.m[2][i] = -v.m[1][i];
-//	}
-//	for (int i = 0; i < 4; i++)
-//	{
-//		Swap(rs.m[i][1], rs.m[i][2]);
-//		rs.m[i][2] = -rs.m[i][2];
-//	}
-//	return rs;
-//}
 
 template<typename TFunc>
 void TraverseBvhJoints(BvhJoint * joint, const TFunc & f)
@@ -195,6 +175,95 @@ Skeleton Retarget(const Skeleton & modelSkeleton, const Skeleton & motionSkeleto
         Matrix4::Multiply(result.InversePose[i], result.InversePose[i], rot);
     }
     return result;
+}
+
+struct SkeletonMeshVertex
+{
+	Vec3 pos;
+	Quaternion tangentFrame;
+	int boneId;
+};
+
+Mesh CreateStickmanMesh(const BBox& bbox, Skeleton * skeleton, float width)
+{
+	Mesh rs;
+	rs.FromSkeleton(skeleton, (bbox.Max - bbox.Min).Length() * 0.08f);
+
+	//
+	// add head and hands to mesh
+	//
+	List<SkeletonMeshVertex> vertices;
+	List<Matrix4> forwardTransforms;
+	List<Vec3> positions;
+	positions.SetSize(skeleton->Bones.Count());
+	forwardTransforms.SetSize(skeleton->Bones.Count());
+	for (int i = 0; i < skeleton->Bones.Count(); i++)
+	{
+		forwardTransforms[i] = skeleton->Bones[i].BindPose.ToMatrix();
+		if (skeleton->Bones[i].ParentId != -1)
+			Matrix4::Multiply(forwardTransforms[i], forwardTransforms[skeleton->Bones[i].ParentId], forwardTransforms[i]);
+
+		positions[i] = Vec3::Create(forwardTransforms[i].values[12], forwardTransforms[i].values[13], forwardTransforms[i].values[14]);
+	}
+
+	auto appendMesh = [&](Mesh & m, Mesh & m1, int boneId)
+	{
+		int oldVerNum = m.GetVertexCount();
+		int boxVerticesNum = m1.GetVertexCount();
+		int verticesNum = oldVerNum + boxVerticesNum;
+		m.AllocVertexBuffer(verticesNum);
+
+		for (int i = 0; i < boxVerticesNum; i++)
+		{
+			m.SetVertexPosition(i + oldVerNum, m1.GetVertexPosition(i));
+			m.SetVertexTangentFrame(i + oldVerNum, m1.GetVertexTangentFrame(i));
+			m.SetVertexSkinningBinding(i + oldVerNum, MakeArrayView(20), MakeArrayView(1.0f));
+		}
+		for (auto & idx : m1.Indices)
+			idx += oldVerNum;
+		m.Indices.AddRange(m1.Indices);
+		m.Bounds.Union(m1.Bounds);
+	};
+
+	// head
+	const int headBoneId = 20;
+	{
+		MeshBuilder mb;
+		mb.AddBox(Vec3::Create(-1.5f, 0.0f, -2.2f), Vec3::Create(1.5f, 6.0f, 2.2f));
+		//mb.AddBox(Vec3::Create(1.5f, 2.5f, -0.5f), Vec3::Create(25.5f, 3.5f, 0.5f));
+		Mesh head = mb.ToMesh();
+		
+		Vec3 neckDir = positions[headBoneId] - positions[headBoneId - 1];
+		neckDir.Normalize();
+		Vec3 normX = Vec3::Cross(neckDir, Vec3::Create(0.0f, 1.0f, 0.0f));
+		Vec3 normZ = Vec3::Cross(normX, neckDir);
+		Matrix4 rot;
+		//Matrix4::CreateIdentityMatrix(rot);
+		//rot.values[0] = normX.x;
+		//rot.values[1] = normX.y;
+		//rot.values[2] = normX.z;
+
+		//rot.values[4] = neckDir.x;
+		//rot.values[5] = neckDir.y;
+		//rot.values[6] = neckDir.z;
+
+		//rot.values[8] = normZ.x;
+		//rot.values[9] = normZ.y;
+		//rot.values[10] = normZ.z;
+		//// test
+		//Vec3 test = rot.GetMatrix3().Transform(Vec3::Create(0.0f, 1.0f, 0.0f));
+
+
+		Matrix4::RotationZ(rot, -0.44f);
+		//rot = forwardTransforms[headBoneId];
+		Vec3 headPos = positions[headBoneId];
+		rot.values[12] = headPos.x;
+		rot.values[13] = headPos.y;
+		rot.values[14] = headPos.z;
+		head = MeshBuilder::TransformMesh(head, rot);
+		appendMesh(rs, head, headBoneId);
+	}
+	return rs;
 }
 
 void Export(ExportArguments args)
@@ -376,7 +445,6 @@ void Export(ExportArguments args)
 					Matrix4::Multiply(rot, zMat, yMat);
 					Matrix4::Multiply(rot, xMat, rot);
 				}
-				
 				keyFrame.Transform.Rotation = Quaternion::FromMatrix(rot.GetMatrix3());
 				if (args.FlipYZ)
 				{
@@ -399,8 +467,7 @@ void Export(ExportArguments args)
 		BBox bbox;
 		bbox.Init();
 		FindBBox(bbox, file.Hierarchy.Ptr());
-		Mesh mesh;
-		mesh.FromSkeleton(&skeleton, (bbox.Max-bbox.Min).Length() * 0.08f);
+		Mesh mesh = CreateStickmanMesh(bbox, &skeleton, (bbox.Max - bbox.Min).Length() * 0.08f);
 		mesh.SaveToFile(Path::ReplaceExt(args.FileName, "mesh"));
 	}
 }

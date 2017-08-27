@@ -152,4 +152,21 @@ namespace GameEngine
         return rs;
     }
 
+	Mesh MeshBuilder::TransformMesh(Mesh & input, Matrix4 & transform)
+	{
+		Mesh rs = input;
+		for (int i = 0; i < rs.GetVertexCount(); i++)
+		{
+			auto pos = rs.GetVertexPosition(i);
+			pos = transform.TransformHomogeneous(pos);
+			rs.SetVertexPosition(i, pos);
+			auto mat3 = transform.GetMatrix3();
+			auto q = Quaternion::FromMatrix(mat3);
+			auto t = rs.GetVertexTangentFrame(i);
+			t = q * t; // or t * q ?
+			rs.SetVertexTangentFrame(i, t);
+		}
+		return rs;
+	}
+
 }

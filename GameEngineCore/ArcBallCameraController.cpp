@@ -160,6 +160,7 @@ namespace GameEngine
 		Engine::Instance()->GetUiEntry()->OnMouseMove.Bind(this, &ArcBallCameraControllerActor::MouseMove);
 		Engine::Instance()->GetUiEntry()->OnMouseUp.Bind(this, &ArcBallCameraControllerActor::MouseUp);
 		Engine::Instance()->GetUiEntry()->OnMouseWheel.Bind(this, &ArcBallCameraControllerActor::MouseWheel);
+		Engine::Instance()->GetInputDispatcher()->BindActionHandler("dumpcam", ActionInputHandlerFunc(this, &ArcBallCameraControllerActor::DumpCamera));
 		FindTargetCamera();
 		UpdateCamera();
 	}
@@ -171,12 +172,16 @@ namespace GameEngine
 
 	bool ArcBallCameraControllerActor::DumpCamera(const CoreLib::String & /*axisName*/, ActionInput /*input*/)
 	{
-		FindTargetCamera();
-		if (targetCamera)
-		{
-			Print("orientation [%.3f %.3f %.3f]\nposition [%.2f %.2f %.2f]\n", targetCamera->GetYaw(), targetCamera->GetPitch(), targetCamera->GetRoll(),
-				targetCamera->GetPosition().x, targetCamera->GetPosition().y, targetCamera->GetPosition().z);
-		}
+		//FindTargetCamera();
+		//if (targetCamera)
+		//{
+		//	Print("orientation [%.3f %.3f %.3f]\nposition [%.2f %.2f %.2f]\n", targetCamera->GetYaw(), targetCamera->GetPitch(), targetCamera->GetRoll(),
+		//		targetCamera->GetPosition().x, targetCamera->GetPosition().y, targetCamera->GetPosition().z);
+		//}
+		Print("center [%.3f, %.3f, %.3f]\n", currentArcBall.center.x, currentArcBall.center.y, currentArcBall.center.z);
+		Print("radius %.3f\n", currentArcBall.radius);
+		Print("alpha %.3f\n", currentArcBall.alpha);
+		Print("beta %.3f\n", currentArcBall.beta);
 		return true;
 	}
 	void ArcBallParams::GetCoordinates(VectorMath::Vec3 & camPos, VectorMath::Vec3 & up, VectorMath::Vec3 & right, VectorMath::Vec3 & dir)

@@ -15,6 +15,7 @@ namespace GameEngine
 	class PipelineContext;
 	class SceneResource;
 	class Pose;
+	class RetargetFile;
 
 	class DrawableMesh : public CoreLib::RefObject
 	{
@@ -80,7 +81,7 @@ namespace GameEngine
 		}
 		void UpdateMaterialUniform();
 		void UpdateTransformUniform(const VectorMath::Matrix4 & localTransform);
-		void UpdateTransformUniform(const VectorMath::Matrix4 & localTransform, const Pose & pose);
+		void UpdateTransformUniform(const VectorMath::Matrix4 & localTransform, const Pose & pose, RetargetFile * retarget = nullptr);
 	};
 
 	class DrawableSink

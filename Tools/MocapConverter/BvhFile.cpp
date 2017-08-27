@@ -72,6 +72,16 @@ namespace GameEngine
 				}
 				else if (p.LookAhead("JOINT"))
 					result->SubJoints.Add(ParseNode(p));
+				else if (p.LookAhead("End"))
+				{
+					p.ReadToken();
+					p.Read("Site");
+					p.Read("{");
+					p.Read("OFFSET");
+					for (int i = 0; i < 3; i++)
+						p.ReadDouble();
+					p.Read("}");
+				}
 				else
 					throw TextFormatException(String("invalid Bvh field: ") + p.NextToken().Content);
 			}

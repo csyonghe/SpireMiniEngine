@@ -94,7 +94,7 @@ namespace CoreLib
 			default:
 				break;
 			}
-			int shFlag;
+			int shFlag = _SH_DENYWR;
 #ifdef _WIN32
 			switch (share)
 			{
@@ -114,7 +114,13 @@ namespace CoreLib
 				throw ArgumentException("Invalid file share mode.");
 				break;
 			}
-			handle = _wfsopen(fileName.ToWString(), mode, shFlag);
+			//handle = _wfsopen(fileName.ToWString(), mode, shFlag);
+			if (shFlag == _SH_DENYRW)
+#pragma warning(suppress: 4996)
+				handle = _wfopen(fileName.ToWString(), mode);
+			else
+				handle = _wfsopen(fileName.ToWString(), mode, shFlag);
+
 #else
 			handle = fopen(fileName.Buffer(), modeMBCS);
 #endif
