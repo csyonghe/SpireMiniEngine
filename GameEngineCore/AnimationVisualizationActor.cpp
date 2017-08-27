@@ -42,15 +42,6 @@ namespace GameEngine
                 isInvalid = true;
             return true;
         }
-        if (parser.LookAhead("MotionGraph"))
-        {
-            parser.ReadToken();
-            MotionGraphName = parser.ReadStringLiteral();
-            Graph = level->LoadMotionGraph(MotionGraphName);
-            if (!Graph)
-                isInvalid = true;
-            return true;
-        }
         return false;
     }
 

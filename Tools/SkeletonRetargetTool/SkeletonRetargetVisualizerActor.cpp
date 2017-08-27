@@ -9,7 +9,6 @@
 #include "Level.h"
 #include "CoreLib/LibUI/LibUI.h"
 #include "SystemWindow.h"
-#include "EulerAngle.h"
 
 using namespace GraphicsUI;
 using namespace GameEngine;
@@ -191,7 +190,7 @@ public:
 				if (angle > -360.0f && angle < 360.0f)
 				{
 					auto & info = retargetFile.RetargetTransforms[lstBones->SelectedIndex];
-					EulerAngleToQuaternion(info.Rotation, StringToFloat(txtX->GetText()) / 180.0f * Math::Pi, StringToFloat(txtY->GetText()) / 180.0f * Math::Pi, StringToFloat(txtZ->GetText()) / 180.0f * Math::Pi, "YZX");
+					EulerAngleToQuaternion(info.Rotation, StringToFloat(txtX->GetText()) / 180.0f * Math::Pi, StringToFloat(txtY->GetText()) / 180.0f * Math::Pi, StringToFloat(txtZ->GetText()) / 180.0f * Math::Pi, EulerAngleOrder::YZX);
 				}
 			}
 			catch (...)
@@ -209,7 +208,7 @@ public:
 		if (lstBones->SelectedIndex != -1 && lstBones->SelectedIndex < retargetFile.RetargetTransforms.Count())
 		{
 			float x, y, z;
-			QuaternionToEulerAngle(retargetFile.RetargetTransforms[lstBones->SelectedIndex].Rotation, x, y, z, "YZX");
+			QuaternionToEulerAngle(retargetFile.RetargetTransforms[lstBones->SelectedIndex].Rotation, x, y, z, EulerAngleOrder::YZX);
 			disableTextChange = true;
 			txtX->SetText(x * 180.0f / Math::Pi);
 			txtY->SetText(y * 180.0f / Math::Pi);

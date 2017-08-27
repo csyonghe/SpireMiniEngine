@@ -19,8 +19,7 @@ namespace GameEngine
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<Mesh>> Meshes;
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<Skeleton>> Skeletons;
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<SkeletalAnimation>> Animations;
-        CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<MotionGraph>> MotionGraphs;
-        CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<MotionDatabase>> MotionDatabases;
+
 		CoreLib::EnumerableDictionary<CoreLib::String, RetargetFile> RetargetFiles;
 		CoreLib::EnumerableDictionary<CoreLib::String, RefPtr<Actor>> Actors;
 		CoreLib::RefPtr<CameraActor> CurrentCamera;

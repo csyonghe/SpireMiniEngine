@@ -1979,7 +1979,17 @@ namespace VectorMath
 			else
 				return Lerp(q1, q3, t);
 		}
+		static void SetYawAngle(VectorMath::Quaternion & q, float yaw);
+		static float GetYawAngle(const VectorMath::Quaternion & q);
 	};
+
+	enum class EulerAngleOrder
+	{
+		XYZ, YZX, ZXY
+	};
+	void EulerAngleToQuaternion(VectorMath::Quaternion & q, float x, float y, float z, EulerAngleOrder order);
+	void QuaternionToEulerAngle(const VectorMath::Quaternion & q, float & x, float &  y, float & z, EulerAngleOrder order);
+	
 }
 
 #endif

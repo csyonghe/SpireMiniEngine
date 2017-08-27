@@ -133,8 +133,8 @@ namespace GameEngine
             {
                 Engine::Instance()->Resize(mainWindow->GetClientWidth(), mainWindow->GetClientHeight()); 
             });
-			mainWindow->SetClientWidth(2560);
-			mainWindow->SetClientHeight(1440);
+			mainWindow->SetClientWidth(args.Width);
+			mainWindow->SetClientHeight(args.Height);
             mainWindow->CenterScreen();
             CoreLib::WinForm::Application::SetMainLoopEventHandler(new CoreLib::WinForm::NotifyEvent(this, &Engine::MainLoop));
 
@@ -149,18 +149,17 @@ namespace GameEngine
 
 			uiCommandForm = new CommandForm(mainWindow->GetUIEntry());
 			uiCommandForm->OnCommand.Bind(this, &Engine::OnCommand);
-			//mainWindow->GetUIEntry()->CloseWindow(uiCommandForm); // (yanzhey): demo don't need the command form
 
 			drawCallStatForm = new DrawCallStatForm(mainWindow->GetUIEntry());
 			drawCallStatForm->Posit(args.Width - drawCallStatForm->GetWidth() - 10, 10, drawCallStatForm->GetWidth(), drawCallStatForm->GetHeight());
 			mainWindow->GetUIEntry()->CloseWindow(drawCallStatForm);
+
 			if (args.NoConsole)
 			{
                 mainWindow->GetUIEntry()->CloseWindow(drawCallStatForm);
                 mainWindow->GetUIEntry()->CloseWindow(uiCommandForm);
 			}
 			renderStats.SetSize(renderStats.GetCapacity());
-			//mainWindow->GetUIEntry()->CloseWindow(uiCommandForm);	// (yanzhey) no command window in demo
 
 			switch (args.API)
 			{
@@ -498,12 +497,6 @@ namespace GameEngine
 			break;
 		case ResourceType::ExtTools:
 			subDirName = "ExtTools";
-			break;
-		case ResourceType::Scripts:
-			subDirName = "Scripts";
-			break;
-		case ResourceType::Graphs:
-			subDirName = "Graphs";
 			break;
 		}
 		if (useEngineDir)

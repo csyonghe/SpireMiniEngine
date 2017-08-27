@@ -1,4 +1,5 @@
 #include "VectorMath.h"
+#include "Exception.h"
 
 namespace VectorMath
 {
@@ -379,6 +380,77 @@ namespace VectorMath
 		float retVal;
 		_mm_store_ss(&retVal, Det0);
 		return retVal;
+	}
+	void EulerAngleToQuaternion(Quaternion & q, float x, float y, float z, EulerAngleOrder order)
+	{
+		if (order == EulerAngleOrder::YZX)
+		{
+			Matrix4 rotx, roty, rotz;
+			Matrix4::RotationX(rotx, x);
+			Matrix4::RotationY(roty, y);
+			Matrix4::RotationZ(rotz, z);
+			Matrix4::Multiply(rotz, rotz, roty);
+			Matrix4::Multiply(rotx, rotx, rotz);
+			q = Quaternion::FromMatrix(rotx.GetMatrix3());
+		}
+		else if (order == EulerAngleOrder::ZXY)
+		{
+			Matrix4 rotx, roty, rotz;
+			Matrix4::RotationX(rotx, x);
+			Matrix4::RotationY(roty, y);
+			Matrix4::RotationZ(rotz, z);
+			Matrix4::Multiply(rotx, rotx, rotz);
+			Matrix4::Multiply(roty, roty, rotx);
+			q = Quaternion::FromMatrix(roty.GetMatrix3());
+		}
+		else
+			throw CoreLib::Basic::NotImplementedException();
+	}
+
+	void QuaternionToEulerAngle(const Quaternion & q, float & x, float &  y, float & z, EulerAngleOrder order)
+	{
+		// Note: asin [-pi/2, pi/2]
+		//       atan2f [-pi, pi]
+		if (order == EulerAngleOrder::YZX)
+		{
+			auto matrix3 = q.ToMatrix3().m;
+			x = atan2f(matrix3[1][2], matrix3[1][1]);
+			y = atan2f(matrix3[2][0], matrix3[0][0]);
+			z = asinf(-matrix3[1][0]);
+			if (cosf(z) == 0)
+			{
+				printf("Note: Needs special handling when cosz = 0. \n.");
+			}
+		}
+		else if (order == EulerAngleOrder::ZXY)
+		{
+			auto rerange = [](float x) {return x < 0 ? x - Math::Pi : x + Math::Pi; };
+			auto matrix3 = q.ToMatrix3().m;
+			x = asinf(Math::Clamp(-matrix3[2][1], -1.0f, 1.0f));
+			y = atan2f(matrix3[2][0], matrix3[2][2]);
+			z = atan2f(matrix3[0][1], matrix3[1][1]);
+			if (cosf(x) < 1e-6)
+			{
+				y = 0.f;
+				z = atan2f(matrix3[1][0], matrix3[0][0]);
+			}
+		}
+		else
+			throw CoreLib::Basic::NotImplementedException();
+	}
+	
+	void Quaternion::SetYawAngle(VectorMath::Quaternion & q, float yaw)
+	{
+		float x = 0.f, y = 0.f, z = 0.f;
+		QuaternionToEulerAngle(q, x, y, z, EulerAngleOrder::ZXY);
+		EulerAngleToQuaternion(q, x, yaw, z, EulerAngleOrder::ZXY);
+	}
+
+	float Quaternion::GetYawAngle(const VectorMath::Quaternion & q)
+	{
+		float x = 0.f, y = 0.f, z = 0.f;
+		QuaternionToEulerAngle(q, x, y, z, EulerAngleOrder::ZXY);
+		return y;
 	}
 
 }

@@ -26,7 +26,7 @@
     <SccProvider>SAK</SccProvider>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>GameEngineCore</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.10586.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -188,8 +188,6 @@
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="MeshBuilder.cpp" />
     <ClCompile Include="MotionGraph.cpp" />
-    <ClCompile Include="MotionGraphAnimationSynthesizer.cpp" />
-    <ClCompile Include="MotionGraphMeshActor.cpp" />
     <ClCompile Include="PipelineContext.cpp" />
     <ClCompile Include="PostRenderPass.cpp" />
     <ClCompile Include="RenderContext.cpp" />
@@ -254,8 +252,6 @@
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="MeshBuilder.h" />
     <ClInclude Include="MotionGraph.h" />
-    <ClInclude Include="MotionGraphAnimationSynthesizer.h" />
-    <ClInclude Include="MotionGraphMeshActor.h" />
     <ClInclude Include="OS.h" />
     <ClInclude Include="PipelineContext.h" />
     <ClInclude Include="PostRenderPass.h" />
