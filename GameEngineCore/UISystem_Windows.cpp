@@ -776,7 +776,7 @@ namespace GameEngine
 		void SubmitCommands(UIWindowContext * wndCtx, GameEngine::Fence * fence)
 		{
 			frameId++;
-			rendererApi->ExecuteCommandBuffers(wndCtx->frameBuffer.Ptr(), MakeArray(wndCtx->blitCmdBuffer->GetBuffer(), wndCtx->cmdBuffer->GetBuffer()).GetArrayView(), fence);
+			rendererApi->ExecuteRenderPass(wndCtx->frameBuffer.Ptr(), MakeArray(wndCtx->blitCmdBuffer->GetBuffer(), wndCtx->cmdBuffer->GetBuffer()).GetArrayView(), fence);
 		}
 		bool IsBufferFull()
 		{

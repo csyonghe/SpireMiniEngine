@@ -18,7 +18,7 @@ namespace GameEngine
 
 	struct FrameRenderTask
 	{
-		CoreLib::List<RenderPassInstance> renderPasses;
+		CoreLib::List<CoreLib::RefPtr<RenderTask>> subTasks;
 		SharedModuleInstances sharedModuleInstances;
 		void Clear();
 	};

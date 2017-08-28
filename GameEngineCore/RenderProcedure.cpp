@@ -4,6 +4,6 @@ namespace GameEngine
 {
 	void FrameRenderTask::Clear()
 	{
-		renderPasses.Clear();
+		subTasks.Clear();
 	}
 }

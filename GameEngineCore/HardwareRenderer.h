@@ -462,20 +462,6 @@ namespace GameEngine
 		Shader() {};
 	};
 
-	class FrameBuffer : public CoreLib::RefObject
-	{
-	protected:
-		FrameBuffer() {};
-	};
-
-	class Fence : public CoreLib::RefObject 
-	{
-	protected:
-		Fence() {}
-	public:
-		virtual void Reset() = 0;
-		virtual void Wait() = 0;
-	};
 
 	class RenderAttachments
 	{
@@ -597,6 +583,23 @@ namespace GameEngine
 		}
 	};
 
+	class FrameBuffer : public CoreLib::RefObject
+	{
+	protected:
+		FrameBuffer() {};
+	public:
+		virtual RenderAttachments& GetRenderAttachments() = 0;
+	};
+
+	class Fence : public CoreLib::RefObject 
+	{
+	protected:
+		Fence() {}
+	public:
+		virtual void Reset() = 0;
+		virtual void Wait() = 0;
+	};
+
 	class RenderTargetLayout : public CoreLib::RefObject
 	{
 	protected:
@@ -697,6 +700,13 @@ namespace GameEngine
 		virtual void SetBindingLayout(CoreLib::ArrayView<DescriptorSetLayout*> descriptorSets) = 0;
 		virtual void SetDebugName(CoreLib::String name) = 0;
 		virtual Pipeline* ToPipeline(RenderTargetLayout* renderTargetLayout) = 0;
+		virtual Pipeline* CreateComputePipeline(CoreLib::ArrayView<DescriptorSetLayout*> descriptorSets, Shader* shader) = 0;
+	};
+
+	enum class TextureLayoutTransfer
+	{
+		RenderAttachmentToSample,
+		UndefinedToRenderAttachment
 	};
 
 	class CommandBuffer : public CoreLib::RefObject
@@ -720,7 +730,8 @@ namespace GameEngine
 		virtual void DrawInstanced(int numInstances, int firstVertex, int vertexCount) = 0;
 		virtual void DrawIndexed(int firstIndex, int indexCount) = 0;
 		virtual void DrawIndexedInstanced(int numInstances, int firstIndex, int indexCount) = 0;
-		virtual void TransferLayout(const RenderAttachments& attachments, CoreLib::ArrayView<TextureUsage> layouts) = 0;
+		virtual void DispatchCompute(int groupCountX, int groupCountY, int groupCountZ) = 0;
+		virtual void TransferLayout(const RenderAttachments& attachments, TextureLayoutTransfer transferDirection) = 0;
 		virtual void Blit(Texture2D* dstImage, Texture2D* srcImage) = 0;
 		virtual void ClearAttachments(FrameBuffer * frameBuffer) = 0;
 	};
@@ -739,7 +750,7 @@ namespace GameEngine
 		HardwareRenderer() {};
 	public:
 		virtual void ClearTexture(GameEngine::Texture2D* texture) = 0;
-		virtual void ExecuteCommandBuffers(FrameBuffer* frameBuffer, CoreLib::ArrayView<CommandBuffer*> commands, Fence* fence) = 0;
+		virtual void ExecuteRenderPass(FrameBuffer* frameBuffer, CoreLib::ArrayView<CommandBuffer*> commands, Fence* fence) = 0;
 		virtual void Present(WindowSurface * surface, Texture2D* srcImage) = 0;
 		virtual void Blit(Texture2D* dstImage, Texture2D* srcImage) = 0;
 		virtual void Wait() = 0;

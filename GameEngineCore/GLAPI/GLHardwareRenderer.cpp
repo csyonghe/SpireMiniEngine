@@ -1056,7 +1056,12 @@ namespace GLL
 			Attachment() = default;
 		};
 	public:
+		RenderAttachments renderAttachments;
 		CoreLib::List<Attachment> attachments;
+		virtual RenderAttachments& GetRenderAttachments() override
+		{
+			return renderAttachments;
+		}
 	};
 
 	class RenderTargetLayout : public GameEngine::RenderTargetLayout
@@ -1139,8 +1144,7 @@ namespace GLL
 			//		throw HardwareRendererException(L"Incompatible RenderTargetLayout and RenderAttachments");
 			//}
 	#endif
-			FrameBufferDescriptor* result = new FrameBufferDescriptor;
-
+			FrameBufferDescriptor* result = new FrameBufferDescriptor();
 			for (auto renderAttachment : renderAttachments.attachments)
 			{
 				if (renderAttachment.handle.tex2D)
@@ -1150,7 +1154,7 @@ namespace GLL
 				else if (renderAttachment.handle.texCube)
 					result->attachments.Add(FrameBufferDescriptor::Attachment(dynamic_cast<GLL::TextureCube*>(renderAttachment.handle.texCube), renderAttachment.face, renderAttachment.layer));
 			}
-
+			result->renderAttachments = renderAttachments;
 			return result;
 		}
 	};
@@ -1375,6 +1379,11 @@ namespace GLL
 		GLuint GetHandle()
 		{
 			return Handle;
+		}
+		~Shader()
+		{
+			if (Handle)
+				glDeleteShader(Handle);
 		}
 	};
 
@@ -1671,6 +1680,7 @@ namespace GLL
 
 	struct PipelineSettings
 	{
+		bool isCompute = false;
 		Program program;
 		VertexFormat format;
 		bool primitiveRestart = false;
@@ -1695,6 +1705,11 @@ namespace GLL
 		Pipeline(const PipelineSettings & pSettings)
 			: settings(pSettings)
 		{}
+		~Pipeline()
+		{
+			if (settings.program.Handle)
+				glDeleteProgram(settings.program.Handle);
+		}
 	};
 
 	class PipelineBuilder : public GameEngine::PipelineBuilder
@@ -1825,6 +1840,24 @@ namespace GLL
 			rs->Name = debugName;
 			return rs;
 		}
+		virtual Pipeline* CreateComputePipeline(CoreLib::ArrayView<GameEngine::DescriptorSetLayout*> descriptorSets, GameEngine::Shader* shader)
+		{
+			PipelineSettings settings;
+			settings.isCompute = true;
+			List<GLL::DescriptorSetLayout*> descriptorLayouts;
+			int i = 0;
+			for (auto descSet : descriptorSets)
+			{
+				if (descSet)
+					settings.bindingLayout[i].AddRange(((GLL::DescriptorSetLayout*)descSet)->layouts);
+				i++;
+			}
+			auto programHandle = glCreateProgram();
+			glAttachShader(programHandle, reinterpret_cast<GLL::Shader*>(shader)->Handle);
+			settings.program.Handle = programHandle;
+			settings.program.Link();
+			return new Pipeline(settings);
+		}
 	};
 
 	enum class Command
@@ -1840,6 +1873,7 @@ namespace GLL
 		DrawIndexedInstanced,
 		Blit,
 		ClearAttachments,
+		DispatchCompute
 	};
 
 	struct SetViewportData
@@ -1876,6 +1910,10 @@ namespace GLL
 		BufferObject * buffer;
 		int offset;
 	};
+	struct DispatchComputeData
+	{
+		int x, y, z;
+	};
 	class CommandData
 	{
 	public:
@@ -1890,6 +1928,7 @@ namespace GLL
 			BlitData blit;
 			AttachmentData clear;
 			BindDescriptorSetData bindDesc;
+			DispatchComputeData compute;
 		};
 	};
 
@@ -1952,6 +1991,15 @@ namespace GLL
 			data.bindDesc.location = binding;
 			buffer.Add(data);
 		}
+		virtual void DispatchCompute(int groupCountX, int groupCountY, int groupCountZ) override
+		{
+			CommandData data;
+			data.command = Command::DispatchCompute;
+			data.compute.x = groupCountX;
+			data.compute.y = groupCountY;
+			data.compute.z = groupCountZ;
+			buffer.Add(data);
+		}
 		virtual void Draw(int firstVertex, int vertexCount) override
 		{
 			CommandData data;
@@ -1986,7 +2034,7 @@ namespace GLL
 			data.draw.count = indexCount;
 			buffer.Add(data);
 		}
-		virtual void TransferLayout(const RenderAttachments& /*attachments*/, ArrayView<TextureUsage> /*layouts*/) override
+		virtual void TransferLayout(const RenderAttachments& /*attachments*/, TextureLayoutTransfer /*transferDirection*/) override
 		{
 		}
 		virtual void Blit(GameEngine::Texture2D* dstImage, GameEngine::Texture2D* srcImage) override
@@ -2253,7 +2301,7 @@ namespace GLL
 			return new GLL::Fence();
 		}
 
-		virtual void ExecuteCommandBuffers(GameEngine::FrameBuffer* frameBuffer, CoreLib::ArrayView<GameEngine::CommandBuffer*> commands, GameEngine::Fence * fence) override
+		virtual void ExecuteRenderPass(GameEngine::FrameBuffer* frameBuffer, CoreLib::ArrayView<GameEngine::CommandBuffer*> commands, GameEngine::Fence * fence) override
 		{
 			auto fb = (GLL::FrameBufferDescriptor*)(frameBuffer);
 			auto setupFrameBuffer = [&]()
@@ -2453,6 +2501,10 @@ namespace GLL
 						boundDescSets[command.bindDesc.location] = command.bindDesc.descSet;
 						break;
 					}
+					case Command::DispatchCompute:
+						updateBindings();
+						glDispatchCompute(command.compute.x, command.compute.y, command.compute.z);
+						break;
 					case Command::Draw:
 						updateBindings();
 						glDrawArrays((GLenum)primType, command.draw.first, command.draw.count);

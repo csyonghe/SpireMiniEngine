@@ -263,8 +263,8 @@ namespace GameEngine
 			params.view.Transform = viewMatrix;
 			renderProc->Run(task, params);
 			hw->EndDataTransfer();
-			for (auto & pass : task.renderPasses)
-				pass.Execute(hw);
+			for (auto & pass : task.subTasks)
+				pass->Execute(hw, sharedRes->renderStats);
 
 			copyDescSet->BeginUpdate();
 			copyDescSet->Update(0, renderProc->GetOutput()->Texture.Ptr(), TextureAspect::Color);
@@ -283,7 +283,7 @@ namespace GameEngine
 			cmdBuffer->Draw(0, 4);
 			cmdBuffer->EndRecording();
 			commandBuffers.Add(cmdBuffer);
-			hw->ExecuteCommandBuffers(fb.Ptr(), MakeArrayView(cmdBuffer), nullptr);
+			hw->ExecuteRenderPass(fb.Ptr(), MakeArrayView(cmdBuffer), nullptr);
 			hw->Wait();
 		}
 
@@ -369,7 +369,7 @@ namespace GameEngine
 				cmdBuffer->Draw(0, 4);
 				cmdBuffer->EndRecording();
 				commandBuffers.Add(cmdBuffer);
-				hw->ExecuteCommandBuffers(fb.Ptr(), cmdBuffer, nullptr);
+				hw->ExecuteRenderPass(fb.Ptr(), cmdBuffer, nullptr);
 				hw->Wait();
 			}
 		}

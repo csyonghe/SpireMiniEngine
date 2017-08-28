@@ -89,30 +89,45 @@ namespace GameEngine
 		ModuleInstance * Lighting;
 	};
 
-	class RenderPassInstance
+	class RenderTask : public CoreLib::RefObject
 	{
-		friend class WorldRenderPass;
-		friend class PostRenderPass;
-		friend class RendererImpl;
-	private:
-		int renderPassId = -1;
-		int numDrawCalls = 0;
-		int numMaterials = 0;
-		int numShaders = 0;
+	public:
+		virtual void Execute(HardwareRenderer * hw, RenderStat & stats) = 0;
+	};
 
+	class WorldPassRenderTask : public RenderTask
+	{
+	public:
+		int renderPassId = -1; 
+		int numDrawCalls = 0; 
+		int numMaterials = 0; 
+		int numShaders = 0;
+		SharedModuleInstances sharedModules; 
+		AsyncCommandBuffer * commandBuffer = nullptr; 
+		RenderOutput * renderOutput = nullptr; 
+		FixedFunctionPipelineStates * fixedFunctionStates = nullptr;
+		Viewport viewport; 
+		bool clearOutput = false;
+		virtual void Execute(HardwareRenderer * hw, RenderStat & stats) override;
+		void SetFixedOrderDrawContent(PipelineContext & pipelineManager, CoreLib::ArrayView<Drawable*> drawables);
+		void SetDrawContent(PipelineContext & pipelineManager, CoreLib::List<Drawable*>& reorderBuffer, CoreLib::ArrayView<Drawable*> drawables);
+	};
+
+	class PostPassRenderTask : public RenderTask
+	{
+	public:
 		PostRenderPass * postPass = nullptr;
 		SharedModuleInstances sharedModules;
-	
-		AsyncCommandBuffer * commandBuffer = nullptr;
-		RenderOutput * renderOutput = nullptr;
-		FixedFunctionPipelineStates * fixedFunctionStates = nullptr;
-		Viewport viewport;
-		bool clearOutput = false;
-	public:
-		void SetFixedOrderDrawContent(PipelineContext & pipelineManager, CoreLib::ArrayView<Drawable*> drawables);
-		void SetDrawContent(PipelineContext & pipelineManager, CoreLib::List<Drawable*> & reorderBuffer, CoreLib::ArrayView<Drawable*> drawables);
-		void Execute(HardwareRenderer * hwRenderer);
+		virtual void Execute(HardwareRenderer * hw, RenderStat & stats) override;
 	};
+
+	class ImageTransferRenderTask : public RenderTask
+	{
+	public:
+		AsyncCommandBuffer * commandBuffer = nullptr;
+		virtual void Execute(HardwareRenderer * hw, RenderStat & stats) override;
+	};
+
 
 	CoreLib::String GetSpireOutput(SpireDiagnosticSink * sink);
 	

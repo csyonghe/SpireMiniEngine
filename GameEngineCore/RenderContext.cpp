@@ -685,7 +685,7 @@ namespace GameEngine
 		}
 	}
 
-	void RenderPassInstance::SetFixedOrderDrawContent(PipelineContext & pipelineManager, CoreLib::ArrayView<Drawable*> drawables)
+	void WorldPassRenderTask::SetFixedOrderDrawContent(PipelineContext & pipelineManager, CoreLib::ArrayView<Drawable*> drawables)
 	{
 		renderOutput->GetSize(viewport.Width, viewport.Height);
 		auto cmdBuf = commandBuffer->BeginRecording(renderOutput->GetFrameBuffer());
@@ -760,7 +760,7 @@ namespace GameEngine
 		}
 		cmdBuf->EndRecording();
 	}
-	void RenderPassInstance::SetDrawContent(PipelineContext & pipelineManager, CoreLib::List<Drawable*>& reorderBuffer, CoreLib::ArrayView<Drawable*> drawables)
+	void WorldPassRenderTask::SetDrawContent(PipelineContext & pipelineManager, CoreLib::List<Drawable*>& reorderBuffer, CoreLib::ArrayView<Drawable*> drawables)
 	{
 		reorderBuffer.Clear();
 		Material* lastMaterial = nullptr;
@@ -799,12 +799,21 @@ namespace GameEngine
 		SetFixedOrderDrawContent(pipelineManager, reorderBuffer.GetArrayView());
 
 	}
-	void RenderPassInstance::Execute(HardwareRenderer * hwRenderer)
+	void PostPassRenderTask::Execute(HardwareRenderer * hwRenderer, RenderStat & /*stats*/)
 	{
-		if (postPass)
-			postPass->Execute(sharedModules);
-		else
-			hwRenderer->ExecuteCommandBuffers(renderOutput->GetFrameBuffer(), MakeArrayView(commandBuffer->GetBuffer()), nullptr);
+		postPass->Execute(sharedModules);
+	}
+	void WorldPassRenderTask::Execute(HardwareRenderer * hwRenderer, RenderStat & stats)
+	{
+		stats.NumPasses++;
+		stats.NumDrawCalls += numDrawCalls;
+		stats.NumMaterials += numMaterials;
+		stats.NumShaders += numShaders;
+		hwRenderer->ExecuteRenderPass(renderOutput->GetFrameBuffer(), MakeArrayView(commandBuffer->GetBuffer()), nullptr);
+	}
+	void ImageTransferRenderTask::Execute(HardwareRenderer * hwRenderer, RenderStat & /*stats*/)
+	{
+		//hwRenderer->ExecuteCommandBuffer(MakeArrayView(commandBuffer->GetBuffer()));
 	}
 }
 

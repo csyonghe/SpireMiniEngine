@@ -60,8 +60,8 @@ namespace GameEngine
 
 		StandardViewUniforms viewUniform;
 
-		RenderPassInstance forwardBaseInstance, transparentPassInstance;
-		RenderPassInstance gBufferInstance;
+		RefPtr<WorldPassRenderTask> forwardBaseInstance, transparentPassInstance;
+		RefPtr<WorldPassRenderTask> gBufferInstance;
 
 		DeviceMemory renderPassUniformMemory;
 		SharedModuleInstances sharedModules;
@@ -416,9 +416,9 @@ namespace GameEngine
 							auto cullFrustum = CullFrustum(shadowMapView.InvViewProjTransform);
 							GetDrawable(&sink, true, true, cullFrustum, false);
 							GetDrawable(&sink, false, true, cullFrustum, true);
-							pass.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, drawableBuffer.GetArrayView());
+							pass->SetDrawContent(sharedRes->pipelineManager, reorderBuffer, drawableBuffer.GetArrayView());
 							sharedRes->pipelineManager.PopModuleInstance();
-							task.renderPasses.Add(pass);
+							task.subTasks.Add(pass);
 						}
 					}
 				}
@@ -433,25 +433,25 @@ namespace GameEngine
 			{
 				gBufferRenderPass->Bind();
 				sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
-				gBufferInstance.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, GetDrawable(&sink, false, false, cameraCullFrustum, false));
+				gBufferInstance->SetDrawContent(sharedRes->pipelineManager, reorderBuffer, GetDrawable(&sink, false, false, cameraCullFrustum, false));
 				sharedRes->pipelineManager.PopModuleInstance();
-				task.renderPasses.Add(gBufferInstance);
-				task.renderPasses.Add(deferredLightingPass->CreateInstance(sharedModules));
+				task.subTasks.Add(gBufferInstance);
+				task.subTasks.Add(deferredLightingPass->CreateInstance(sharedModules));
 			}
 			else
 			{
 				forwardRenderPass->Bind();
 				sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
 				sharedRes->pipelineManager.PushModuleInstance(&lightingParams);
-				forwardBaseInstance.SetDrawContent(sharedRes->pipelineManager, reorderBuffer, GetDrawable(&sink, false, false, cameraCullFrustum, false));
+				forwardBaseInstance->SetDrawContent(sharedRes->pipelineManager, reorderBuffer, GetDrawable(&sink, false, false, cameraCullFrustum, false));
 				sharedRes->pipelineManager.PopModuleInstance();
 				sharedRes->pipelineManager.PopModuleInstance();
-				task.renderPasses.Add(forwardBaseInstance);
+				task.subTasks.Add(forwardBaseInstance);
 			}
 
 			if (useAtmosphere)
 			{
-				task.renderPasses.Add(atmospherePass->CreateInstance(sharedModules));
+				task.subTasks.Add(atmospherePass->CreateInstance(sharedModules));
 			}
 			task.sharedModuleInstances = sharedModules;
 			
@@ -473,20 +473,20 @@ namespace GameEngine
 				sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
 				sharedRes->pipelineManager.PushModuleInstance(&lightingParams);
 
-				transparentPassInstance.SetFixedOrderDrawContent(sharedRes->pipelineManager, reorderBuffer.GetArrayView());
+				transparentPassInstance->SetFixedOrderDrawContent(sharedRes->pipelineManager, reorderBuffer.GetArrayView());
 				sharedRes->pipelineManager.PopModuleInstance();
 				sharedRes->pipelineManager.PopModuleInstance();
-				task.renderPasses.Add(transparentPassInstance);
+				task.subTasks.Add(transparentPassInstance);
 			}
 			if (toneMapping)
 			{
 				if (useAtmosphere)
 				{
-					task.renderPasses.Add(toneMappingFromAtmospherePass->CreateInstance(sharedModules));
+					task.subTasks.Add(toneMappingFromAtmospherePass->CreateInstance(sharedModules));
 				}
 				else
 				{
-					task.renderPasses.Add(toneMappingFromLitColorPass->CreateInstance(sharedModules));
+					task.subTasks.Add(toneMappingFromLitColorPass->CreateInstance(sharedModules));
 				}
 			}
 		}

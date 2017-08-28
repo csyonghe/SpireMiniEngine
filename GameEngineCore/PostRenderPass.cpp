@@ -53,6 +53,7 @@ namespace GameEngine
 		pipeline = pipelineBuilder->ToPipeline(renderTargetLayout.Ptr());
 		
 		commandBuffer = new AsyncCommandBuffer(hwRenderer);
+		transferCommandBuffer = new AsyncCommandBuffer(hwRenderer);
 	}
 
 	PostRenderPass::PostRenderPass(ViewResource * view)
@@ -82,14 +83,14 @@ namespace GameEngine
 			cmdBuf->BindDescriptorSet(binding.index, binding.descriptorSet);
 		cmdBuf->Draw(0, 4);
 		cmdBuf->EndRecording();
-		hwRenderer->ExecuteCommandBuffers(frameBuffer.Ptr(), MakeArrayView(cmdBuf), nullptr);
+		hwRenderer->ExecuteRenderPass(frameBuffer.Ptr(), MakeArrayView(cmdBuf), nullptr);
 	}
 
-	RenderPassInstance PostRenderPass::CreateInstance(SharedModuleInstances sharedModules)
+	RefPtr<RenderTask> PostRenderPass::CreateInstance(SharedModuleInstances sharedModules)
 	{
-		RenderPassInstance rs;
-		rs.postPass = this;
-		rs.sharedModules = sharedModules;
+		RefPtr<PostPassRenderTask> rs = new PostPassRenderTask();
+		rs->postPass = this;
+		rs->sharedModules = sharedModules;
 		return rs;
 	}
 

@@ -245,13 +245,9 @@ namespace GameEngine
 
 			sharedRes.renderStats.NumMaterials = 0;
 			sharedRes.renderStats.NumShaders = 0;
-			for (auto & pass : frameTask.renderPasses)
+			for (auto & pass : frameTask.subTasks)
 			{
-				pass.Execute(hardwareRenderer);
-				sharedRes.renderStats.NumPasses++;
-				sharedRes.renderStats.NumDrawCalls += pass.numDrawCalls;
-				sharedRes.renderStats.NumMaterials += pass.numMaterials;
-				sharedRes.renderStats.NumShaders += pass.numShaders;
+				pass->Execute(hardwareRenderer, sharedRes.renderStats);
 			}
 		}
 		virtual RendererSharedResource * GetSharedResource() override

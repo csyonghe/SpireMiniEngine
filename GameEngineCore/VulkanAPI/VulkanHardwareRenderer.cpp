@@ -2466,6 +2466,9 @@ namespace VK
 			case ShaderType::DomainShader:
 				postfix = "tese";
 				break;
+			case ShaderType::ComputeShader:
+				postfix = "comp";
+				break;
 			}
 			auto tempFileName = Path::Combine(Engine::Instance()->GetDirectory(false, ResourceType::ShaderCache), "temp." + String(postfix));
 			tempFileName = tempFileName.ReplaceAll("/", "\\");
@@ -2650,6 +2653,10 @@ namespace VK
 			if (framebuffer) RendererState::Device().destroyFramebuffer(framebuffer);
 			for (auto view : attachmentImageViews)
 				RendererState::Device().destroyImageView(view);
+		}
+		virtual RenderAttachments& GetRenderAttachments() override
+		{
+			return renderAttachments;
 		}
 	};
 
@@ -2987,7 +2994,9 @@ namespace VK
 #endif
 		vk::PipelineLayout pipelineLayout;
 		vk::Pipeline pipeline;
+		vk::PipelineBindPoint pipelineBindPoint;
 	public:
+		Pipeline() = default;
 		Pipeline(RenderTargetLayout* renderTargetLayout, PipelineBuilder* pipelineBuilder);
 		~Pipeline()
 		{
@@ -3131,6 +3140,34 @@ namespace VK
 		virtual Pipeline* ToPipeline(GameEngine::RenderTargetLayout* renderTargetLayout) override
 		{
 			return new Pipeline(reinterpret_cast<RenderTargetLayout*>(renderTargetLayout), this);
+		}
+		virtual Pipeline* CreateComputePipeline(CoreLib::ArrayView<GameEngine::DescriptorSetLayout*> descriptorSets, GameEngine::Shader* shader) override
+		{
+			Pipeline * result = new Pipeline();
+#if _DEBUG
+			result->descriptorSets = descriptorSets;
+#endif
+			result->pipelineBindPoint = vk::PipelineBindPoint::eCompute;
+			List<vk::DescriptorSetLayout> descSetLayouts;
+			for (auto& set : descriptorSets)
+			{
+				if (set)
+					descSetLayouts.Add(reinterpret_cast<VK::DescriptorSetLayout*>(set)->layout);
+			}
+			// Create Pipeline Layout
+			vk::PipelineLayoutCreateInfo layoutCreateInfo = vk::PipelineLayoutCreateInfo()
+				.setFlags(vk::PipelineLayoutCreateFlags())
+				.setSetLayoutCount(descriptorSets.Count())
+				.setPSetLayouts(descSetLayouts.Buffer())
+				.setPushConstantRangeCount(0)
+				.setPPushConstantRanges(nullptr);
+
+			result->pipelineLayout = RendererState::Device().createPipelineLayout(layoutCreateInfo);
+			vk::ComputePipelineCreateInfo createInfo;
+			createInfo.setLayout(result->pipelineLayout).stage.setModule(reinterpret_cast<VK::Shader*>(shader)->module).setStage(vk::ShaderStageFlagBits::eCompute)
+				.setPName("main");
+			result->pipeline = RendererState::Device().createComputePipeline(vk::PipelineCache(), createInfo);
+			return result;
 		}
 	};
 
@@ -3278,7 +3315,7 @@ namespace VK
 			.setBasePipelineIndex(-1);
 
 		this->pipeline = RendererState::Device().createGraphicsPipelines(RendererState::PipelineCache(), pipelineCreateInfo)[0];
-
+		this->pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
 //#if _DEBUG
 //		vk::DebugMarkerObjectNameInfoEXT nameInfo = vk::DebugMarkerObjectNameInfoEXT()
 //			.setObjectType(vk::DebugReportObjectTypeEXT::ePipeline)
@@ -3488,8 +3525,13 @@ namespace VK
 			if (curPipeline != newPipeline)
 			{
 				curPipeline = newPipeline;
-				buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, reinterpret_cast<VK::Pipeline*>(pipeline)->pipeline);
+				buffer.bindPipeline(reinterpret_cast<VK::Pipeline*>(pipeline)->pipelineBindPoint, reinterpret_cast<VK::Pipeline*>(pipeline)->pipeline);
 			}
+		}
+
+		virtual void DispatchCompute(int groupCountX, int groupCountY, int groupCountZ) override
+		{
+			buffer.dispatch(groupCountX, groupCountY, groupCountZ);
 		}
 
 		virtual void Draw(int firstVertex, int vertexCount) override
@@ -3515,18 +3557,15 @@ namespace VK
 			buffer.setScissor(0, vk::Rect2D(vk::Offset2D(x, y), vk::Extent2D(width, height)));
 		}
 
-		virtual void TransferLayout(const RenderAttachments& attachments, CoreLib::ArrayView<TextureUsage> layouts) override
+		virtual void TransferLayout(const RenderAttachments& attachments, TextureLayoutTransfer transferDirection) override
 		{
 #if _DEBUG
 			if (inRenderPass == true)
 				throw HardwareRendererException("BeginRecording must take no parameters for TransferLayout");
-
-			if (attachments.attachments.Count() != layouts.Count())
-				throw HardwareRendererException("Disagreeing number of attachments and layouts");
 #endif
 			CoreLib::List<vk::ImageMemoryBarrier> imageBarriers;
 
-			for (int k = 0; k < layouts.Count(); k++)
+			for (int k = 0; k < attachments.attachments.Count(); k++)
 			{
 				auto& attachment = attachments.attachments[k];
 
@@ -3537,14 +3576,21 @@ namespace VK
 					internalTex = dynamic_cast<VK::Texture*>(attachment.handle.tex2DArray);
 
 				vk::ImageAspectFlags aspectFlags;
+				vk::ImageLayout newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
 				if (isDepthFormat(internalTex->format))
 				{
 					aspectFlags = vk::ImageAspectFlagBits::eDepth;
+					if (transferDirection == TextureLayoutTransfer::UndefinedToRenderAttachment)
+						newLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 					if (internalTex->format == StorageFormat::Depth24Stencil8)
 						aspectFlags |= vk::ImageAspectFlagBits::eStencil;
 				}
 				else
+				{
 					aspectFlags = vk::ImageAspectFlagBits::eColor;
+					if (transferDirection == TextureLayoutTransfer::UndefinedToRenderAttachment)
+						newLayout = vk::ImageLayout::eColorAttachmentOptimal;
+				}
 
 				vk::ImageSubresourceRange subresourceRange = vk::ImageSubresourceRange()
 					.setAspectMask(aspectFlags)
@@ -3555,15 +3601,15 @@ namespace VK
 
 				imageBarriers.Add(vk::ImageMemoryBarrier()
 					.setSrcAccessMask(LayoutFlags(internalTex->currentLayout))
-					.setDstAccessMask(LayoutFlags(LayoutFromUsage(layouts[k])))
+					.setDstAccessMask(LayoutFlags(newLayout))
 					.setOldLayout(internalTex->currentLayout)
-					.setNewLayout(LayoutFromUsage(layouts[k]))
+					.setNewLayout(newLayout)
 					.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
 					.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
 					.setImage(internalTex->image)
 					.setSubresourceRange(subresourceRange));
 
-				internalTex->currentLayout = LayoutFromUsage(layouts[k]);
+				internalTex->currentLayout = newLayout;
 			}
 
 			buffer.pipelineBarrier(
@@ -4283,7 +4329,7 @@ namespace VK
 			RendererState::RenderQueue().submit(submitInfo, primaryFence);
 		}
 
-		virtual void ExecuteCommandBuffers(GameEngine::FrameBuffer* frameBuffer, CoreLib::ArrayView<GameEngine::CommandBuffer*> commands, GameEngine::Fence* fence) override
+		virtual void ExecuteRenderPass(GameEngine::FrameBuffer* frameBuffer, CoreLib::ArrayView<GameEngine::CommandBuffer*> commands, GameEngine::Fence* fence) override
 		{
 			// Create command buffer begin info
 			vk::CommandBufferBeginInfo primaryBeginInfo = vk::CommandBufferBeginInfo()

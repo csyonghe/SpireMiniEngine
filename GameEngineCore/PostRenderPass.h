@@ -42,7 +42,7 @@ namespace GameEngine
 		bool clearFrameBuffer = false;
 		CoreLib::RefPtr<RenderOutput> renderOutput;
 		CoreLib::RefPtr<FrameBuffer> frameBuffer;
-		CoreLib::RefPtr<AsyncCommandBuffer> commandBuffer;
+		CoreLib::RefPtr<AsyncCommandBuffer> commandBuffer, transferCommandBuffer;
 		CoreLib::RefPtr<Pipeline> pipeline;
 		CoreLib::List<CoreLib::RefPtr<Shader>> shaders;
 		CoreLib::List<CoreLib::RefPtr<DescriptorSetLayout>> descLayouts;
@@ -57,7 +57,7 @@ namespace GameEngine
 		PostRenderPass(ViewResource * view);
 		~PostRenderPass();
 		void Execute(SharedModuleInstances sharedModules);
-		RenderPassInstance CreateInstance(SharedModuleInstances sharedModules);
+		CoreLib::RefPtr<RenderTask> CreateInstance(SharedModuleInstances sharedModules);
 		virtual void SetParameters(void * data, int count) = 0;
 		void SetSource(CoreLib::ArrayView<PostPassSource> sourceTextures);
 	};
