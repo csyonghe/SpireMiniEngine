@@ -144,6 +144,33 @@ namespace GameEngine
 			sceneRes = new SceneResource(&sharedRes, sharedRes.spireContext);
 			renderService = new RendererServiceImpl(this);
 			hardwareRenderer->EndDataTransfer();
+
+			// debug test compute shader
+			hardwareRenderer->BeginDataTransfer();
+			const char * shaderSrc = R"(#version 430
+			layout(std430, binding=0) buffer storageBuf { float data[];};
+			layout(local_size_x=256) in;
+			void main() { data[gl_GlobalInvocationId.x] = gl_GlobalInvocationId.x; }
+			)";
+			auto shader = hardwareRenderer->CreateShader(ShaderType::ComputeShader, shaderSrc, strlen(shaderSrc));
+			auto builder = hardwareRenderer->CreatePipelineBuilder();
+			auto descLayout = hardwareRenderer->CreateDescriptorSetLayout(DescriptorLayout(StageFlags::sfCompute, 0, BindingType::StorageBuffer));
+			auto pipeline = builder->CreateComputePipeline(MakeArrayView(descLayout), shader);
+			RefPtr<AsyncCommandBuffer> cmdBuffer = new AsyncCommandBuffer(hardwareRenderer);
+			RefPtr<DescriptorSet> descSet = hardwareRenderer->CreateDescriptorSet(descLayout);
+			descSet->BeginUpdate();
+			RefPtr<Buffer> buf = hardwareRenderer->CreateBuffer(BufferUsage::StorageBuffer, sizeof(float) * 512);
+			descSet->Update(0, buf.Ptr());
+			descSet->EndUpdate();
+			auto cmdBuf = cmdBuffer->BeginRecording();
+			cmdBuf->BindPipeline(pipeline);
+			cmdBuf->BindDescriptorSet(0, descSet.Ptr());
+			cmdBuf->DispatchCompute(2, 0, 0);
+			cmdBuf->EndRecording();
+			hardwareRenderer->EndDataTransfer();
+
+			hardwareRenderer->ExecuteNonRenderCommandBuffers(MakeArrayView(cmdBuf));
+			hardwareRenderer->Wait();
 		}
 		~RendererImpl()
 		{
