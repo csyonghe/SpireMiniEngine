@@ -109,7 +109,7 @@ namespace GameEngine
 			float cosTheta = sqrt( (1-xi.y)/(1+(a*a-1)*xi.y));
 			float sinTheta = sqrt(1-cosTheta*cosTheta);
 			vec3 H = vec3(sinTheta * cos(phi), sinTheta*sin(phi), cosTheta);
-			vec3 upVector = abs(N.z) < 0.999 ? vec3(0,0,1) : vec3(1, 0 , 0);
+			vec3 upVector = abs(N.z) < 0.9 ? vec3(0,0,1) : vec3(1, 0 , 0);
 			vec3 tangentX = normalize(cross(upVector, N));
 			vec3 tangentY = cross(N, tangentX);
 			return tangentX * H.x + tangentY * H.y + N * H.z;
@@ -129,7 +129,7 @@ namespace GameEngine
 				vec3 V = coord;
 				vec3 prefilteredColor = vec3(0.0);
 				int numSamples = 1024;
-				float totalWeight = 0.0;
+				float totalWeight = 0.001;
 				for (int i = 0; i < numSamples; i++)
 				{
 					vec2 xi = hammersley(uint(i), uint(numSamples));
@@ -192,7 +192,7 @@ namespace GameEngine
 		params.renderer = renderer;
 		params.rendererService = renderService;
 		params.renderStats = &stat;
-		params.view.FOV = 90.0f;
+		params.view.FOV = 90.1f;
 		params.view.ZFar = 40000.0f;
 		params.view.ZNear = 20.0f;
 		params.view.Position = position;
