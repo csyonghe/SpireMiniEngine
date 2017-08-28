@@ -398,6 +398,11 @@ namespace GameEngine
 		Color, Depth, Stencil
 	};
 
+	enum class TextureLayout
+	{
+		Undefined, General, Sample, ColorAttachment, TransferDst, TransferSrc, DepthStencilAttachment, Present
+	};
+
 	class Texture : public CoreLib::RefObject
 	{
 	protected:
@@ -461,7 +466,6 @@ namespace GameEngine
 	protected:
 		Shader() {};
 	};
-
 
 	class RenderAttachments
 	{
@@ -580,6 +584,19 @@ namespace GameEngine
 			Resize(binding + 1);
 
 			attachments[binding] = Attachment(attachment, face, level);
+		}
+		void GetTextures(CoreLib::List<Texture*> & textures)
+		{
+			textures.Clear();
+			for (auto & a : attachments)
+			{
+				if (a.handle.tex2D)
+					textures.Add(a.handle.tex2D);
+				else if (a.handle.tex2DArray)
+					textures.Add(a.handle.tex2DArray);
+				else if (a.handle.texCube)
+					textures.Add(a.handle.texCube);
+			}
 		}
 	};
 
@@ -706,7 +723,8 @@ namespace GameEngine
 	enum class TextureLayoutTransfer
 	{
 		RenderAttachmentToSample,
-		UndefinedToRenderAttachment
+		SampleToRenderAttachment,
+		UndefinedToRenderAttachment,
 	};
 
 	class CommandBuffer : public CoreLib::RefObject
@@ -731,8 +749,8 @@ namespace GameEngine
 		virtual void DrawIndexed(int firstIndex, int indexCount) = 0;
 		virtual void DrawIndexedInstanced(int numInstances, int firstIndex, int indexCount) = 0;
 		virtual void DispatchCompute(int groupCountX, int groupCountY, int groupCountZ) = 0;
-		virtual void TransferLayout(const RenderAttachments& attachments, TextureLayoutTransfer transferDirection) = 0;
-		virtual void Blit(Texture2D* dstImage, Texture2D* srcImage) = 0;
+		virtual void TransferLayout(CoreLib::ArrayView<Texture*> attachments, TextureLayoutTransfer transferDirection) = 0;
+		virtual void Blit(Texture2D* dstImage, Texture2D* srcImage, TextureLayout srcLayout) = 0;
 		virtual void ClearAttachments(FrameBuffer * frameBuffer) = 0;
 	};
 
@@ -751,6 +769,7 @@ namespace GameEngine
 	public:
 		virtual void ClearTexture(GameEngine::Texture2D* texture) = 0;
 		virtual void ExecuteRenderPass(FrameBuffer* frameBuffer, CoreLib::ArrayView<CommandBuffer*> commands, Fence* fence) = 0;
+		virtual void ExecuteNonRenderCommandBuffers(CoreLib::ArrayView<CommandBuffer*> commands) = 0;
 		virtual void Present(WindowSurface * surface, Texture2D* srcImage) = 0;
 		virtual void Blit(Texture2D* dstImage, Texture2D* srcImage) = 0;
 		virtual void Wait() = 0;

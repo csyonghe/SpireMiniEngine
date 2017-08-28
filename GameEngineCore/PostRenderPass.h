@@ -38,11 +38,12 @@ namespace GameEngine
 	protected:
 		ViewResource * viewRes = nullptr;
 		CoreLib::List<PostPassSource> sources;
+		CoreLib::List<Texture*> textures;
 	protected:
 		bool clearFrameBuffer = false;
 		CoreLib::RefPtr<RenderOutput> renderOutput;
 		CoreLib::RefPtr<FrameBuffer> frameBuffer;
-		CoreLib::RefPtr<AsyncCommandBuffer> commandBuffer, transferCommandBuffer;
+		CoreLib::RefPtr<AsyncCommandBuffer> commandBuffer, transferInCommandBuffer, transferOutCommandBuffer;
 		CoreLib::RefPtr<Pipeline> pipeline;
 		CoreLib::List<CoreLib::RefPtr<Shader>> shaders;
 		CoreLib::List<CoreLib::RefPtr<DescriptorSetLayout>> descLayouts;

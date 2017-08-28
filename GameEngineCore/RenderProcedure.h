@@ -18,9 +18,29 @@ namespace GameEngine
 
 	struct FrameRenderTask
 	{
-		CoreLib::List<CoreLib::RefPtr<RenderTask>> subTasks;
+	private:
+		int frameId = 0;
+		CoreLib::List<CoreLib::RefPtr<RenderTask>> subTasks[3];
+	public:
 		SharedModuleInstances sharedModuleInstances;
-		void Clear();
+		void Clear()
+		{
+			subTasks[frameId].Clear();
+		}
+		void NewFrame() 
+		{
+			frameId++;
+			frameId %= 3;
+			subTasks[frameId].Clear();
+		}
+		void AddTask(const CoreLib::RefPtr<RenderTask>& task)
+		{
+			subTasks[frameId].Add(task);
+		}
+		CoreLib::List<CoreLib::RefPtr<RenderTask>> & GetTasks()
+		{
+			return subTasks[frameId];
+		}
 	};
 
 	class IRenderProcedure : public CoreLib::RefObject

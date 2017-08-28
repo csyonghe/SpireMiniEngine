@@ -166,7 +166,6 @@
     <ClCompile Include="AtmospherePostRenderPass.cpp" />
     <ClCompile Include="CameraActor.cpp" />
     <ClCompile Include="CatmullSpline.cpp" />
-    <ClCompile Include="DeferredLightingPostRenderPass.cpp" />
     <ClCompile Include="DeviceMemory.cpp" />
     <ClCompile Include="DirectionalLightActor.cpp" />
     <ClCompile Include="Drawable.cpp" />
@@ -177,7 +176,6 @@
     <ClCompile Include="ForwardBaseRenderPass.cpp" />
     <ClCompile Include="FreeRoamCameraController.cpp" />
     <ClCompile Include="FrustumCulling.cpp" />
-    <ClCompile Include="GBufferRenderPass.cpp" />
     <ClCompile Include="GLAPI\GLHardwareRenderer.cpp" />
     <ClCompile Include="GraphicsSettings.cpp" />
     <ClCompile Include="HardwareInputInterface.cpp" />
@@ -194,7 +192,6 @@
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="RenderPass.cpp" />
     <ClCompile Include="RenderPassRegistry.h" />
-    <ClCompile Include="RenderProcedure.cpp" />
     <ClCompile Include="ShaderCompiler.cpp" />
     <ClCompile Include="ShadowRenderPass.cpp" />
     <ClCompile Include="SkeletalMeshActor.cpp" />

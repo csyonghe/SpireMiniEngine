@@ -110,23 +110,14 @@
     <ClCompile Include="AtmospherePostRenderPass.cpp">
       <Filter>Renderer\PostProcess</Filter>
     </ClCompile>
-    <ClCompile Include="DeferredLightingPostRenderPass.cpp">
-      <Filter>Renderer\PostProcess</Filter>
-    </ClCompile>
     <ClCompile Include="PostRenderPass.cpp">
       <Filter>Renderer\PostProcess</Filter>
     </ClCompile>
     <ClCompile Include="ForwardBaseRenderPass.cpp">
       <Filter>Renderer\WorldPasses</Filter>
     </ClCompile>
-    <ClCompile Include="GBufferRenderPass.cpp">
-      <Filter>Renderer\WorldPasses</Filter>
-    </ClCompile>
     <ClCompile Include="ShadowRenderPass.cpp">
       <Filter>Renderer\WorldPasses</Filter>
-    </ClCompile>
-    <ClCompile Include="RenderProcedure.cpp">
-      <Filter>Renderer</Filter>
     </ClCompile>
     <ClCompile Include="ToneMappingActor.cpp">
       <Filter>Actors</Filter>

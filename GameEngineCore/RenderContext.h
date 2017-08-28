@@ -123,8 +123,11 @@ namespace GameEngine
 
 	class ImageTransferRenderTask : public RenderTask
 	{
+	private:
+		ImageTransferRenderTask() = default;
 	public:
-		AsyncCommandBuffer * commandBuffer = nullptr;
+		ImageTransferRenderTask(CoreLib::ArrayView<Texture*> renderTargetTextures, CoreLib::ArrayView<Texture*> samplingTextures);
+		CoreLib::RefPtr<AsyncCommandBuffer> commandBuffer = nullptr;
 		virtual void Execute(HardwareRenderer * hw, RenderStat & stats) override;
 	};
 

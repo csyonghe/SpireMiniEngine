@@ -14,7 +14,7 @@
 // Only execute actions of DEBUG_ONLY in DEBUG mode
 #if _DEBUG
 #define DEBUG_ONLY(x) do { x; } while(0)
-#define USE_VALIDATION_LAYER 0
+#define USE_VALIDATION_LAYER 1
 #else
 #define DEBUG_ONLY(x) do {    } while(0)
 #endif
@@ -189,7 +189,6 @@ namespace VK
 		int renderQueueIndex;
 		int transferQueueIndex;
 		vk::Queue presentQueue;
-		vk::Queue computeQueue;
 		vk::Queue renderQueue;
 		vk::Queue transferQueue;
 
@@ -397,7 +396,6 @@ namespace VK
 
 			State().presentQueue = State().device.getQueue(renderQueueFamilyIndex, 0);
 			State().renderQueue = State().device.getQueue(renderQueueFamilyIndex, 1);
-			State().computeQueue = State().device.getQueue(renderQueueFamilyIndex, 2);
 			State().transferQueue = State().device.getQueue(transferQueueFamilyIndex, renderQueuePriorities.Count() - 1);//TODO: Change the index if changing family
 		}
 
@@ -472,7 +470,7 @@ namespace VK
 
 		static void DestroyInstance()
 		{
-			//DEBUG_ONLY(State().instance.destroyDebugReportCallbackEXT(State().callback));
+			DEBUG_ONLY(State().instance.destroyDebugReportCallbackEXT(State().callback));
 			State().instance.destroy();
 		}
 
@@ -575,11 +573,6 @@ namespace VK
 		static const vk::Queue& RenderQueue()
 		{
 			return State().renderQueue;
-		}
-
-		static const vk::Queue& ComputeQueue()
-		{
-			return State().computeQueue;
 		}
 
 		static const vk::Queue& PresentQueue()
@@ -1021,7 +1014,7 @@ namespace VK
 		case vk::ImageLayout::eGeneral:
 			return vk::AccessFlags();
 		case vk::ImageLayout::eColorAttachmentOptimal:
-			return vk::AccessFlagBits::eColorAttachmentWrite;
+			return vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eInputAttachmentRead | vk::AccessFlagBits::eShaderRead;
 		case vk::ImageLayout::eDepthStencilAttachmentOptimal:
 			return vk::AccessFlagBits::eDepthStencilAttachmentRead | vk::AccessFlagBits::eDepthStencilAttachmentWrite;
 		case vk::ImageLayout::eDepthStencilReadOnlyOptimal:
@@ -3141,15 +3134,15 @@ namespace VK
 		{
 			return new Pipeline(reinterpret_cast<RenderTargetLayout*>(renderTargetLayout), this);
 		}
-		virtual Pipeline* CreateComputePipeline(CoreLib::ArrayView<GameEngine::DescriptorSetLayout*> descriptorSets, GameEngine::Shader* shader) override
+		virtual Pipeline* CreateComputePipeline(CoreLib::ArrayView<GameEngine::DescriptorSetLayout*> pDescriptorSets, GameEngine::Shader* shader) override
 		{
 			Pipeline * result = new Pipeline();
 #if _DEBUG
-			result->descriptorSets = descriptorSets;
+			result->descriptorSets = pDescriptorSets;
 #endif
 			result->pipelineBindPoint = vk::PipelineBindPoint::eCompute;
 			List<vk::DescriptorSetLayout> descSetLayouts;
-			for (auto& set : descriptorSets)
+			for (auto& set : pDescriptorSets)
 			{
 				if (set)
 					descSetLayouts.Add(reinterpret_cast<VK::DescriptorSetLayout*>(set)->layout);
@@ -3157,7 +3150,7 @@ namespace VK
 			// Create Pipeline Layout
 			vk::PipelineLayoutCreateInfo layoutCreateInfo = vk::PipelineLayoutCreateInfo()
 				.setFlags(vk::PipelineLayoutCreateFlags())
-				.setSetLayoutCount(descriptorSets.Count())
+				.setSetLayoutCount(pDescriptorSets.Count())
 				.setPSetLayouts(descSetLayouts.Buffer())
 				.setPushConstantRangeCount(0)
 				.setPPushConstantRanges(nullptr);
@@ -3557,52 +3550,72 @@ namespace VK
 			buffer.setScissor(0, vk::Rect2D(vk::Offset2D(x, y), vk::Extent2D(width, height)));
 		}
 
-		virtual void TransferLayout(const RenderAttachments& attachments, TextureLayoutTransfer transferDirection) override
+		virtual void TransferLayout(ArrayView<GameEngine::Texture*> textures, TextureLayoutTransfer transferDirection) override
 		{
 #if _DEBUG
 			if (inRenderPass == true)
 				throw HardwareRendererException("BeginRecording must take no parameters for TransferLayout");
 #endif
 			CoreLib::List<vk::ImageMemoryBarrier> imageBarriers;
-
-			for (int k = 0; k < attachments.attachments.Count(); k++)
+			for (int k = 0; k < textures.Count(); k++)
 			{
-				auto& attachment = attachments.attachments[k];
-
-				VK::Texture* internalTex = nullptr;
-				if (attachment.handle.tex2D)
-					internalTex = dynamic_cast<VK::Texture*>(attachment.handle.tex2D);
-				else if (attachment.handle.tex2DArray)
-					internalTex = dynamic_cast<VK::Texture*>(attachment.handle.tex2DArray);
-
-				vk::ImageAspectFlags aspectFlags;
+				VK::Texture* internalTex = dynamic_cast<VK::Texture*>(textures[k]);
+				vk::ImageLayout oldLayout;
 				vk::ImageLayout newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+				
+				vk::ImageAspectFlags aspectFlags;
 				if (isDepthFormat(internalTex->format))
 				{
 					aspectFlags = vk::ImageAspectFlagBits::eDepth;
-					if (transferDirection == TextureLayoutTransfer::UndefinedToRenderAttachment)
+					if (transferDirection == TextureLayoutTransfer::SampleToRenderAttachment)
+					{
+						oldLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
 						newLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+					}
+					else if (transferDirection == TextureLayoutTransfer::UndefinedToRenderAttachment)
+					{
+						oldLayout = vk::ImageLayout::eUndefined;
+						newLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+					}
+					else
+					{
+						oldLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+						newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+					}
 					if (internalTex->format == StorageFormat::Depth24Stencil8)
 						aspectFlags |= vk::ImageAspectFlagBits::eStencil;
 				}
 				else
 				{
 					aspectFlags = vk::ImageAspectFlagBits::eColor;
-					if (transferDirection == TextureLayoutTransfer::UndefinedToRenderAttachment)
+					if (transferDirection == TextureLayoutTransfer::SampleToRenderAttachment)
+					{
+						oldLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
 						newLayout = vk::ImageLayout::eColorAttachmentOptimal;
+					}
+					else if (transferDirection == TextureLayoutTransfer::UndefinedToRenderAttachment)
+					{
+						oldLayout = vk::ImageLayout::eUndefined;
+						newLayout = vk::ImageLayout::eColorAttachmentOptimal;
+					}
+					else
+					{
+						oldLayout = vk::ImageLayout::eColorAttachmentOptimal;
+						newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+					}
 				}
 
 				vk::ImageSubresourceRange subresourceRange = vk::ImageSubresourceRange()
 					.setAspectMask(aspectFlags)
 					.setBaseMipLevel(0)
 					.setLevelCount(internalTex->mipLevels)
-					.setBaseArrayLayer(attachment.layer == -1 ? 0 : attachment.layer)
-					.setLayerCount(1);
+					.setBaseArrayLayer(0)
+					.setLayerCount(internalTex->arrayLayers);
 
 				imageBarriers.Add(vk::ImageMemoryBarrier()
-					.setSrcAccessMask(LayoutFlags(internalTex->currentLayout))
+					.setSrcAccessMask(LayoutFlags(oldLayout))
 					.setDstAccessMask(LayoutFlags(newLayout))
-					.setOldLayout(internalTex->currentLayout)
+					.setOldLayout(oldLayout)
 					.setNewLayout(newLayout)
 					.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
 					.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
@@ -3624,7 +3637,7 @@ namespace VK
 			);
 		}
 
-		virtual void Blit(GameEngine::Texture2D* dstImage, GameEngine::Texture2D* srcImage) override
+		virtual void Blit(GameEngine::Texture2D* dstImage, GameEngine::Texture2D* srcImage, TextureLayout srcLayout) override
 		{
 #if _DEBUG
 			if (inRenderPass == true)
@@ -3666,10 +3679,42 @@ namespace VK
 				preBlitBarrier
 			);
 
+			vk::ImageLayout oriSrcLayout;
+			switch (srcLayout)
+			{
+			case TextureLayout::Undefined:
+				oriSrcLayout = vk::ImageLayout::eUndefined;
+				break;
+			case TextureLayout::Sample:
+				oriSrcLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+				break;
+			case TextureLayout::General:
+				oriSrcLayout = vk::ImageLayout::eGeneral;
+				break;
+			case TextureLayout::Present:
+				oriSrcLayout = vk::ImageLayout::ePresentSrcKHR;
+				break;
+			case TextureLayout::ColorAttachment:
+				oriSrcLayout = vk::ImageLayout::eColorAttachmentOptimal;
+				break;
+			case TextureLayout::DepthStencilAttachment:
+				oriSrcLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+				break;
+			case TextureLayout::TransferDst:
+				oriSrcLayout = vk::ImageLayout::eTransferDstOptimal;
+				break;
+			case TextureLayout::TransferSrc:
+				oriSrcLayout = vk::ImageLayout::eTransferSrcOptimal;
+				break;
+			default:
+				oriSrcLayout = vk::ImageLayout::eGeneral;
+				break;
+			}
+
 			vk::ImageMemoryBarrier textureTransferBarrier = vk::ImageMemoryBarrier()
-				.setSrcAccessMask(LayoutFlags(vk::ImageLayout::eColorAttachmentOptimal))
+				.setSrcAccessMask(LayoutFlags(oriSrcLayout))
 				.setDstAccessMask(LayoutFlags(vk::ImageLayout::eTransferSrcOptimal))
-				.setOldLayout(vk::ImageLayout::eColorAttachmentOptimal)
+				.setOldLayout(oriSrcLayout)
 				.setNewLayout(vk::ImageLayout::eTransferSrcOptimal)
 				.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
 				.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
@@ -3678,9 +3723,9 @@ namespace VK
 
 			vk::ImageMemoryBarrier textureRestoreBarrier = vk::ImageMemoryBarrier()
 				.setSrcAccessMask(LayoutFlags(vk::ImageLayout::eTransferSrcOptimal))
-				.setDstAccessMask(LayoutFlags(vk::ImageLayout::eColorAttachmentOptimal))
+				.setDstAccessMask(LayoutFlags(oriSrcLayout))
 				.setOldLayout(vk::ImageLayout::eTransferSrcOptimal)
-				.setNewLayout(vk::ImageLayout::eColorAttachmentOptimal)
+				.setNewLayout(oriSrcLayout)
 				.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
 				.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
 				.setImage(dynamic_cast<Texture2D*>(srcImage)->image)
@@ -4329,6 +4374,39 @@ namespace VK
 			RendererState::RenderQueue().submit(submitInfo, primaryFence);
 		}
 
+		virtual void ExecuteNonRenderCommandBuffers(CoreLib::ArrayView<GameEngine::CommandBuffer*> commands) override
+		{
+			// Create command buffer begin info
+			vk::CommandBufferBeginInfo primaryBeginInfo = vk::CommandBufferBeginInfo()
+				.setFlags(vk::CommandBufferUsageFlagBits::eSimultaneousUse)
+				.setPInheritanceInfo(nullptr);
+			List<vk::CommandBuffer> buffers;
+			for (auto& buffer : commands)
+			{
+				auto internalBuffer = static_cast<VK::CommandBuffer*>(buffer);
+				buffers.Add(internalBuffer->buffer);
+			}
+
+			// Record primary command buffer
+			auto primaryBufferFence = RendererState::PrimaryBuffer();
+			vk::CommandBuffer primaryBuffer = primaryBufferFence.first;
+			vk::Fence primaryFence = primaryBufferFence.second;
+			primaryBuffer.begin(primaryBeginInfo);
+			primaryBuffer.executeCommands(buffers.Count(), buffers.Buffer());
+			primaryBuffer.end();
+
+			vk::SubmitInfo submitInfo = vk::SubmitInfo()
+				.setWaitSemaphoreCount(0)
+				.setPWaitSemaphores(nullptr)
+				.setPWaitDstStageMask(nullptr)
+				.setCommandBufferCount(1)
+				.setPCommandBuffers(&primaryBuffer)
+				.setSignalSemaphoreCount(0)
+				.setPSignalSemaphores(nullptr);
+
+			RendererState::RenderQueue().submit(submitInfo, primaryFence);
+		}
+
 		virtual void ExecuteRenderPass(GameEngine::FrameBuffer* frameBuffer, CoreLib::ArrayView<GameEngine::CommandBuffer*> commands, GameEngine::Fence* fence) override
 		{
 			// Create command buffer begin info
@@ -4586,7 +4664,7 @@ namespace VK
 		Texture2D* CreateTexture2D(TextureUsage usage, int pwidth, int pheight, int mipLevelCount, StorageFormat format)
 		{
 			Texture2D* res = new Texture2D(usage, pwidth, pheight, mipLevelCount, format);
-			res->TransferLayout(LayoutFromUsage(usage));
+			res->TransferLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
 			return res;
 		}
 
@@ -4601,21 +4679,21 @@ namespace VK
 		Texture2DArray* CreateTexture2DArray(TextureUsage usage, int w, int h, int layers, int mipLevelCount, StorageFormat format)
 		{
 			Texture2DArray* res = new Texture2DArray(usage, w, h, mipLevelCount, layers, format);
-			res->TransferLayout(LayoutFromUsage(usage));
+			res->TransferLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
 			return res;
 		}
 
 		TextureCube* CreateTextureCube(TextureUsage usage, int size, int mipLevelCount, StorageFormat format)
 		{
 			TextureCube* res = new TextureCube(usage, size, mipLevelCount, format);
-			res->TransferLayout(LayoutFromUsage(usage));
+			res->TransferLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
 			return res;
 		}
 
 		Texture3D* CreateTexture3D(TextureUsage usage, int w, int h, int d, int mipLevelCount, StorageFormat format)
 		{
 			Texture3D* res = new Texture3D(usage, w, h, d, mipLevelCount, format);
-			res->TransferLayout(LayoutFromUsage(usage));
+			res->TransferLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
 			return res;
 		}
 

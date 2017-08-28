@@ -2034,10 +2034,10 @@ namespace GLL
 			data.draw.count = indexCount;
 			buffer.Add(data);
 		}
-		virtual void TransferLayout(const RenderAttachments& /*attachments*/, TextureLayoutTransfer /*transferDirection*/) override
+		virtual void TransferLayout(ArrayView<GameEngine::Texture*> /*textures*/, TextureLayoutTransfer /*transferDirection*/) override
 		{
 		}
-		virtual void Blit(GameEngine::Texture2D* dstImage, GameEngine::Texture2D* srcImage) override
+		virtual void Blit(GameEngine::Texture2D* dstImage, GameEngine::Texture2D* srcImage, TextureLayout /*srcLayout*/) override
 		{
 			CommandData data;
 			data.command = Command::Blit;
@@ -2301,6 +2301,90 @@ namespace GLL
 			return new GLL::Fence();
 		}
 
+		virtual void ExecuteNonRenderCommandBuffers(CoreLib::ArrayView<GameEngine::CommandBuffer*> commands) override
+		{
+			Pipeline * currentPipeline = nullptr;
+			Array<DescriptorSet*, 32> boundDescSets;
+			for (auto commandBuffer : commands)
+			{
+				for (auto & command : reinterpret_cast<GLL::CommandBuffer*>(commandBuffer)->buffer)
+				{
+					switch (command.command)
+					{
+					case Command::BindPipeline:
+					{
+						if (currentPipeline != command.pipelineData.pipeline)
+						{
+							currentPipeline = command.pipelineData.pipeline;
+							auto & pipelineSettings = command.pipelineData.pipeline->settings;
+							if (pipelineSettings.program.Handle != currentFixedFuncState.program.Handle)
+								pipelineSettings.program.Use();
+						}
+						break;
+					}
+					case Command::BindDescriptorSet:
+					{
+						boundDescSets[command.bindDesc.location] = command.bindDesc.descSet;
+						break;
+					}
+					case Command::DispatchCompute:
+						UpdateBindings(currentPipeline, boundDescSets.GetArrayView());
+						glDispatchCompute(command.compute.x, command.compute.y, command.compute.z);
+						break;
+					}
+				}
+			}
+		}
+
+		void UpdateBindings(Pipeline * currentPipeline, ArrayView<DescriptorSet*> boundDescSets)
+		{
+			if (currentPipeline)
+			{
+				for (int i = 0; i<currentPipeline->settings.bindingLayout.Count(); i++)
+				{
+					auto & descLayout = currentPipeline->settings.bindingLayout[i];
+					auto descSet = boundDescSets[i];
+					if (!descSet) continue;
+					if (descSet->descriptors.Count() != descLayout.Count() && descLayout.Count() != 0)
+						throw HardwareRendererException("bound descriptor set does not match descriptor set layout.");
+					for (int j = 0; j < descLayout.Count(); j++)
+					{
+						auto & desc = descSet->descriptors[j];
+						auto & layout = descLayout[j];
+						if (!desc.binding.buffer || layout.BindingPoints.Count() == 0)
+							continue;
+						if (layout.Type == BindingType::Texture && desc.Type == BindingType::Texture)
+						{
+							UseTexture(layout.BindingPoints.First(), *desc.binding.texture);
+						}
+						else if (layout.Type == BindingType::Sampler && desc.Type == BindingType::Sampler)
+						{
+							for (auto binding : layout.BindingPoints)
+								UseSampler(binding, *desc.binding.sampler);
+						}
+						else if (layout.Type == BindingType::UniformBuffer && (desc.Type == BindingType::UniformBuffer || desc.Type == BindingType::StorageBuffer))
+						{
+							if (desc.Offset == 0 && desc.Length == -1)
+								BindBuffer(BufferType::UniformBuffer, layout.BindingPoints.First(), desc.binding.buffer->Handle);
+							else
+								BindBuffer(BufferType::UniformBuffer, layout.BindingPoints.First(), desc.binding.buffer->Handle, desc.Offset, desc.Length);
+						}
+						else if (layout.Type == BindingType::StorageBuffer && (desc.Type == BindingType::UniformBuffer || desc.Type == BindingType::StorageBuffer))
+						{
+							if (desc.Offset == 0 && desc.Length == -1)
+								BindBuffer(BufferType::StorageBuffer, layout.BindingPoints.First(), desc.binding.buffer->Handle);
+							else
+								BindBuffer(BufferType::StorageBuffer, layout.BindingPoints.First(), desc.binding.buffer->Handle, desc.Offset, desc.Length);
+						}
+						else
+							throw HardwareRendererException("descriptor type does not match descriptor layout description");
+					}
+				}
+			}
+			else
+				throw HardwareRendererException("must bind pipeline before binding descriptor set.");
+		}
+
 		virtual void ExecuteRenderPass(GameEngine::FrameBuffer* frameBuffer, CoreLib::ArrayView<GameEngine::CommandBuffer*> commands, GameEngine::Fence * fence) override
 		{
 			auto fb = (GLL::FrameBufferDescriptor*)(frameBuffer);
@@ -2357,54 +2441,6 @@ namespace GLL
 			boundDescSets.SetSize(boundDescSets.GetCapacity());
 			for (auto & set : boundDescSets)
 				set = nullptr;
-			auto updateBindings = [&]()
-			{
-				if (currentPipeline)
-				{
-					for (int i = 0; i<currentPipeline->settings.bindingLayout.Count(); i++)
-					{
-						auto & descLayout = currentPipeline->settings.bindingLayout[i];
-						auto descSet = boundDescSets[i];
-						if (!descSet) continue;
-						if (descSet->descriptors.Count() != descLayout.Count() && descLayout.Count() != 0)
-							throw HardwareRendererException("bound descriptor set does not match descriptor set layout.");
-						for (int j = 0; j < descLayout.Count(); j++)
-						{
-							auto & desc = descSet->descriptors[j];
-							auto & layout = descLayout[j];
-							if (!desc.binding.buffer || layout.BindingPoints.Count() == 0)
-								continue;
-							if (layout.Type == BindingType::Texture && desc.Type == BindingType::Texture)
-							{
-								UseTexture(layout.BindingPoints.First(), *desc.binding.texture);
-							}
-							else if (layout.Type == BindingType::Sampler && desc.Type == BindingType::Sampler)
-							{
-								for (auto binding : layout.BindingPoints)
-									UseSampler(binding, *desc.binding.sampler);
-							}
-							else if (layout.Type == BindingType::UniformBuffer && (desc.Type == BindingType::UniformBuffer || desc.Type == BindingType::StorageBuffer))
-							{
-								if (desc.Offset == 0 && desc.Length == -1)
-									BindBuffer(BufferType::UniformBuffer, layout.BindingPoints.First(), desc.binding.buffer->Handle);
-								else
-									BindBuffer(BufferType::UniformBuffer, layout.BindingPoints.First(), desc.binding.buffer->Handle, desc.Offset, desc.Length);
-							}
-							else if (layout.Type == BindingType::StorageBuffer && (desc.Type == BindingType::UniformBuffer || desc.Type == BindingType::StorageBuffer))
-							{
-								if (desc.Offset == 0 && desc.Length == -1)
-									BindBuffer(BufferType::StorageBuffer, layout.BindingPoints.First(), desc.binding.buffer->Handle);
-								else
-									BindBuffer(BufferType::StorageBuffer, layout.BindingPoints.First(), desc.binding.buffer->Handle, desc.Offset, desc.Length);
-							}
-							else
-								throw HardwareRendererException("descriptor type does not match descriptor layout description");
-						}
-					}
-				}
-				else
-					throw HardwareRendererException("must bind pipeline before binding descriptor set.");
-			};
 			BindVertexArray(currentVAO);
 			for (auto commandBuffer : commands)
 			{
@@ -2502,23 +2538,23 @@ namespace GLL
 						break;
 					}
 					case Command::DispatchCompute:
-						updateBindings();
+						UpdateBindings(currentPipeline, boundDescSets.GetArrayView());
 						glDispatchCompute(command.compute.x, command.compute.y, command.compute.z);
 						break;
 					case Command::Draw:
-						updateBindings();
+						UpdateBindings(currentPipeline, boundDescSets.GetArrayView());
 						glDrawArrays((GLenum)primType, command.draw.first, command.draw.count);
 						break;
 					case Command::DrawInstanced:
-						updateBindings();
+						UpdateBindings(currentPipeline, boundDescSets.GetArrayView());
 						glDrawArraysInstanced((GLenum)primType, command.draw.first, command.draw.count, command.draw.instances);
 						break;
 					case Command::DrawIndexed:
-						updateBindings();
+						UpdateBindings(currentPipeline, boundDescSets.GetArrayView());
 						glDrawElements((GLenum)primType, command.draw.count, GL_UNSIGNED_INT, (void*)(CoreLib::PtrInt)(command.draw.first * 4 + currentIndexBufferOffset));
 						break;
 					case Command::DrawIndexedInstanced:
-						updateBindings();
+						UpdateBindings(currentPipeline, boundDescSets.GetArrayView());
 						glDrawElementsInstanced((GLenum)primType, command.draw.count, GL_UNSIGNED_INT, (void*)(CoreLib::PtrInt)(command.draw.first * 4 + currentIndexBufferOffset), command.draw.instances);
 						break;
 					case Command::Blit:

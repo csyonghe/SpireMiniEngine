@@ -181,8 +181,11 @@ namespace GameEngine
 		int resolution = viewRes->GetWidth();
 		int numLevels = Math::Log2Ceil(resolution);
 		RefPtr<TextureCube> env0 = hw->CreateTextureCube(TextureUsage::SampledColorAttachment, resolution, numLevels, StorageFormat::RGBA_F16);
-		viewRes->Resize(resolution, resolution);
 		RenderStat stat;
+		ImageTransferRenderTask t1(MakeArrayView(dynamic_cast<Texture*>(env0.Ptr())), ArrayView<Texture*>());
+		t1.Execute(hw, stat);
+
+		viewRes->Resize(resolution, resolution);
 		FrameRenderTask task;
 		RenderProcedureParameters params;
 		params.level = level;
@@ -261,9 +264,10 @@ namespace GameEngine
 
 			hw->BeginDataTransfer();
 			params.view.Transform = viewMatrix;
+			task.Clear();
 			renderProc->Run(task, params);
 			hw->EndDataTransfer();
-			for (auto & pass : task.subTasks)
+			for (auto & pass : task.GetTasks())
 				pass->Execute(hw, sharedRes->renderStats);
 
 			copyDescSet->BeginUpdate();
@@ -286,7 +290,8 @@ namespace GameEngine
 			hw->ExecuteRenderPass(fb.Ptr(), MakeArrayView(cmdBuffer), nullptr);
 			hw->Wait();
 		}
-
+		ImageTransferRenderTask t2(ArrayView<Texture*>(), MakeArrayView(dynamic_cast<Texture*>(env0.Ptr())));
+		t2.Execute(hw, stat);
 
 		// prefilter
 		RefPtr<PipelineBuilder> pb2 = hw->CreatePipelineBuilder();
@@ -308,6 +313,8 @@ namespace GameEngine
 		prefilterDescSet->Update(2, sharedRes->nearestSampler.Ptr());
 		prefilterDescSet->EndUpdate();
 		RefPtr<TextureCube> rs = hw->CreateTextureCube(TextureUsage::SampledColorAttachment, resolution, numLevels, StorageFormat::RGBA_F16);
+		ImageTransferRenderTask t3(MakeArrayView(dynamic_cast<Texture*>(rs.Ptr())), ArrayView<Texture*>());
+		t3.Execute(hw, stat);
 		for (int f = 0; f < 6; f++)
 		{
 			PrefilterUniform prefilterParams;
@@ -373,6 +380,9 @@ namespace GameEngine
 				hw->Wait();
 			}
 		}
+		ImageTransferRenderTask t4(ArrayView<Texture*>(), MakeArrayView(dynamic_cast<Texture*>(rs.Ptr())));
+		t4.Execute(hw, stat);
+		hw->Wait();
 		return rs;
 	}
 }

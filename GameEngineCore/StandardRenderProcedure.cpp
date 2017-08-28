@@ -42,26 +42,21 @@ namespace GameEngine
 	class StandardRenderProcedure : public IRenderProcedure
 	{
 	private:
-		bool deferred = false;
 		RendererSharedResource * sharedRes = nullptr;
 		ViewResource * viewRes = nullptr;
 
 		WorldRenderPass * shadowRenderPass = nullptr;
 		WorldRenderPass * forwardRenderPass = nullptr;
-		WorldRenderPass * gBufferRenderPass = nullptr;
 		PostRenderPass * atmospherePass = nullptr;
-		PostRenderPass * deferredLightingPass = nullptr;
 		PostRenderPass * toneMappingFromAtmospherePass = nullptr;
 		PostRenderPass * toneMappingFromLitColorPass = nullptr;
 
 		RenderOutput * forwardBaseOutput = nullptr;
 		RenderOutput * transparentAtmosphereOutput = nullptr;
-		RenderOutput * gBufferOutput = nullptr;
 
 		StandardViewUniforms viewUniform;
 
 		RefPtr<WorldPassRenderTask> forwardBaseInstance, transparentPassInstance;
-		RefPtr<WorldPassRenderTask> gBufferInstance;
 
 		DeviceMemory renderPassUniformMemory;
 		SharedModuleInstances sharedModules;
@@ -80,6 +75,7 @@ namespace GameEngine
 
 		bool useAtmosphere = false;
 		bool toneMapping = false;
+		
 	public:
 		StandardRenderProcedure(bool pToneMapping)
 		{
@@ -89,8 +85,6 @@ namespace GameEngine
 		{
 			if (forwardBaseOutput)
 				viewRes->DestroyRenderOutput(forwardBaseOutput);
-			if (gBufferOutput)
-				viewRes->DestroyRenderOutput(gBufferOutput);
 			if (transparentAtmosphereOutput)
 				viewRes->DestroyRenderOutput(transparentAtmosphereOutput);
 
@@ -129,31 +123,8 @@ namespace GameEngine
 		{
 			viewRes = pViewRes;
 			sharedRes = renderer->GetSharedResource();
-			deferred = Engine::Instance()->GetGraphicsSettings().UseDeferredRenderer;
 			shadowRenderPass = CreateShadowRenderPass();
 			renderer->RegisterWorldRenderPass(shadowRenderPass);
-			if (deferred)
-			{
-				gBufferRenderPass = CreateGBufferRenderPass();
-				renderer->RegisterWorldRenderPass(gBufferRenderPass);
-				deferredLightingPass = CreateDeferredLightingPostRenderPass(viewRes);
-				deferredLightingPass->SetSource(MakeArray(
-					PostPassSource("baseColorBuffer", StorageFormat::RGBA_8),
-					PostPassSource("pbrBuffer", StorageFormat::RGBA_8),
-					PostPassSource("normalBuffer", StorageFormat::RGB10_A2),
-					PostPassSource("depthBuffer", DepthBufferFormat),
-					PostPassSource("litColor", StorageFormat::RGBA_F16)
-					).GetArrayView());
-				renderer->RegisterPostRenderPass(deferredLightingPass);
-				gBufferOutput = viewRes->CreateRenderOutput(
-					gBufferRenderPass->GetRenderTargetLayout(),
-					viewRes->LoadSharedRenderTarget("baseColorBuffer", StorageFormat::RGBA_8),
-					viewRes->LoadSharedRenderTarget("pbrBuffer", StorageFormat::RGBA_8),
-					viewRes->LoadSharedRenderTarget("normalBuffer", StorageFormat::RGB10_A2),
-					viewRes->LoadSharedRenderTarget("depthBuffer", DepthBufferFormat)
-				);
-				gBufferInstance = gBufferRenderPass->CreateInstance(gBufferOutput, true);
-			}
 			
 			forwardRenderPass = CreateForwardBaseRenderPass();
 			renderer->RegisterWorldRenderPass(forwardRenderPass);
@@ -216,23 +187,15 @@ namespace GameEngine
 			return drawableBuffer.GetArrayView();
 		}
 
+		List<Texture*> shadowMapTextures;
+
 		virtual void Run(FrameRenderTask & task, const RenderProcedureParameters & params) override
 		{
 			int w = 0, h = 0;
-			if (forwardRenderPass)
-			{
-				forwardRenderPass->ResetInstancePool();
-				forwardBaseOutput->GetSize(w, h);
-			}
-			else if (gBufferRenderPass)
-			{
-				gBufferOutput->GetSize(w, h);
-			}
-			
-			if (!deferred)
-			{
-				forwardBaseInstance = forwardRenderPass->CreateInstance(forwardBaseOutput, true);
-			}
+
+			forwardRenderPass->ResetInstancePool();
+			forwardBaseOutput->GetSize(w, h);
+			forwardBaseInstance = forwardRenderPass->CreateInstance(forwardBaseOutput, true);
 
 			shadowRenderPass->ResetInstancePool();
 			
@@ -306,6 +269,8 @@ namespace GameEngine
 			float zmin = params.view.ZNear;
 			int shadowMapViewInstancePtr = 0;
 			auto camFrustum = params.view.GetFrustum(aspect);
+			// transfer shadow map layouts to render attachment
+			task.AddTask(new ImageTransferRenderTask(MakeArrayView(dynamic_cast<Texture*>(shadowMapRes.shadowMapArray.Ptr())), ArrayView<Texture*>()));
 			for (auto dirLight : directionalLights)
 			{
 				LightUniforms lightData;
@@ -323,6 +288,7 @@ namespace GameEngine
 					{
 						auto dirLightLocalTrans = dirLight->GetLocalTransform();
 						Vec3 dirLightPos = Vec3::Create(dirLightLocalTrans.values[12], dirLightLocalTrans.values[13], dirLightLocalTrans.values[14]);
+						
 						for (int i = 0; i < dirLight->NumShadowCascades; i++)
 						{
 							StandardViewUniforms shadowMapView;
@@ -418,40 +384,37 @@ namespace GameEngine
 							GetDrawable(&sink, false, true, cullFrustum, true);
 							pass->SetDrawContent(sharedRes->pipelineManager, reorderBuffer, drawableBuffer.GetArrayView());
 							sharedRes->pipelineManager.PopModuleInstance();
-							task.subTasks.Add(pass);
+							task.AddTask(pass);
 						}
+						task.AddTask(new ImageTransferRenderTask(ArrayView<Texture*>(), shadowMapTextures.GetArrayView()));
 					}
 				}
 				lightingData.Add(lightData);
 			}
+			task.AddTask(new ImageTransferRenderTask(ArrayView<Texture*>(), MakeArrayView(dynamic_cast<Texture*>(shadowMapRes.shadowMapArray.Ptr()))));
+
 			lightingParams.SetUniformData(lightingData.Buffer(), (int)(lightingData.Count()*sizeof(LightUniforms)));
 			forwardBasePassParams.SetUniformData(&viewUniform, (int)sizeof(viewUniform));
 			
 			auto cameraCullFrustum = CullFrustum(params.view.GetFrustum(aspect));
 
-			if (deferred)
-			{
-				gBufferRenderPass->Bind();
-				sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
-				gBufferInstance->SetDrawContent(sharedRes->pipelineManager, reorderBuffer, GetDrawable(&sink, false, false, cameraCullFrustum, false));
-				sharedRes->pipelineManager.PopModuleInstance();
-				task.subTasks.Add(gBufferInstance);
-				task.subTasks.Add(deferredLightingPass->CreateInstance(sharedModules));
-			}
-			else
-			{
-				forwardRenderPass->Bind();
-				sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
-				sharedRes->pipelineManager.PushModuleInstance(&lightingParams);
-				forwardBaseInstance->SetDrawContent(sharedRes->pipelineManager, reorderBuffer, GetDrawable(&sink, false, false, cameraCullFrustum, false));
-				sharedRes->pipelineManager.PopModuleInstance();
-				sharedRes->pipelineManager.PopModuleInstance();
-				task.subTasks.Add(forwardBaseInstance);
-			}
+			List<Texture*> textures;
+			forwardBaseOutput->GetFrameBuffer()->GetRenderAttachments().GetTextures(textures);
+			task.AddTask(new ImageTransferRenderTask(textures.GetArrayView(), CoreLib::ArrayView<Texture*>()));
+
+			forwardRenderPass->Bind();
+			sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
+			sharedRes->pipelineManager.PushModuleInstance(&lightingParams);
+			forwardBaseInstance->SetDrawContent(sharedRes->pipelineManager, reorderBuffer, GetDrawable(&sink, false, false, cameraCullFrustum, false));
+			sharedRes->pipelineManager.PopModuleInstance();
+			sharedRes->pipelineManager.PopModuleInstance();
+			task.AddTask(forwardBaseInstance);
+
+			task.AddTask(new ImageTransferRenderTask(CoreLib::ArrayView<Texture*>(), textures.GetArrayView()));
 
 			if (useAtmosphere)
 			{
-				task.subTasks.Add(atmospherePass->CreateInstance(sharedModules));
+				task.AddTask(atmospherePass->CreateInstance(sharedModules));
 			}
 			task.sharedModuleInstances = sharedModules;
 			
@@ -476,17 +439,17 @@ namespace GameEngine
 				transparentPassInstance->SetFixedOrderDrawContent(sharedRes->pipelineManager, reorderBuffer.GetArrayView());
 				sharedRes->pipelineManager.PopModuleInstance();
 				sharedRes->pipelineManager.PopModuleInstance();
-				task.subTasks.Add(transparentPassInstance);
+				task.AddTask(transparentPassInstance);
 			}
 			if (toneMapping)
 			{
 				if (useAtmosphere)
 				{
-					task.subTasks.Add(toneMappingFromAtmospherePass->CreateInstance(sharedModules));
+					task.AddTask(toneMappingFromAtmospherePass->CreateInstance(sharedModules));
 				}
 				else
 				{
-					task.subTasks.Add(toneMappingFromLitColorPass->CreateInstance(sharedModules));
+					task.AddTask(toneMappingFromLitColorPass->CreateInstance(sharedModules));
 				}
 			}
 		}

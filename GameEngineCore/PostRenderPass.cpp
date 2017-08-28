@@ -53,7 +53,8 @@ namespace GameEngine
 		pipeline = pipelineBuilder->ToPipeline(renderTargetLayout.Ptr());
 		
 		commandBuffer = new AsyncCommandBuffer(hwRenderer);
-		transferCommandBuffer = new AsyncCommandBuffer(hwRenderer);
+		transferInCommandBuffer = new AsyncCommandBuffer(hwRenderer);
+		transferOutCommandBuffer = new AsyncCommandBuffer(hwRenderer);
 	}
 
 	PostRenderPass::PostRenderPass(ViewResource * view)
@@ -69,6 +70,11 @@ namespace GameEngine
 
 	void PostRenderPass::Execute(SharedModuleInstances sharedModules)
 	{
+		auto cmdBufIn = transferInCommandBuffer->BeginRecording();
+		frameBuffer->GetRenderAttachments().GetTextures(textures);
+		cmdBufIn->TransferLayout(textures.GetArrayView(), TextureLayoutTransfer::UndefinedToRenderAttachment);
+		cmdBufIn->EndRecording();
+
 		auto cmdBuf = commandBuffer->BeginRecording(frameBuffer.Ptr());
 		if (clearFrameBuffer)
 			cmdBuf->ClearAttachments(frameBuffer.Ptr());
@@ -82,8 +88,21 @@ namespace GameEngine
 		for (auto & binding : descBindings.bindings)
 			cmdBuf->BindDescriptorSet(binding.index, binding.descriptorSet);
 		cmdBuf->Draw(0, 4);
+		
 		cmdBuf->EndRecording();
-		hwRenderer->ExecuteRenderPass(frameBuffer.Ptr(), MakeArrayView(cmdBuf), nullptr);
+
+		auto cmdBufOut = transferOutCommandBuffer->BeginRecording();
+		cmdBufOut->TransferLayout(textures.GetArrayView(), TextureLayoutTransfer::RenderAttachmentToSample);
+		cmdBufOut->EndRecording();
+
+		Array<CommandBuffer*, 3> buffers;
+		//buffers.Add(cmdBufIn);
+		buffers.Add(cmdBuf);
+		//buffers.Add(cmdBufOut);
+		hwRenderer->ExecuteNonRenderCommandBuffers(MakeArrayView(cmdBufIn));
+		hwRenderer->ExecuteRenderPass(frameBuffer.Ptr(), buffers.GetArrayView(), nullptr);
+		hwRenderer->ExecuteNonRenderCommandBuffers(MakeArrayView(cmdBufOut));
+
 	}
 
 	RefPtr<RenderTask> PostRenderPass::CreateInstance(SharedModuleInstances sharedModules)

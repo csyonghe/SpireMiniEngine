@@ -8,7 +8,6 @@ namespace GameEngine
 	class GraphicsSettings
 	{
 	public:
-		bool UseDeferredRenderer = false;
 		int ShadowMapArraySize = 8;
 		int ShadowMapResolution = 1024;
 		bool UsePipelineCache = true;

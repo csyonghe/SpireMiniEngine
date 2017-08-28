@@ -34,6 +34,7 @@ namespace GameEngine
 				result->Texture = hwRenderer->CreateTexture2D(TextureUsage::SampledDepthAttachment, result->Width, result->Height, 1, format);
 			else
 				result->Texture = hwRenderer->CreateTexture2D(TextureUsage::SampledColorAttachment, result->Width, result->Height, 1, format);
+			
 		}
 		result->FixedWidth = w;
 		result->FixedHeight = h;

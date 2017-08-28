@@ -110,7 +110,7 @@ namespace GameEngine
 			else
 				params.view = View();
 			params.rendererService = renderService.Ptr();
-			frameTask.Clear();
+			frameTask.NewFrame();
 			renderProcedure->Run(frameTask, params);
 		}
 	public:
@@ -245,7 +245,7 @@ namespace GameEngine
 
 			sharedRes.renderStats.NumMaterials = 0;
 			sharedRes.renderStats.NumShaders = 0;
-			for (auto & pass : frameTask.subTasks)
+			for (auto & pass : frameTask.GetTasks())
 			{
 				pass->Execute(hardwareRenderer, sharedRes.renderStats);
 			}

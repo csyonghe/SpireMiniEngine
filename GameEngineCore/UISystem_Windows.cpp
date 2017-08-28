@@ -759,7 +759,7 @@ namespace GameEngine
 			
 			auto cmdBuf = wndCtx->blitCmdBuffer->BeginRecording();
 			if (baseTexture)
-				cmdBuf->Blit(wndCtx->uiOverlayTexture.Ptr(), baseTexture);
+				cmdBuf->Blit(wndCtx->uiOverlayTexture.Ptr(), baseTexture, TextureLayout::Sample);
 			cmdBuf->EndRecording();
 
 			cmdBuf = wndCtx->cmdBuffer->BeginRecording(wndCtx->frameBuffer.Ptr());
