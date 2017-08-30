@@ -1,7 +1,6 @@
-#include "../GameEngineCore/HardwareRenderer.h"
-
 #include "vkel.h"
 #include "vulkan.hpp"
+#include "../GameEngineCore/HardwareRenderer.h"
 #include "CoreLib/WinForm/Debug.h"
 #include "CoreLib/VectorMath.h"
 #include "CoreLib/PerformanceCounter.h"
@@ -899,8 +898,7 @@ namespace VK
 		{
 		case StageFlags::sfVertex: return vk::ShaderStageFlagBits::eVertex;
 		case StageFlags::sfFragment: return vk::ShaderStageFlagBits::eFragment;
-		//case StageFlags::sfGraphics:return vk::ShaderStageFlagBits::eAllGraphics;
-		case StageFlags::sfGraphics: return vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;//TODO: replace with above if graphics is more complex
+		case StageFlags::sfGraphics:return vk::ShaderStageFlagBits::eAllGraphics;
 		case StageFlags::sfCompute: return vk::ShaderStageFlagBits::eCompute;
 		default: throw CoreLib::NotImplementedException("TranslateStageFlags");
 		}
@@ -2351,13 +2349,80 @@ namespace VK
 		{
 			SetData(0, data, psize);
 		}
-		void GetData(int /*offset*/, int /*psize*/)
+		void GetData(void * pBuffer, int offset, int psize)
 		{
 			//TODO: Implement
-		}
-		void GetData()
-		{
-			GetData(0, -1);
+			// If the buffer is mappable, map and memcpy
+			if (location & vk::MemoryPropertyFlagBits::eHostVisible)
+			{
+				//TODO: Should memcpy + flush in chunks?
+				void* mappedMemory = Map(offset, psize);
+				memcpy(pBuffer, mappedMemory, psize);
+				Unmap();
+			}
+			else
+			{
+				vk::CommandBuffer transferCommandBuffer = RendererState::CreateCommandBuffer(RendererState::TransferCommandPool());
+
+				// Create staging buffer
+				vk::BufferCreateInfo stagingCreateInfo = vk::BufferCreateInfo()
+					.setFlags(vk::BufferCreateFlags())
+					.setSize(psize)
+					.setUsage(vk::BufferUsageFlagBits::eTransferDst)
+					.setSharingMode(vk::SharingMode::eExclusive)
+					.setQueueFamilyIndexCount(0)
+					.setPQueueFamilyIndices(nullptr);
+
+				vk::Buffer stagingBuffer = RendererState::Device().createBuffer(stagingCreateInfo);
+
+				vk::MemoryRequirements stagingMemoryRequirements = RendererState::Device().getBufferMemoryRequirements(stagingBuffer);
+
+				vk::MemoryAllocateInfo stagingMemoryAllocateInfo = vk::MemoryAllocateInfo()
+					.setAllocationSize(stagingMemoryRequirements.size)
+					.setMemoryTypeIndex(GetMemoryType(stagingMemoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible));
+
+				vk::DeviceMemory stagingMemory = RendererState::Device().allocateMemory(stagingMemoryAllocateInfo);
+				RendererState::Device().bindBufferMemory(stagingBuffer, stagingMemory, 0);
+
+				// Create copy region description
+				vk::BufferCopy transferRegion = vk::BufferCopy()
+					.setSrcOffset(0)
+					.setDstOffset(offset)
+					.setSize(psize);
+
+				// Record command buffer
+				vk::CommandBufferBeginInfo transferBeginInfo = vk::CommandBufferBeginInfo()
+					.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit)
+					.setPInheritanceInfo(nullptr);
+
+				transferCommandBuffer.begin(transferBeginInfo);
+				transferCommandBuffer.copyBuffer(this->buffer, stagingBuffer, transferRegion);
+				transferCommandBuffer.end();
+
+				// Submit to queue
+				vk::SubmitInfo transferSubmitInfo = vk::SubmitInfo()
+					.setWaitSemaphoreCount(0)
+					.setPWaitSemaphores(nullptr)
+					.setPWaitDstStageMask(nullptr)
+					.setCommandBufferCount(1)
+					.setPCommandBuffers(&transferCommandBuffer)
+					.setSignalSemaphoreCount(0)
+					.setPSignalSemaphores(nullptr);
+
+				RendererState::RenderQueue().submit(transferSubmitInfo, vk::Fence());
+				RendererState::RenderQueue().waitIdle(); //TODO: Remove
+
+				// map memory and copy
+				void* stagingMappedMemory = RendererState::Device().mapMemory(stagingMemory, 0, VK_WHOLE_SIZE, vk::MemoryMapFlags());
+				memcpy(pBuffer, stagingMappedMemory, psize);
+				RendererState::Device().unmapMemory(stagingMemory);
+
+				RendererState::DestroyCommandBuffer(RendererState::TransferCommandPool(), transferCommandBuffer);
+
+				// Destroy staging resources
+				RendererState::Device().freeMemory(stagingMemory);
+				RendererState::Device().destroyBuffer(stagingBuffer);
+			}
 		}
 		int GetSize()
 		{
@@ -2984,6 +3049,7 @@ namespace VK
 	public:
 #if _DEBUG
 		CoreLib::ArrayView<GameEngine::DescriptorSetLayout*> descriptorSets;
+		bool isGraphics = true;
 #endif
 		vk::PipelineLayout pipelineLayout;
 		vk::Pipeline pipeline;
@@ -3154,11 +3220,13 @@ namespace VK
 				.setPSetLayouts(descSetLayouts.Buffer())
 				.setPushConstantRangeCount(0)
 				.setPPushConstantRanges(nullptr);
-
+			result->isGraphics = false;
 			result->pipelineLayout = RendererState::Device().createPipelineLayout(layoutCreateInfo);
 			vk::ComputePipelineCreateInfo createInfo;
-			createInfo.setLayout(result->pipelineLayout).stage.setModule(reinterpret_cast<VK::Shader*>(shader)->module).setStage(vk::ShaderStageFlagBits::eCompute)
-				.setPName("main");
+			createInfo.setLayout(result->pipelineLayout)
+				.stage.setModule(reinterpret_cast<VK::Shader*>(shader)->module)
+					  .setStage(vk::ShaderStageFlagBits::eCompute)
+					  .setPName("main");
 			result->pipeline = RendererState::Device().createComputePipeline(vk::PipelineCache(), createInfo);
 			return result;
 		}
@@ -3471,14 +3539,14 @@ namespace VK
 			}
 			else
 			{
-				buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, curPipeline->pipelineLayout, binding, internalDescriptorSet->descriptorSet, nullptr);
+				buffer.bindDescriptorSets(curPipeline->pipelineBindPoint, curPipeline->pipelineLayout, binding, internalDescriptorSet->descriptorSet, nullptr);
 			}
 			
 		}
 		virtual void BindPipeline(GameEngine::Pipeline* pipeline) override
 		{
 #if _DEBUG
-			if (inRenderPass == false)
+			if (inRenderPass == false && ((VK::Pipeline*)pipeline)->isGraphics)
 				throw HardwareRendererException("RenderTargetLayout and FrameBuffer must be specified at BeginRecording for BindPipeline");
 			//TODO:
 			// So there are a few things to check here
@@ -3505,7 +3573,7 @@ namespace VK
 					if (pendingDescSets[k])
 					{
 						buffer.bindDescriptorSets(
-							vk::PipelineBindPoint::eGraphics,
+							reinterpret_cast<VK::Pipeline*>(pipeline)->pipelineBindPoint,
 							newPipeline->pipelineLayout,
 							k,
 							pendingDescSets[k],
@@ -3520,6 +3588,25 @@ namespace VK
 				curPipeline = newPipeline;
 				buffer.bindPipeline(reinterpret_cast<VK::Pipeline*>(pipeline)->pipelineBindPoint, reinterpret_cast<VK::Pipeline*>(pipeline)->pipeline);
 			}
+		}
+
+		virtual void MemoryAccessBarrier(MemoryBarrierType barrierType) override
+		{
+			vk::MemoryBarrier bufMemBarrier;
+			bufMemBarrier.setSrcAccessMask(vk::AccessFlagBits::eShaderWrite);
+			if (barrierType == MemoryBarrierType::ShaderWriteToHostRead)
+				bufMemBarrier.setDstAccessMask(vk::AccessFlagBits::eHostRead | vk::AccessFlagBits::eTransferRead);
+			else if (barrierType == MemoryBarrierType::ShaderWriteToShaderRead)
+				bufMemBarrier.setDstAccessMask(vk::AccessFlagBits::eShaderRead);
+
+			buffer.pipelineBarrier(vk::PipelineStageFlagBits::eBottomOfPipe,
+				vk::PipelineStageFlagBits::eTopOfPipe | vk::PipelineStageFlagBits::eTransfer,
+				vk::DependencyFlags(),
+				vk::ArrayProxy<const vk::MemoryBarrier>(
+					1,
+					&bufMemBarrier),
+				nullptr,
+				nullptr);
 		}
 
 		virtual void DispatchCompute(int groupCountX, int groupCountY, int groupCountZ) override
@@ -3626,7 +3713,7 @@ namespace VK
 			}
 
 			buffer.pipelineBarrier(
-				vk::PipelineStageFlagBits::eTopOfPipe,
+				vk::PipelineStageFlagBits::eBottomOfPipe,
 				vk::PipelineStageFlagBits::eTopOfPipe,
 				vk::DependencyFlags(),
 				nullptr,
@@ -4641,7 +4728,7 @@ namespace VK
 		virtual BufferObject* CreateBuffer(BufferUsage usage, int size) override
 		{
 			//return CreateMappedBuffer(usage, size);
-			return new BufferObject(TranslateUsageFlags(usage), size, vk::MemoryPropertyFlagBits::eDeviceLocal);
+			return new BufferObject(TranslateUsageFlags(usage) | vk::BufferUsageFlagBits::eTransferSrc, size, vk::MemoryPropertyFlagBits::eDeviceLocal);
 		}
 
 		virtual BufferObject* CreateMappedBuffer(BufferUsage usage, int size) override

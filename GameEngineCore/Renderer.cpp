@@ -144,33 +144,6 @@ namespace GameEngine
 			sceneRes = new SceneResource(&sharedRes, sharedRes.spireContext);
 			renderService = new RendererServiceImpl(this);
 			hardwareRenderer->EndDataTransfer();
-
-			// debug test compute shader
-			hardwareRenderer->BeginDataTransfer();
-			const char * shaderSrc = R"(#version 430
-			layout(std430, binding=0) buffer storageBuf { float data[];};
-			layout(local_size_x=256) in;
-			void main() { data[gl_GlobalInvocationId.x] = gl_GlobalInvocationId.x; }
-			)";
-			auto shader = hardwareRenderer->CreateShader(ShaderType::ComputeShader, shaderSrc, strlen(shaderSrc));
-			auto builder = hardwareRenderer->CreatePipelineBuilder();
-			auto descLayout = hardwareRenderer->CreateDescriptorSetLayout(DescriptorLayout(StageFlags::sfCompute, 0, BindingType::StorageBuffer));
-			auto pipeline = builder->CreateComputePipeline(MakeArrayView(descLayout), shader);
-			RefPtr<AsyncCommandBuffer> cmdBuffer = new AsyncCommandBuffer(hardwareRenderer);
-			RefPtr<DescriptorSet> descSet = hardwareRenderer->CreateDescriptorSet(descLayout);
-			descSet->BeginUpdate();
-			RefPtr<Buffer> buf = hardwareRenderer->CreateBuffer(BufferUsage::StorageBuffer, sizeof(float) * 512);
-			descSet->Update(0, buf.Ptr());
-			descSet->EndUpdate();
-			auto cmdBuf = cmdBuffer->BeginRecording();
-			cmdBuf->BindPipeline(pipeline);
-			cmdBuf->BindDescriptorSet(0, descSet.Ptr());
-			cmdBuf->DispatchCompute(2, 0, 0);
-			cmdBuf->EndRecording();
-			hardwareRenderer->EndDataTransfer();
-
-			hardwareRenderer->ExecuteNonRenderCommandBuffers(MakeArrayView(cmdBuf));
-			hardwareRenderer->Wait();
 		}
 		~RendererImpl()
 		{
@@ -262,13 +235,50 @@ namespace GameEngine
 			int offset;
 			int length;
 		};
+		/*RefPtr<Buffer> testBuf;
+		void TestCompute()
+		{
+			// debug test compute shader
+			hardwareRenderer->BeginDataTransfer();
+			const char * shaderSrc = R"(#version 430
+			layout(std430, binding=0) buffer storageBuf { float data[];};
+			layout(local_size_x=256) in;
+			void main() { data[gl_GlobalInvocationID.x] = float(gl_GlobalInvocationID.x);
+             }
+			)";
+			RefPtr<Shader> shader = hardwareRenderer->CreateShader(ShaderType::ComputeShader, shaderSrc, (int)strlen(shaderSrc));
+			RefPtr<PipelineBuilder> builder = hardwareRenderer->CreatePipelineBuilder();
+			RefPtr<DescriptorSetLayout> descLayout = hardwareRenderer->CreateDescriptorSetLayout(DescriptorLayout(StageFlags::sfCompute, 0, BindingType::StorageBuffer, 0));
+			RefPtr<Pipeline> pipeline = builder->CreateComputePipeline(MakeArrayView(descLayout.Ptr()), shader.Ptr());
+			RefPtr<AsyncCommandBuffer> cmdBuffer = new AsyncCommandBuffer(hardwareRenderer);
+			RefPtr<DescriptorSet> descSet = hardwareRenderer->CreateDescriptorSet(descLayout.Ptr());
+			descSet->BeginUpdate();
 
+			if (!testBuf)
+				testBuf = hardwareRenderer->CreateBuffer(BufferUsage::StorageBuffer, sizeof(float) * 512);
+			float bufData[512];
+			bufData[0] = 2.0f;
+			testBuf->SetData(bufData, sizeof(float) * 512);
+			descSet->Update(0, testBuf.Ptr());
+			descSet->EndUpdate();
+			auto cmdBuf = cmdBuffer->BeginRecording();
+			cmdBuf->BindPipeline(pipeline.Ptr());
+			cmdBuf->BindDescriptorSet(0, descSet.Ptr());
+			cmdBuf->DispatchCompute(2, 1, 1);
+			cmdBuf->MemoryAccessBarrier(MemoryBarrierType::ShaderWriteToHostRead);
+			cmdBuf->EndRecording();
+			hardwareRenderer->EndDataTransfer();
+			hardwareRenderer->ExecuteNonRenderCommandBuffers(MakeArrayView(cmdBuf));
+			hardwareRenderer->Wait();
+
+			bufData[0] = 0.0f;
+			testBuf->GetData(bufData, 0, sizeof(float) * 512);
+			for (int i = 0; i < 512; i++)
+				printf("%f ", bufData[i]);
+		}*/
 		virtual void RenderFrame() override
 		{
 			if (!level) return;
-			
-			//LightProbeRenderer lpRenderer(this, renderService.Ptr(), cubemapRenderProc.Ptr(), cubemapRenderView.Ptr());
-			//sharedRes.envMap = lpRenderer.RenderLightProbe(level, Vec3::Create(0.0f, 1000.0f, 0.0f));
 
 			sharedRes.renderStats.NumMaterials = 0;
 			sharedRes.renderStats.NumShaders = 0;
@@ -276,6 +286,8 @@ namespace GameEngine
 			{
 				pass->Execute(hardwareRenderer, sharedRes.renderStats);
 			}
+
+			//TestCompute();
 		}
 		virtual RendererSharedResource * GetSharedResource() override
 		{

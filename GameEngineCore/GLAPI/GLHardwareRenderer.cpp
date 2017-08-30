@@ -1256,6 +1256,10 @@ namespace GLL
 		{
 			//glFlushMappedNamedBufferRange();
 		}
+		virtual void GetData(void * buffer, int offset, int size) override
+		{
+			glGetNamedBufferSubData(Handle, offset, size, buffer);
+		}
 		bool GetData(void * buffer, int & bufferSize)
 		{
 			int sizeInBytes = 0;
@@ -1845,6 +1849,7 @@ namespace GLL
 			PipelineSettings settings;
 			settings.isCompute = true;
 			List<GLL::DescriptorSetLayout*> descriptorLayouts;
+			settings.bindingLayout.SetSize(descriptorSets.Count());
 			int i = 0;
 			for (auto descSet : descriptorSets)
 			{
@@ -1873,7 +1878,8 @@ namespace GLL
 		DrawIndexedInstanced,
 		Blit,
 		ClearAttachments,
-		DispatchCompute
+		DispatchCompute,
+		MemBarrier
 	};
 
 	struct SetViewportData
@@ -1914,6 +1920,10 @@ namespace GLL
 	{
 		int x, y, z;
 	};
+	struct MemoryBarrierData
+	{
+		unsigned int bits;
+	};
 	class CommandData
 	{
 	public:
@@ -1929,6 +1939,7 @@ namespace GLL
 			AttachmentData clear;
 			BindDescriptorSetData bindDesc;
 			DispatchComputeData compute;
+			MemoryBarrierData memBarrier;
 		};
 	};
 
@@ -1989,6 +2000,22 @@ namespace GLL
 			data.command = Command::BindDescriptorSet;
 			data.bindDesc.descSet = reinterpret_cast<GLL::DescriptorSet*>(descSet);
 			data.bindDesc.location = binding;
+			buffer.Add(data);
+		}
+		virtual void MemoryAccessBarrier(MemoryBarrierType barrierType) override
+		{
+			CommandData data;
+			data.command = Command::MemBarrier;
+			data.memBarrier.bits = 0;
+			switch (barrierType)
+			{
+			case MemoryBarrierType::ShaderWriteToHostRead:
+				data.memBarrier.bits = GL_BUFFER_UPDATE_BARRIER_BIT | GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT;
+				break;
+			case MemoryBarrierType::ShaderWriteToShaderRead:
+				data.memBarrier.bits = GL_SHADER_STORAGE_BARRIER_BIT | GL_UNIFORM_BARRIER_BIT;
+				break;
+			}
 			buffer.Add(data);
 		}
 		virtual void DispatchCompute(int groupCountX, int groupCountY, int groupCountZ) override
@@ -2305,6 +2332,7 @@ namespace GLL
 		{
 			Pipeline * currentPipeline = nullptr;
 			Array<DescriptorSet*, 32> boundDescSets;
+			boundDescSets.SetSize(boundDescSets.GetCapacity());
 			for (auto commandBuffer : commands)
 			{
 				for (auto & command : reinterpret_cast<GLL::CommandBuffer*>(commandBuffer)->buffer)
@@ -2330,6 +2358,9 @@ namespace GLL
 					case Command::DispatchCompute:
 						UpdateBindings(currentPipeline, boundDescSets.GetArrayView());
 						glDispatchCompute(command.compute.x, command.compute.y, command.compute.z);
+						break;
+					case Command::MemBarrier:
+						glMemoryBarrier(command.memBarrier.bits);
 						break;
 					}
 				}

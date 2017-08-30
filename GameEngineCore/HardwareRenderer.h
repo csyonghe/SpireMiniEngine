@@ -383,8 +383,7 @@ namespace GameEngine
 		virtual void SetDataAsync(int offset, void * data, int size) = 0;
 		virtual void SetData(int offset, void* data, int size) = 0;
 		virtual void SetData(void* data, int size) = 0;
-		//virtual void GetData(int offset, int size) = 0;
-		//virtual void GetData() = 0;
+		virtual void GetData(void * buffer, int offset, int size) = 0;
 		virtual int GetSize() = 0;
 		virtual void* Map(int offset, int size) = 0;
 		virtual void* Map() = 0;
@@ -682,6 +681,10 @@ namespace GameEngine
 	};
 
 	// API specific class that holds the pipeline representation
+	enum class PipelineType
+	{
+		Graphics, Compute
+	};
 	class Pipeline : public CoreLib::RefObject
 	{
 	protected:
@@ -727,6 +730,12 @@ namespace GameEngine
 		UndefinedToRenderAttachment,
 	};
 
+	enum class MemoryBarrierType
+	{
+		ShaderWriteToShaderRead,
+		ShaderWriteToHostRead
+	};
+
 	class CommandBuffer : public CoreLib::RefObject
 	{
 	protected:
@@ -752,6 +761,7 @@ namespace GameEngine
 		virtual void TransferLayout(CoreLib::ArrayView<Texture*> attachments, TextureLayoutTransfer transferDirection) = 0;
 		virtual void Blit(Texture2D* dstImage, Texture2D* srcImage, TextureLayout srcLayout) = 0;
 		virtual void ClearAttachments(FrameBuffer * frameBuffer) = 0;
+		virtual void MemoryAccessBarrier(MemoryBarrierType barrierType) = 0;
 	};
 
     class WindowSurface : public CoreLib::RefObject
