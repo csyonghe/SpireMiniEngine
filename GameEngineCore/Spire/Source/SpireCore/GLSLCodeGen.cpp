@@ -13,7 +13,7 @@ namespace Spire
 	{
 		class GLSLCodeGen : public CLikeCodeGen
 		{
-		private:
+		public:
 			bool useVulkanBinding = false;
 			bool useSingleDescSet = false;
 		protected:
@@ -899,10 +899,13 @@ namespace Spire
 		{
 		private:
 			String declPrefix;
+			bool isVulkan;
 		public:
 			StandardOutputStrategy(GLSLCodeGen * pCodeGen, ILWorld * world, String prefix)
 				: OutputStrategy(pCodeGen, world), declPrefix(prefix)
-			{}
+			{
+				isVulkan = pCodeGen->useVulkanBinding;
+			}
 			virtual void DeclareOutput(CodeGenContext & ctx, ILStage * stage) override
 			{
 				int location = 0;
@@ -910,7 +913,7 @@ namespace Spire
 				{
 					if (field.Value.Attributes.ContainsKey("FragDepth"))
 						continue;
-					if (stage->StageType == "FragmentShader")
+					if (isVulkan || stage->StageType == "FragmentShader")
 						ctx.GlobalHeader << "layout(location = " << location << ") ";
 					if (declPrefix.Length())
 						ctx.GlobalHeader << declPrefix << " ";
