@@ -8,16 +8,10 @@
 #include "ToneMappingActor.h"
 #include "FrustumCulling.h"
 #include "RenderProcedure.h"
+#include "StandardViewUniforms.h"
 
 namespace GameEngine
 {
-	class StandardViewUniforms
-	{
-	public:
-		VectorMath::Matrix4 ViewTransform, ViewProjectionTransform, InvViewTransform, InvViewProjTransform;
-		VectorMath::Vec3 CameraPos;
-		float Time;
-	};
 
 	class LightUniforms
 	{
@@ -186,9 +180,7 @@ namespace GameEngine
 			}
 			return drawableBuffer.GetArrayView();
 		}
-
-		List<Texture*> shadowMapTextures;
-
+		
 		virtual void Run(FrameRenderTask & task, const RenderProcedureParameters & params) override
 		{
 			int w = 0, h = 0;
@@ -386,7 +378,6 @@ namespace GameEngine
 							sharedRes->pipelineManager.PopModuleInstance();
 							task.AddTask(pass);
 						}
-						task.AddTask(new ImageTransferRenderTask(ArrayView<Texture*>(), shadowMapTextures.GetArrayView()));
 					}
 				}
 				lightingData.Add(lightData);

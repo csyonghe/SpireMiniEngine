@@ -129,6 +129,7 @@
     </ClCompile>
     <ClCompile Include="SystemWindow.cpp" />
     <ClCompile Include="AnimationVisualizationActor.cpp" />
+    <ClCompile Include="LightingData.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
@@ -270,6 +271,13 @@
     <ClInclude Include="SystemWindow.h" />
     <ClInclude Include="AnimationVisualizationActor.h" />
     <ClInclude Include="RenderProcedure.h" />
+    <ClInclude Include="LightBinningPass.h">
+      <Filter>Renderer\ComputePasses</Filter>
+    </ClInclude>
+    <ClInclude Include="LightingData.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="StandardViewUniforms.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Spire">
@@ -301,6 +309,9 @@
     </Filter>
     <Filter Include="Renderer\WorldPasses">
       <UniqueIdentifier>{c2fc1eaf-971a-4e07-b1d7-27f38f9412b7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Renderer\ComputePasses">
+      <UniqueIdentifier>{4c10def7-e5db-4883-9e2e-704af2063de5}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

@@ -92,6 +92,10 @@ namespace GameEngine
 		{
 			return descriptors[currentDescriptor].Ptr();
 		}
+		int GetCurrentVersion()
+		{
+			return currentDescriptor;
+		}
 		operator bool()
 		{
 			return module != nullptr;

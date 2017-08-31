@@ -181,6 +181,7 @@
     <ClCompile Include="HardwareInputInterface.cpp" />
     <ClCompile Include="InputDispatcher.cpp" />
     <ClCompile Include="Level.cpp" />
+    <ClCompile Include="LightingData.cpp" />
     <ClCompile Include="LightProbeRenderer.cpp" />
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="Mesh.cpp" />
@@ -229,6 +230,7 @@
     <ClInclude Include="AtmosphereActor.h" />
     <ClInclude Include="CameraActor.h" />
     <ClInclude Include="CatmullSpline.h" />
+    <ClInclude Include="LightBinningPass.h" />
     <ClInclude Include="Drawable.h" />
     <ClInclude Include="EngineLimits.h" />
     <ClInclude Include="DeviceMemory.h" />
@@ -244,6 +246,7 @@
     <ClInclude Include="InputDispatcher.h" />
     <ClInclude Include="Level.h" />
     <ClInclude Include="LightActor.h" />
+    <ClInclude Include="LightingData.h" />
     <ClInclude Include="LightProbeRenderer.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="Mesh.h" />
@@ -263,6 +266,7 @@
     <ClInclude Include="Spire\Spire.h" />
     <ClInclude Include="Spire\SpireAllSource.h" />
     <ClInclude Include="SSAO.h" />
+    <ClInclude Include="StandardViewUniforms.h" />
     <ClInclude Include="StaticMeshActor.h" />
     <ClInclude Include="SystemWindow.h" />
     <ClInclude Include="TerrainActor.h" />
