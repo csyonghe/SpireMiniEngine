@@ -65,7 +65,7 @@ PointLight
     transform [1 0 0 0   0 1 0 0    0 0 1 0    400 400 400 1]
     Direction [-1.0 -1.0 -1.0]
     Color [5 4 2]
-    Radius 3000
+    Radius 2500
     EnableShadows true
     DecayDistance90Percent 2400
     IsSpotLight true
