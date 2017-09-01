@@ -9,10 +9,10 @@
 #include "FrustumCulling.h"
 #include "RenderProcedure.h"
 #include "StandardViewUniforms.h"
+#include "LightingData.h"
 
 namespace GameEngine
 {
-
 	class LightUniforms
 	{
 	public:
@@ -54,16 +54,13 @@ namespace GameEngine
 
 		DeviceMemory renderPassUniformMemory;
 		SharedModuleInstances sharedModules;
-		ModuleInstance forwardBasePassParams, lightingParams;
+		ModuleInstance forwardBasePassParams;
 		CoreLib::List<ModuleInstance> shadowViewInstances;
 
 		DrawableSink sink;
 
-		List<DirectionalLightActor*> directionalLights;
-		List<LightUniforms> lightingData;
-
 		List<Drawable*> reorderBuffer, drawableBuffer;
-	
+		LightingEnvironment lighting;
 		AtmosphereParameters lastAtmosphereParams;
 		ToneMappingParameters lastToneMappingParams;
 
@@ -105,13 +102,8 @@ namespace GameEngine
 				descSet->BeginUpdate();
 				descSet->Update(1, sharedRes->textureSampler.Ptr());
 				descSet->EndUpdate();
-				descSet = lightingParams.GetDescriptorSet(i);
-				descSet->BeginUpdate();
-				descSet->Update(1, sharedRes->shadowMapResources.shadowMapArray.Ptr(), TextureAspect::Depth);
-				descSet->Update(2, sharedRes->shadowSampler.Ptr());
-				descSet->Update(3, sharedRes->envMap.Ptr(), TextureAspect::Color);
-				descSet->EndUpdate();
 			}
+			lighting.UpdateSharedResourceBinding();
 		}
 		virtual void Init(Renderer * renderer, ViewResource * pViewRes) override
 		{
@@ -160,10 +152,9 @@ namespace GameEngine
 			// initialize forwardBasePassModule and lightingModule
 			renderPassUniformMemory.Init(sharedRes->hardwareRenderer.Ptr(), BufferUsage::UniformBuffer, true, 22, sharedRes->hardwareRenderer->UniformBufferAlignment());
 			sharedRes->CreateModuleInstance(forwardBasePassParams, spFindModule(sharedRes->spireContext, "ForwardBasePassParams"), &renderPassUniformMemory);
-			sharedRes->CreateModuleInstance(lightingParams, spFindModule(sharedRes->spireContext, "Lighting"), &renderPassUniformMemory);
+			lighting.Init(*sharedRes, &renderPassUniformMemory);
 			UpdateSharedResourceBinding();
 			sharedModules.View = &forwardBasePassParams;
-			sharedModules.Lighting = &lightingParams;
 			shadowViewInstances.Reserve(1024);
 		}
 
@@ -180,6 +171,8 @@ namespace GameEngine
 			}
 			return drawableBuffer.GetArrayView();
 		}
+
+		List<Texture*> textures;
 		
 		virtual void Run(FrameRenderTask & task, const RenderProcedureParameters & params) override
 		{
@@ -188,12 +181,9 @@ namespace GameEngine
 			forwardRenderPass->ResetInstancePool();
 			forwardBaseOutput->GetSize(w, h);
 			forwardBaseInstance = forwardRenderPass->CreateInstance(forwardBaseOutput, true);
-
+			float aspect = w / (float)h;
 			shadowRenderPass->ResetInstancePool();
 			
-			auto shadowMapRes = params.renderer->GetSharedResource()->shadowMapResources;
-			shadowMapRes.Reset();
-			lightingData.Clear();
 			GetDrawablesParameter getDrawableParam;
 			viewUniform.CameraPos = params.view.Position;
 			viewUniform.ViewTransform = params.view.Transform;
@@ -213,9 +203,7 @@ namespace GameEngine
 			getDrawableParam.sink = &sink;
 			
 			sink.Clear();
-			
-			directionalLights.Clear();
-			
+						
 			CoreLib::Graphics::BBox levelBounds;
 			levelBounds.Init();
 
@@ -224,15 +212,7 @@ namespace GameEngine
 				levelBounds.Union(actor.Value->Bounds);
 				actor.Value->GetDrawables(getDrawableParam);
 				auto actorType = actor.Value->GetEngineType();
-				if (actorType == EngineActorType::Light)
-				{
-					auto light = dynamic_cast<LightActor*>(actor.Value.Ptr());
-					if (light->lightType == LightType::Directional)
-					{
-						directionalLights.Add((DirectionalLightActor*)(light));
-					}
-				}
-				else if (actorType == EngineActorType::Atmosphere)
+				if (actorType == EngineActorType::Atmosphere)
 				{
 					useAtmosphere = true;
 					auto atmosphere = dynamic_cast<AtmosphereActor*>(actor.Value.Ptr());
@@ -254,148 +234,18 @@ namespace GameEngine
 					}
 				}
 			}
-
-			float aspect = w / (float)h;
-
-			int shadowMapSize = Engine::Instance()->GetGraphicsSettings().ShadowMapResolution;
-			float zmin = params.view.ZNear;
-			int shadowMapViewInstancePtr = 0;
-			auto camFrustum = params.view.GetFrustum(aspect);
-			// transfer shadow map layouts to render attachment
-			task.AddTask(new ImageTransferRenderTask(MakeArrayView(dynamic_cast<Texture*>(shadowMapRes.shadowMapArray.Ptr())), ArrayView<Texture*>()));
-			for (auto dirLight : directionalLights)
-			{
-				LightUniforms lightData;
-				lightData.lightColor = dirLight->Color;
-				lightData.lightDir = dirLight->Direction;
-				lightData.ambient = dirLight->Ambient;
-				lightData.numCascades = dirLight->EnableCascadedShadows ? dirLight->NumShadowCascades : 0;
-				float zmax = dirLight->ShadowDistance;
-				if (dirLight->EnableCascadedShadows && dirLight->NumShadowCascades > 0 && dirLight->NumShadowCascades <= MaxShadowCascades)
-				{
-					shadowRenderPass->Bind();
-					int shadowMapStartId = shadowMapRes.AllocShadowMaps(dirLight->NumShadowCascades);
-					lightData.shadowMapId = shadowMapStartId;
-					if (shadowMapStartId != -1)
-					{
-						auto dirLightLocalTrans = dirLight->GetLocalTransform();
-						Vec3 dirLightPos = Vec3::Create(dirLightLocalTrans.values[12], dirLightLocalTrans.values[13], dirLightLocalTrans.values[14]);
-						
-						for (int i = 0; i < dirLight->NumShadowCascades; i++)
-						{
-							StandardViewUniforms shadowMapView;
-							Vec3 viewZ = dirLight->Direction;
-							Vec3 viewX, viewY;
-							GetOrthoVec(viewX, viewZ);
-							viewY = Vec3::Cross(viewZ, viewX);
-							shadowMapView.CameraPos = viewUniform.CameraPos;
-							shadowMapView.Time = viewUniform.Time;
-							Matrix4::CreateIdentityMatrix(shadowMapView.ViewTransform);
-							shadowMapView.ViewTransform.m[0][0] = viewX.x; shadowMapView.ViewTransform.m[1][0] = viewX.y; shadowMapView.ViewTransform.m[2][0] = viewX.z;
-							shadowMapView.ViewTransform.m[0][1] = viewY.x; shadowMapView.ViewTransform.m[1][1] = viewY.y; shadowMapView.ViewTransform.m[2][1] = viewY.z;
-							shadowMapView.ViewTransform.m[0][2] = viewZ.x; shadowMapView.ViewTransform.m[1][2] = viewZ.y; shadowMapView.ViewTransform.m[2][2] = viewZ.z;
-							float iOverN = (i+1) / (float)dirLight->NumShadowCascades;
-							float zi = dirLight->TransitionFactor * zmin * pow(zmax / zmin, iOverN) + (1.0f - dirLight->TransitionFactor)*(zmin + (iOverN)*(zmax - zmin));
-							lightData.zPlanes[i] = zi;
-							auto verts = camFrustum.GetVertices(zmin, zi);
-							float d1 = (verts[0] - verts[2]).Length2() * 0.25f;
-							float d2 = (verts[4] - verts[6]).Length2() * 0.25f;
-							float f = zi - zmin;
-							float ti = Math::Min((d1 + d2 + f*f) / (2.0f*f), f);
-							float t = zmin + ti;
-							auto center = params.view.Position + params.view.GetDirection() * t;
-							float radius = (verts[6] - center).Length();
-							auto transformedCenter = shadowMapView.ViewTransform.TransformNormal(center);
-							auto transformedCorner = transformedCenter - Vec3::Create(radius);
-							float viewSize = radius * 2.0f;
-							float texelSize = radius * 2.0f / shadowMapSize;
-
-							transformedCorner.x = Math::FastFloor(transformedCorner.x / texelSize) * texelSize;
-							transformedCorner.y = Math::FastFloor(transformedCorner.y / texelSize) * texelSize;
-							transformedCorner.z = Math::FastFloor(transformedCorner.z / texelSize) * texelSize;
-
-							Vec3 levelBoundMax = levelBounds.Max;
-							Vec3 levelBoundMin = levelBounds.Min;
-							if (dirLight->Direction.x > 0)
-							{
-								levelBoundMax.x = levelBounds.Min.x;
-								levelBoundMin.x = levelBounds.Max.x;
-							}
-							if (dirLight->Direction.y > 0)
-							{
-								levelBoundMax.y = levelBounds.Min.y;
-								levelBoundMin.y = levelBounds.Max.y;
-							}
-							if (dirLight->Direction.z > 0)
-							{
-								levelBoundMax.z = levelBounds.Min.z;
-								levelBoundMin.z = levelBounds.Max.z;
-							}
-							Matrix4 projMatrix;
-							Matrix4::CreateOrthoMatrix(projMatrix, transformedCorner.x, transformedCorner.x + viewSize,
-								transformedCorner.y + viewSize, transformedCorner.y, -Vec3::Dot(dirLight->Direction, levelBoundMin), 
-								-Vec3::Dot(dirLight->Direction, levelBoundMax), ClipSpaceType::ZeroToOne);
-
-							Matrix4::Multiply(shadowMapView.ViewProjectionTransform, projMatrix, shadowMapView.ViewTransform);
-
-							shadowMapView.ViewProjectionTransform.Inverse(shadowMapView.InvViewProjTransform);
-							shadowMapView.ViewTransform.Inverse(shadowMapView.InvViewTransform);
-
-							Matrix4 viewportMatrix;
-							Matrix4::CreateIdentityMatrix(viewportMatrix);
-							viewportMatrix.m[0][0] = 0.5f; viewportMatrix.m[3][0] = 0.5f;
-							viewportMatrix.m[1][1] = 0.5f; viewportMatrix.m[3][1] = 0.5f;
-							viewportMatrix.m[2][2] = 1.0f; viewportMatrix.m[3][2] = 0.0f;
-							Matrix4::Multiply(lightData.lightMatrix[i], viewportMatrix, shadowMapView.ViewProjectionTransform);
-							auto pass = shadowRenderPass->CreateInstance(shadowMapRes.shadowMapRenderOutputs[i + shadowMapStartId].Ptr(), true);
-
-							ModuleInstance * shadowMapPassModuleInstance = nullptr;
-							if (shadowMapViewInstancePtr < shadowViewInstances.Count())
-							{
-								shadowMapPassModuleInstance = &shadowViewInstances[shadowMapViewInstancePtr++];
-							}
-							else
-							{
-								shadowViewInstances.Add(ModuleInstance());
-								sharedRes->CreateModuleInstance(shadowViewInstances.Last(), spFindModule(sharedRes->spireContext, "ForwardBasePassParams"), &renderPassUniformMemory);
-								shadowMapViewInstancePtr = shadowViewInstances.Count();
-								shadowMapPassModuleInstance = &shadowViewInstances.Last();
-								for (int j = 0; j < DynamicBufferLengthMultiplier; j++)
-								{
-									auto descSet = shadowMapPassModuleInstance->GetDescriptorSet(j);
-									descSet->BeginUpdate();
-									descSet->Update(1, sharedRes->textureSampler.Ptr());
-									descSet->EndUpdate();
-								}
-							}
-							shadowMapPassModuleInstance->SetUniformData(&shadowMapView, sizeof(shadowMapView));
-							sharedRes->pipelineManager.PushModuleInstance(shadowMapPassModuleInstance);
-							drawableBuffer.Clear();
-							auto cullFrustum = CullFrustum(shadowMapView.InvViewProjTransform);
-							GetDrawable(&sink, true, true, cullFrustum, false);
-							GetDrawable(&sink, false, true, cullFrustum, true);
-							pass->SetDrawContent(sharedRes->pipelineManager, reorderBuffer, drawableBuffer.GetArrayView());
-							sharedRes->pipelineManager.PopModuleInstance();
-							task.AddTask(pass);
-						}
-					}
-				}
-				lightingData.Add(lightData);
-			}
-			task.AddTask(new ImageTransferRenderTask(ArrayView<Texture*>(), MakeArrayView(dynamic_cast<Texture*>(shadowMapRes.shadowMapArray.Ptr()))));
-
-			lightingParams.SetUniformData(lightingData.Buffer(), (int)(lightingData.Count()*sizeof(LightUniforms)));
-			forwardBasePassParams.SetUniformData(&viewUniform, (int)sizeof(viewUniform));
 			
-			auto cameraCullFrustum = CullFrustum(params.view.GetFrustum(aspect));
+			lighting.GatherInfo(task, &sink, params, w, h, viewUniform, shadowRenderPass);
 
-			List<Texture*> textures;
+			forwardBasePassParams.SetUniformData(&viewUniform, (int)sizeof(viewUniform));
+			auto cameraCullFrustum = CullFrustum(params.view.GetFrustum(aspect));
+			
 			forwardBaseOutput->GetFrameBuffer()->GetRenderAttachments().GetTextures(textures);
 			task.AddTask(new ImageTransferRenderTask(textures.GetArrayView(), CoreLib::ArrayView<Texture*>()));
 
 			forwardRenderPass->Bind();
 			sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
-			sharedRes->pipelineManager.PushModuleInstance(&lightingParams);
+			sharedRes->pipelineManager.PushModuleInstance(&lighting.moduleInstance);
 			forwardBaseInstance->SetDrawContent(sharedRes->pipelineManager, reorderBuffer, GetDrawable(&sink, false, false, cameraCullFrustum, false));
 			sharedRes->pipelineManager.PopModuleInstance();
 			sharedRes->pipelineManager.PopModuleInstance();
@@ -425,7 +275,7 @@ namespace GameEngine
 
 				forwardRenderPass->Bind();
 				sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
-				sharedRes->pipelineManager.PushModuleInstance(&lightingParams);
+				sharedRes->pipelineManager.PushModuleInstance(&lighting.moduleInstance);
 
 				transparentPassInstance->SetFixedOrderDrawContent(sharedRes->pipelineManager, reorderBuffer.GetArrayView());
 				sharedRes->pipelineManager.PopModuleInstance();

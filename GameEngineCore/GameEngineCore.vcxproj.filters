@@ -129,7 +129,9 @@
     </ClCompile>
     <ClCompile Include="SystemWindow.cpp" />
     <ClCompile Include="AnimationVisualizationActor.cpp" />
-    <ClCompile Include="LightingData.cpp" />
+    <ClCompile Include="LightingData.cpp">
+      <Filter>Renderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />

@@ -40,8 +40,11 @@ namespace GameEngine
 		}
 	}
 
-	void LightingEnvironment::GatherInfo(FrameRenderTask & tasks, Renderer* renderer, DrawableSink * sink, const RenderProcedureParameters & params, int w, int h, StandardViewUniforms & viewUniform, Level* level, WorldRenderPass * shadowRenderPass)
+	void LightingEnvironment::GatherInfo(FrameRenderTask & tasks, DrawableSink * sink, const RenderProcedureParameters & params, int w, int h, StandardViewUniforms & viewUniform, WorldRenderPass * shadowRenderPass)
 	{
+		auto renderer = params.renderer;
+		auto level = params.level;
+
 		lights.Clear();
 		uniformData.sunLightEnabled = false;
 		auto shadowMapRes = renderer->GetSharedResource()->shadowMapResources;
@@ -51,6 +54,7 @@ namespace GameEngine
 		DirectionalLightActor * sunlight = nullptr;
 		for (auto & actor : level->Actors)
 		{
+			levelBounds.Union(actor.Value->Bounds);
 			auto actorType = actor.Value->GetEngineType();
 			if (actorType == EngineActorType::Light)
 			{
@@ -83,7 +87,7 @@ namespace GameEngine
 				}
 			}
 		}
-		tasks.AddTask(new ImageTransferRenderTask(ArrayView<Texture*>(), MakeArrayView(dynamic_cast<Texture*>(shadowMapRes.shadowMapArray.Ptr()))));
+		tasks.AddTask(new ImageTransferRenderTask(MakeArrayView(dynamic_cast<Texture*>(shadowMapRes.shadowMapArray.Ptr())), ArrayView<Texture*>()));
 		float zmin = params.view.ZNear;
 		int shadowMapViewInstancePtr = 0;
 		int shadowMapSize = Engine::Instance()->GetGraphicsSettings().ShadowMapResolution;
@@ -117,6 +121,7 @@ namespace GameEngine
 					float iOverN = (i + 1) / (float)sunlight->NumShadowCascades;
 					float zi = sunlight->TransitionFactor * zmin * pow(zmax / zmin, iOverN) + (1.0f - sunlight->TransitionFactor)*(zmin + (iOverN)*(zmax - zmin));
 					uniformData.zPlanes[i] = zi;
+					uniformData.numCascades = sunlight->NumShadowCascades;
 					auto verts = camFrustum.GetVertices(zmin, zi);
 					float d1 = (verts[0] - verts[2]).Length2() * 0.25f;
 					float d2 = (verts[4] - verts[6]).Length2() * 0.25f;
@@ -200,7 +205,7 @@ namespace GameEngine
 				}
 			}
 		}
-		tasks.AddTask(new ImageTransferRenderTask(MakeArrayView(dynamic_cast<Texture*>(shadowMapRes.shadowMapArray.Ptr())), ArrayView<Texture*>()));
+		tasks.AddTask(new ImageTransferRenderTask(ArrayView<Texture*>(), MakeArrayView(dynamic_cast<Texture*>(shadowMapRes.shadowMapArray.Ptr()))));
 		uniformData.lightCount = lights.Count();
 		moduleInstance.SetUniformData(&uniformData, sizeof(uniformData));
 		auto lightPtr = (GpuLightData*)((char*)lightBufferPtr + moduleInstance.GetCurrentVersion() * lightBufferSize);
@@ -208,7 +213,7 @@ namespace GameEngine
 	}
 
 
-	LightingEnvironment::LightingEnvironment(RendererSharedResource & pSharedRes, DeviceMemory * pUniformMemory)
+	void LightingEnvironment::Init(RendererSharedResource & pSharedRes, DeviceMemory * pUniformMemory)
 	{
 		this->uniformMemory = pUniformMemory;
 		this->sharedRes = &pSharedRes;
@@ -219,13 +224,26 @@ namespace GameEngine
 		{
 			auto descSet = moduleInstance.GetDescriptorSet(i);
 			descSet->BeginUpdate();
-			descSet->Update(1, lightBuffer.Ptr(), lightBufferSize * i);
+			descSet->Update(1, lightBuffer.Ptr(), lightBufferSize * i, lightBufferSize);
 			descSet->Update(2, sharedRes->shadowMapResources.shadowMapArray.Ptr(), TextureAspect::Depth);
 			descSet->Update(3, sharedRes->shadowSampler.Ptr());
 			descSet->Update(4, sharedRes->envMap.Ptr(), TextureAspect::Color);
 			descSet->EndUpdate();
 		}
 		lightBufferPtr = lightBuffer->Map();
+	}
+
+	void LightingEnvironment::UpdateSharedResourceBinding()
+	{
+		for (int i = 0; i < DynamicBufferLengthMultiplier; i++)
+		{
+			auto descSet = moduleInstance.GetDescriptorSet(i);
+			descSet->BeginUpdate();
+			descSet->Update(2, sharedRes->shadowMapResources.shadowMapArray.Ptr(), TextureAspect::Depth);
+			descSet->Update(3, sharedRes->shadowSampler.Ptr());
+			descSet->Update(4, sharedRes->envMap.Ptr(), TextureAspect::Color);
+			descSet->EndUpdate();
+		}
 	}
 
 }

@@ -86,7 +86,6 @@ namespace GameEngine
 	{
 	public:
 		ModuleInstance * View;
-		ModuleInstance * Lighting;
 	};
 
 	class RenderTask : public CoreLib::RefObject

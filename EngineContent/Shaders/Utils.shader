@@ -386,15 +386,43 @@ vec3 EnvBRDFApprox( vec3 SpecularColor, float Roughness, float NoV )
     return SpecularColor * AB.x + AB.y;
 }
 
+struct Light
+{
+    uint lightType_shadowMapId;
+    float radius;
+    float decay;
+    float startAngle;
+    vec3 position;
+    float endAngle;
+    vec3 color;
+    uint direction;
+    mat4 lightMatrix;
+}
+
+vec3 UnpackDir(uint dir)
+{
+    float alpha = ((dir >> 16) / 65535.0) * 3.1415926 * 2.0f - 3.1415926;
+    float beta = ((dir & 65535) / 65535.0) * 3.1415926 - 3.1415926 * 0.5f;
+    vec3 rs;
+    rs.x = cos(alpha) * cos(beta);
+    rs.z = sin(alpha) * cos(beta);
+    rs.y = sin(beta);
+    return rs;
+}
+
 module Lighting
 {
-    public param vec3 lightDir;
-    public param vec3 lightColor;
+    public param vec3 sunLightDir;
+    public param int sunLightEnabled;
+    public param vec3 sunLightColor;
     public param float ambient;
     public param int shadowMapId;
     public param int numCascades;
+    public param int lightCount;
+    public param int lightProbeCount;
     public param mat4[8] lightMatrix;
     public param vec4[2] zPlanes;
+    public param StructuredBuffer<Light> lights;
     public param Texture2DArrayShadow shadowMapArray;
     public param SamplerComparisonState shadowMapSampler;
     public param TextureCube envMap;
@@ -428,82 +456,89 @@ module Lighting
     inline float roughness_in = lightParam.x;
     inline float metallic_in = lightParam.y;
     inline float specular_in = lightParam.z;
-    vec3 L = lightDir;
-    vec3 H = normalize(view+L);
-    float dotNL = clamp(dot(lNormal,L), 0.01, 0.99);
-    float dotLH = clamp(dot(L,H), 0.01, 0.99);
-    float dotNH = clamp(dot(lNormal,H), 0.01, 0.99);
     
     float Pow4(float x)
     {
         return (x*x)*(x*x);
     }
 
-    vec2 LightingFuncGGX_FV(float dotLH, float roughness)
-    {
-        float alpha = roughness*roughness;/*sf*/
-
-        // F
-        float F_a; float F_b;
-        float dotLH5 = Pow4(1.0-dotLH) * (1.0 - dotLH);
-        F_a = 1.0;
-        F_b = dotLH5;
-
-        // V
-        float vis;
-        float k = alpha/2.0;
-        float k2 = k*k;
-        float invK2 = 1.0-k2;
-        vis = 1.0/(dotLH*dotLH*invK2 + k2);
-
-        return vec2(F_a*vis, F_b*vis);
-    }
-
-    float LightingFuncGGX_D(float dotNH, float roughness)
-    {
-        float alpha = roughness*roughness;
-        float alphaSqr = alpha*alpha;
-        float pi = 3.14159;
-        float denom = dotNH * dotNH *(alphaSqr-1.0) + 1.0;
-
-        float D = alphaSqr/(pi * denom * denom);
-        return D;
-    }
-
-    float shadow
-    {
-        float result = selfShadow(lightDir);
-        if (numCascades)
-        {
-            vec3 viewPos = (viewTransform * vec4(pos, 1.0)).xyz;
-            for (int i = 0; i < numCascades; i++)
-            {
-                if (-viewPos.z < zPlanes[i>>2][i&3])
-                {
-                    vec4 lightSpacePosT = lightMatrix[i] * vec4(pos, 1.0);
-                    vec3 lightSpacePos = lightSpacePosT.xyz / lightSpacePosT.w;
-                    float val = shadowMapArray.SampleCmp(shadowMapSampler, 
-                        vec3(lightSpacePos.xy, i+shadowMapId), lightSpacePos.z);
-                    result *= val;
-                    break;
-                }
-            }
-        }
-        return result;
-    }
-    
-    float brightness = clamp(dot(lightDir, lNormal), 0.0, 1.0) * shadow;
-
     public vec3 result
     {
         float dielectricSpecluar = 0.02 * specular_in;
         vec3 diffuseColor = albedo - albedo * metallic_in;
         vec3 specularColor = vec3(dielectricSpecluar - dielectricSpecluar * metallic_in) + albedo * metallic_in;
-        float NoV = max(dot(lNormal, view), 0.0);
-        specularColor = EnvBRDFApprox(specularColor, roughness_in, NoV);
+        vec3 viewPos = (viewTransform * vec4(pos, 1.0)).xyz;
+        vec3 color = vec3(0.0);
         vec3 R = reflect(-view, lNormal);
-        float RoL = max(0, dot(R, lightDir));
-        vec3 color = lightColor * dotNL * (diffuseColor + specularColor * PhongApprox(roughness_in, RoL)) * shadow;
+
+        if (sunLightEnabled != 0)
+        {
+            float shadow = selfShadow(sunLightDir);
+            if (numCascades)
+            {
+                for (int i = 0; i < numCascades; i++)
+                {
+                    if (-viewPos.z < zPlanes[i>>2][i&3])
+                    {
+                        vec4 lightSpacePosT = lightMatrix[i] * vec4(pos, 1.0);
+                        vec3 lightSpacePos = lightSpacePosT.xyz / lightSpacePosT.w;
+                        float val = shadowMapArray.SampleCmp(shadowMapSampler, 
+                            vec3(lightSpacePos.xy, i+shadowMapId), lightSpacePos.z);
+                        shadow *= val;
+                        break;
+                    }
+                }
+            }
+            
+            float NoV = max(dot(lNormal, view), 0.0);
+            vec3 fspecularColor = EnvBRDFApprox(specularColor, roughness_in, NoV);
+            vec3 R = reflect(-view, lNormal);
+            float RoL = max(0, dot(R, sunLightDir));
+            float dotNL = clamp(dot(lNormal, sunLightDir), 0.01, 0.99);
+            color = sunLightColor * dotNL * (diffuseColor + fspecularColor * PhongApprox(roughness_in, RoL)) * shadow;
+        }
+
+        for (int i = 0; i < lightCount; i++)
+        {
+            Light light = lights[i];
+            uint lightType = light.lightType_shadowMapId>>16;
+            uint shadowMapId = light.lightType_shadowMapId & 65535;
+            vec3 lightDir = vec3(0.0);
+            float actualDecay = 1.0;
+            if (lightType == 0 || lightType == 2) //point light
+            {
+                vec3 path = light.position - pos;
+                float dist = dot(path, path);
+                lightDir = normalize(path);
+                actualDecay = 1.0 / max(1.0, dist * light.decay);
+                if (lightType == 2)
+                {
+                    float ang = acos(dot(-lightDir, UnpackDir(light.direction)));
+                    actualDecay *= mix(1.0, 0.0, clamp((ang-light.startAngle) / (light.endAngle-light.startAngle), 0.0, 1.0));
+                }
+            }
+            else if (lightType == 1) // directional light
+            {
+                lightDir = UnpackDir(light.direction);
+            }
+            float shadow = selfShadow(lightDir);
+            if (shadowMapId != 65535)
+            {
+                vec4 lightSpacePosT = light.lightMatrix * vec4(pos, 1.0);
+                vec3 lightSpacePos = lightSpacePosT.xyz / lightSpacePosT.w;
+                float val = shadowMapArray.SampleCmp(shadowMapSampler, 
+                    vec3(lightSpacePos.xy, shadowMapId), lightSpacePos.z);
+                shadow *= val;
+            }
+            float dotNL = clamp(dot(lNormal, lightDir), 0.01, 0.99);
+            float NoV = max(dot(lNormal, view), 0.0);
+            vec3 fspecularColor = EnvBRDFApprox(specularColor, roughness_in, NoV);
+            
+            float RoL = max(0, dot(R, lightDir));
+            color += light.color * dotNL * (diffuseColor + fspecularColor * PhongApprox(roughness_in, RoL)) * (shadow * actualDecay);
+        }
+
+
         vec3 specularIBL = specularColor * envMap.SampleLevel(textureSampler, R, 
                             clamp(roughness_in, 0.0, 1.0) * 8.0).xyz;
         vec3 diffuseIBL = diffuseColor * envMap.SampleLevel(textureSampler, lNormal, 

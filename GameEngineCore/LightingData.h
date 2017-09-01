@@ -26,6 +26,7 @@ namespace GameEngine
 		float endAngle;
 		VectorMath::Vec3 color;
 		unsigned int direction;
+		VectorMath::Matrix4 lightMatrix;
 	};
 
 	struct GpuLightProbeData
@@ -64,9 +65,9 @@ namespace GameEngine
 		void* lightBufferPtr;
 		int lightBufferSize;
 		LightingUniform uniformData;
-		void GatherInfo(FrameRenderTask & tasks, Renderer* renderer, DrawableSink * sink, const RenderProcedureParameters & params, int w, int h, StandardViewUniforms & cameraView, Level* level, WorldRenderPass * shadowPass);
-		void GenerateShadowMapTasks(FrameRenderTask & tasks);
-		LightingEnvironment(RendererSharedResource & sharedRes, DeviceMemory * uniformMemory);
+		void GatherInfo(FrameRenderTask & tasks, DrawableSink * sink, const RenderProcedureParameters & params, int w, int h, StandardViewUniforms & cameraView, WorldRenderPass * shadowPass);
+		void Init(RendererSharedResource & sharedRes, DeviceMemory * uniformMemory);
+		void UpdateSharedResourceBinding();
 	};
 }
 
