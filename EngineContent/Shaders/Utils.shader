@@ -401,8 +401,8 @@ struct Light
 
 vec3 UnpackDir(uint dir)
 {
-    float alpha = ((dir >> 16) / 65535.0) * 3.1415926 * 2.0f - 3.1415926;
-    float beta = ((dir & 65535) / 65535.0) * 3.1415926 - 3.1415926 * 0.5f;
+    float alpha = (float(dir >> 16) / 65535.0) * 3.1415926 * 2.0f - 3.1415926;
+    float beta = (float(dir & 65535) / 65535.0) * 3.1415926 - 3.1415926 * 0.5f;
     vec3 rs;
     rs.x = cos(alpha) * cos(beta);
     rs.z = sin(alpha) * cos(beta);
@@ -501,8 +501,8 @@ module Lighting
         for (int i = 0; i < lightCount; i++)
         {
             Light light = lights[i];
-            uint lightType = light.lightType_shadowMapId>>16;
-            uint shadowMapId = light.lightType_shadowMapId & 65535;
+            uint lightType = light.lightType_shadowMapId & 65535;
+            uint shadowMapId = light.lightType_shadowMapId >> 16;
             vec3 lightDir = vec3(0.0);
             float actualDecay = 1.0;
             if (lightType == 0 || lightType == 2) //point light

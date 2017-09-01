@@ -46,6 +46,32 @@ DirectionalLight
     TransitionFactor 0.8 
 }
 
+PointLight
+{
+    name "plight0"
+    transform [1 0 0 0   0 1 0 0    0 0 1 0    50 200 400 1]
+    Direction [1.0 1.0 1.0]
+    Color [2 4 5]
+    EnableShadows false
+    DecayDistance90Percent 1200
+    IsSpotLight false
+    SpotLightStartAngle 30
+    SpotLightEndAngle 40
+}
+
+PointLight
+{
+    name "plight1"
+    transform [1 0 0 0   0 1 0 0    0 0 1 0    80 200 -1200 1]
+    Direction [-1.0 -1.0 -1.0]
+    Color [5 4 2]
+    EnableShadows false
+    DecayDistance90Percent 1200
+    IsSpotLight true
+    SpotLightStartAngle 30
+    SpotLightEndAngle 40
+}
+
 StaticMesh
 {
     name "sphere"

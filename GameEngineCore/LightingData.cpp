@@ -1,6 +1,6 @@
 #include "LightingData.h"
-#include "LightActor.h"
 #include "DirectionalLightActor.h"
+#include "PointLightActor.h"
 #include "WorldRenderPass.h"
 #include "Engine.h"
 
@@ -84,6 +84,22 @@ namespace GameEngine
 					{
 						lights.Add(lightData);
 					}
+				}
+				else if (light->lightType == LightType::Point)
+				{
+					auto pointLight = (PointLightActor*)(light);
+					GpuLightData lightData;
+					lightData.lightType = pointLight->IsSpotLight ? GpuLightType_Spot: GpuLightType_Point;
+					lightData.color = pointLight->Color;
+					lightData.direction = PackDirection(pointLight->Direction);
+					auto localTransform = pointLight->GetLocalTransform();
+					lightData.position = Vec3::Create(localTransform.values[12], localTransform.values[13], localTransform.values[14]);
+					lightData.radius = pointLight->Radius;
+					lightData.startAngle = pointLight->SpotLightStartAngle * (Math::Pi / 180.0f);
+					lightData.endAngle = pointLight->SpotLightEndAngle * (Math::Pi / 180.0f);
+					lightData.shaderMapId = 0xFFFF;
+					lightData.decay = 10.0f / (pointLight->DecayDistance90Percent * pointLight->DecayDistance90Percent);
+					lights.Add(lightData);
 				}
 			}
 		}

@@ -132,6 +132,7 @@
     <ClCompile Include="LightingData.cpp">
       <Filter>Renderer</Filter>
     </ClCompile>
+    <ClCompile Include="PointLightActor.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
@@ -280,6 +281,9 @@
       <Filter>Renderer</Filter>
     </ClInclude>
     <ClInclude Include="StandardViewUniforms.h" />
+    <ClInclude Include="PointLightActor.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Spire">
