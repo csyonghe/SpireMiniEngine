@@ -51,6 +51,9 @@ namespace GameEngine
 
 	class LightingEnvironment
 	{
+	private:
+		void AddShadowPass(FrameRenderTask & tasks, WorldRenderPass * shadowRenderPass, DrawableSink * sink, ShadowMapResource & shadowMapRes, int shadowMapId,
+			StandardViewUniforms & shadowMapView, int & shadowMapViewInstancePtr);
 	public:
 		DeviceMemory * uniformMemory;
 		ModuleInstance moduleInstance;

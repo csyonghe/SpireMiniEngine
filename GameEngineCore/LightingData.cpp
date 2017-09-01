@@ -40,6 +40,41 @@ namespace GameEngine
 		}
 	}
 
+	void LightingEnvironment::AddShadowPass(FrameRenderTask & tasks, WorldRenderPass * shadowRenderPass, DrawableSink * sink, ShadowMapResource & shadowMapRes, int shadowMapId,
+		StandardViewUniforms & shadowMapView, int & shadowMapViewInstancePtr)
+	{
+		auto pass = shadowRenderPass->CreateInstance(shadowMapRes.shadowMapRenderOutputs[shadowMapId].Ptr(), true);
+
+		ModuleInstance * shadowMapPassModuleInstance = nullptr;
+		if (shadowMapViewInstancePtr < shadowViewInstances.Count())
+		{
+			shadowMapPassModuleInstance = &shadowViewInstances[shadowMapViewInstancePtr++];
+		}
+		else
+		{
+			shadowViewInstances.Add(ModuleInstance());
+			sharedRes->CreateModuleInstance(shadowViewInstances.Last(), spFindModule(sharedRes->spireContext, "ForwardBasePassParams"), uniformMemory);
+			shadowMapViewInstancePtr = shadowViewInstances.Count();
+			shadowMapPassModuleInstance = &shadowViewInstances.Last();
+			for (int j = 0; j < DynamicBufferLengthMultiplier; j++)
+			{
+				auto descSet = shadowMapPassModuleInstance->GetDescriptorSet(j);
+				descSet->BeginUpdate();
+				descSet->Update(1, sharedRes->textureSampler.Ptr());
+				descSet->EndUpdate();
+			}
+		}
+		shadowMapPassModuleInstance->SetUniformData(&shadowMapView, sizeof(shadowMapView));
+		sharedRes->pipelineManager.PushModuleInstance(shadowMapPassModuleInstance);
+		drawableBuffer.Clear();
+		auto cullFrustum = CullFrustum(shadowMapView.InvViewProjTransform);
+		GetDrawable(drawableBuffer, sink, true, cullFrustum);
+		GetDrawable(drawableBuffer, sink, false, cullFrustum);
+		pass->SetDrawContent(sharedRes->pipelineManager, reorderBuffer, drawableBuffer.GetArrayView());
+		sharedRes->pipelineManager.PopModuleInstance();
+		tasks.AddTask(pass);
+	}
+
 	void LightingEnvironment::GatherInfo(FrameRenderTask & tasks, DrawableSink * sink, const RenderProcedureParameters & params, int w, int h, StandardViewUniforms & viewUniform, WorldRenderPass * shadowRenderPass)
 	{
 		auto renderer = params.renderer;
@@ -95,9 +130,16 @@ namespace GameEngine
 					auto localTransform = pointLight->GetLocalTransform();
 					lightData.position = Vec3::Create(localTransform.values[12], localTransform.values[13], localTransform.values[14]);
 					lightData.radius = pointLight->Radius;
-					lightData.startAngle = pointLight->SpotLightStartAngle * (Math::Pi / 180.0f);
-					lightData.endAngle = pointLight->SpotLightEndAngle * (Math::Pi / 180.0f);
+					lightData.startAngle = pointLight->SpotLightStartAngle * (Math::Pi / 180.0f * 0.5f);
+					lightData.endAngle = pointLight->SpotLightEndAngle * (Math::Pi / 180.0f * 0.5f);
 					lightData.shaderMapId = 0xFFFF;
+					if (pointLight->EnableShadows)
+						lightData.shaderMapId = (unsigned short)shadowMapRes.AllocShadowMaps(1);
+					if (lightData.shaderMapId == -1)
+					{
+						lightData.shaderMapId = 0xFFFF;
+						Engine::Print("Cannot allocate shadow map for light '%s', out of resource limit!", light->Name.Buffer());
+					}
 					lightData.decay = 10.0f / (pointLight->DecayDistance90Percent * pointLight->DecayDistance90Percent);
 					lights.Add(lightData);
 				}
@@ -110,9 +152,10 @@ namespace GameEngine
 		float aspect = w / (float)h;
 		auto camFrustum = params.view.GetFrustum(aspect);
 
+		// generate cascaded shadow map passes for sunlight
+		shadowRenderPass->Bind();
 		if (uniformData.sunLightEnabled)
 		{
-			shadowRenderPass->Bind();
 			int shadowMapStartId = shadowMapRes.AllocShadowMaps(sunlight->NumShadowCascades);
 			uniformData.shadowMapId = shadowMapStartId;
 			if (shadowMapStartId != -1)
@@ -188,37 +231,44 @@ namespace GameEngine
 					viewportMatrix.m[1][1] = 0.5f; viewportMatrix.m[3][1] = 0.5f;
 					viewportMatrix.m[2][2] = 1.0f; viewportMatrix.m[3][2] = 0.0f;
 					Matrix4::Multiply(uniformData.lightMatrix[i], viewportMatrix, shadowMapView.ViewProjectionTransform);
-					auto pass = shadowRenderPass->CreateInstance(shadowMapRes.shadowMapRenderOutputs[i + shadowMapStartId].Ptr(), true);
-
-					ModuleInstance * shadowMapPassModuleInstance = nullptr;
-					if (shadowMapViewInstancePtr < shadowViewInstances.Count())
-					{
-						shadowMapPassModuleInstance = &shadowViewInstances[shadowMapViewInstancePtr++];
-					}
-					else
-					{
-						shadowViewInstances.Add(ModuleInstance());
-						sharedRes->CreateModuleInstance(shadowViewInstances.Last(), spFindModule(sharedRes->spireContext, "ForwardBasePassParams"), uniformMemory);
-						shadowMapViewInstancePtr = shadowViewInstances.Count();
-						shadowMapPassModuleInstance = &shadowViewInstances.Last();
-						for (int j = 0; j < DynamicBufferLengthMultiplier; j++)
-						{
-							auto descSet = shadowMapPassModuleInstance->GetDescriptorSet(j);
-							descSet->BeginUpdate();
-							descSet->Update(1, sharedRes->textureSampler.Ptr());
-							descSet->EndUpdate();
-						}
-					}
-					shadowMapPassModuleInstance->SetUniformData(&shadowMapView, sizeof(shadowMapView));
-					sharedRes->pipelineManager.PushModuleInstance(shadowMapPassModuleInstance);
-					drawableBuffer.Clear();
-					auto cullFrustum = CullFrustum(shadowMapView.InvViewProjTransform);
-					GetDrawable(drawableBuffer, sink, true, cullFrustum);
-					GetDrawable(drawableBuffer, sink, false, cullFrustum);
-					pass->SetDrawContent(sharedRes->pipelineManager, reorderBuffer, drawableBuffer.GetArrayView());
-					sharedRes->pipelineManager.PopModuleInstance();
-					tasks.AddTask(pass);
+					AddShadowPass(tasks, shadowRenderPass, sink, shadowMapRes, i + shadowMapStartId, shadowMapView, shadowMapViewInstancePtr);
 				}
+			}
+		}
+		// generate shadow map passes for spot lights
+		for (auto & light : lights)
+		{
+			if (light.shaderMapId != 0xFFFF)
+			{
+				Vec3 lightPos = light.position;
+				StandardViewUniforms shadowMapView;
+				Vec3 viewZ = -UnpackDirection(light.direction);
+				Vec3 viewX, viewY;
+				GetOrthoVec(viewX, viewZ);
+				viewY = Vec3::Cross(viewZ, viewX);
+				shadowMapView.CameraPos = viewUniform.CameraPos;
+				shadowMapView.Time = viewUniform.Time;
+				Matrix4::CreateIdentityMatrix(shadowMapView.ViewTransform);
+				shadowMapView.ViewTransform.m[0][0] = viewX.x; shadowMapView.ViewTransform.m[1][0] = viewX.y; shadowMapView.ViewTransform.m[2][0] = viewX.z;
+				shadowMapView.ViewTransform.m[0][1] = viewY.x; shadowMapView.ViewTransform.m[1][1] = viewY.y; shadowMapView.ViewTransform.m[2][1] = viewY.z;
+				shadowMapView.ViewTransform.m[0][2] = viewZ.x; shadowMapView.ViewTransform.m[1][2] = viewZ.y; shadowMapView.ViewTransform.m[2][2] = viewZ.z;
+				shadowMapView.ViewTransform.values[12] = -(shadowMapView.ViewTransform.values[0] * lightPos.x + shadowMapView.ViewTransform.values[4] * lightPos.y + shadowMapView.ViewTransform.values[8] * lightPos.z);
+				shadowMapView.ViewTransform.values[13] = -(shadowMapView.ViewTransform.values[1] * lightPos.x + shadowMapView.ViewTransform.values[5] * lightPos.y + shadowMapView.ViewTransform.values[9] * lightPos.z);
+				shadowMapView.ViewTransform.values[14] = -(shadowMapView.ViewTransform.values[2] * lightPos.x + shadowMapView.ViewTransform.values[6] * lightPos.y + shadowMapView.ViewTransform.values[10] * lightPos.z);
+				Matrix4 projMatrix;
+				Matrix4::CreatePerspectiveMatrixFromViewAngle(projMatrix, light.endAngle*(180.0f * 2.0f/Math::Pi), 1.0f, light.radius*0.001f, light.radius, ClipSpaceType::ZeroToOne);
+				Matrix4::Multiply(shadowMapView.ViewProjectionTransform, projMatrix, shadowMapView.ViewTransform);
+
+				shadowMapView.ViewProjectionTransform.Inverse(shadowMapView.InvViewProjTransform);
+				shadowMapView.ViewTransform.Inverse(shadowMapView.InvViewTransform);
+
+				Matrix4 viewportMatrix;
+				Matrix4::CreateIdentityMatrix(viewportMatrix);
+				viewportMatrix.m[0][0] = 0.5f; viewportMatrix.m[3][0] = 0.5f;
+				viewportMatrix.m[1][1] = 0.5f; viewportMatrix.m[3][1] = 0.5f;
+				viewportMatrix.m[2][2] = 1.0f; viewportMatrix.m[3][2] = 0.0f;
+				Matrix4::Multiply(light.lightMatrix, viewportMatrix, shadowMapView.ViewProjectionTransform);
+				AddShadowPass(tasks, shadowRenderPass, sink, shadowMapRes, light.shaderMapId, shadowMapView, shadowMapViewInstancePtr);
 			}
 		}
 		tasks.AddTask(new ImageTransferRenderTask(ArrayView<Texture*>(), MakeArrayView(dynamic_cast<Texture*>(shadowMapRes.shadowMapArray.Ptr()))));
