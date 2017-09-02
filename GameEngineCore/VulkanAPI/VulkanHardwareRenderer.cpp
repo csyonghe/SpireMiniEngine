@@ -2032,7 +2032,7 @@ namespace VK
 				.setCompareEnable(op != CompareFunc::Disabled)
 				.setCompareOp(TranslateCompareFunc(op))
 				.setMinLod(0.0f)
-				.setMaxLod(0.0f)
+				.setMaxLod(1.0f)
 				.setBorderColor(vk::BorderColor::eFloatTransparentBlack)
 				.setUnnormalizedCoordinates(VK_FALSE);
 
@@ -2051,29 +2051,29 @@ namespace VK
 				samplerCreateInfo.setMinFilter(vk::Filter::eLinear);
 				samplerCreateInfo.setMagFilter(vk::Filter::eLinear);
 				samplerCreateInfo.setMipmapMode(vk::SamplerMipmapMode::eLinear);
-				samplerCreateInfo.setMaxLod(20.0f);
+				samplerCreateInfo.setMaxLod(11.0f);
 				break;
 			case TextureFilter::Anisotropic4x:
 				samplerCreateInfo.setMinFilter(vk::Filter::eLinear);
 				samplerCreateInfo.setMagFilter(vk::Filter::eLinear);
-				samplerCreateInfo.setMipmapMode(vk::SamplerMipmapMode::eLinear);
-				samplerCreateInfo.setMaxLod(20.0f);
+				samplerCreateInfo.setMipmapMode(vk::SamplerMipmapMode::eNearest);
+				samplerCreateInfo.setMaxLod(11.0f);
 				samplerCreateInfo.setAnisotropyEnable(VK_TRUE);
 				samplerCreateInfo.setMaxAnisotropy(4.0f);
 				break;
 			case TextureFilter::Anisotropic8x:
 				samplerCreateInfo.setMinFilter(vk::Filter::eLinear);
 				samplerCreateInfo.setMagFilter(vk::Filter::eLinear);
-				samplerCreateInfo.setMipmapMode(vk::SamplerMipmapMode::eLinear);
-				samplerCreateInfo.setMaxLod(20.0f);
+				samplerCreateInfo.setMipmapMode(vk::SamplerMipmapMode::eNearest);
+				samplerCreateInfo.setMaxLod(11.0f);
 				samplerCreateInfo.setAnisotropyEnable(VK_TRUE);
 				samplerCreateInfo.setMaxAnisotropy(8.0f);
 				break;
 			case TextureFilter::Anisotropic16x:
 				samplerCreateInfo.setMinFilter(vk::Filter::eLinear);
 				samplerCreateInfo.setMagFilter(vk::Filter::eLinear);
-				samplerCreateInfo.setMipmapMode(vk::SamplerMipmapMode::eLinear);
-				samplerCreateInfo.setMaxLod(20.0f);
+				samplerCreateInfo.setMipmapMode(vk::SamplerMipmapMode::eNearest);
+				samplerCreateInfo.setMaxLod(11.0f);
 				samplerCreateInfo.setAnisotropyEnable(VK_TRUE);
 				samplerCreateInfo.setMaxAnisotropy(16.0f);
 				break;
@@ -4489,9 +4489,6 @@ namespace VK
 
 		virtual void ClearTexture(GameEngine::Texture2D* texture) override
 		{
-			//TODO: improve
-			RendererState::RenderQueue().waitIdle(); //TODO: Remove
-
 			vk::CommandBufferBeginInfo primaryBeginInfo = vk::CommandBufferBeginInfo()
 				.setFlags(vk::CommandBufferUsageFlagBits::eSimultaneousUse)
 				.setPInheritanceInfo(nullptr);
@@ -4660,7 +4657,7 @@ namespace VK
 		}
 		virtual void Blit(GameEngine::Texture2D* dstImage, GameEngine::Texture2D* srcImage) override
 		{
-			vk::CommandBuffer transferCommandBuffer = RendererState::CreateCommandBuffer(RendererState::TransferCommandPool());
+			vk::CommandBuffer transferCommandBuffer = RendererState::GetTempTransferCommandBuffer();
 
 			vk::CommandBufferBeginInfo commandBufferBeginInfo = vk::CommandBufferBeginInfo()
 				.setFlags(vk::CommandBufferUsageFlagBits::eSimultaneousUse)
@@ -4781,7 +4778,7 @@ namespace VK
 			);
 			transferCommandBuffer.end(); // stop recording
 
-										 // Transfer queue submit
+			// Transfer queue submit
 			vk::SubmitInfo transferSubmitInfo = vk::SubmitInfo()
 				.setWaitSemaphoreCount(0)
 				.setPWaitSemaphores(nullptr)
@@ -4791,10 +4788,7 @@ namespace VK
 				.setSignalSemaphoreCount(0)
 				.setPSignalSemaphores(nullptr);
 
-			RendererState::RenderQueue().waitIdle(); //TODO: Remove
 			RendererState::RenderQueue().submit(transferSubmitInfo, vk::Fence());
-			RendererState::RenderQueue().waitIdle(); //TODO: Remove
-			RendererState::DestroyCommandBuffer(RendererState::TransferCommandPool(), transferCommandBuffer);
 		}
 		virtual void Present(GameEngine::WindowSurface *surface, GameEngine::Texture2D* srcImage) override
 		{
@@ -4924,6 +4918,11 @@ namespace VK
 		virtual void EndDataTransfer() override
 		{
 
+		}
+
+		virtual String GetRendererName() override
+		{
+			return RendererState::PhysicalDevice().getProperties().deviceName;
 		}
 	};
 }

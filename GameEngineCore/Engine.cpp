@@ -165,10 +165,10 @@ namespace GameEngine
 			switch (args.API)
 			{
 			case RenderAPI::Vulkan:
-				Print("using Vulkan renderer, on GPU %d\n", Engine::Instance()->GpuId);
+				Print("Vulkan: %s\n", renderer->GetHardwareRenderer()->GetRendererName().Buffer());
 				break;
 			case RenderAPI::OpenGL:
-				Print("using OpenGL renderer.\n");
+				Print("OpenGL: %s\n", renderer->GetHardwareRenderer()->GetRendererName().Buffer());
 				break;
 			}
 

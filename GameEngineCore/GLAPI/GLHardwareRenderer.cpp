@@ -3550,6 +3550,11 @@ namespace GLL
 		virtual void ResetTempBufferVersion(int) override
 		{
 		}
+
+		virtual String GetRendererName() override
+		{
+			return (char*)glGetString(GL_RENDERER);
+		}
 	};
 }
 

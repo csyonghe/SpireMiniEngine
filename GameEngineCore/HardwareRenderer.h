@@ -811,6 +811,7 @@ namespace GameEngine
 		virtual void BeginDataTransfer() = 0;
 		virtual void EndDataTransfer() = 0;
         virtual WindowSurface * CreateSurface(void * windowHandle, int width, int height) = 0;
+		virtual CoreLib::String GetRendererName() = 0;
 	};
 
 	// HardwareRenderer instance constructors
