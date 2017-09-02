@@ -1460,8 +1460,11 @@ namespace GameEngine
 
     void UIWindowContext::SetSize(int w, int h)
     {
+		if (w == 0 || h == 0)
+			return;
         hwRenderer->Wait();
         hwRenderer->BeginDataTransfer();
+		
         surface->Resize(w, h);
         uiEntry->Posit(0, 0, w, h);
         uiOverlayTexture = hwRenderer->CreateTexture2D(TextureUsage::SampledColorAttachment, w, h, 1, StorageFormat::RGBA_8);

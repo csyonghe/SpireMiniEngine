@@ -258,7 +258,8 @@ namespace GameEngine
 				task.AddTask(atmospherePass->CreateInstance(sharedModules));
 			}
 			task.sharedModuleInstances = sharedModules;
-			
+
+
 			// transparency pass
 			reorderBuffer.Clear();
 			for (auto drawable : GetDrawable(&sink, true, false, cameraCullFrustum, false))
@@ -280,8 +281,11 @@ namespace GameEngine
 				transparentPassInstance->SetFixedOrderDrawContent(sharedRes->pipelineManager, reorderBuffer.GetArrayView());
 				sharedRes->pipelineManager.PopModuleInstance();
 				sharedRes->pipelineManager.PopModuleInstance();
+				task.AddTask(new ImageTransferRenderTask(textures.GetArrayView(), CoreLib::ArrayView<Texture*>()));
 				task.AddTask(transparentPassInstance);
+				task.AddTask(new ImageTransferRenderTask(CoreLib::ArrayView<Texture*>(), textures.GetArrayView()));
 			}
+
 			if (toneMapping)
 			{
 				if (useAtmosphere)

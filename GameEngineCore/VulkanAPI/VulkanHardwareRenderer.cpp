@@ -1184,7 +1184,7 @@ namespace VK
 						.setBaseMipLevel(0)
 						.setLevelCount(1)
 						.setBaseArrayLayer(i)
-						.setLayerCount(arrayLayers);
+						.setLayerCount(i == 0 ? arrayLayers : 1);
 
 					imageViewCreateInfo = vk::ImageViewCreateInfo()
 						.setFlags(vk::ImageViewCreateFlags())
@@ -1267,8 +1267,8 @@ namespace VK
 
 			transferCommandBuffer.begin(transferBeginInfo);
 			transferCommandBuffer.pipelineBarrier(
-				vk::PipelineStageFlagBits::eTopOfPipe,
-				vk::PipelineStageFlagBits::eTopOfPipe,
+				vk::PipelineStageFlagBits::eAllCommands,
+				vk::PipelineStageFlagBits::eAllCommands,
 				vk::DependencyFlags(),
 				nullptr,
 				nullptr,
@@ -1566,8 +1566,8 @@ namespace VK
 
 				transferCommandBuffer.begin(transferBeginInfo);
 				transferCommandBuffer.pipelineBarrier(
-					vk::PipelineStageFlagBits::eTopOfPipe,
-					vk::PipelineStageFlagBits::eTopOfPipe,
+					vk::PipelineStageFlagBits::eTransfer,
+					vk::PipelineStageFlagBits::eTransfer,
 					vk::DependencyFlags(),
 					nullptr,
 					nullptr,
@@ -1580,8 +1580,8 @@ namespace VK
 					stagingCopy
 				);
 				transferCommandBuffer.pipelineBarrier(
-					vk::PipelineStageFlagBits::eTopOfPipe,
-					vk::PipelineStageFlagBits::eTopOfPipe,
+					vk::PipelineStageFlagBits::eTransfer,
+					vk::PipelineStageFlagBits::eAllCommands,
 					vk::DependencyFlags(),
 					nullptr,
 					nullptr,
@@ -1817,8 +1817,8 @@ namespace VK
 
 			transferCommandBuffer.begin(transferBeginInfo);
 			transferCommandBuffer.pipelineBarrier(
-				vk::PipelineStageFlagBits::eTopOfPipe,
-				vk::PipelineStageFlagBits::eTopOfPipe,
+				vk::PipelineStageFlagBits::eAllCommands,
+				vk::PipelineStageFlagBits::eAllCommands,
 				vk::DependencyFlags(),
 				nullptr,
 				nullptr,
@@ -1848,8 +1848,8 @@ namespace VK
 				blitFilter
 			);
 			transferCommandBuffer.pipelineBarrier(
-				vk::PipelineStageFlagBits::eTopOfPipe,
-				vk::PipelineStageFlagBits::eTopOfPipe,
+				vk::PipelineStageFlagBits::eAllCommands,
+				vk::PipelineStageFlagBits::eAllCommands,
 				vk::DependencyFlags(),
 				nullptr,
 				nullptr,
@@ -3481,7 +3481,7 @@ namespace VK
 				.setRenderPass(reinterpret_cast<VK::RenderTargetLayout*>(renderTargetLayout)->renderPass)
 				.setSubpass(0)//
 				.setFramebuffer(framebuffer)
-				.setOcclusionQueryEnable(VK_TRUE)//
+				.setOcclusionQueryEnable(VK_FALSE)//
 				.setQueryFlags(vk::QueryControlFlags())//
 				.setPipelineStatistics(vk::QueryPipelineStatisticFlags());//
 
@@ -3709,8 +3709,8 @@ namespace VK
 			}
 
 			buffer.pipelineBarrier(
-				vk::PipelineStageFlagBits::eBottomOfPipe,
-				vk::PipelineStageFlagBits::eTopOfPipe,
+				vk::PipelineStageFlagBits::eAllCommands,
+				vk::PipelineStageFlagBits::eAllCommands,
 				vk::DependencyFlags(),
 				nullptr,
 				nullptr,
@@ -3726,6 +3726,33 @@ namespace VK
 			if (inRenderPass == true)
 				throw HardwareRendererException("BeginRecording must take no parameters for Blit");
 #endif
+			vk::ImageLayout oriLayout;
+			switch (srcLayout)
+			{
+			case TextureLayout::ColorAttachment:
+				oriLayout = vk::ImageLayout::eColorAttachmentOptimal;
+				break;
+			case TextureLayout::DepthStencilAttachment:
+				oriLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+				break;
+			case TextureLayout::General:
+				oriLayout = vk::ImageLayout::eGeneral;
+				break;
+			case TextureLayout::Present:
+				oriLayout = vk::ImageLayout::ePresentSrcKHR;
+				break;
+			case TextureLayout::Sample:
+				oriLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+				break;
+			case TextureLayout::TransferDst:
+				oriLayout = vk::ImageLayout::eTransferDstOptimal;
+				break;
+			case TextureLayout::TransferSrc:
+				oriLayout = vk::ImageLayout::eTransferSrcOptimal;
+				break;
+			default:
+				oriLayout = vk::ImageLayout::eGeneral;
+			}
 			vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
 				.setAspectMask(vk::ImageAspectFlagBits::eColor)
 				.setBaseMipLevel(0)
@@ -3753,47 +3780,38 @@ namespace VK
 				.setImage(dynamic_cast<Texture2D*>(dstImage)->image)
 				.setSubresourceRange(imageSubresourceRange);
 
+			vk::ImageMemoryBarrier preBlitSrcBarrier = vk::ImageMemoryBarrier()
+				.setSrcAccessMask(LayoutFlags(oriLayout))
+				.setDstAccessMask(LayoutFlags(vk::ImageLayout::eTransferSrcOptimal))
+				.setOldLayout(oriLayout)
+				.setNewLayout(vk::ImageLayout::eTransferSrcOptimal)
+				.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+				.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+				.setImage(dynamic_cast<Texture2D*>(srcImage)->image)
+				.setSubresourceRange(imageSubresourceRange);
+
+			vk::ImageMemoryBarrier postBlitSrcBarrier = vk::ImageMemoryBarrier()
+				.setSrcAccessMask(LayoutFlags(vk::ImageLayout::eTransferSrcOptimal))
+				.setDstAccessMask(LayoutFlags(oriLayout))
+				.setOldLayout(vk::ImageLayout::eTransferSrcOptimal)
+				.setNewLayout(oriLayout)
+				.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+				.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+				.setImage(dynamic_cast<Texture2D*>(srcImage)->image)
+				.setSubresourceRange(imageSubresourceRange);
+			
+			std::array<vk::ImageMemoryBarrier, 2> barriers;
+			barriers[0] = preBlitBarrier;
+			barriers[1] = preBlitSrcBarrier;
 			buffer.pipelineBarrier(
-				vk::PipelineStageFlagBits::eTransfer,
-				vk::PipelineStageFlagBits::eTransfer,
+				vk::PipelineStageFlagBits::eAllCommands,
+				vk::PipelineStageFlagBits::eAllCommands,
 				vk::DependencyFlags(),
 				nullptr,
 				nullptr,
-				preBlitBarrier
+				barriers
 			);
-
-			vk::ImageLayout oriSrcLayout;
-			switch (srcLayout)
-			{
-			case TextureLayout::Undefined:
-				oriSrcLayout = vk::ImageLayout::eUndefined;
-				break;
-			case TextureLayout::Sample:
-				oriSrcLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-				break;
-			case TextureLayout::General:
-				oriSrcLayout = vk::ImageLayout::eGeneral;
-				break;
-			case TextureLayout::Present:
-				oriSrcLayout = vk::ImageLayout::ePresentSrcKHR;
-				break;
-			case TextureLayout::ColorAttachment:
-				oriSrcLayout = vk::ImageLayout::eColorAttachmentOptimal;
-				break;
-			case TextureLayout::DepthStencilAttachment:
-				oriSrcLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-				break;
-			case TextureLayout::TransferDst:
-				oriSrcLayout = vk::ImageLayout::eTransferDstOptimal;
-				break;
-			case TextureLayout::TransferSrc:
-				oriSrcLayout = vk::ImageLayout::eTransferSrcOptimal;
-				break;
-			default:
-				oriSrcLayout = vk::ImageLayout::eGeneral;
-				break;
-			}
-
+			
 			// Blit
 			vk::ImageSubresourceLayers subresourceLayers = vk::ImageSubresourceLayers()
 				.setAspectMask(vk::ImageAspectFlagBits::eColor)
@@ -3817,20 +3835,23 @@ namespace VK
 
 			buffer.blitImage(
 				dynamic_cast<VK::Texture2D*>(srcImage)->image,
-				oriSrcLayout,
+				vk::ImageLayout::eTransferSrcOptimal,
 				dynamic_cast<Texture2D*>(dstImage)->image,
 				vk::ImageLayout::eTransferDstOptimal,
 				blitRegions,
 				vk::Filter::eNearest
 			);
 
+			barriers[0] = postBlitBarrier;
+			barriers[1] = postBlitSrcBarrier;
+
 			buffer.pipelineBarrier(
-				vk::PipelineStageFlagBits::eTransfer,
-				vk::PipelineStageFlagBits::eBottomOfPipe,
+				vk::PipelineStageFlagBits::eAllCommands,
+				vk::PipelineStageFlagBits::eAllCommands,
 				vk::DependencyFlags(),
 				nullptr,
 				nullptr,
-				postBlitBarrier
+				barriers
 			);
 		}
 		virtual void ClearAttachments(GameEngine::FrameBuffer * frameBuffer) override
@@ -3906,7 +3927,7 @@ namespace VK
 				rects.Add(
 					vk::ClearRect()
 					.setBaseArrayLayer(0)
-					.setLayerCount(layers)
+					.setLayerCount(1)
 					.setRect(vk::Rect2D(vk::Offset2D(0, 0), vk::Extent2D(w, h)))
 				);
 			}
@@ -4035,8 +4056,8 @@ namespace VK
                     .setSubresourceRange(imageSubresourceRange);
 
                 commandBuffers[nextCmd].pipelineBarrier(
-                    vk::PipelineStageFlagBits::eTransfer,
-                    vk::PipelineStageFlagBits::eTransfer,
+                    vk::PipelineStageFlagBits::eAllCommands,
+                    vk::PipelineStageFlagBits::eAllCommands,
                     vk::DependencyFlags(),
                     nullptr,
                     nullptr,
@@ -4075,8 +4096,8 @@ namespace VK
                 );
 
                 commandBuffers[nextCmd].pipelineBarrier(
-                    vk::PipelineStageFlagBits::eTransfer,
-                    vk::PipelineStageFlagBits::eTransfer,
+                    vk::PipelineStageFlagBits::eAllCommands,
+                    vk::PipelineStageFlagBits::eAllCommands,
                     vk::DependencyFlags(),
                     nullptr,
                     nullptr,
@@ -4085,8 +4106,8 @@ namespace VK
             }
 
             commandBuffers[nextCmd].pipelineBarrier(
-                vk::PipelineStageFlagBits::eTransfer,
-                vk::PipelineStageFlagBits::eBottomOfPipe,
+                vk::PipelineStageFlagBits::eAllCommands,
+                vk::PipelineStageFlagBits::eAllCommands,
                 vk::DependencyFlags(),
                 nullptr,
                 nullptr,
