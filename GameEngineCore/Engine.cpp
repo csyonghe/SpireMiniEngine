@@ -32,9 +32,24 @@ namespace GameEngine
 
     }
 
+	_CrtMemState memState0, memStateDiff;
+
     void Engine::MainLoop(CoreLib::Object *, CoreLib::WinForm::EventArgs)
     {
         static int frameId = 0;
+
+		if (frameId > 20)
+		{
+			_CrtMemState memState;
+			_CrtMemCheckpoint(&memState);
+			if (frameId > 21)
+			{
+				_CrtMemDifference(&memStateDiff, &memState0, &memState);
+				_CrtMemDumpStatistics(&memStateDiff);
+			}
+			memState0 = memState;
+		}
+
         if (instance)
         {
             instance->Tick();
