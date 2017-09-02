@@ -30,7 +30,7 @@ namespace GameEngine
 	class RendererSharedResource;
 	class Level;
 
-	const StorageFormat DepthBufferFormat = StorageFormat::Depth24;
+	const StorageFormat DepthBufferFormat = StorageFormat::Depth32;
 
 	class RenderStat
 	{

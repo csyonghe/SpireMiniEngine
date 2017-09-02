@@ -394,7 +394,7 @@ namespace VK
 			vkelDeviceInit((VkDevice)(State().device));
 
 			State().presentQueue = State().device.getQueue(renderQueueFamilyIndex, 0);
-			State().renderQueue = State().device.getQueue(renderQueueFamilyIndex, 1);
+			State().renderQueue = State().device.getQueue(renderQueueFamilyIndex, 0);
 			State().transferQueue = State().device.getQueue(transferQueueFamilyIndex, renderQueuePriorities.Count() - 1);//TODO: Change the index if changing family
 		}
 
@@ -2218,7 +2218,6 @@ namespace VK
 		}
 		void SetDataAsync(int offset, void* data, int psize)
 		{
-			//TODO: implement
 			SetData(offset, data, psize);
 		}
 		void SetData(int offset, void* data, int psize)
@@ -2296,7 +2295,6 @@ namespace VK
 						.setSignalSemaphoreCount(0)
 						.setPSignalSemaphores(nullptr);
 
-					RendererState::TransferQueue().waitIdle(); //TODO: Remove
 					RendererState::TransferQueue().submit(transferSubmitInfo, vk::Fence());
 					RendererState::TransferQueue().waitIdle(); //TODO: Remove
 					RendererState::DestroyCommandBuffer(RendererState::TransferCommandPool(), transferCommandBuffer);
@@ -2337,8 +2335,6 @@ namespace VK
 						.setPCommandBuffers(&transferCommandBuffer)
 						.setSignalSemaphoreCount(0)
 						.setPSignalSemaphores(nullptr);
-
-					RendererState::TransferQueue().waitIdle(); //TODO: Remove
 					RendererState::TransferQueue().submit(transferSubmitInfo, vk::Fence());
 					RendererState::TransferQueue().waitIdle(); //TODO: Remove
 					RendererState::DestroyCommandBuffer(RendererState::TransferCommandPool(), transferCommandBuffer);
@@ -3420,7 +3416,7 @@ namespace VK
 		bool inRenderPass = false;
 		const vk::CommandPool& pool;
 		vk::CommandBuffer buffer;
-		Pipeline* curPipeline;
+		Pipeline* curPipeline = nullptr;
 		CoreLib::Array<vk::DescriptorSet, 32> pendingDescSets;
 
 		CommandBuffer(const vk::CommandPool& commandPool) : pool(commandPool)
@@ -3798,35 +3794,6 @@ namespace VK
 				break;
 			}
 
-			vk::ImageMemoryBarrier textureTransferBarrier = vk::ImageMemoryBarrier()
-				.setSrcAccessMask(LayoutFlags(oriSrcLayout))
-				.setDstAccessMask(LayoutFlags(vk::ImageLayout::eTransferSrcOptimal))
-				.setOldLayout(oriSrcLayout)
-				.setNewLayout(vk::ImageLayout::eTransferSrcOptimal)
-				.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-				.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-				.setImage(dynamic_cast<Texture2D*>(srcImage)->image)
-				.setSubresourceRange(imageSubresourceRange);
-
-			vk::ImageMemoryBarrier textureRestoreBarrier = vk::ImageMemoryBarrier()
-				.setSrcAccessMask(LayoutFlags(vk::ImageLayout::eTransferSrcOptimal))
-				.setDstAccessMask(LayoutFlags(oriSrcLayout))
-				.setOldLayout(vk::ImageLayout::eTransferSrcOptimal)
-				.setNewLayout(oriSrcLayout)
-				.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-				.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-				.setImage(dynamic_cast<Texture2D*>(srcImage)->image)
-				.setSubresourceRange(imageSubresourceRange);
-
-			buffer.pipelineBarrier(
-				vk::PipelineStageFlagBits::eTransfer,
-				vk::PipelineStageFlagBits::eTransfer,
-				vk::DependencyFlags(),
-				nullptr,
-				nullptr,
-				textureTransferBarrier
-			);
-
 			// Blit
 			vk::ImageSubresourceLayers subresourceLayers = vk::ImageSubresourceLayers()
 				.setAspectMask(vk::ImageAspectFlagBits::eColor)
@@ -3850,20 +3817,11 @@ namespace VK
 
 			buffer.blitImage(
 				dynamic_cast<VK::Texture2D*>(srcImage)->image,
-				vk::ImageLayout::eTransferSrcOptimal,
+				oriSrcLayout,
 				dynamic_cast<Texture2D*>(dstImage)->image,
 				vk::ImageLayout::eTransferDstOptimal,
 				blitRegions,
 				vk::Filter::eNearest
-			);
-
-			buffer.pipelineBarrier(
-				vk::PipelineStageFlagBits::eTransfer,
-				vk::PipelineStageFlagBits::eTransfer,
-				vk::DependencyFlags(),
-				nullptr,
-				nullptr,
-				textureRestoreBarrier
 			);
 
 			buffer.pipelineBarrier(
