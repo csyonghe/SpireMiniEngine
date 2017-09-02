@@ -3553,6 +3553,13 @@ namespace GLL
 		{
 			glFinish();
 		}
+
+		virtual void SetMaxTempBufferVersions(int) override
+		{
+		}
+		virtual void ResetTempBufferVersion(int) override
+		{
+		}
 	};
 }
 

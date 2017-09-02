@@ -126,7 +126,7 @@ namespace GameEngine
 				hardwareRenderer = CreateGLHardwareRenderer();
 				break;
 			}
-
+			hardwareRenderer->SetMaxTempBufferVersions(DynamicBufferLengthMultiplier);
 			hardwareRenderer->BeginDataTransfer();
 			sharedRes.Init(hardwareRenderer);
 			sharedRes.envMap = hardwareRenderer->CreateTextureCube(TextureUsage::SampledColorAttachment, 256, 8, StorageFormat::RGBA_F16);

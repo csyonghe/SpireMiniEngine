@@ -184,6 +184,10 @@ namespace VK
 		vk::CommandPool renderCommandPool;
 		CoreLib::RefPtr<CoreLib::List<vk::CommandBuffer>> primaryBuffers;
 		CoreLib::RefPtr<CoreLib::List<vk::Fence>> primaryFences;
+		CoreLib::RefPtr<CoreLib::List<CoreLib::List<vk::CommandBuffer>>> transferCommandBufferPool, renderCommandBufferPool;
+		int currentBufferVersion = 0;
+		int transferCommandBufferAllocPtr = 0;
+		int renderCommandBufferAllocPtr = 0;
 
 		int renderQueueIndex;
 		int transferQueueIndex;
@@ -196,6 +200,15 @@ namespace VK
 		CoreLib::RefPtr<CoreLib::List<DescriptorPoolObject*>> descriptorPoolChain;
 
 		RendererState() {}
+
+		static vk::CommandBuffer GetTempCommandBuffer(vk::CommandPool cmdPool, CoreLib::List<CoreLib::List<vk::CommandBuffer>> & bufferPool, int & allocPtr)
+		{
+			if (allocPtr == bufferPool[State().currentBufferVersion].Count())
+			{
+				bufferPool[State().currentBufferVersion].Add(CreateCommandBuffer(cmdPool, vk::CommandBufferLevel::ePrimary));
+			}
+			return bufferPool[State().currentBufferVersion][allocPtr++];
+		}
 
 		static RendererState& State()
 		{
@@ -429,6 +442,10 @@ namespace VK
 				State().primaryFences->Add(Device().createFence(vk::FenceCreateInfo(vk::FenceCreateFlagBits::eSignaled)));
 				State().primaryBuffers->Add(CreateCommandBuffer(RenderCommandPool()));
 			}
+
+			State().transferCommandBufferPool = new List<List<vk::CommandBuffer>>();
+			State().renderCommandBufferPool = new List<List<vk::CommandBuffer>>();
+
 		}
 
 		static void CreateDescriptorPoolChain()
@@ -484,6 +501,9 @@ namespace VK
 			State().device.destroyCommandPool(State().renderCommandPool);
 			State().device.destroyCommandPool(State().transferCommandPool);
 			State().device.destroyCommandPool(State().swapchainCommandPool);
+
+			State().transferCommandBufferPool = nullptr;
+			State().renderCommandBufferPool = nullptr;
 		}
 
 		static void DestroyDescriptorPoolChain()
@@ -503,6 +523,7 @@ namespace VK
 			DestroyCommandPool();
 			DestroyDevice();
 		}
+
 
 		static void Destroy()
 		{
@@ -548,6 +569,20 @@ namespace VK
 			return State().device;
 		}
 
+		static void SetMaxTempBufferVersions(int versionCount)
+		{
+			auto & state = State();
+			state.renderCommandBufferPool->SetSize(versionCount);
+			state.transferCommandBufferPool->SetSize(versionCount);
+		}
+		static void ResetTempBufferVersion(int version)
+		{
+			auto & state = State();
+			state.currentBufferVersion = version;
+			state.transferCommandBufferAllocPtr = 0;
+			state.renderCommandBufferAllocPtr = 0;
+		}
+
 		static const vk::CommandPool& SwapchainCommandPool()
 		{
 			//TODO: do I want to expose these command pools?
@@ -562,6 +597,16 @@ namespace VK
 		static const vk::CommandPool& RenderCommandPool()
 		{
 			return State().renderCommandPool;
+		}
+
+		static vk::CommandBuffer GetTempTransferCommandBuffer()
+		{
+			return GetTempCommandBuffer(State().transferCommandPool, *State().transferCommandBufferPool, State().transferCommandBufferAllocPtr);
+		}
+
+		static vk::CommandBuffer GetTempRenderCommandBuffer()
+		{
+			return GetTempCommandBuffer(State().renderCommandPool, *State().renderCommandBufferPool, State().renderCommandBufferAllocPtr);
 		}
 
 		static const vk::Queue& TransferQueue()
@@ -1231,7 +1276,7 @@ namespace VK
 		{
 			// Create command buffer
 			//TODO: Use CommandBuffer class?
-			vk::CommandBuffer transferCommandBuffer = RendererState::CreateCommandBuffer(RendererState::TransferCommandPool());
+			vk::CommandBuffer transferCommandBuffer = RendererState::GetTempTransferCommandBuffer();
 
 			vk::ImageAspectFlags aspectFlags;
 			if (isDepthFormat(format))
@@ -1287,9 +1332,6 @@ namespace VK
 				.setPSignalSemaphores(nullptr);
 
 			RendererState::TransferQueue().submit(transferSubmitInfo, vk::Fence());
-			RendererState::TransferQueue().waitIdle(); //TODO: Remove
-			RendererState::DestroyCommandBuffer(RendererState::TransferCommandPool(), transferCommandBuffer);
-
 			this->currentLayout = targetLayout;
 		}
 
@@ -1410,7 +1452,7 @@ namespace VK
 
 				// Create command buffer
 				//TODO: Use CommandBuffer class?
-				vk::CommandBuffer transferCommandBuffer = RendererState::CreateCommandBuffer(RendererState::TransferCommandPool());
+				vk::CommandBuffer transferCommandBuffer = RendererState::GetTempTransferCommandBuffer();
 
 				// Record command buffer
 				vk::ImageSubresourceRange textureSubresourceRange = vk::ImageSubresourceRange()
@@ -1476,7 +1518,6 @@ namespace VK
 
 				RendererState::TransferQueue().submit(transferSubmitInfo, vk::Fence());
 				RendererState::TransferQueue().waitIdle(); //TODO: Remove
-				RendererState::DestroyCommandBuffer(RendererState::TransferCommandPool(), transferCommandBuffer);
 
 				// Destroy staging resources
 				RendererState::Device().freeMemory(stagingMemory);
@@ -1530,7 +1571,7 @@ namespace VK
 
 				// Create command buffer
 				//TODO: Use CommandBuffer class?
-				vk::CommandBuffer transferCommandBuffer = RendererState::CreateCommandBuffer(RendererState::TransferCommandPool());
+				vk::CommandBuffer transferCommandBuffer = RendererState::GetTempTransferCommandBuffer();
 
 				// Record command buffer
 				vk::ImageSubresourceRange textureSubresourceRange = vk::ImageSubresourceRange()
@@ -1601,7 +1642,6 @@ namespace VK
 
 				RendererState::TransferQueue().submit(transferSubmitInfo, vk::Fence());
 				RendererState::TransferQueue().waitIdle(); //TODO: Remove
-				RendererState::DestroyCommandBuffer(RendererState::TransferCommandPool(), transferCommandBuffer);
 
 				// Destroy staging resources
 				RendererState::Device().freeMemory(stagingMemory);
@@ -1781,7 +1821,7 @@ namespace VK
 
 			// Create command buffer
 			//TODO: Use CommandBuffer class?
-			vk::CommandBuffer transferCommandBuffer = RendererState::CreateCommandBuffer(RendererState::TransferCommandPool());
+			vk::CommandBuffer transferCommandBuffer = RendererState::GetTempTransferCommandBuffer();
 
 			// Record command buffer
 			vk::ImageSubresourceRange textureSubresourceRange = vk::ImageSubresourceRange()
@@ -1868,9 +1908,6 @@ namespace VK
 				.setPSignalSemaphores(nullptr);
 
 			RendererState::TransferQueue().submit(transferSubmitInfo, vk::Fence());
-			RendererState::TransferQueue().waitIdle(); //TODO: Remove
-			RendererState::DestroyCommandBuffer(RendererState::TransferCommandPool(), transferCommandBuffer);
-
 			this->currentLayout = LayoutFromUsage(this->usage);
 		}
 	};
@@ -2219,6 +2256,54 @@ namespace VK
 		void SetDataAsync(int offset, void* data, int psize)
 		{
 			SetData(offset, data, psize);
+			// If the buffer is mappable, map and memcpy
+			if (location & vk::MemoryPropertyFlagBits::eHostVisible)
+			{
+				//TODO: Should memcpy + flush in chunks?
+				void* mappedMemory = Map(offset, psize);
+				memcpy(mappedMemory, data, psize);
+				Flush();
+				Unmap();
+			}
+			// Otherwise, we need to use command buffers
+			else
+			{
+				// Create command buffer
+			
+				vk::CommandBuffer transferCommandBuffer = RendererState::GetTempTransferCommandBuffer();
+
+				assert(psize % 4 == 0);
+				assert(offset % 4 == 0);
+
+				// Record command buffer
+				vk::CommandBufferBeginInfo transferBeginInfo = vk::CommandBufferBeginInfo()
+					.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit)
+					.setPInheritanceInfo(nullptr);
+
+				// Transfer the data in chunks of <= 65536 bytes
+				transferCommandBuffer.begin(transferBeginInfo);
+				int remainingSize = psize;
+				int dataOffset = 0;
+				while (remainingSize > 65536)
+				{
+					transferCommandBuffer.updateBuffer(this->buffer, offset + dataOffset, 65536, static_cast<char*>(data) + dataOffset);
+					remainingSize -= 65536;
+					dataOffset += 65536;
+				}
+				transferCommandBuffer.updateBuffer(this->buffer, offset + dataOffset, remainingSize, static_cast<char*>(data) + dataOffset);
+				transferCommandBuffer.end();
+
+				// Submit to queue
+				vk::SubmitInfo transferSubmitInfo = vk::SubmitInfo()
+					.setWaitSemaphoreCount(0)
+					.setPWaitSemaphores(nullptr)
+					.setPWaitDstStageMask(nullptr)
+					.setCommandBufferCount(1)
+					.setPCommandBuffers(&transferCommandBuffer)
+					.setSignalSemaphoreCount(0)
+					.setPSignalSemaphores(nullptr);
+				RendererState::TransferQueue().submit(transferSubmitInfo, vk::Fence());
+			}
 		}
 		void SetData(int offset, void* data, int psize)
 		{
@@ -4385,6 +4470,15 @@ namespace VK
 		{
 			RendererState::Device().waitIdle();
 			RendererState::RemRenderer();
+		}
+
+		virtual void SetMaxTempBufferVersions(int versionCount) override
+		{
+			RendererState::SetMaxTempBufferVersions(versionCount);
+		}
+		virtual void ResetTempBufferVersion(int version) override
+		{
+			RendererState::ResetTempBufferVersion(version);
 		}
 
 		virtual WindowSurface* CreateSurface(void* windowHandle, int pwidth, int pheight) override

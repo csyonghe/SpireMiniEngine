@@ -783,6 +783,8 @@ namespace GameEngine
 		virtual void Present(WindowSurface * surface, Texture2D* srcImage) = 0;
 		virtual void Blit(Texture2D* dstImage, Texture2D* srcImage) = 0;
 		virtual void Wait() = 0;
+		virtual void SetMaxTempBufferVersions(int versionCount) = 0;
+		virtual void ResetTempBufferVersion(int version) = 0;
 		virtual Fence* CreateFence() = 0;
 		virtual Buffer* CreateBuffer(BufferUsage usage, int sizeInBytes) = 0;
 		virtual Buffer* CreateMappedBuffer(BufferUsage usage, int sizeInBytes) = 0;
