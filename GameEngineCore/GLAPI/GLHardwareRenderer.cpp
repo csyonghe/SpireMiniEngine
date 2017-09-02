@@ -19,7 +19,7 @@ using namespace GameEngine;
 namespace GLL
 {
 	const int TargetOpenGLVersion_Major = 4;
-	const int TargetOpenGLVersion_Minor = 3;
+	const int TargetOpenGLVersion_Minor = 4;
 	using namespace VectorMath;
 	class GUIWindow
 	{};
@@ -1125,25 +1125,6 @@ namespace GLL
 
 		virtual FrameBufferDescriptor* CreateFrameBuffer(const RenderAttachments& renderAttachments) override
 		{
-#if _DEBUG
-			//// Ensure the RenderAttachments are compatible with this RenderTargetLayout
-			//for (auto renderAttachment : renderAttachments)
-			//{
-
-			//}
-			//
-			//// Ensure the RenderAttachments are compatible with this RenderTargetLayout
-			//for (auto colorReference : colorReferences)
-			//{
-			//	if (dynamic_cast<RenderAttachments*>(attachments)->usages[colorReference.attachment] != vk::ImageUsageFlagBits::eColorAttachment)
-			//		throw HardwareRendererException(L"Incompatible RenderTargetLayout and RenderAttachments");
-			//}
-			//if (depthReference.layout != vk::ImageLayout::eUndefined)
-			//{
-			//	if (dynamic_cast<RenderAttachments*>(attachments)->usages[depthReference.attachment] != vk::ImageUsageFlagBits::eDepthStencilAttachment)
-			//		throw HardwareRendererException(L"Incompatible RenderTargetLayout and RenderAttachments");
-			//}
-	#endif
 			FrameBufferDescriptor* result = new FrameBufferDescriptor();
 			for (auto renderAttachment : renderAttachments.attachments)
 			{
@@ -1198,10 +1179,7 @@ namespace GLL
 			if (!*isInTransfer)
 				throw HardwareRendererException("Renderer not in data-transfer mode.");
 #endif
-			if (mappedPtr)
-				memcpy((char*)mappedPtr + offset, data, size);
-			else
-				glNamedBufferSubData(Handle, (GLintptr)offset, (GLsizeiptr)size, data);
+			SetData(offset, data, size);
 		}
 		void SetData(int offset, void * data, int size)
 		{
@@ -1211,7 +1189,7 @@ namespace GLL
 #endif
 			if (mappedPtr)
 				memcpy((char*)mappedPtr + offset, data, size);
-			else 
+			else
 				glNamedBufferSubData(Handle, (GLintptr)offset, (GLsizeiptr)size, data);
 		}
 		void BufferStorage(int size, void * data, int flags)
@@ -1579,6 +1557,15 @@ namespace GLL
 			{
 				throw HardwareRendererException("program linking\n" + logOutput);
 			}
+
+		}
+
+		void Validate()
+		{
+			int length, compileStatus;
+			List<char> buffer;
+			CoreLib::Diagnostics::DebugWriter dbgWriter;
+			String logOutput(buffer.Buffer());
 
 			glValidateProgram(Handle);
 			glGetProgramiv(Handle, GL_INFO_LOG_LENGTH, &length);
@@ -2359,6 +2346,9 @@ namespace GLL
 						UpdateBindings(currentPipeline, boundDescSets.GetArrayView());
 						glDispatchCompute(command.compute.x, command.compute.y, command.compute.z);
 						break;
+					case Command::Blit:
+						Blit(command.blit.dst, command.blit.src);
+						break;
 					case Command::MemBarrier:
 						glMemoryBarrier(command.memBarrier.bits);
 						break;
@@ -2454,10 +2444,10 @@ namespace GLL
 				srcFrameBuffer.EnableRenderTargets(mask);
 			};
 
-			setupFrameBuffer();
-
 			// Prepare framebuffer
+			setupFrameBuffer();
 			SetWriteFrameBuffer(srcFrameBuffer);
+
 			//SetViewport(0, 0, width, height);
 			//SetZTestMode(CompareFunc::Disabled);
 			//SetStencilMode(StencilMode());
@@ -2590,8 +2580,8 @@ namespace GLL
 						break;
 					case Command::Blit:
 						Blit(command.blit.dst, command.blit.src);
-						setupFrameBuffer();
 						SetWriteFrameBuffer(srcFrameBuffer);
+						setupFrameBuffer();
 						break;
 					case Command::ClearAttachments:
 						// TODO: ignoring drawBufferMask for now, assuming clearing all current framebuffer bindings
@@ -2662,6 +2652,10 @@ namespace GLL
 
 		void Present(GameEngine::WindowSurface * surface, GameEngine::Texture2D* srcImage)
 		{
+			// Present rendered image to screen
+            GLWindowSurface * glsurface = (GLWindowSurface*)surface;
+            wglMakeCurrent(glsurface->hdc, glsurface->glRC);
+			
 			switch (reinterpret_cast<GLL::Texture2D*>(srcImage)->format)
 			{
 			case GL_DEPTH_COMPONENT:
@@ -2676,9 +2670,6 @@ namespace GLL
 				break;
 			}
 
-			// Present rendered image to screen
-            GLWindowSurface * glsurface = (GLWindowSurface*)surface;
-            wglMakeCurrent(glsurface->hdc, glsurface->glRC);
 			SetReadFrameBuffer(srcFrameBuffer);
 			SetWriteFrameBuffer(GLL::FrameBuffer());
             int width, height;
@@ -3050,7 +3041,6 @@ namespace GLL
 		virtual void EndDataTransfer() override
 		{
 			isInDataTransfer = false;
-			glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
 		}
 
 		Program CreateTransformFeedbackProgram(const Shader &vertexShader, const List<String> & varyings, FeedbackStorageMode format)
@@ -3470,7 +3460,7 @@ namespace GLL
 			if (depth) bitmask |= GL_DEPTH_BUFFER_BIT;
 			if (color) bitmask |= GL_COLOR_BUFFER_BIT;
 			if (stencil) bitmask |= GL_STENCIL_BUFFER_BIT;
-			glBlitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, bitmask, GL_LINEAR);
+			glBlitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, bitmask, GL_NEAREST);
 		}
 		void UseTexture(int channel, const Texture &tex)
 		{

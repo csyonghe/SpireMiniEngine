@@ -28,6 +28,7 @@ ToneMapping
     Exposure 0.4    
 }
 
+
 Atmosphere
 {
     SunDir [-0.5 0.8 0.4]
@@ -115,6 +116,7 @@ StaticMesh
     material
     {
         shader "ParallaxGround.shader"
+
         var albedoMap = texture["pebbles_diffuse.TGA"]
         var normalMap = texture["pebbles_normal.TGA"]
         var displacementMap = texture["pebbles_height.TGA"]

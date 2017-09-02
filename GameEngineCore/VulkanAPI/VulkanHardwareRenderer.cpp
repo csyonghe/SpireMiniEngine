@@ -4923,7 +4923,7 @@ namespace VK
 
 		virtual void EndDataTransfer() override
 		{
-			//TODO: implement
+
 		}
 	};
 }

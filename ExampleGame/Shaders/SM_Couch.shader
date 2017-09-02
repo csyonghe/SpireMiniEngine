@@ -10,7 +10,7 @@ module SM_CouchPattern implements IMaterialPattern
     require SamplerState textureSampler;
     require vec2 vertUV;
     
-    inline vec3 mask = maskMap.Sample(textureSampler, vec2(vertUV.x, vertUV.y)).xyz;
+    inline vec3 mask = maskMap.Sample(textureSampler, vertUV).xyz;
     inline vec2 normalCoord = vertUV * 5.79;
 
     public vec3 normal
