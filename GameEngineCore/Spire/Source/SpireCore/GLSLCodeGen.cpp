@@ -437,7 +437,8 @@ namespace Spire
 					if (!useVulkanBinding && field.Value.Type->IsSamplerState())
 						continue;
 					//if (input.Attributes.ContainsKey("VertexInput"))
-					sb.GlobalHeader << "layout(location = " << index << ") ";
+					if (useVulkanBinding || input.Attributes.ContainsKey("VertexInput"))
+						sb.GlobalHeader << "layout(location = " << index << ") ";
 					if (!isVertexShader && (input.Attributes.ContainsKey("Flat") || field.Value.Type->IsIntegral()))
 						sb.GlobalHeader << "flat ";
 					sb.GlobalHeader << "in ";
