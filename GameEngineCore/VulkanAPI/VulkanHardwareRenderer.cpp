@@ -4143,10 +4143,13 @@ namespace VK
             vk::SurfaceCapabilitiesKHR surfaceCapabilities = RendererState::PhysicalDevice().getSurfaceCapabilitiesKHR(surface);
 
             unsigned int desiredSwapchainImages = 3;
-            if (desiredSwapchainImages < surfaceCapabilities.minImageCount) {
+            if (desiredSwapchainImages < surfaceCapabilities.minImageCount)
+			{
                 desiredSwapchainImages = surfaceCapabilities.minImageCount;
             }
-            else if (desiredSwapchainImages > surfaceCapabilities.maxImageCount) {
+            if (surfaceCapabilities.maxImageCount > 0 
+				&& desiredSwapchainImages > surfaceCapabilities.maxImageCount)
+			{
                 desiredSwapchainImages = surfaceCapabilities.maxImageCount;
             }
 
