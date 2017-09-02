@@ -259,8 +259,9 @@ module ParallaxOcclusionMapping
         // depth from heightmap
         float heightFromTexture = 1.0 - GetHeight(currentTextureCoords);//heightTexture.Sample(textureSampler, currentTextureCoords).r;
 
+        int iterationLimit = 32;
         // while point is above the surface
-        while (heightFromTexture > curLayerHeight) 
+        while (heightFromTexture > curLayerHeight && iterationLimit > 0) 
         {
             // to the next layer
             curLayerHeight += layerHeight; 
@@ -268,6 +269,7 @@ module ParallaxOcclusionMapping
             currentTextureCoords -= dtex;
             // new depth from heightmap
             heightFromTexture = 1.0 - GetHeight(currentTextureCoords);//-heightTexture.Sample(textureSampler, currentTextureCoords).r;
+            iterationLimit--;
         }
          ///////////////////////////////////////////////////////////
         // Start of Relief Parallax Mapping
@@ -335,7 +337,8 @@ module ParallaxOcclusionMapping
             vec2 currentTextureCoords = initialTexCoord + texStep;
             float heightFromTexture	= 1.0 - GetHeight(currentTextureCoords); //heightTexture.Sample(textureSampler, currentTextureCoords).r;
             // while point is below depth 0.0 )
-            while(currentLayerHeight > 0)
+            int iterationLimit = 32;
+            while(currentLayerHeight > 0 && iterationLimit > 0)
             {
                 // if point is under the surface
                 if(heightFromTexture < currentLayerHeight)
@@ -348,6 +351,7 @@ module ParallaxOcclusionMapping
                 currentLayerHeight -= layerHeight;
                 currentTextureCoords += texStep;
                 heightFromTexture = 1.0 - GetHeight(currentTextureCoords); //-heightTexture.Sample(textureSampler, currentTextureCoords).r;
+                iterationLimit--;
             }
 
             // Shadowing factor should be 1 if there were no points under the surface
