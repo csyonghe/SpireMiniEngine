@@ -327,39 +327,6 @@ namespace GLL
 
 	};
 
-    class GLWindowSurface : public WindowSurface
-    {
-    public:
-        HGLRC glRC;
-        HDC hdc;
-        HWND hwnd;
-        int width, height;
-
-        virtual void Resize(int pwidth, int pheight) override
-        {
-            width = pwidth;
-            height = pheight;
-        }
-
-        virtual void * GetWindowHandle() override
-        {
-            return this->hwnd;
-        }
-
-        virtual void GetSize(int & pwidth, int & pheight) override
-        {
-            pwidth = width;
-            pheight = height;
-        }
-
-        ~GLWindowSurface()
-        {
-            glFinish();
-            wglDeleteContext(glRC);
-            ReleaseDC(hwnd, hdc);
-        }
-    };
-
 	class RenderBuffer : public GL_Object
 	{
 	public:
@@ -1021,6 +988,41 @@ namespace GLL
 				printf("Framebuffer check result: %d", rs);
 				throw HardwareRendererException("Inconsistent frame buffer object setup.");
 			}
+		}
+	};
+
+	class GLWindowSurface : public WindowSurface
+	{
+	public:
+		HGLRC glRC;
+		HDC hdc;
+		HWND hwnd;
+		int width, height;
+		GLL::FrameBuffer frameBuffer;
+
+		virtual void Resize(int pwidth, int pheight) override
+		{
+			width = pwidth;
+			height = pheight;
+		}
+
+		virtual void * GetWindowHandle() override
+		{
+			return this->hwnd;
+		}
+
+		virtual void GetSize(int & pwidth, int & pheight) override
+		{
+			pwidth = width;
+			pheight = height;
+		}
+
+		~GLWindowSurface()
+		{
+			glFinish();
+			glDeleteFramebuffers(1, &frameBuffer.Handle);
+			wglDeleteContext(glRC);
+			ReleaseDC(hwnd, hdc);
 		}
 	};
 
@@ -2277,6 +2279,7 @@ namespace GLL
             wglMakeCurrent(surface->hdc, surface->glRC);
             wglSwapIntervalEXT(0);
             glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+			surface->frameBuffer = CreateFrameBuffer();
 			wglMakeCurrent(hdc, hrc); // Make our OpenGL 3.0 context current
             return surface;
 		}
@@ -2445,8 +2448,8 @@ namespace GLL
 			};
 
 			// Prepare framebuffer
-			setupFrameBuffer();
 			SetWriteFrameBuffer(srcFrameBuffer);
+			setupFrameBuffer();
 
 			//SetViewport(0, 0, width, height);
 			//SetZTestMode(CompareFunc::Disabled);
@@ -2655,22 +2658,22 @@ namespace GLL
 			// Present rendered image to screen
             GLWindowSurface * glsurface = (GLWindowSurface*)surface;
             wglMakeCurrent(glsurface->hdc, glsurface->glRC);
-			
+			auto & srcFB = glsurface->frameBuffer;
 			switch (reinterpret_cast<GLL::Texture2D*>(srcImage)->format)
 			{
 			case GL_DEPTH_COMPONENT:
-				srcFrameBuffer.SetDepthStencilRenderTarget(*reinterpret_cast<GLL::Texture2D*>(srcImage));
+				srcFB.SetDepthStencilRenderTarget(*reinterpret_cast<GLL::Texture2D*>(srcImage));
 				break;
 			case GL_DEPTH_STENCIL:
-				srcFrameBuffer.SetDepthStencilRenderTarget(*reinterpret_cast<GLL::Texture2D*>(srcImage));
+				srcFB.SetDepthStencilRenderTarget(*reinterpret_cast<GLL::Texture2D*>(srcImage));
 				break;
 			default:
-				srcFrameBuffer.SetColorRenderTarget(0, *reinterpret_cast<GLL::Texture2D*>(srcImage));
-				srcFrameBuffer.EnableRenderTargets(1);
+				srcFB.SetColorRenderTarget(0, *reinterpret_cast<GLL::Texture2D*>(srcImage));
+				srcFB.EnableRenderTargets(1);
 				break;
 			}
 
-			SetReadFrameBuffer(srcFrameBuffer);
+			SetReadFrameBuffer(srcFB);
 			SetWriteFrameBuffer(GLL::FrameBuffer());
             int width, height;
             surface->GetSize(width, height);
