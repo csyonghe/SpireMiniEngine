@@ -2032,7 +2032,7 @@ namespace VK
 				.setCompareEnable(op != CompareFunc::Disabled)
 				.setCompareOp(TranslateCompareFunc(op))
 				.setMinLod(0.0f)
-				.setMaxLod(1.0f)
+				.setMaxLod(0.0f)
 				.setBorderColor(vk::BorderColor::eFloatTransparentBlack)
 				.setUnnormalizedCoordinates(VK_FALSE);
 
