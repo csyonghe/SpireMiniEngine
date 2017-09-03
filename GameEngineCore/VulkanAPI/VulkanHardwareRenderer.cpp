@@ -3303,7 +3303,9 @@ namespace VK
 				.setPSetLayouts(descSetLayouts.Buffer())
 				.setPushConstantRangeCount(0)
 				.setPPushConstantRanges(nullptr);
+#ifdef _DEBUG
 			result->isGraphics = false;
+#endif
 			result->pipelineLayout = RendererState::Device().createPipelineLayout(layoutCreateInfo);
 			vk::ComputePipelineCreateInfo createInfo;
 			createInfo.setLayout(result->pipelineLayout)
