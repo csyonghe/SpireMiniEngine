@@ -1189,79 +1189,81 @@ namespace VK
 			memory = RendererState::Device().allocateMemory(imageAllocateInfo);
 			RendererState::Device().bindImageMemory(image, memory, 0);
 
-			for (int i = 0; i < arrayLayers; i++)
+			vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
+				.setAspectMask(aspectFlags)
+				.setBaseMipLevel(0)
+				.setLevelCount(mipLevels)
+				.setBaseArrayLayer(0)
+				.setLayerCount(arrayLayers);
+
+			vk::ImageViewType viewType = vk::ImageViewType::e2D;
+			if (depth == 1)
 			{
-				vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
+				if (arrayLayers != 1)
+				{
+					if (createFlags & vk::ImageCreateFlagBits::eCubeCompatible)
+					{
+						if (arrayLayers > 6)
+							viewType = vk::ImageViewType::eCubeArray;
+						else
+							viewType = vk::ImageViewType::eCube;
+					}
+					else
+						viewType = vk::ImageViewType::e2DArray;
+				}
+			}
+			else viewType = vk::ImageViewType::e3D;
+
+			vk::ImageViewCreateInfo imageViewCreateInfo = vk::ImageViewCreateInfo()
+				.setFlags(vk::ImageViewCreateFlags())
+				.setImage(image)
+				.setViewType(viewType)
+				.setFormat(imageCreateInfo.format)
+				.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA))//
+				.setSubresourceRange(imageSubresourceRange);
+
+			views.Add(RendererState::Device().createImageView(imageViewCreateInfo));
+			if (isDepthFormat(this->format))
+			{
+				aspectFlags = vk::ImageAspectFlagBits::eDepth;
+
+				imageSubresourceRange = vk::ImageSubresourceRange()
 					.setAspectMask(aspectFlags)
 					.setBaseMipLevel(0)
-					.setLevelCount(mipLevels)
-					.setBaseArrayLayer(i)
-					.setLayerCount(i==0?arrayLayers:1);
+					.setLevelCount(1)
+					.setBaseArrayLayer(0)
+					.setLayerCount(arrayLayers);
 
-				vk::ImageViewType viewType = vk::ImageViewType::e2D;
-				if (depth == 1)
-				{
-					if (arrayLayers != 1)
-					{
-						if (i == 0 && createFlags & vk::ImageCreateFlagBits::eCubeCompatible)
-							viewType = vk::ImageViewType::eCube;
-						else
-							viewType = vk::ImageViewType::e2DArray;
-					}
-				}
-				else viewType = vk::ImageViewType::e3D;
-
-				vk::ImageViewCreateInfo imageViewCreateInfo = vk::ImageViewCreateInfo()
+				imageViewCreateInfo = vk::ImageViewCreateInfo()
 					.setFlags(vk::ImageViewCreateFlags())
 					.setImage(image)
 					.setViewType(viewType)
 					.setFormat(imageCreateInfo.format)
-					.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA))//
+					.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR))//
 					.setSubresourceRange(imageSubresourceRange);
 
 				views.Add(RendererState::Device().createImageView(imageViewCreateInfo));
-				if (isDepthFormat(this->format))
-				{
-					aspectFlags = vk::ImageAspectFlagBits::eDepth;
+			}
+			if (this->format == StorageFormat::Depth24Stencil8)
+			{
+				aspectFlags = vk::ImageAspectFlagBits::eStencil;
 
-					imageSubresourceRange = vk::ImageSubresourceRange()
-						.setAspectMask(aspectFlags)
-						.setBaseMipLevel(0)
-						.setLevelCount(1)
-						.setBaseArrayLayer(i)
-						.setLayerCount(i == 0 ? arrayLayers : 1);
+				imageSubresourceRange = vk::ImageSubresourceRange()
+					.setAspectMask(aspectFlags)
+					.setBaseMipLevel(0)
+					.setLevelCount(1)
+					.setBaseArrayLayer(0)
+					.setLayerCount(arrayLayers);
 
-					imageViewCreateInfo = vk::ImageViewCreateInfo()
-						.setFlags(vk::ImageViewCreateFlags())
-						.setImage(image)
-						.setViewType(depth == 1 ? (arrayLayers == 1 ? vk::ImageViewType::e2D : vk::ImageViewType::e2DArray) : vk::ImageViewType::e3D)
-						.setFormat(imageCreateInfo.format)
-						.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR))//
-						.setSubresourceRange(imageSubresourceRange);
+				imageViewCreateInfo = vk::ImageViewCreateInfo()
+					.setFlags(vk::ImageViewCreateFlags())
+					.setImage(image)
+					.setViewType(viewType)
+					.setFormat(imageCreateInfo.format)
+					.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR))//
+					.setSubresourceRange(imageSubresourceRange);
 
-					views.Add(RendererState::Device().createImageView(imageViewCreateInfo));
-				}
-				if (this->format == StorageFormat::Depth24Stencil8)
-				{
-					aspectFlags = vk::ImageAspectFlagBits::eStencil;
-
-					imageSubresourceRange = vk::ImageSubresourceRange()
-						.setAspectMask(aspectFlags)
-						.setBaseMipLevel(0)
-						.setLevelCount(1)
-						.setBaseArrayLayer(i)
-						.setLayerCount(arrayLayers);
-
-					imageViewCreateInfo = vk::ImageViewCreateInfo()
-						.setFlags(vk::ImageViewCreateFlags())
-						.setImage(image)
-						.setViewType(depth == 1 ? (arrayLayers == 1 ? vk::ImageViewType::e2D : vk::ImageViewType::e2DArray) : vk::ImageViewType::e3D)
-						.setFormat(imageCreateInfo.format)
-						.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eR))//
-						.setSubresourceRange(imageSubresourceRange);
-
-					views.Add(RendererState::Device().createImageView(imageViewCreateInfo));
-				}
+				views.Add(RendererState::Device().createImageView(imageViewCreateInfo));
 			}
 		}
 		~Texture()
@@ -2051,13 +2053,13 @@ namespace VK
 				samplerCreateInfo.setMinFilter(vk::Filter::eLinear);
 				samplerCreateInfo.setMagFilter(vk::Filter::eLinear);
 				samplerCreateInfo.setMipmapMode(vk::SamplerMipmapMode::eLinear);
-				samplerCreateInfo.setMaxLod(11.0f);
+				samplerCreateInfo.setMaxLod(15.0f);
 				break;
 			case TextureFilter::Anisotropic4x:
 				samplerCreateInfo.setMinFilter(vk::Filter::eLinear);
 				samplerCreateInfo.setMagFilter(vk::Filter::eLinear);
 				samplerCreateInfo.setMipmapMode(vk::SamplerMipmapMode::eNearest);
-				samplerCreateInfo.setMaxLod(11.0f);
+				samplerCreateInfo.setMaxLod(15.0f);
 				samplerCreateInfo.setAnisotropyEnable(VK_TRUE);
 				samplerCreateInfo.setMaxAnisotropy(4.0f);
 				break;
@@ -2065,7 +2067,7 @@ namespace VK
 				samplerCreateInfo.setMinFilter(vk::Filter::eLinear);
 				samplerCreateInfo.setMagFilter(vk::Filter::eLinear);
 				samplerCreateInfo.setMipmapMode(vk::SamplerMipmapMode::eNearest);
-				samplerCreateInfo.setMaxLod(11.0f);
+				samplerCreateInfo.setMaxLod(15.0f);
 				samplerCreateInfo.setAnisotropyEnable(VK_TRUE);
 				samplerCreateInfo.setMaxAnisotropy(8.0f);
 				break;
@@ -2073,7 +2075,7 @@ namespace VK
 				samplerCreateInfo.setMinFilter(vk::Filter::eLinear);
 				samplerCreateInfo.setMagFilter(vk::Filter::eLinear);
 				samplerCreateInfo.setMipmapMode(vk::SamplerMipmapMode::eNearest);
-				samplerCreateInfo.setMaxLod(11.0f);
+				samplerCreateInfo.setMaxLod(15.0f);
 				samplerCreateInfo.setAnisotropyEnable(VK_TRUE);
 				samplerCreateInfo.setMaxAnisotropy(16.0f);
 				break;
@@ -3043,7 +3045,7 @@ namespace VK
 				vk::DescriptorImageInfo()
 				.setSampler(vk::Sampler())
 				.setImageView(view)
-				.setImageLayout(internalTexture->currentLayout)//
+				.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)//
 			);
 
 			writeDescriptorSets.Add(

@@ -147,6 +147,7 @@ namespace GameEngine
 		}
 		~RendererImpl()
 		{
+			Wait();
 			for (auto & postPass : postRenderPasses)
 				postPass = nullptr;
 
