@@ -878,6 +878,37 @@ namespace GLL
 		}
 	};
 
+	class TextureCubeArray : public Texture, public GameEngine::TextureCubeArray
+	{
+	public:
+		int size = 0;
+		int count = 0;
+		TextureCubeArray(int pcount, int psize)
+		{
+			size = psize;
+			count = pcount;
+			BindTarget = GL_TEXTURE_CUBE_MAP_ARRAY;
+		}
+
+		StorageFormat GetFormat()
+		{
+			return storageFormat;
+		}
+
+		void BuildMipmaps()
+		{
+			glBindTexture(BindTarget, Handle);
+			glGenerateMipmap(BindTarget);
+			glBindTexture(BindTarget, 0);
+		}
+
+		virtual void GetSize(int & psize, int & pcount) override
+		{
+			psize = size;
+			pcount = count;
+		}
+	};
+
 	class FrameBuffer : public GL_Object
 	{
 	public:
@@ -894,6 +925,10 @@ namespace GLL
 		{
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Handle);
 			glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attachmentPoint, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (int)face, texture.Handle, level);
+		}
+		void SetColorRenderTarget(int attachmentPoint, const TextureCubeArray &texture, int cubeId, TextureCubeFace face, int level)
+		{
+			glNamedFramebufferTextureLayer(Handle, GL_COLOR_ATTACHMENT0 + attachmentPoint, texture.Handle, level, cubeId * 6 + (int)face);
 		}
 		void SetColorRenderTarget(int attachmentPoint, const RenderBuffer &buffer)
 		{
@@ -932,32 +967,46 @@ namespace GLL
 			}
 		}
 
-		void SetDepthStencilRenderTarget(const Texture2DArray &texture, int layer)
+		void SetDepthStencilRenderTarget(const Texture2DArray &texture, int layer, int level = 0)
 		{
 			if (texture.internalFormat == GL_DEPTH24_STENCIL8)
 			{
-				glNamedFramebufferTextureLayer(Handle, GL_DEPTH_ATTACHMENT, 0, 0, layer);
-				glNamedFramebufferTextureLayer(Handle, GL_DEPTH_STENCIL_ATTACHMENT, texture.Handle, 0, layer);
+				glNamedFramebufferTextureLayer(Handle, GL_DEPTH_ATTACHMENT, 0, level, layer);
+				glNamedFramebufferTextureLayer(Handle, GL_DEPTH_STENCIL_ATTACHMENT, texture.Handle, level, layer);
 			}
 			else
 			{
-				glNamedFramebufferTextureLayer(Handle, GL_DEPTH_STENCIL_ATTACHMENT, 0, 0, layer);
-				glNamedFramebufferTextureLayer(Handle, GL_DEPTH_ATTACHMENT, texture.Handle, 0, layer);
+				glNamedFramebufferTextureLayer(Handle, GL_DEPTH_STENCIL_ATTACHMENT, 0, level, layer);
+				glNamedFramebufferTextureLayer(Handle, GL_DEPTH_ATTACHMENT, texture.Handle, level, layer);
 			}
 		}
 
-		void SetDepthStencilRenderTarget(const TextureCube &texture, TextureCubeFace face)
+		void SetDepthStencilRenderTarget(const TextureCube &texture, TextureCubeFace face, int level = 0)
 		{
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Handle);
 			if (texture.internalFormat == GL_DEPTH24_STENCIL8)
 			{
 				glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (int)face, 0, 0);
-				glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (int)face, texture.Handle, 0);
+				glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (int)face, texture.Handle, level);
 			}
 			else
 			{
 				glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (int)face, 0, 0);
-				glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (int)face, texture.Handle, 0);
+				glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + (int)face, texture.Handle, level);
+			}
+		}
+
+		void SetDepthStencilRenderTarget(const TextureCubeArray &texture, int cubeId, TextureCubeFace face, int level = 0)
+		{
+			if (texture.internalFormat == GL_DEPTH24_STENCIL8)
+			{
+				glNamedFramebufferTextureLayer(Handle, GL_DEPTH_ATTACHMENT, 0, 0, 0);
+				glNamedFramebufferTextureLayer(Handle, GL_DEPTH_STENCIL_ATTACHMENT, texture.Handle, level, cubeId * 6 + (int)face);
+			}
+			else
+			{
+				glNamedFramebufferTextureLayer(Handle, GL_DEPTH_STENCIL_ATTACHMENT, 0, 0, 0);
+				glNamedFramebufferTextureLayer(Handle, GL_DEPTH_ATTACHMENT, texture.Handle, level, cubeId * 6 + (int)face);
 			}
 		}
 
@@ -1036,23 +1085,34 @@ namespace GLL
 				GLL::Texture2D* tex2D = nullptr;
 				GLL::Texture2DArray* tex2DArray = nullptr;
 				GLL::TextureCube* texCube = nullptr;
+				GLL::TextureCubeArray* texCubeArray = nullptr;
 			} handle;
 			int layer = -1;
+			int level = -1;
 			TextureCubeFace face;
 			Attachment(GLL::Texture2D * tex)
 			{
 				handle.tex2D = tex;
-				layer = -1;
+				layer = 0;
 			}
-			Attachment(GLL::Texture2DArray* texArr, int l)
+			Attachment(GLL::Texture2DArray* texArr, int pLayer, int pLevel = 0)
 			{
 				handle.tex2DArray = texArr;
-				layer = l;
+				layer = pLayer;
+				level = pLevel;
 			}
-			Attachment(GLL::TextureCube* texCube, TextureCubeFace pface, int l)
+			Attachment(GLL::TextureCube* texCube, TextureCubeFace pface, int pLevel)
 			{
 				handle.texCube = texCube;
-				layer = l;
+				level = pLevel;
+				layer = 0;
+				face = pface;
+			}
+			Attachment(GLL::TextureCubeArray* texCubeArr, int cubeId, TextureCubeFace pface, int pLevel)
+			{
+				handle.texCubeArray = texCubeArr;
+				level = pLevel;
+				layer = cubeId;
 				face = pface;
 			}
 			Attachment() = default;
@@ -1133,9 +1193,9 @@ namespace GLL
 				if (renderAttachment.handle.tex2D)
 					result->attachments.Add(FrameBufferDescriptor::Attachment(dynamic_cast<GLL::Texture2D*>(renderAttachment.handle.tex2D)));
 				else if (renderAttachment.handle.tex2DArray)
-					result->attachments.Add(FrameBufferDescriptor::Attachment(dynamic_cast<GLL::Texture2DArray*>(renderAttachment.handle.tex2DArray), renderAttachment.layer));
+					result->attachments.Add(FrameBufferDescriptor::Attachment(dynamic_cast<GLL::Texture2DArray*>(renderAttachment.handle.tex2DArray), renderAttachment.layer, renderAttachment.level));
 				else if (renderAttachment.handle.texCube)
-					result->attachments.Add(FrameBufferDescriptor::Attachment(dynamic_cast<GLL::TextureCube*>(renderAttachment.handle.texCube), renderAttachment.face, renderAttachment.layer));
+					result->attachments.Add(FrameBufferDescriptor::Attachment(dynamic_cast<GLL::TextureCube*>(renderAttachment.handle.texCube), renderAttachment.face, renderAttachment.level));
 			}
 			result->renderAttachments = renderAttachments;
 			return result;
@@ -2430,16 +2490,18 @@ namespace GLL
 						if (renderAttachment.handle.tex2D)
 							srcFrameBuffer.SetDepthStencilRenderTarget(*renderAttachment.handle.tex2D);
 						else if (renderAttachment.handle.tex2DArray)
-							srcFrameBuffer.SetDepthStencilRenderTarget(*renderAttachment.handle.tex2DArray, renderAttachment.layer);
+							srcFrameBuffer.SetDepthStencilRenderTarget(*renderAttachment.handle.tex2DArray, renderAttachment.layer, renderAttachment.level);
 					}
 					else
 					{
 						if (renderAttachment.handle.tex2D)
 							srcFrameBuffer.SetColorRenderTarget(location, *renderAttachment.handle.tex2D);
 						else if (renderAttachment.handle.tex2DArray)
-							srcFrameBuffer.SetColorRenderTarget(location, *renderAttachment.handle.tex2DArray, renderAttachment.layer);
+							srcFrameBuffer.SetColorRenderTarget(location, *renderAttachment.handle.tex2DArray, renderAttachment.layer, renderAttachment.level);
 						else if (renderAttachment.handle.texCube)
-							srcFrameBuffer.SetColorRenderTarget(location, *renderAttachment.handle.texCube, renderAttachment.face, renderAttachment.layer);
+							srcFrameBuffer.SetColorRenderTarget(location, *renderAttachment.handle.texCube, renderAttachment.face, renderAttachment.level);
+						else
+							srcFrameBuffer.SetColorRenderTarget(location, *renderAttachment.handle.texCubeArray, renderAttachment.layer, renderAttachment.face, renderAttachment.level);
 						mask |= (1 << location);
 					}
 					location++;
@@ -3289,6 +3351,33 @@ namespace GLL
 			rs->Handle = handle;
 			rs->storageFormat = format;
 			rs->BindTarget = GL_TEXTURE_CUBE_MAP;
+			return rs;
+		}
+
+		virtual TextureCubeArray* CreateTextureCubeArray(TextureUsage /*usage*/, int size, int mipLevelCount, int cubemapCount, StorageFormat format) override
+		{
+			GLuint handle = 0;
+			if (glCreateTextures)
+				glCreateTextures(GL_TEXTURE_CUBE_MAP_ARRAY, 1, &handle);
+			else
+			{
+				glGenTextures(1, &handle);
+				glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, handle);
+			}
+			glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, handle);
+			glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameterf(GL_TEXTURE_CUBE_MAP_ARRAY, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8.0f);
+			glTexStorage3D(GL_TEXTURE_CUBE_MAP_ARRAY, mipLevelCount, TranslateStorageFormat(format), size, size, cubemapCount * 6);
+			int levels = Math::Log2Ceil(size);
+			for (int i = 0; i < levels; i++)
+				glClearTexSubImage(handle, i, 0, 0, 0, (size >> i), (size >> i), 6, GL_RGBA, GL_FLOAT, nullptr);
+			glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, 0);
+
+			auto rs = new TextureCubeArray(cubemapCount, size);
+			rs->Handle = handle;
+			rs->storageFormat = format;
+			rs->BindTarget = GL_TEXTURE_CUBE_MAP_ARRAY;
 			return rs;
 		}
 

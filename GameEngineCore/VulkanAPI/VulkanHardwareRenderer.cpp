@@ -1988,6 +1988,29 @@ namespace VK
 		}
 	};
 
+	class TextureCubeArray : public VK::Texture, public GameEngine::TextureCubeArray
+	{
+	public:
+		int count;
+		TextureCubeArray(TextureUsage usage, int cubeCount, int psize, int mipLevels, StorageFormat format)
+			: VK::Texture(usage, psize, psize, 1, mipLevels, cubeCount * 6, 1, format, vk::ImageCreateFlagBits::eCubeCompatible), size(psize)
+		{
+			List<float> zeroMem;
+			zeroMem.SetSize(psize * psize * 6 * 4 * cubeCount);
+			for (int i = 0; i < zeroMem.Count(); i++)
+				zeroMem[i] = 0.0f;
+			for (int i = 0; i < (int)Math::Log2Ceil(psize); i++)
+				VK::Texture::SetData(i, 0, 0, 0, 0, psize >> i, psize >> i, 1, cubeCount * 6, DataType::Float4, zeroMem.Buffer());
+			count = cubeCount;
+		};
+		int size = 0;
+		virtual void GetSize(int & psize, int &pCount) override
+		{
+			psize = size;
+			pCount = count;
+		}
+	};
+
 	class Texture3D : public VK::Texture, public GameEngine::Texture3D
 	{
 	public:
@@ -2912,9 +2935,40 @@ namespace VK
 
 				vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
 					.setAspectMask(aspectFlags)
-					.setBaseMipLevel(attachment.layer)
+					.setBaseMipLevel(attachment.level)
 					.setLevelCount(1)
 					.setBaseArrayLayer((int)attachment.face)
+					.setLayerCount(1);
+
+				vk::ImageViewCreateInfo imageViewCreateInfo = vk::ImageViewCreateInfo()
+					.setFlags(vk::ImageViewCreateFlags())
+					.setImage(tex->image)
+					.setViewType(vk::ImageViewType::e2D)
+					.setFormat(TranslateStorageFormat(tex->format))
+					.setComponents(vk::ComponentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA))//
+					.setSubresourceRange(imageSubresourceRange);
+
+				result->attachmentImageViews.Add(RendererState::Device().createImageView(imageViewCreateInfo));
+			}
+			else if (attachment.handle.texCubeArray)
+			{
+				auto tex = dynamic_cast<TextureCubeArray*>(attachment.handle.texCubeArray);
+
+				vk::ImageAspectFlags aspectFlags;
+				if (isDepthFormat(tex->format))
+				{
+					aspectFlags = vk::ImageAspectFlagBits::eDepth;
+					if (tex->format == StorageFormat::Depth24Stencil8)
+						aspectFlags |= vk::ImageAspectFlagBits::eStencil;
+				}
+				else
+					aspectFlags = vk::ImageAspectFlagBits::eColor;
+
+				vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
+					.setAspectMask(aspectFlags)
+					.setBaseMipLevel(attachment.level)
+					.setLevelCount(1)
+					.setBaseArrayLayer((int)attachment.face + attachment.layer * 6)
 					.setLayerCount(1);
 
 				vk::ImageViewCreateInfo imageViewCreateInfo = vk::ImageViewCreateInfo()
@@ -4849,6 +4903,13 @@ namespace VK
 			TextureCube* res = new TextureCube(usage, size, mipLevelCount, format);
 			res->TransferLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
 			return res;
+		}
+
+		virtual TextureCubeArray* CreateTextureCubeArray(TextureUsage usage, int size, int mipLevelCount, int cubemapCount, StorageFormat format) override
+		{
+			TextureCubeArray * rs = new TextureCubeArray(usage, cubemapCount, size, mipLevelCount, format);
+			rs->TransferLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
+			return rs;
 		}
 
 		Texture3D* CreateTexture3D(TextureUsage usage, int w, int h, int d, int mipLevelCount, StorageFormat format)

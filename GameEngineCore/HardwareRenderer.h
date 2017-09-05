@@ -447,6 +447,14 @@ namespace GameEngine
 		virtual void GetSize(int & size) = 0;
 	};
 
+	class TextureCubeArray : public Texture
+	{
+	protected:
+		TextureCubeArray() {}
+	public:
+		virtual void GetSize(int & size, int & layerCount) = 0;
+	};
+
 	class TextureSampler : public CoreLib::RefObject
 	{
 	protected:
@@ -478,24 +486,36 @@ namespace GameEngine
 				GameEngine::Texture2D* tex2D = nullptr;
 				GameEngine::Texture2DArray* tex2DArray = nullptr;
 				GameEngine::TextureCube * texCube = nullptr;
+				GameEngine::TextureCubeArray * texCubeArray = nullptr;
 			} handle;
 			int layer = -1;
+			int level = -1;
 			TextureCubeFace face = TextureCubeFace::NegativeX;
 			Attachment(GameEngine::Texture2D * tex)
 			{
 				handle.tex2D = tex;
 				layer = -1;
+				level = 0;
 			}
 			Attachment(GameEngine::Texture2DArray* texArr, int l)
 			{
 				handle.tex2DArray = texArr;
 				layer = l;
+				level = 0;
 			}
-			Attachment(GameEngine::TextureCube* texCube, TextureCubeFace pface, int level)
+			Attachment(GameEngine::TextureCube* texCube, TextureCubeFace pface, int pLevel)
 			{
 				handle.texCube = texCube;
 				face = pface;
-				layer = level;
+				level = pLevel;
+				layer = 0;
+			}
+			Attachment(GameEngine::TextureCubeArray* texCubeArr, int cubeId, TextureCubeFace pface, int pLevel)
+			{
+				handle.texCubeArray = texCubeArr;
+				face = pface;
+				layer = cubeId;
+				level = pLevel;
 			}
 			Attachment() = default;
 		};
@@ -796,6 +816,7 @@ namespace GameEngine
 		virtual Texture2D* CreateTexture2D(TextureUsage usage, int width, int height, int mipLevelCount, StorageFormat format, DataType type, CoreLib::ArrayView<void*> mipLevelData) = 0;
 		virtual Texture2DArray* CreateTexture2DArray(TextureUsage usage, int width, int height, int layers, int mipLevelCount, StorageFormat format) = 0;
 		virtual TextureCube* CreateTextureCube(TextureUsage usage, int size, int mipLevelCount, StorageFormat format) = 0;
+		virtual TextureCubeArray* CreateTextureCubeArray(TextureUsage usage, int size, int mipLevelCount, int cubemapCount, StorageFormat format) = 0;
 		virtual Texture3D* CreateTexture3D(TextureUsage usage, int width, int height, int depth, int mipLevelCount, StorageFormat format) = 0;
 		virtual TextureSampler* CreateTextureSampler() = 0;
 		virtual Shader* CreateShader(ShaderType stage, const char* data, int size) = 0;
