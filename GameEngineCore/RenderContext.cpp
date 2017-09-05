@@ -635,6 +635,7 @@ namespace GameEngine
 		vertexBufferMemory.Init(hardwareRenderer.Ptr(), BufferUsage::ArrayBuffer, false, 28, 256);
 
 		spireSink = spCreateDiagnosticSink(spireContext);
+		envMapArray = hardwareRenderer->CreateTextureCubeArray(TextureUsage::SampledColorAttachment, EnvMapSize, Math::Log2Ceil(EnvMapSize), MaxEnvMapCount, StorageFormat::RGBA_F16);
 	}
 	void RendererSharedResource::Destroy()
 	{
@@ -645,6 +646,7 @@ namespace GameEngine
 		linearSampler = nullptr;
 		descLayouts = CoreLib::EnumerableDictionary<SpireModuleStruct*, CoreLib::RefPtr<GameEngine::DescriptorSetLayout>>();
 		fullScreenQuadVertBuffer = nullptr;
+		envMapArray = nullptr;
 		//ModuleInstance::ClosePool();
 		spDestroyCompilationContext(spireContext);
 

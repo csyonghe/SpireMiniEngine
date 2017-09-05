@@ -173,6 +173,7 @@
     <ClCompile Include="DynamicVariable.cpp" />
     <ClCompile Include="Engine.cpp" />
     <ClCompile Include="EngineActorClasses.cpp" />
+    <ClCompile Include="EnvMapActor.cpp" />
     <ClCompile Include="ForwardBaseRenderPass.cpp" />
     <ClCompile Include="FreeRoamCameraController.cpp" />
     <ClCompile Include="FrustumCulling.cpp" />
@@ -231,6 +232,7 @@
     <ClInclude Include="AtmosphereActor.h" />
     <ClInclude Include="CameraActor.h" />
     <ClInclude Include="CatmullSpline.h" />
+    <ClInclude Include="EnvMapActor.h" />
     <ClInclude Include="LightBinningPass.h" />
     <ClInclude Include="Drawable.h" />
     <ClInclude Include="EngineLimits.h" />

@@ -161,6 +161,7 @@ namespace GameEngine
 		RenderAPI api;
 		void LoadShaderLibrary();
 		CoreLib::EnumerableDictionary<CoreLib::String, SpireShader*> entryPointShaders;
+		int envMapAllocPtr = 0;
 	public:
 		RenderStat renderStats;
 		CoreLib::RefPtr<HardwareRenderer> hardwareRenderer;
@@ -172,7 +173,8 @@ namespace GameEngine
 		SpireShader * LoadSpireShader(const char * key, const char * source);
 		void CreateModuleInstance(ModuleInstance & mInst, SpireModule * shaderModule, DeviceMemory * uniformMemory, int uniformBufferSize = 0);
 	public:
-		CoreLib::RefPtr<TextureCube> envMap;
+		CoreLib::RefPtr<TextureCubeArray> envMapArray;
+
 		CoreLib::RefPtr<Buffer> fullScreenQuadVertBuffer;
 		DeviceMemory indexBufferMemory, vertexBufferMemory;
 		PipelineContext pipelineManager;
@@ -180,6 +182,17 @@ namespace GameEngine
 		RendererSharedResource(RenderAPI pAPI)
 		{
 			this->api = pAPI;
+		}
+		int AllocEnvMap()
+		{
+			if (envMapAllocPtr < MaxEnvMapCount)
+				return envMapAllocPtr++;
+			else
+				return -1;
+		}
+		void ResetEnvMapAllocation()
+		{
+			envMapAllocPtr = 0;
 		}
 		void Init(HardwareRenderer * phwRenderer);
 		void Destroy();

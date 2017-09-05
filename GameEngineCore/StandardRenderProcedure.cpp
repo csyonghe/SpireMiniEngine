@@ -66,11 +66,12 @@ namespace GameEngine
 
 		bool useAtmosphere = false;
 		bool toneMapping = false;
-		
+		bool useEnvMap = false;
 	public:
-		StandardRenderProcedure(bool pToneMapping)
+		StandardRenderProcedure(bool pToneMapping, bool pUseEnvMap)
 		{
 			toneMapping = pToneMapping;
+			useEnvMap = pUseEnvMap;
 		}
 		~StandardRenderProcedure()
 		{
@@ -152,7 +153,7 @@ namespace GameEngine
 			// initialize forwardBasePassModule and lightingModule
 			renderPassUniformMemory.Init(sharedRes->hardwareRenderer.Ptr(), BufferUsage::UniformBuffer, true, 22, sharedRes->hardwareRenderer->UniformBufferAlignment());
 			sharedRes->CreateModuleInstance(forwardBasePassParams, spFindModule(sharedRes->spireContext, "ForwardBasePassParams"), &renderPassUniformMemory);
-			lighting.Init(*sharedRes, &renderPassUniformMemory);
+			lighting.Init(*sharedRes, &renderPassUniformMemory, useEnvMap);
 			UpdateSharedResourceBinding();
 			sharedModules.View = &forwardBasePassParams;
 			shadowViewInstances.Reserve(1024);
@@ -300,8 +301,8 @@ namespace GameEngine
 		}
 	};
 
-	IRenderProcedure * CreateStandardRenderProcedure(bool toneMapping)
+	IRenderProcedure * CreateStandardRenderProcedure(bool toneMapping, bool useEnvMap)
 	{
-		return new StandardRenderProcedure(toneMapping);
+		return new StandardRenderProcedure(toneMapping, useEnvMap);
 	}
 }

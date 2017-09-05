@@ -10,6 +10,7 @@
 #include "AtmosphereActor.h"
 #include "TerrainActor.h"
 #include "ToneMappingActor.h"
+#include "EnvMapActor.h"
 
 namespace GameEngine
 {
@@ -27,6 +28,7 @@ namespace GameEngine
 		REGISTER_ACTOR_CLASS(Atmosphere);
 		REGISTER_ACTOR_CLASS(Terrain);
 		REGISTER_ACTOR_CLASS(ToneMapping);
+		REGISTER_ACTOR_CLASS(EnvMap);
 
 	}
 }

@@ -160,6 +160,10 @@ namespace GameEngine
 		SerializeFields(sb);
 		sb << "}\n";
 	}
+	VectorMath::Vec3 Actor::GetPosition()
+	{
+		return VectorMath::Vec3::Create(localTransform.values[12], localTransform.values[13], localTransform.values[14]);
+	}
 	Actor::~Actor()
 	{
 		OnUnload();

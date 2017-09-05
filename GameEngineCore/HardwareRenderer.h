@@ -604,6 +604,32 @@ namespace GameEngine
 
 			attachments[binding] = Attachment(attachment, face, level);
 		}
+		void SetAttachment(int binding, GameEngine::TextureCubeArray* attachment, int cubeId, TextureCubeFace face, int level)
+		{
+			if (width == -1 && height == -1)
+			{
+				int count;
+				attachment->GetSize(width, count);
+				width >>= level;
+				height = width;
+			}
+#if _DEBUG
+			else
+			{
+				int thiswidth;
+				int thisheight;
+				int count;
+				attachment->GetSize(thiswidth, count);
+				thiswidth >>= level;
+				thisheight = thiswidth;
+				if (thiswidth != width || thisheight != height)
+					throw HardwareRendererException("Attachment images must have the same dimensions.");
+			}
+#endif
+			Resize(binding + 1);
+
+			attachments[binding] = Attachment(attachment, cubeId, face, level);
+		}
 		void GetTextures(CoreLib::List<Texture*> & textures)
 		{
 			textures.Clear();
@@ -615,6 +641,8 @@ namespace GameEngine
 					textures.Add(a.handle.tex2DArray);
 				else if (a.handle.texCube)
 					textures.Add(a.handle.texCube);
+				else if (a.handle.texCubeArray)
+					textures.Add(a.handle.texCubeArray);
 			}
 		}
 	};

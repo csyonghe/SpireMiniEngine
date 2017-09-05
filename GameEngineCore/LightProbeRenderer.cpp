@@ -14,6 +14,7 @@ namespace GameEngine
 		renderService = prenderService;
 		renderProc = pRenderProc;
 		viewRes = pViewRes;
+		tempEnv = prenderer->GetHardwareRenderer()->CreateTextureCube(TextureUsage::SampledColorAttachment, EnvMapSize, Math::Log2Ceil(EnvMapSize), StorageFormat::RGBA_F16);
 	}
 
 	const char * spirePipeline = R"(
@@ -175,14 +176,13 @@ namespace GameEngine
 		float roughness;
 	};
 
-	RefPtr<TextureCube> LightProbeRenderer::RenderLightProbe(Level * level, VectorMath::Vec3 position)
+	void LightProbeRenderer::RenderLightProbe(TextureCubeArray* dest, int id, Level * level, VectorMath::Vec3 position)
 	{
 		HardwareRenderer * hw = renderer->GetHardwareRenderer();
-		int resolution = viewRes->GetWidth();
+		int resolution = EnvMapSize;
 		int numLevels = Math::Log2Ceil(resolution);
-		RefPtr<TextureCube> env0 = hw->CreateTextureCube(TextureUsage::SampledColorAttachment, resolution, numLevels, StorageFormat::RGBA_F16);
 		RenderStat stat;
-		ImageTransferRenderTask t1(MakeArrayView(dynamic_cast<Texture*>(env0.Ptr())), ArrayView<Texture*>());
+		ImageTransferRenderTask t1(MakeArrayView(dynamic_cast<Texture*>(tempEnv.Ptr())), ArrayView<Texture*>());
 		t1.Execute(hw, stat);
 
 		viewRes->Resize(resolution, resolution);
@@ -275,7 +275,7 @@ namespace GameEngine
 			copyDescSet->Update(1, sharedRes->nearestSampler.Ptr());
 			copyDescSet->EndUpdate();
 			RenderAttachments attachments;
-			attachments.SetAttachment(0, env0.Ptr(), (TextureCubeFace)f, 0);
+			attachments.SetAttachment(0, tempEnv.Ptr(), (TextureCubeFace)f, 0);
 			RefPtr<FrameBuffer> fb = copyRTLayout->CreateFrameBuffer(attachments);
 			frameBuffers[f] = fb;
 			auto cmdBuffer = hw->CreateCommandBuffer();
@@ -290,7 +290,7 @@ namespace GameEngine
 			hw->ExecuteRenderPass(fb.Ptr(), MakeArrayView(cmdBuffer), nullptr);
 			hw->Wait();
 		}
-		ImageTransferRenderTask t2(ArrayView<Texture*>(), MakeArrayView(dynamic_cast<Texture*>(env0.Ptr())));
+		ImageTransferRenderTask t2(ArrayView<Texture*>(), MakeArrayView(dynamic_cast<Texture*>(tempEnv.Ptr())));
 		t2.Execute(hw, stat);
 
 		// prefilter
@@ -309,11 +309,11 @@ namespace GameEngine
 		RefPtr<DescriptorSet> prefilterDescSet = hw->CreateDescriptorSet(prefilterPassLayout.Ptr());
 		prefilterDescSet->BeginUpdate();
 		prefilterDescSet->Update(0, uniformBuffer.Ptr());
-		prefilterDescSet->Update(1, env0.Ptr(), TextureAspect::Color);
+		prefilterDescSet->Update(1, tempEnv.Ptr(), TextureAspect::Color);
 		prefilterDescSet->Update(2, sharedRes->nearestSampler.Ptr());
 		prefilterDescSet->EndUpdate();
-		RefPtr<TextureCube> rs = hw->CreateTextureCube(TextureUsage::SampledColorAttachment, resolution, numLevels, StorageFormat::RGBA_F16);
-		ImageTransferRenderTask t3(MakeArrayView(dynamic_cast<Texture*>(rs.Ptr())), ArrayView<Texture*>());
+
+		ImageTransferRenderTask t3(MakeArrayView(dynamic_cast<Texture*>(dest)), ArrayView<Texture*>());
 		t3.Execute(hw, stat);
 		for (int f = 0; f < 6; f++)
 		{
@@ -365,7 +365,7 @@ namespace GameEngine
 				hw->EndDataTransfer();
 
 				RenderAttachments attachments;
-				attachments.SetAttachment(0, rs.Ptr(), (TextureCubeFace)f, l);
+				attachments.SetAttachment(0, dest, id, (TextureCubeFace)f, l);
 				RefPtr<FrameBuffer> fb = prefilterRTLayout->CreateFrameBuffer(attachments);
 				auto cmdBuffer = hw->CreateCommandBuffer();
 				cmdBuffer->BeginRecording(fb.Ptr());
@@ -380,9 +380,8 @@ namespace GameEngine
 				hw->Wait();
 			}
 		}
-		ImageTransferRenderTask t4(ArrayView<Texture*>(), MakeArrayView(dynamic_cast<Texture*>(rs.Ptr())));
+		ImageTransferRenderTask t4(ArrayView<Texture*>(), MakeArrayView(dynamic_cast<Texture*>(dest)));
 		t4.Execute(hw, stat);
 		hw->Wait();
-		return rs;
 	}
 }

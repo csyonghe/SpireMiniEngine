@@ -3,6 +3,7 @@
 #include "Level.h"
 #include "Engine.h"
 #include "SkeletalMeshActor.h"
+#include "EnvMapActor.h"
 #include "CoreLib/Graphics/TextureFile.h"
 #include "CoreLib/Imaging/Bitmap.h"
 #include "CoreLib/Imaging/TextureData.h"
@@ -129,8 +130,7 @@ namespace GameEngine
 			hardwareRenderer->SetMaxTempBufferVersions(DynamicBufferLengthMultiplier);
 			hardwareRenderer->BeginDataTransfer();
 			sharedRes.Init(hardwareRenderer);
-			sharedRes.envMap = hardwareRenderer->CreateTextureCube(TextureUsage::SampledColorAttachment, 256, 8, StorageFormat::RGBA_F16);
-			
+
 			mainView = new ViewResource(hardwareRenderer);
 			mainView->Resize(1024, 1024);
 			
@@ -197,14 +197,21 @@ namespace GameEngine
 			level = pLevel;
 			hardwareRenderer->BeginDataTransfer();
 			cubemapRenderView = new ViewResource(hardwareRenderer);
-			cubemapRenderView->Resize(256, 256);
+			cubemapRenderView->Resize(EnvMapSize, EnvMapSize);
 			cubemapRenderProc = CreateStandardRenderProcedure(false);
 			cubemapRenderProc->Init(this, cubemapRenderView.Ptr());
 			hardwareRenderer->EndDataTransfer();
 
 			LightProbeRenderer lpRenderer(this, renderService.Ptr(), cubemapRenderProc.Ptr(), cubemapRenderView.Ptr());
-
-			sharedRes.envMap = lpRenderer.RenderLightProbe(level, Vec3::Create(0.0f, 1000.0f, 0.0f));
+			for (auto & actor : level->Actors)
+			{
+				if (actor.Value->GetEngineActorType() == EngineActorType::EnvMap)
+				{
+					auto envMapActor = dynamic_cast<EnvMapActor*>(actor.Value.Ptr());
+					if (envMapActor->GetEnvMapId() != -1)
+						lpRenderer.RenderLightProbe(sharedRes.envMapArray.Ptr(), envMapActor->GetEnvMapId(), level, envMapActor->GetPosition());
+				}
+			}
 			
 			hardwareRenderer->BeginDataTransfer();
 			renderProcedure->UpdateSharedResourceBinding();
@@ -301,6 +308,7 @@ namespace GameEngine
 		virtual void DestroyContext() override
 		{
 			sceneRes = nullptr;
+			sharedRes.ResetEnvMapAllocation();
 		}
 		virtual void Resize(int w, int h) override
 		{

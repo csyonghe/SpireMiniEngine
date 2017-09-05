@@ -17,9 +17,10 @@ namespace GameEngine
 		RendererService * renderService;
 		IRenderProcedure* renderProc;
 		ViewResource * viewRes = nullptr;
+		CoreLib::RefPtr<TextureCube> tempEnv;
 	public:
 		LightProbeRenderer(Renderer * renderer, RendererService * renderService, IRenderProcedure * pRenderProc, ViewResource * pViewRes);
-		CoreLib::RefPtr<TextureCube> RenderLightProbe(Level * level, VectorMath::Vec3 position);
+		void RenderLightProbe(TextureCubeArray* dest, int id, Level * level, VectorMath::Vec3 position);
 	};
 }
 

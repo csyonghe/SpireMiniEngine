@@ -52,6 +52,8 @@ namespace GameEngine
 	class LightingEnvironment
 	{
 	private:
+		bool useEnvMap = true;
+		CoreLib::RefPtr<TextureCubeArray> emptyEnvMapArray;
 		void AddShadowPass(FrameRenderTask & tasks, WorldRenderPass * shadowRenderPass, DrawableSink * sink, ShadowMapResource & shadowMapRes, int shadowMapId,
 			StandardViewUniforms & shadowMapView, int & shadowMapViewInstancePtr);
 	public:
@@ -69,7 +71,7 @@ namespace GameEngine
 		int lightBufferSize;
 		LightingUniform uniformData;
 		void GatherInfo(FrameRenderTask & tasks, DrawableSink * sink, const RenderProcedureParameters & params, int w, int h, StandardViewUniforms & cameraView, WorldRenderPass * shadowPass);
-		void Init(RendererSharedResource & sharedRes, DeviceMemory * uniformMemory);
+		void Init(RendererSharedResource & sharedRes, DeviceMemory * uniformMemory, bool pUseEnvMap);
 		void UpdateSharedResourceBinding();
 	};
 }

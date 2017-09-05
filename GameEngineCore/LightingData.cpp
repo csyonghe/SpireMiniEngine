@@ -279,10 +279,13 @@ namespace GameEngine
 	}
 
 
-	void LightingEnvironment::Init(RendererSharedResource & pSharedRes, DeviceMemory * pUniformMemory)
+	void LightingEnvironment::Init(RendererSharedResource & pSharedRes, DeviceMemory * pUniformMemory, bool pUseEnvMap)
 	{
 		this->uniformMemory = pUniformMemory;
 		this->sharedRes = &pSharedRes;
+		this->useEnvMap = pUseEnvMap;
+		if (!useEnvMap)
+			emptyEnvMapArray = pSharedRes.hardwareRenderer->CreateTextureCubeArray(TextureUsage::Sampled, 2, 2, MaxEnvMapCount, StorageFormat::RGBA_F16);
 		sharedRes->CreateModuleInstance(moduleInstance, spFindModule(sharedRes->spireContext, "Lighting"), uniformMemory, sizeof(LightingUniform));
 		lightBufferSize = Math::RoundUpToAlignment((int)sizeof(GpuLightData) * MaxLights, sharedRes->hardwareRenderer->UniformBufferAlignment());
 		lightBuffer = sharedRes->hardwareRenderer->CreateMappedBuffer(GameEngine::BufferUsage::StorageBuffer, lightBufferSize * DynamicBufferLengthMultiplier);
@@ -293,7 +296,11 @@ namespace GameEngine
 			descSet->Update(1, lightBuffer.Ptr(), lightBufferSize * i, lightBufferSize);
 			descSet->Update(2, sharedRes->shadowMapResources.shadowMapArray.Ptr(), TextureAspect::Depth);
 			descSet->Update(3, sharedRes->shadowSampler.Ptr());
-			descSet->Update(4, sharedRes->envMap.Ptr(), TextureAspect::Color);
+			if (useEnvMap)
+				descSet->Update(4, sharedRes->envMapArray.Ptr(), TextureAspect::Color);
+			else
+				descSet->Update(4, emptyEnvMapArray.Ptr(), TextureAspect::Color);
+
 			descSet->EndUpdate();
 		}
 		lightBufferPtr = lightBuffer->Map();
@@ -307,7 +314,8 @@ namespace GameEngine
 			descSet->BeginUpdate();
 			descSet->Update(2, sharedRes->shadowMapResources.shadowMapArray.Ptr(), TextureAspect::Depth);
 			descSet->Update(3, sharedRes->shadowSampler.Ptr());
-			descSet->Update(4, sharedRes->envMap.Ptr(), TextureAspect::Color);
+			if (useEnvMap)
+				descSet->Update(4, sharedRes->envMapArray.Ptr(), TextureAspect::Color);
 			descSet->EndUpdate();
 		}
 	}

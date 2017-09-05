@@ -17,7 +17,7 @@ namespace GameEngine
 {
 	enum class EngineActorType
 	{
-		Drawable, Light, LightProbe, Atmosphere, BoundingVolume, Camera, UserController, ToneMapping
+		Drawable, Light, EnvMap, Atmosphere, BoundingVolume, Camera, UserController, ToneMapping
 	};
 
 	class RendererService;
@@ -68,6 +68,7 @@ namespace GameEngine
 		{
 			localTransform = val;
 		}
+		virtual VectorMath::Vec3 GetPosition();
 		Actor()
 		{
 			Bounds.Init();
