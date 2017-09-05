@@ -1,6 +1,7 @@
 #include "LightingData.h"
 #include "DirectionalLightActor.h"
 #include "PointLightActor.h"
+#include "EnvMapActor.h"
 #include "WorldRenderPass.h"
 #include "Engine.h"
 
@@ -80,6 +81,7 @@ namespace GameEngine
 		auto renderer = params.renderer;
 		auto level = params.level;
 
+		lightProbes.Clear();
 		lights.Clear();
 		uniformData.sunLightEnabled = false;
 		auto shadowMapRes = renderer->GetSharedResource()->shadowMapResources;
@@ -144,6 +146,28 @@ namespace GameEngine
 					lights.Add(lightData);
 				}
 			}
+			else if (actorType == EngineActorType::EnvMap)
+			{
+				auto envMap = (EnvMapActor*)(actor.Value.Ptr());
+				if (envMap->GetEnvMapId() != -1)
+				{
+					GpuLightProbeData probe;
+					probe.position = envMap->GetPosition();
+					probe.radius = envMap->Radius;
+					probe.tintColor = envMap->TintColor;
+					probe.envMapId = envMap->GetEnvMapId();
+					lightProbes.Add(probe);
+				}
+			}
+		}
+		if (lightProbes.Count() == 0)
+		{
+			GpuLightProbeData probe;
+			probe.position = Vec3::Create(0.0f, 1000.0f, 0.0f);
+			probe.radius = 1e9f;
+			probe.tintColor = Vec3::Create(1.0f, 1.0f, 1.0f);
+			probe.envMapId = 0;
+			lightProbes.Add(probe);
 		}
 		tasks.AddTask(new ImageTransferRenderTask(MakeArrayView(dynamic_cast<Texture*>(shadowMapRes.shadowMapArray.Ptr())), ArrayView<Texture*>()));
 		float zmin = params.view.ZNear;
@@ -273,9 +297,12 @@ namespace GameEngine
 		}
 		tasks.AddTask(new ImageTransferRenderTask(ArrayView<Texture*>(), MakeArrayView(dynamic_cast<Texture*>(shadowMapRes.shadowMapArray.Ptr()))));
 		uniformData.lightCount = lights.Count();
+		uniformData.lightProbeCount = lights.Count();
 		moduleInstance.SetUniformData(&uniformData, sizeof(uniformData));
 		auto lightPtr = (GpuLightData*)((char*)lightBufferPtr + moduleInstance.GetCurrentVersion() * lightBufferSize);
 		memcpy(lightPtr, lights.Buffer(), lights.Count() * sizeof(GpuLightData));
+		auto lightProbePtr = (GpuLightProbeData*)((char*)lightProbeBufferPtr + moduleInstance.GetCurrentVersion() * lightProbeBufferSize);
+		memcpy(lightProbePtr, lightProbes.Buffer(), Math::Min(MaxEnvMapCount, lightProbes.Count()) * sizeof(GpuLightProbeData));
 	}
 
 
@@ -289,21 +316,25 @@ namespace GameEngine
 		sharedRes->CreateModuleInstance(moduleInstance, spFindModule(sharedRes->spireContext, "Lighting"), uniformMemory, sizeof(LightingUniform));
 		lightBufferSize = Math::RoundUpToAlignment((int)sizeof(GpuLightData) * MaxLights, sharedRes->hardwareRenderer->UniformBufferAlignment());
 		lightBuffer = sharedRes->hardwareRenderer->CreateMappedBuffer(GameEngine::BufferUsage::StorageBuffer, lightBufferSize * DynamicBufferLengthMultiplier);
+		lightProbeBufferSize = Math::RoundUpToAlignment((int)sizeof(GpuLightProbeData) * MaxEnvMapCount, sharedRes->hardwareRenderer->UniformBufferAlignment());
+		lightProbeBuffer = sharedRes->hardwareRenderer->CreateMappedBuffer(GameEngine::BufferUsage::StorageBuffer, lightProbeBufferSize * DynamicBufferLengthMultiplier);
 		for (int i = 0; i < DynamicBufferLengthMultiplier; i++)
 		{
 			auto descSet = moduleInstance.GetDescriptorSet(i);
 			descSet->BeginUpdate();
 			descSet->Update(1, lightBuffer.Ptr(), lightBufferSize * i, lightBufferSize);
-			descSet->Update(2, sharedRes->shadowMapResources.shadowMapArray.Ptr(), TextureAspect::Depth);
-			descSet->Update(3, sharedRes->shadowSampler.Ptr());
+			descSet->Update(2, lightProbeBuffer.Ptr(), lightProbeBufferSize * i, lightProbeBufferSize);
+			descSet->Update(3, sharedRes->shadowMapResources.shadowMapArray.Ptr(), TextureAspect::Depth);
+			descSet->Update(4, sharedRes->shadowSampler.Ptr());
 			if (useEnvMap)
-				descSet->Update(4, sharedRes->envMapArray.Ptr(), TextureAspect::Color);
+				descSet->Update(5, sharedRes->envMapArray.Ptr(), TextureAspect::Color);
 			else
-				descSet->Update(4, emptyEnvMapArray.Ptr(), TextureAspect::Color);
+				descSet->Update(5, emptyEnvMapArray.Ptr(), TextureAspect::Color);
 
 			descSet->EndUpdate();
 		}
 		lightBufferPtr = lightBuffer->Map();
+		lightProbeBufferPtr = lightProbeBuffer->Map();
 	}
 
 	void LightingEnvironment::UpdateSharedResourceBinding()
@@ -312,10 +343,10 @@ namespace GameEngine
 		{
 			auto descSet = moduleInstance.GetDescriptorSet(i);
 			descSet->BeginUpdate();
-			descSet->Update(2, sharedRes->shadowMapResources.shadowMapArray.Ptr(), TextureAspect::Depth);
-			descSet->Update(3, sharedRes->shadowSampler.Ptr());
+			descSet->Update(3, sharedRes->shadowMapResources.shadowMapArray.Ptr(), TextureAspect::Depth);
+			descSet->Update(4, sharedRes->shadowSampler.Ptr());
 			if (useEnvMap)
-				descSet->Update(4, sharedRes->envMapArray.Ptr(), TextureAspect::Color);
+				descSet->Update(5, sharedRes->envMapArray.Ptr(), TextureAspect::Color);
 			descSet->EndUpdate();
 		}
 	}

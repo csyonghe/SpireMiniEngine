@@ -1196,6 +1196,9 @@ namespace GLL
 					result->attachments.Add(FrameBufferDescriptor::Attachment(dynamic_cast<GLL::Texture2DArray*>(renderAttachment.handle.tex2DArray), renderAttachment.layer, renderAttachment.level));
 				else if (renderAttachment.handle.texCube)
 					result->attachments.Add(FrameBufferDescriptor::Attachment(dynamic_cast<GLL::TextureCube*>(renderAttachment.handle.texCube), renderAttachment.face, renderAttachment.level));
+				else if (renderAttachment.handle.texCubeArray)
+					result->attachments.Add(FrameBufferDescriptor::Attachment(dynamic_cast<GLL::TextureCubeArray*>(renderAttachment.handle.texCubeArray), renderAttachment.layer, renderAttachment.face, renderAttachment.level));
+
 			}
 			result->renderAttachments = renderAttachments;
 			return result;

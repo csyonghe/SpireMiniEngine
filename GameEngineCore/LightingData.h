@@ -34,7 +34,7 @@ namespace GameEngine
 		VectorMath::Vec3 position;
 		float radius;
 		VectorMath::Vec3 tintColor;
-		float padding;
+		int envMapId;
 	};
 
 	struct LightingUniform
@@ -67,8 +67,8 @@ namespace GameEngine
 		CoreLib::List<ModuleInstance> shadowViewInstances;
 		CoreLib::List<Drawable*> drawableBuffer, reorderBuffer;
 		RendererSharedResource * sharedRes;
-		void* lightBufferPtr;
-		int lightBufferSize;
+		void* lightBufferPtr, *lightProbeBufferPtr;
+		int lightBufferSize, lightProbeBufferSize;
 		LightingUniform uniformData;
 		void GatherInfo(FrameRenderTask & tasks, DrawableSink * sink, const RenderProcedureParameters & params, int w, int h, StandardViewUniforms & cameraView, WorldRenderPass * shadowPass);
 		void Init(RendererSharedResource & sharedRes, DeviceMemory * uniformMemory, bool pUseEnvMap);

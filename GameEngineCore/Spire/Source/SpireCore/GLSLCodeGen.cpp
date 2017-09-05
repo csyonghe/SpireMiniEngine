@@ -241,6 +241,12 @@ namespace Spire
 				case ILBaseType::Texture3D:
 					textureName = "texture3D";
 					break;
+				case ILBaseType::TextureCubeArray:
+					textureName = "textureCubeArray";
+					break;
+				case ILBaseType::TextureCubeShadowArray:
+					textureName = "textureCubeArray";
+					break;
 				default:
 					throw NotImplementedException();
 				}
@@ -270,6 +276,12 @@ namespace Spire
 					break;
 				case ILBaseType::Texture3D:
 					samplerName = "sampler3D";
+					break;
+				case ILBaseType::TextureCubeArray:
+					samplerName = "samplerCubeArray";
+					break;
+				case ILBaseType::TextureCubeShadowArray:
+					samplerName = "samplerCubeArrayShadow";
 					break;
 				default:
 					throw NotImplementedException();

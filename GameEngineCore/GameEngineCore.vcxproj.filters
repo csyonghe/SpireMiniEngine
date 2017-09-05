@@ -133,7 +133,9 @@
       <Filter>Renderer</Filter>
     </ClCompile>
     <ClCompile Include="PointLightActor.cpp" />
-    <ClCompile Include="EnvMapActor.cpp" />
+    <ClCompile Include="EnvMapActor.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />

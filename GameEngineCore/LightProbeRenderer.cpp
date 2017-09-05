@@ -14,7 +14,7 @@ namespace GameEngine
 		renderService = prenderService;
 		renderProc = pRenderProc;
 		viewRes = pViewRes;
-		tempEnv = prenderer->GetHardwareRenderer()->CreateTextureCube(TextureUsage::SampledColorAttachment, EnvMapSize, Math::Log2Ceil(EnvMapSize), StorageFormat::RGBA_F16);
+		tempEnv = prenderer->GetHardwareRenderer()->CreateTextureCube(TextureUsage::SampledColorAttachment, EnvMapSize, Math::Log2Ceil(EnvMapSize) + 1, StorageFormat::RGBA_F16);
 	}
 
 	const char * spirePipeline = R"(
@@ -180,10 +180,13 @@ namespace GameEngine
 	{
 		HardwareRenderer * hw = renderer->GetHardwareRenderer();
 		int resolution = EnvMapSize;
-		int numLevels = Math::Log2Ceil(resolution);
+		int numLevels = Math::Log2Ceil(resolution) + 1;
 		RenderStat stat;
 		ImageTransferRenderTask t1(MakeArrayView(dynamic_cast<Texture*>(tempEnv.Ptr())), ArrayView<Texture*>());
 		t1.Execute(hw, stat);
+
+		ImageTransferRenderTask t3(MakeArrayView(dynamic_cast<Texture*>(dest)), ArrayView<Texture*>());
+		t3.Execute(hw, stat);
 
 		viewRes->Resize(resolution, resolution);
 		FrameRenderTask task;
@@ -274,20 +277,41 @@ namespace GameEngine
 			copyDescSet->Update(0, renderProc->GetOutput()->Texture.Ptr(), TextureAspect::Color);
 			copyDescSet->Update(1, sharedRes->nearestSampler.Ptr());
 			copyDescSet->EndUpdate();
-			RenderAttachments attachments;
-			attachments.SetAttachment(0, tempEnv.Ptr(), (TextureCubeFace)f, 0);
-			RefPtr<FrameBuffer> fb = copyRTLayout->CreateFrameBuffer(attachments);
-			frameBuffers[f] = fb;
-			auto cmdBuffer = hw->CreateCommandBuffer();
-			cmdBuffer->BeginRecording(fb.Ptr());
-			cmdBuffer->SetViewport(0, 0, resolution, resolution);
-			cmdBuffer->BindPipeline(copyPipeline.Ptr());
-			cmdBuffer->BindDescriptorSet(0, copyDescSet.Ptr());
-			cmdBuffer->BindVertexBuffer(sharedRes->fullScreenQuadVertBuffer.Ptr(), 0);
-			cmdBuffer->Draw(0, 4);
-			cmdBuffer->EndRecording();
-			commandBuffers.Add(cmdBuffer);
-			hw->ExecuteRenderPass(fb.Ptr(), MakeArrayView(cmdBuffer), nullptr);
+			RefPtr<FrameBuffer> fb0, fb1;
+			// copy to level 0 of tempEnv
+			{
+				RenderAttachments attachments;
+				attachments.SetAttachment(0, tempEnv.Ptr(), (TextureCubeFace)f, 0);
+				fb0 = copyRTLayout->CreateFrameBuffer(attachments);
+				frameBuffers[f] = fb0;
+				auto cmdBuffer = hw->CreateCommandBuffer();
+				cmdBuffer->BeginRecording(fb0.Ptr());
+				cmdBuffer->SetViewport(0, 0, resolution, resolution);
+				cmdBuffer->BindPipeline(copyPipeline.Ptr());
+				cmdBuffer->BindDescriptorSet(0, copyDescSet.Ptr());
+				cmdBuffer->BindVertexBuffer(sharedRes->fullScreenQuadVertBuffer.Ptr(), 0);
+				cmdBuffer->Draw(0, 4);
+				cmdBuffer->EndRecording();
+				commandBuffers.Add(cmdBuffer);
+				hw->ExecuteRenderPass(fb0.Ptr(), MakeArrayView(cmdBuffer), nullptr);
+			}
+			// copy to level 0 of result
+			{
+				RenderAttachments attachments;
+				attachments.SetAttachment(0, tempEnv.Ptr(), (TextureCubeFace)f, 0);
+				fb1 = copyRTLayout->CreateFrameBuffer(attachments);
+				frameBuffers[f] = fb1;
+				auto cmdBuffer = hw->CreateCommandBuffer();
+				cmdBuffer->BeginRecording(fb1.Ptr());
+				cmdBuffer->SetViewport(0, 0, resolution, resolution);
+				cmdBuffer->BindPipeline(copyPipeline.Ptr());
+				cmdBuffer->BindDescriptorSet(0, copyDescSet.Ptr());
+				cmdBuffer->BindVertexBuffer(sharedRes->fullScreenQuadVertBuffer.Ptr(), 0);
+				cmdBuffer->Draw(0, 4);
+				cmdBuffer->EndRecording();
+				commandBuffers.Add(cmdBuffer);
+				hw->ExecuteRenderPass(fb1.Ptr(), MakeArrayView(cmdBuffer), nullptr);
+			}
 			hw->Wait();
 		}
 		ImageTransferRenderTask t2(ArrayView<Texture*>(), MakeArrayView(dynamic_cast<Texture*>(tempEnv.Ptr())));
@@ -313,8 +337,7 @@ namespace GameEngine
 		prefilterDescSet->Update(2, sharedRes->nearestSampler.Ptr());
 		prefilterDescSet->EndUpdate();
 
-		ImageTransferRenderTask t3(MakeArrayView(dynamic_cast<Texture*>(dest)), ArrayView<Texture*>());
-		t3.Execute(hw, stat);
+		
 		for (int f = 0; f < 6; f++)
 		{
 			PrefilterUniform prefilterParams;
@@ -357,7 +380,7 @@ namespace GameEngine
 				prefilterParams.t = Vec4::Create(0.0f, -1.0f, 0.0f, 0.0f);
 				break;
 			}
-			for (int l = 0; l < numLevels; l++)
+			for (int l = 1; l < numLevels; l++)
 			{
 				prefilterParams.roughness = (l / (float)(numLevels - 1));
 				hw->BeginDataTransfer();

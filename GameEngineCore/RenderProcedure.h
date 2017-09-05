@@ -52,7 +52,7 @@ namespace GameEngine
 		virtual RenderTarget* GetOutput() = 0;
 	};
 
-	IRenderProcedure * CreateStandardRenderProcedure(bool toneMapping);
+	IRenderProcedure * CreateStandardRenderProcedure(bool toneMapping, bool useEnvMap);
 }
 
 #endif

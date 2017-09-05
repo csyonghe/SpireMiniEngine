@@ -134,7 +134,7 @@ namespace GameEngine
 			mainView = new ViewResource(hardwareRenderer);
 			mainView->Resize(1024, 1024);
 			
-			renderProcedure = CreateStandardRenderProcedure(true);
+			renderProcedure = CreateStandardRenderProcedure(true, true);
 			renderProcedure->Init(this, mainView.Ptr());
 
 			// Fetch uniform buffer alignment requirements
@@ -198,21 +198,24 @@ namespace GameEngine
 			hardwareRenderer->BeginDataTransfer();
 			cubemapRenderView = new ViewResource(hardwareRenderer);
 			cubemapRenderView->Resize(EnvMapSize, EnvMapSize);
-			cubemapRenderProc = CreateStandardRenderProcedure(false);
+			cubemapRenderProc = CreateStandardRenderProcedure(false, false);
 			cubemapRenderProc->Init(this, cubemapRenderView.Ptr());
 			hardwareRenderer->EndDataTransfer();
 
 			LightProbeRenderer lpRenderer(this, renderService.Ptr(), cubemapRenderProc.Ptr(), cubemapRenderView.Ptr());
+			int lightProbeCount = 0;
 			for (auto & actor : level->Actors)
 			{
-				if (actor.Value->GetEngineActorType() == EngineActorType::EnvMap)
+				if (actor.Value->GetEngineType() == EngineActorType::EnvMap)
 				{
 					auto envMapActor = dynamic_cast<EnvMapActor*>(actor.Value.Ptr());
 					if (envMapActor->GetEnvMapId() != -1)
 						lpRenderer.RenderLightProbe(sharedRes.envMapArray.Ptr(), envMapActor->GetEnvMapId(), level, envMapActor->GetPosition());
+					lightProbeCount++;
 				}
 			}
-			
+			if (lightProbeCount == 0)
+				lpRenderer.RenderLightProbe(sharedRes.envMapArray.Ptr(), sharedRes.AllocEnvMap(), level, Vec3::Create(0.0f, 1000.0f, 0.0f));
 			hardwareRenderer->BeginDataTransfer();
 			renderProcedure->UpdateSharedResourceBinding();
 			RunRenderProcedure();

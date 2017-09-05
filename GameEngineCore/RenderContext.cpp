@@ -635,7 +635,7 @@ namespace GameEngine
 		vertexBufferMemory.Init(hardwareRenderer.Ptr(), BufferUsage::ArrayBuffer, false, 28, 256);
 
 		spireSink = spCreateDiagnosticSink(spireContext);
-		envMapArray = hardwareRenderer->CreateTextureCubeArray(TextureUsage::SampledColorAttachment, EnvMapSize, Math::Log2Ceil(EnvMapSize), MaxEnvMapCount, StorageFormat::RGBA_F16);
+		envMapArray = hardwareRenderer->CreateTextureCubeArray(TextureUsage::SampledColorAttachment, EnvMapSize, Math::Log2Ceil(EnvMapSize) + 1, MaxEnvMapCount, StorageFormat::RGBA_F16);
 	}
 	void RendererSharedResource::Destroy()
 	{
