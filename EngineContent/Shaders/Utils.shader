@@ -434,6 +434,7 @@ module Lighting
     public param vec4[2] zPlanes;
     public param StructuredBuffer<Light> lights;
     public param StructuredBuffer<LightProbe> lightProbes;
+    public param SamplerState envMapSampler;
     public param Texture2DArrayShadow shadowMapArray;
     public param SamplerComparisonState shadowMapSampler;
     public param TextureCubeArray envMap;
@@ -485,6 +486,7 @@ module Lighting
         if (sunLightEnabled != 0)
         {
             float shadow = selfShadow(sunLightDir);
+            
             if (numCascades)
             {
                 for (int i = 0; i < numCascades; i++)
@@ -533,6 +535,7 @@ module Lighting
                 lightDir = UnpackDir(light.direction);
             }
             float shadow = selfShadow(lightDir);
+            
             if (shadowMapId != 65535)
             {
                 vec4 lightSpacePosT = light.lightMatrix * vec4(pos, 1.0);
@@ -541,6 +544,7 @@ module Lighting
                     vec3(lightSpacePos.xy, shadowMapId), lightSpacePos.z);
                 shadow *= val;
             }
+            
             float dotNL = clamp(dot(lNormal, lightDir), 0.01, 0.99);
             float NoV = max(dot(lNormal, view), 0.0);
             vec3 fspecularColor = EnvBRDFApprox(specularColor, roughness_in, NoV);
@@ -550,6 +554,7 @@ module Lighting
         }
 
         // find closest light probe
+        
         int lightProbeId = -1;
         float minDist = 1e10;
         vec3 lpTint = vec3(1.0, 1.0, 1.0);
@@ -568,12 +573,13 @@ module Lighting
         
         if (lightProbeId != -1)
         {
-            vec3 specularIBL = specularColor * envMap.SampleLevel(textureSampler, vec4(R, float(lightProbeId * 6)), 
+            vec3 specularIBL = specularColor * envMap.SampleLevel(envMapSampler, vec4(R, float(lightProbeId * 6)), 
                                 clamp(roughness_in, 0.0, 1.0) * 6.0).xyz;
-            vec3 diffuseIBL = diffuseColor * envMap.SampleLevel(textureSampler, vec4(lNormal, float(lightProbeId * 6)), 
+            vec3 diffuseIBL = diffuseColor * envMap.SampleLevel(envMapSampler, vec4(lNormal, float(lightProbeId * 6)), 
                                 6.0).xyz * ambient;
             color += (specularIBL + diffuseIBL) * lpTint;
         }
+        
         color *= ao;
         return color;
     }

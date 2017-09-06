@@ -14,7 +14,7 @@ namespace GameEngine
 		renderService = prenderService;
 		renderProc = pRenderProc;
 		viewRes = pViewRes;
-		tempEnv = prenderer->GetHardwareRenderer()->CreateTextureCube(TextureUsage::SampledColorAttachment, EnvMapSize, Math::Log2Ceil(EnvMapSize) + 1, StorageFormat::RGBA_F16);
+		tempEnv = prenderer->GetHardwareRenderer()->CreateTextureCube(TextureUsage::SampledColorAttachment, EnvMapSize, Math::Log2Floor(EnvMapSize) + 1, StorageFormat::RGBA_F16);
 	}
 
 	const char * spirePipeline = R"(
@@ -180,7 +180,7 @@ namespace GameEngine
 	{
 		HardwareRenderer * hw = renderer->GetHardwareRenderer();
 		int resolution = EnvMapSize;
-		int numLevels = Math::Log2Ceil(resolution) + 1;
+		int numLevels = Math::Log2Floor(resolution) + 1;
 		RenderStat stat;
 		ImageTransferRenderTask t1(MakeArrayView(dynamic_cast<Texture*>(tempEnv.Ptr())), ArrayView<Texture*>());
 		t1.Execute(hw, stat);
@@ -308,6 +308,7 @@ namespace GameEngine
 				commandBuffers.Add(cmdBuffer);
 				hw->ExecuteRenderPass(fb0.Ptr(), MakeArrayView(cmdBuffer), nullptr);
 			}
+
 			// copy to level 0 of result
 			{
 				RenderAttachments attachments;

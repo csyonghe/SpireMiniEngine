@@ -297,7 +297,7 @@ namespace GameEngine
 		}
 		tasks.AddTask(new ImageTransferRenderTask(ArrayView<Texture*>(), MakeArrayView(dynamic_cast<Texture*>(shadowMapRes.shadowMapArray.Ptr()))));
 		uniformData.lightCount = lights.Count();
-		uniformData.lightProbeCount = lights.Count();
+		uniformData.lightProbeCount = lightProbes.Count();
 		moduleInstance.SetUniformData(&uniformData, sizeof(uniformData));
 		auto lightPtr = (GpuLightData*)((char*)lightBufferPtr + moduleInstance.GetCurrentVersion() * lightBufferSize);
 		memcpy(lightPtr, lights.Buffer(), lights.Count() * sizeof(GpuLightData));
@@ -324,12 +324,13 @@ namespace GameEngine
 			descSet->BeginUpdate();
 			descSet->Update(1, lightBuffer.Ptr(), lightBufferSize * i, lightBufferSize);
 			descSet->Update(2, lightProbeBuffer.Ptr(), lightProbeBufferSize * i, lightProbeBufferSize);
-			descSet->Update(3, sharedRes->shadowMapResources.shadowMapArray.Ptr(), TextureAspect::Depth);
-			descSet->Update(4, sharedRes->shadowSampler.Ptr());
+			descSet->Update(3, sharedRes->envMapSampler.Ptr());
+			descSet->Update(4, sharedRes->shadowMapResources.shadowMapArray.Ptr(), TextureAspect::Depth);
+			descSet->Update(5, sharedRes->shadowSampler.Ptr());
 			if (useEnvMap)
-				descSet->Update(5, sharedRes->envMapArray.Ptr(), TextureAspect::Color);
+				descSet->Update(6, sharedRes->envMapArray.Ptr(), TextureAspect::Color);
 			else
-				descSet->Update(5, emptyEnvMapArray.Ptr(), TextureAspect::Color);
+				descSet->Update(6, emptyEnvMapArray.Ptr(), TextureAspect::Color);
 
 			descSet->EndUpdate();
 		}
@@ -343,10 +344,10 @@ namespace GameEngine
 		{
 			auto descSet = moduleInstance.GetDescriptorSet(i);
 			descSet->BeginUpdate();
-			descSet->Update(3, sharedRes->shadowMapResources.shadowMapArray.Ptr(), TextureAspect::Depth);
-			descSet->Update(4, sharedRes->shadowSampler.Ptr());
+			descSet->Update(4, sharedRes->shadowMapResources.shadowMapArray.Ptr(), TextureAspect::Depth);
+			descSet->Update(5, sharedRes->shadowSampler.Ptr());
 			if (useEnvMap)
-				descSet->Update(5, sharedRes->envMapArray.Ptr(), TextureAspect::Color);
+				descSet->Update(6, sharedRes->envMapArray.Ptr(), TextureAspect::Color);
 			descSet->EndUpdate();
 		}
 	}

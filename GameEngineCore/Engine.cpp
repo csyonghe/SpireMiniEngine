@@ -268,6 +268,7 @@ namespace GameEngine
 		renderer->GetHardwareRenderer()->BeginDataTransfer();
 		renderer->TakeSnapshot();
         renderer->GetHardwareRenderer()->EndDataTransfer();
+		renderer->Wait();
         renderer->RenderFrame();
         stats.CpuTime += CoreLib::Diagnostics::PerformanceCounter::EndSeconds(cpuTimePoint);
 

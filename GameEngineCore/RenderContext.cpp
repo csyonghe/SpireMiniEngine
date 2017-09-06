@@ -617,6 +617,9 @@ namespace GameEngine
 		linearSampler = hardwareRenderer->CreateTextureSampler();
 		linearSampler->SetFilter(TextureFilter::Linear);
 
+		envMapSampler = hardwareRenderer->CreateTextureSampler();
+		envMapSampler->SetFilter(TextureFilter::Trilinear);
+
 		textureSampler = hardwareRenderer->CreateTextureSampler();
 		textureSampler->SetFilter(TextureFilter::Anisotropic16x);
 
@@ -635,7 +638,7 @@ namespace GameEngine
 		vertexBufferMemory.Init(hardwareRenderer.Ptr(), BufferUsage::ArrayBuffer, false, 28, 256);
 
 		spireSink = spCreateDiagnosticSink(spireContext);
-		envMapArray = hardwareRenderer->CreateTextureCubeArray(TextureUsage::SampledColorAttachment, EnvMapSize, Math::Log2Ceil(EnvMapSize) + 1, MaxEnvMapCount, StorageFormat::RGBA_F16);
+		envMapArray = hardwareRenderer->CreateTextureCubeArray(TextureUsage::SampledColorAttachment, EnvMapSize, Math::Log2Floor(EnvMapSize) + 1, MaxEnvMapCount, StorageFormat::RGBA_F16);
 	}
 	void RendererSharedResource::Destroy()
 	{
@@ -644,6 +647,7 @@ namespace GameEngine
 		textureSampler = nullptr;
 		nearestSampler = nullptr;
 		linearSampler = nullptr;
+		envMapSampler = nullptr;
 		descLayouts = CoreLib::EnumerableDictionary<SpireModuleStruct*, CoreLib::RefPtr<GameEngine::DescriptorSetLayout>>();
 		fullScreenQuadVertBuffer = nullptr;
 		envMapArray = nullptr;

@@ -486,7 +486,7 @@ namespace VK
 
 		static void DestroyInstance()
 		{
-			DEBUG_ONLY(State().instance.destroyDebugReportCallbackEXT(State().callback));
+			//DEBUG_ONLY(State().instance.destroyDebugReportCallbackEXT(State().callback));
 			State().instance.destroy();
 		}
 
@@ -2081,7 +2081,7 @@ namespace VK
 			case TextureFilter::Anisotropic4x:
 				samplerCreateInfo.setMinFilter(vk::Filter::eLinear);
 				samplerCreateInfo.setMagFilter(vk::Filter::eLinear);
-				samplerCreateInfo.setMipmapMode(vk::SamplerMipmapMode::eNearest);
+				samplerCreateInfo.setMipmapMode(vk::SamplerMipmapMode::eLinear);
 				samplerCreateInfo.setMaxLod(15.0f);
 				samplerCreateInfo.setAnisotropyEnable(VK_TRUE);
 				samplerCreateInfo.setMaxAnisotropy(4.0f);
@@ -2089,7 +2089,7 @@ namespace VK
 			case TextureFilter::Anisotropic8x:
 				samplerCreateInfo.setMinFilter(vk::Filter::eLinear);
 				samplerCreateInfo.setMagFilter(vk::Filter::eLinear);
-				samplerCreateInfo.setMipmapMode(vk::SamplerMipmapMode::eNearest);
+				samplerCreateInfo.setMipmapMode(vk::SamplerMipmapMode::eLinear);
 				samplerCreateInfo.setMaxLod(15.0f);
 				samplerCreateInfo.setAnisotropyEnable(VK_TRUE);
 				samplerCreateInfo.setMaxAnisotropy(8.0f);
@@ -2097,7 +2097,7 @@ namespace VK
 			case TextureFilter::Anisotropic16x:
 				samplerCreateInfo.setMinFilter(vk::Filter::eLinear);
 				samplerCreateInfo.setMagFilter(vk::Filter::eLinear);
-				samplerCreateInfo.setMipmapMode(vk::SamplerMipmapMode::eNearest);
+				samplerCreateInfo.setMipmapMode(vk::SamplerMipmapMode::eLinear);
 				samplerCreateInfo.setMaxLod(15.0f);
 				samplerCreateInfo.setAnisotropyEnable(VK_TRUE);
 				samplerCreateInfo.setMaxAnisotropy(16.0f);
@@ -4092,9 +4092,8 @@ namespace VK
         vk::SwapchainKHR swapchain;
 
         CoreLib::List<vk::Image> images; //alternatively could call getSwapchainImages each time
-        CoreLib::List<vk::CommandBuffer> commandBuffers;
-        vk::Semaphore imageAvailableSemaphore;
-        vk::Semaphore renderingFinishedSemaphore;
+        CoreLib::List<vk::CommandBuffer> presentCommandBuffers, clearCommandBuffers;
+        vk::Semaphore imageAvailableSemaphore, renderFinishedSemaphore;
 
         VkWindowSurface(void * hwnd, int w, int h)
         {
@@ -4103,7 +4102,6 @@ namespace VK
             height = h;
             surface = RendererState::CreateSurface(hwnd);
             CreateSwapchain();
-            CreateCommandBuffers();
             CreateSemaphores();
             Clear();
         }
@@ -4119,11 +4117,6 @@ namespace VK
             uint32_t nextImage = RendererState::Device().acquireNextImageKHR(swapchain, UINT64_MAX, imageAvailableSemaphore, vk::Fence()).value;
             static int frameId = 0;
             frameId++;
-
-            //TODO: see if following line is beneficial
-            int nextCmd = nextImage * 2 + (frameId & 1);
-            //TODO: see if following line is beneficial
-            commandBuffers[nextCmd].reset(vk::CommandBufferResetFlags()); // implicitly done by begin
 
             vk::CommandBufferBeginInfo commandBufferBeginInfo = vk::CommandBufferBeginInfo()
                 .setFlags(vk::CommandBufferUsageFlagBits::eSimultaneousUse)
@@ -4156,10 +4149,11 @@ namespace VK
                 .setImage(images[nextImage])
                 .setSubresourceRange(imageSubresourceRange);
 
-            commandBuffers[nextCmd].begin(commandBufferBeginInfo); // start recording
-            commandBuffers[nextCmd].pipelineBarrier(
-                vk::PipelineStageFlagBits::eTransfer,
-                vk::PipelineStageFlagBits::eTransfer,
+			auto cmdBuffer = RendererState::GetTempRenderCommandBuffer();
+			cmdBuffer.begin(commandBufferBeginInfo); // start recording
+			cmdBuffer.pipelineBarrier(
+                vk::PipelineStageFlagBits::eAllCommands,
+                vk::PipelineStageFlagBits::eAllCommands,
                 vk::DependencyFlags(),
                 nullptr,
                 nullptr,
@@ -4169,7 +4163,7 @@ namespace VK
             if (srcImage == nullptr)
             {
                 // If no source image, clear to debug purple
-                commandBuffers[nextCmd].clearColorImage(
+				cmdBuffer.clearColorImage(
                     images[nextImage],
                     vk::ImageLayout::eTransferDstOptimal,
                     vk::ClearColorValue(std::array<float, 4>{ 1.0f, 0.0f, 1.0f, 0.0f }),
@@ -4198,7 +4192,7 @@ namespace VK
                     .setImage(dynamic_cast<Texture2D*>(srcImage)->image)
                     .setSubresourceRange(imageSubresourceRange);
 
-                commandBuffers[nextCmd].pipelineBarrier(
+				cmdBuffer.pipelineBarrier(
                     vk::PipelineStageFlagBits::eAllCommands,
                     vk::PipelineStageFlagBits::eAllCommands,
                     vk::DependencyFlags(),
@@ -4229,7 +4223,7 @@ namespace VK
                     .setDstSubresource(subresourceLayers)
                     .setDstOffsets(dstOffsets);
 
-                commandBuffers[nextCmd].blitImage(
+				cmdBuffer.blitImage(
                     dynamic_cast<VK::Texture2D*>(srcImage)->image,
                     vk::ImageLayout::eTransferSrcOptimal,
                     images[nextImage],
@@ -4238,7 +4232,7 @@ namespace VK
                     vk::Filter::eNearest
                 );
 
-                commandBuffers[nextCmd].pipelineBarrier(
+				cmdBuffer.pipelineBarrier(
                     vk::PipelineStageFlagBits::eAllCommands,
                     vk::PipelineStageFlagBits::eAllCommands,
                     vk::DependencyFlags(),
@@ -4248,7 +4242,7 @@ namespace VK
                 );
             }
 
-            commandBuffers[nextCmd].pipelineBarrier(
+			cmdBuffer.pipelineBarrier(
                 vk::PipelineStageFlagBits::eAllCommands,
                 vk::PipelineStageFlagBits::eAllCommands,
                 vk::DependencyFlags(),
@@ -4256,24 +4250,24 @@ namespace VK
                 nullptr,
                 prePresentBarrier
             );
-            commandBuffers[nextCmd].end(); // stop recording
+			cmdBuffer.end(); // stop recording
 
-            vk::PipelineStageFlags waitDstStageMask = vk::PipelineStageFlags(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+            vk::PipelineStageFlags waitDstStageMask = vk::PipelineStageFlags(vk::PipelineStageFlagBits::eBottomOfPipe);
 
             vk::SubmitInfo submitInfo = vk::SubmitInfo()
                 .setWaitSemaphoreCount(1)
                 .setPWaitSemaphores(&imageAvailableSemaphore)
                 .setPWaitDstStageMask(&waitDstStageMask)
                 .setCommandBufferCount(1)
-                .setPCommandBuffers(&commandBuffers[nextCmd])
+                .setPCommandBuffers(&cmdBuffer)
                 .setSignalSemaphoreCount(1)
-                .setPSignalSemaphores(&renderingFinishedSemaphore);
+                .setPSignalSemaphores(&renderFinishedSemaphore);
 
             RendererState::RenderQueue().submit(submitInfo, vk::Fence());
 
             vk::PresentInfoKHR presentInfo = vk::PresentInfoKHR()
                 .setWaitSemaphoreCount(1)
-                .setPWaitSemaphores(&renderingFinishedSemaphore)
+                .setPWaitSemaphores(&renderFinishedSemaphore)
                 .setSwapchainCount(1)
                 .setPSwapchains(&swapchain)
                 .setPImageIndices(&nextImage)
@@ -4363,6 +4357,7 @@ namespace VK
             else
                 throw HardwareRendererException("Failed to create swapchain");
             RendererState::Device().getSwapchainImagesKHR(swapchain, &swapchainImageCount, images.Buffer());
+			CreateCommandBuffers();
         }
 
         void CreateCommandBuffers()
@@ -4374,8 +4369,77 @@ namespace VK
                 .setLevel(vk::CommandBufferLevel::ePrimary)
                 .setCommandBufferCount((uint32_t)images.Count() * 2);
 
-            commandBuffers.SetSize(commandBufferAllocateInfo.commandBufferCount);
-            RendererState::Device().allocateCommandBuffers(&commandBufferAllocateInfo, commandBuffers.Buffer());
+            presentCommandBuffers.SetSize(commandBufferAllocateInfo.commandBufferCount);
+            RendererState::Device().allocateCommandBuffers(&commandBufferAllocateInfo, presentCommandBuffers.Buffer());
+			clearCommandBuffers.SetSize(commandBufferAllocateInfo.commandBufferCount);
+			RendererState::Device().allocateCommandBuffers(&commandBufferAllocateInfo, clearCommandBuffers.Buffer());
+
+			// record clear command buffers
+			for (int image = 0; image < images.Count(); image++)
+			{
+				//TODO: see if following line is beneficial
+				//commandBuffers[image].reset(vk::CommandBufferResetFlags()); // implicitly done by begin
+
+				vk::CommandBufferBeginInfo commandBufferBeginInfo = vk::CommandBufferBeginInfo()
+					.setFlags(vk::CommandBufferUsageFlagBits::eSimultaneousUse)
+					.setPInheritanceInfo(nullptr);
+
+				vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
+					.setAspectMask(vk::ImageAspectFlagBits::eColor)
+					.setBaseMipLevel(0)
+					.setLevelCount(1)
+					.setBaseArrayLayer(0)
+					.setLayerCount(1);
+
+				vk::ImageMemoryBarrier postPresentBarrier = vk::ImageMemoryBarrier()
+					.setSrcAccessMask(vk::AccessFlags())
+					.setDstAccessMask(LayoutFlags(vk::ImageLayout::eTransferDstOptimal))
+					.setOldLayout(vk::ImageLayout::eUndefined)
+					.setNewLayout(vk::ImageLayout::eTransferDstOptimal)
+					.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+					.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+					.setImage(images[image])
+					.setSubresourceRange(imageSubresourceRange);
+
+				vk::ImageMemoryBarrier prePresentBarrier = vk::ImageMemoryBarrier()
+					.setSrcAccessMask(LayoutFlags(vk::ImageLayout::eTransferDstOptimal))
+					.setDstAccessMask(LayoutFlags(vk::ImageLayout::ePresentSrcKHR))
+					.setOldLayout(vk::ImageLayout::eTransferDstOptimal)
+					.setNewLayout(vk::ImageLayout::ePresentSrcKHR)
+					.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+					.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+					.setImage(images[image])
+					.setSubresourceRange(imageSubresourceRange);
+
+				clearCommandBuffers[image].begin(commandBufferBeginInfo); // start recording
+				clearCommandBuffers[image].pipelineBarrier(
+					vk::PipelineStageFlagBits::eTransfer,
+					vk::PipelineStageFlagBits::eTransfer,
+					vk::DependencyFlags(),
+					nullptr,
+					nullptr,
+					postPresentBarrier
+				);
+
+				clearCommandBuffers[image].clearColorImage(
+					images[image],
+					vk::ImageLayout::eTransferDstOptimal,
+					vk::ClearColorValue(std::array<float, 4>{ 0.467f, 0.725f, 0.0f, 0.0f }),
+					imageSubresourceRange
+				);
+
+				clearCommandBuffers[image].pipelineBarrier(
+					vk::PipelineStageFlagBits::eTransfer,
+					vk::PipelineStageFlagBits::eBottomOfPipe,
+					vk::DependencyFlags(),
+					nullptr,
+					nullptr,
+					prePresentBarrier
+				);
+				clearCommandBuffers[image].end(); // stop recording
+			}
+
+			// record present command buffers
         }
 
         void CreateSemaphores()
@@ -4384,20 +4448,22 @@ namespace VK
 
             vk::SemaphoreCreateInfo semaphoreCreateInfo;
             imageAvailableSemaphore = RendererState::Device().createSemaphore(semaphoreCreateInfo);
-            renderingFinishedSemaphore = RendererState::Device().createSemaphore(semaphoreCreateInfo);
+			renderFinishedSemaphore = RendererState::Device().createSemaphore(semaphoreCreateInfo);
         }
 
         void DestroySemaphores()
         {
             RendererState::Device().waitIdle();
             if (imageAvailableSemaphore) RendererState::Device().destroySemaphore(imageAvailableSemaphore);
-            if (renderingFinishedSemaphore) RendererState::Device().destroySemaphore(renderingFinishedSemaphore);
+			if (renderFinishedSemaphore) RendererState::Device().destroySemaphore(renderFinishedSemaphore);
         }
 
         void DestroyCommandBuffers()
         {
-            for (auto commandBuffer : commandBuffers)
+            for (auto commandBuffer : presentCommandBuffers)
                 RendererState::Device().freeCommandBuffers(RendererState::SwapchainCommandPool(), commandBuffer);
+			for (auto commandBuffer : clearCommandBuffers)
+				RendererState::Device().freeCommandBuffers(RendererState::SwapchainCommandPool(), commandBuffer);
         }
 
         void DestroySwapchain()
@@ -4420,69 +4486,7 @@ namespace VK
         }
         void Clear()
         {
-            for (int image = 0; image < images.Count(); image++)
-            {
-                //TODO: see if following line is beneficial
-                //commandBuffers[image].reset(vk::CommandBufferResetFlags()); // implicitly done by begin
-
-                vk::CommandBufferBeginInfo commandBufferBeginInfo = vk::CommandBufferBeginInfo()
-                    .setFlags(vk::CommandBufferUsageFlagBits::eSimultaneousUse)
-                    .setPInheritanceInfo(nullptr);
-
-                vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
-                    .setAspectMask(vk::ImageAspectFlagBits::eColor)
-                    .setBaseMipLevel(0)
-                    .setLevelCount(1)
-                    .setBaseArrayLayer(0)
-                    .setLayerCount(1);
-
-                vk::ImageMemoryBarrier postPresentBarrier = vk::ImageMemoryBarrier()
-                    .setSrcAccessMask(vk::AccessFlags())
-                    .setDstAccessMask(LayoutFlags(vk::ImageLayout::eTransferDstOptimal))
-                    .setOldLayout(vk::ImageLayout::eUndefined)
-                    .setNewLayout(vk::ImageLayout::eTransferDstOptimal)
-                    .setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-                    .setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-                    .setImage(images[image])
-                    .setSubresourceRange(imageSubresourceRange);
-
-                vk::ImageMemoryBarrier prePresentBarrier = vk::ImageMemoryBarrier()
-                    .setSrcAccessMask(LayoutFlags(vk::ImageLayout::eTransferDstOptimal))
-                    .setDstAccessMask(LayoutFlags(vk::ImageLayout::ePresentSrcKHR))
-                    .setOldLayout(vk::ImageLayout::eTransferDstOptimal)
-                    .setNewLayout(vk::ImageLayout::ePresentSrcKHR)
-                    .setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-                    .setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-                    .setImage(images[image])
-                    .setSubresourceRange(imageSubresourceRange);
-
-                commandBuffers[image].begin(commandBufferBeginInfo); // start recording
-                commandBuffers[image].pipelineBarrier(
-                    vk::PipelineStageFlagBits::eTransfer,
-                    vk::PipelineStageFlagBits::eTransfer,
-                    vk::DependencyFlags(),
-                    nullptr,
-                    nullptr,
-                    postPresentBarrier
-                );
-
-                commandBuffers[image].clearColorImage(
-                    images[image],
-                    vk::ImageLayout::eTransferDstOptimal,
-                    vk::ClearColorValue(std::array<float, 4>{ 0.467f, 0.725f, 0.0f, 0.0f }),
-                    imageSubresourceRange
-                );
-
-                commandBuffers[image].pipelineBarrier(
-                    vk::PipelineStageFlagBits::eTransfer,
-                    vk::PipelineStageFlagBits::eBottomOfPipe,
-                    vk::DependencyFlags(),
-                    nullptr,
-                    nullptr,
-                    prePresentBarrier
-                );
-                commandBuffers[image].end(); // stop recording
-            }
+            
         }
 
         virtual void Resize(int pwidth, int pheight) override
@@ -4495,10 +4499,6 @@ namespace VK
             size_t oldImageCount = images.Count();
 
             CreateSwapchain();
-            if (images.Count() != oldImageCount) CreateCommandBuffers();
-            //CreateSemaphores(); //TODO: Can the semaphores get stuck?
-
-            Clear();
         }
         virtual void GetSize(int & w, int & h) override
         {
