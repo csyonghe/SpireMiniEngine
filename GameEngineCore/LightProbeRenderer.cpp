@@ -195,7 +195,7 @@ namespace GameEngine
 		params.renderer = renderer;
 		params.rendererService = renderService;
 		params.renderStats = &stat;
-		params.view.FOV = 90.1f;
+		params.view.FOV = 90.0f;
 		params.view.ZFar = 40000.0f;
 		params.view.ZNear = 20.0f;
 		params.view.Position = position;
@@ -215,9 +215,8 @@ namespace GameEngine
 		RefPtr<RenderTargetLayout> copyRTLayout = hw->CreateRenderTargetLayout(MakeArrayView(AttachmentLayout(TextureUsage::ColorAttachment, StorageFormat::RGBA_F16)));
 		RefPtr<Pipeline> copyPipeline = pb->ToPipeline(copyRTLayout.Ptr());
 		RefPtr<DescriptorSet> copyDescSet = hw->CreateDescriptorSet(copyPassLayout.Ptr());
-		RefPtr<FrameBuffer> frameBuffers[6];
 		List<RefPtr<CommandBuffer>> commandBuffers;
-
+		List<RefPtr<FrameBuffer>> frameBuffers;
 		for (int f = 0; f < 6; f++)
 		{
 			Matrix4 viewMatrix;
@@ -227,36 +226,50 @@ namespace GameEngine
 			{
 			case 0:
 			{
-				Matrix4::RotationY(mm1, Math::Pi * 0.5f);
-				Matrix4::RotationX(mm2, Math::Pi);
-				Matrix4::Multiply(viewMatrix, mm1, mm2);
+				viewMatrix = Matrix4(0.0f, 0.0f, -1.0f, 0.0f,
+					                 0.0f, -1.0f, 0.0f, 0.0f,
+					                 -1.0f, 0.0f, 0.0f, 0.0f,
+					                 0.0f, 0.0f, 0.0f, 1.0f);
 				break;
 			}
 			case 1:
 			{
-				Matrix4::RotationY(mm1, -Math::Pi * 0.5f);
-				Matrix4::RotationX(mm2, Math::Pi);
-				Matrix4::Multiply(viewMatrix, mm1, mm2);
+				viewMatrix = Matrix4(0.0f, 0.0f, 1.0f, 0.0f,
+									0.0f, -1.0f, 0.0f, 0.0f,
+									1.0f, 0.0f, 0.0f, 0.0f,
+									0.0f, 0.0f, 0.0f, 1.0f);
 				break;
 			}
 			case 2:
 			{
-				Matrix4::RotationX(viewMatrix, -Math::Pi * 0.5f);
+				viewMatrix = Matrix4(1.0f, 0.0f, 0.0f, 0.0f,
+									0.0f, 0.0f, -1.0f, 0.0f,
+									0.0f, 1.0f, 0.0f, 0.0f,
+									0.0f, 0.0f, 0.0f, 1.0f);
 				break;
 			}
 			case 3:
 			{
-				Matrix4::RotationX(viewMatrix, Math::Pi * 0.5f);
+				viewMatrix = Matrix4(1.0f, 0.0f, 0.0f, 0.0f,
+									0.0f, 0.0f, 1.0f, 0.0f,
+									0.0f, -1.0f, 0.0f, 0.0f,
+									0.0f, 0.0f, 0.0f, 1.0f);
 				break;
 			}
 			case 4:
 			{
-				Matrix4::RotationX(viewMatrix, Math::Pi);
+				viewMatrix = Matrix4(1.0f, 0.0f, 0.0f, 0.0f,
+									0.0f, -1.0f, 0.0f, 0.0f,
+									0.0f, 0.0f, -1.0f, 0.0f,
+									0.0f, 0.0f, 0.0f, 1.0f);
 				break;
 			}
 			case 5:
 			{
-				Matrix4::RotationZ(viewMatrix, Math::Pi);
+				viewMatrix = Matrix4(-1.0f, 0.0f, 0.0f, 0.0f,
+									0.0f, -1.0f, 0.0f, 0.0f,
+									0.0f, 0.0f, 1.0f, 0.0f,
+									0.0f, 0.0f, 0.0f, 1.0f);
 				break;
 			}
 			}
@@ -283,7 +296,7 @@ namespace GameEngine
 				RenderAttachments attachments;
 				attachments.SetAttachment(0, tempEnv.Ptr(), (TextureCubeFace)f, 0);
 				fb0 = copyRTLayout->CreateFrameBuffer(attachments);
-				frameBuffers[f] = fb0;
+				frameBuffers.Add(fb0);
 				auto cmdBuffer = hw->CreateCommandBuffer();
 				cmdBuffer->BeginRecording(fb0.Ptr());
 				cmdBuffer->SetViewport(0, 0, resolution, resolution);
@@ -298,9 +311,9 @@ namespace GameEngine
 			// copy to level 0 of result
 			{
 				RenderAttachments attachments;
-				attachments.SetAttachment(0, tempEnv.Ptr(), (TextureCubeFace)f, 0);
+				attachments.SetAttachment(0, dest, id, (TextureCubeFace)f, 0);
 				fb1 = copyRTLayout->CreateFrameBuffer(attachments);
-				frameBuffers[f] = fb1;
+				frameBuffers.Add(fb1);
 				auto cmdBuffer = hw->CreateCommandBuffer();
 				cmdBuffer->BeginRecording(fb1.Ptr());
 				cmdBuffer->SetViewport(0, 0, resolution, resolution);
@@ -336,7 +349,6 @@ namespace GameEngine
 		prefilterDescSet->Update(1, tempEnv.Ptr(), TextureAspect::Color);
 		prefilterDescSet->Update(2, sharedRes->nearestSampler.Ptr());
 		prefilterDescSet->EndUpdate();
-
 		
 		for (int f = 0; f < 6; f++)
 		{
@@ -390,6 +402,7 @@ namespace GameEngine
 				RenderAttachments attachments;
 				attachments.SetAttachment(0, dest, id, (TextureCubeFace)f, l);
 				RefPtr<FrameBuffer> fb = prefilterRTLayout->CreateFrameBuffer(attachments);
+				frameBuffers.Add(fb);
 				auto cmdBuffer = hw->CreateCommandBuffer();
 				cmdBuffer->BeginRecording(fb.Ptr());
 				cmdBuffer->SetViewport(0, 0, resolution >> l, resolution >> l);

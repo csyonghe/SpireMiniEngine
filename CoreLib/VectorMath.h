@@ -639,6 +639,13 @@ namespace VectorMath
 			memcpy(m[2], &c3, sizeof(Vec4));
 			memcpy(m[3], &c4, sizeof(Vec4));
 		}
+		Matrix4(float v0, float v1, float v2, float v3, float v4, float v5, float v6, float v7, float v8, float v9, float v10, float v11, float v12, float v13, float v14, float v15)
+		{
+			values[0] = v0; values[1] = v1; values[2] = v2; values[3] = v3;
+			values[4] = v4; values[5] = v5; values[6] = v6; values[7] = v7;
+			values[8] = v8; values[9] = v9; values[10] = v10; values[11] = v11;
+			values[12] = v12; values[13] = v13; values[14] = v14; values[15] = v15;
+		}
 		inline Matrix4 & operator += (const Matrix4 & v)
 		{
 			for (int i = 0; i < 16; i++)
