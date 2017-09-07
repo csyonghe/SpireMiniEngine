@@ -694,6 +694,8 @@ namespace GameEngine
 
 	void WorldPassRenderTask::SetFixedOrderDrawContent(PipelineContext & pipelineManager, CoreLib::ArrayView<Drawable*> drawables)
 	{
+		// Note: Intel's vulkan driver seem to have a limit on the size of a secondary command buffer
+		// to play safe, we create multiple secondary command buffers, each holds 128 draw calls.
 		commandBuffers.Clear();
 		apiCommandBuffers.Clear();
 		renderOutput->GetSize(viewport.Width, viewport.Height);
@@ -729,7 +731,7 @@ namespace GameEngine
 			for (auto obj : drawables)
 			{
 				numDrawCalls++;
-				if ((numDrawCalls & 31) == 0)
+				if ((numDrawCalls & 127) == 0)
 				{
 					cmdBuf->EndRecording();
 					auto cmd = pass->AllocCommandBuffer();
