@@ -1632,22 +1632,9 @@ namespace VK
 			else
 				aspectFlags = vk::ImageAspectFlagBits::eColor;
 
-			// Create blit copy regions
-			CoreLib::List<vk::ImageBlit> blitRegions;
-			for (int l = 1; l < mipLevels; l++)
-			{
-				blitRegions.Add(vk::ImageBlit()
-					.setSrcSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(l - 1).setBaseArrayLayer(0).setLayerCount(arrayLayers))
-					.setSrcOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(max(1, width >> (l - 1)), max(1, height >> (l - 1)), max(1, depth >> (l - 1)))})
-					.setDstSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(l).setBaseArrayLayer(0).setLayerCount(arrayLayers))
-					.setDstOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(max(1, width >> l), max(1, height >> l), max(1, depth >> l))}));
-			}
-
 			// Create command buffer
-			//TODO: Use CommandBuffer class?
 			vk::CommandBuffer transferCommandBuffer = RendererState::GetTempTransferCommandBuffer();
 
-			
 			vk::Filter blitFilter = vk::Filter::eLinear;
 			switch (format)
 			{
@@ -1736,8 +1723,8 @@ namespace VK
 					.setDstOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(max(1, width >> i), max(1, height >> i), max(1, depth >> i))});
 				// Blit texture to each mip level
 				transferCommandBuffer.blitImage(
-					image, vk::ImageLayout::eGeneral,
-					image, vk::ImageLayout::eGeneral,
+					image, vk::ImageLayout::eTransferSrcOptimal,
+					image, vk::ImageLayout::eTransferDstOptimal,
 					blitRegion,
 					blitFilter
 				);
