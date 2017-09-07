@@ -1647,47 +1647,6 @@ namespace VK
 			//TODO: Use CommandBuffer class?
 			vk::CommandBuffer transferCommandBuffer = RendererState::GetTempTransferCommandBuffer();
 
-			// Record command buffer
-			vk::ImageSubresourceRange textureSubresourceRange = vk::ImageSubresourceRange()
-				.setAspectMask(aspectFlags)
-				.setBaseMipLevel(0)
-				.setLevelCount(mipLevels)
-				.setBaseArrayLayer(0)
-				.setLayerCount(arrayLayers);
-
-			vk::ImageMemoryBarrier textureCopyBarrier = vk::ImageMemoryBarrier()
-				.setSrcAccessMask(LayoutFlags(currentLayout))
-				.setDstAccessMask(LayoutFlags(vk::ImageLayout::eGeneral))
-				.setOldLayout(currentLayout)
-				.setNewLayout(vk::ImageLayout::eGeneral)
-				.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-				.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-				.setImage(this->image)
-				.setSubresourceRange(textureSubresourceRange);
-
-			vk::ImageMemoryBarrier textureUsageBarrier = vk::ImageMemoryBarrier()
-				.setSrcAccessMask(LayoutFlags(vk::ImageLayout::eGeneral))
-				.setDstAccessMask(LayoutFlags(LayoutFromUsage(this->usage)))
-				.setOldLayout(vk::ImageLayout::eGeneral)
-				.setNewLayout(LayoutFromUsage(this->usage))
-				.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-				.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-				.setImage(this->image)
-				.setSubresourceRange(textureSubresourceRange);
-
-			vk::CommandBufferBeginInfo transferBeginInfo = vk::CommandBufferBeginInfo()
-				.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit)
-				.setPInheritanceInfo(nullptr);
-
-			transferCommandBuffer.begin(transferBeginInfo);
-			transferCommandBuffer.pipelineBarrier(
-				vk::PipelineStageFlagBits::eAllCommands,
-				vk::PipelineStageFlagBits::eAllCommands,
-				vk::DependencyFlags(),
-				nullptr,
-				nullptr,
-				textureCopyBarrier
-			);
 			
 			vk::Filter blitFilter = vk::Filter::eLinear;
 			switch (format)
@@ -1704,20 +1663,127 @@ namespace VK
 				blitFilter = vk::Filter::eNearest;
 			}
 
-			// Blit texture to each mip level
-			transferCommandBuffer.blitImage(
-				image, vk::ImageLayout::eGeneral,
-				image, vk::ImageLayout::eGeneral,
-				vk::ArrayProxy<const vk::ImageBlit>(blitRegions.Count(), blitRegions.Buffer()),
-				blitFilter
-			);
+			vk::CommandBufferBeginInfo transferBeginInfo = vk::CommandBufferBeginInfo()
+				.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit)
+				.setPInheritanceInfo(nullptr);
+
+			transferCommandBuffer.begin(transferBeginInfo);
+
+			vk::ImageSubresourceRange level0SubresourceRange = vk::ImageSubresourceRange()
+				.setAspectMask(aspectFlags)
+				.setBaseMipLevel(0)
+				.setLevelCount(1)
+				.setBaseArrayLayer(0)
+				.setLayerCount(arrayLayers);
+			vk::ImageMemoryBarrier textureSrcBarrier = vk::ImageMemoryBarrier()
+				.setSrcAccessMask(LayoutFlags(currentLayout))
+				.setDstAccessMask(LayoutFlags(vk::ImageLayout::eTransferSrcOptimal))
+				.setOldLayout(currentLayout)
+				.setNewLayout(vk::ImageLayout::eTransferSrcOptimal)
+				.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+				.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+				.setImage(this->image)
+				.setSubresourceRange(level0SubresourceRange);
+
 			transferCommandBuffer.pipelineBarrier(
 				vk::PipelineStageFlagBits::eAllCommands,
 				vk::PipelineStageFlagBits::eAllCommands,
 				vk::DependencyFlags(),
 				nullptr,
 				nullptr,
-				textureUsageBarrier
+				textureSrcBarrier
+			);
+
+			for (int i = 1; i < mipLevels; i++)
+			{
+				// Record command buffer
+				vk::ImageSubresourceRange textureSrcSubresourceRange = vk::ImageSubresourceRange()
+					.setAspectMask(aspectFlags)
+					.setBaseMipLevel(i - 1)
+					.setLevelCount(1)
+					.setBaseArrayLayer(0)
+					.setLayerCount(arrayLayers);
+				vk::ImageSubresourceRange textureDstSubresourceRange = vk::ImageSubresourceRange()
+					.setAspectMask(aspectFlags)
+					.setBaseMipLevel(i)
+					.setLevelCount(1)
+					.setBaseArrayLayer(0)
+					.setLayerCount(arrayLayers);
+
+				vk::ImageMemoryBarrier textureDstBarrier = vk::ImageMemoryBarrier()
+					.setSrcAccessMask(LayoutFlags(vk::ImageLayout::eUndefined))
+					.setDstAccessMask(LayoutFlags(vk::ImageLayout::eTransferDstOptimal))
+					.setOldLayout(vk::ImageLayout::eUndefined)
+					.setNewLayout(vk::ImageLayout::eTransferDstOptimal)
+					.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+					.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+					.setImage(this->image)
+					.setSubresourceRange(textureDstSubresourceRange);
+
+				transferCommandBuffer.pipelineBarrier(
+					vk::PipelineStageFlagBits::eAllCommands,
+					vk::PipelineStageFlagBits::eAllCommands,
+					vk::DependencyFlags(),
+					nullptr,
+					nullptr,
+					textureDstBarrier
+				);
+
+				vk::ImageBlit blitRegion;
+				blitRegion.setSrcSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(i - 1).setBaseArrayLayer(0).setLayerCount(arrayLayers))
+					.setSrcOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(max(1, width >> (i - 1)), max(1, height >> (i - 1)), max(1, depth >> (i - 1)))})
+					.setDstSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(i).setBaseArrayLayer(0).setLayerCount(arrayLayers))
+					.setDstOffsets(std::array<vk::Offset3D, 2>{vk::Offset3D(0, 0, 0), vk::Offset3D(max(1, width >> i), max(1, height >> i), max(1, depth >> i))});
+				// Blit texture to each mip level
+				transferCommandBuffer.blitImage(
+					image, vk::ImageLayout::eGeneral,
+					image, vk::ImageLayout::eGeneral,
+					blitRegion,
+					blitFilter
+				);
+
+				vk::ImageMemoryBarrier textureDstFinishBarrier = vk::ImageMemoryBarrier()
+					.setSrcAccessMask(LayoutFlags(vk::ImageLayout::eTransferDstOptimal))
+					.setDstAccessMask(LayoutFlags(vk::ImageLayout::eTransferSrcOptimal))
+					.setOldLayout(vk::ImageLayout::eTransferDstOptimal)
+					.setNewLayout(vk::ImageLayout::eTransferSrcOptimal)
+					.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+					.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+					.setImage(this->image)
+					.setSubresourceRange(textureDstSubresourceRange);
+
+				transferCommandBuffer.pipelineBarrier(
+					vk::PipelineStageFlagBits::eAllCommands,
+					vk::PipelineStageFlagBits::eAllCommands,
+					vk::DependencyFlags(),
+					nullptr,
+					nullptr,
+					textureDstFinishBarrier
+				);
+			}
+
+			vk::ImageSubresourceRange allSubresourceRange = vk::ImageSubresourceRange()
+				.setAspectMask(aspectFlags)
+				.setBaseMipLevel(0)
+				.setLevelCount(mipLevels)
+				.setBaseArrayLayer(0)
+				.setLayerCount(arrayLayers);
+			vk::ImageMemoryBarrier textureDstFinishBarrier = vk::ImageMemoryBarrier()
+				.setSrcAccessMask(LayoutFlags(vk::ImageLayout::eTransferSrcOptimal))
+				.setDstAccessMask(LayoutFlags(currentLayout))
+				.setOldLayout(vk::ImageLayout::eTransferSrcOptimal)
+				.setNewLayout(currentLayout)
+				.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+				.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+				.setImage(this->image)
+				.setSubresourceRange(allSubresourceRange);
+			transferCommandBuffer.pipelineBarrier(
+				vk::PipelineStageFlagBits::eAllCommands,
+				vk::PipelineStageFlagBits::eAllCommands,
+				vk::DependencyFlags(),
+				nullptr,
+				nullptr,
+				textureDstFinishBarrier
 			);
 			transferCommandBuffer.end();
 
