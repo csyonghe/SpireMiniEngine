@@ -19,7 +19,7 @@ namespace GameEngine
 		}
 		else
 		{
-			commandBuffers.Add(new AsyncCommandBuffer(Engine::Instance()->GetRenderer()->GetHardwareRenderer(), DynamicBufferLengthMultiplier));
+			commandBuffers.Add(new AsyncCommandBuffer(Engine::Instance()->GetRenderer()->GetHardwareRenderer(), 8));
 			tasks.Add(new GeneralRenderTask(commandBuffers.Last().Ptr()));
 			result = tasks.Last().Ptr();
 			cmdBuf = commandBuffers.Last().Ptr();

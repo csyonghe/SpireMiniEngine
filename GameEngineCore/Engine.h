@@ -61,7 +61,8 @@ namespace GameEngine
 		bool inDataTransfer = false;
 		GraphicsSettings graphicsSettings;
 		CoreLib::String levelToLoad;
-		CoreLib::List<RefPtr<Fence>> syncFences;
+		CoreLib::List<CoreLib::List<RefPtr<Fence>>> fencePool;
+		CoreLib::List<CoreLib::List<Fence*>> syncFences;
 	private:
 		bool enableInput = true;
 		CoreLib::Diagnostics::TimePoint startTime, lastGameLogicTime, lastRenderingTime;

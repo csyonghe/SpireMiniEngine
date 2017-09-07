@@ -738,6 +738,7 @@ namespace GameEngine
 				{
 					if (pipelineInst != lastPipeline)
 					{
+						cmdBuf->BindPipeline(pipelineInst->pipeline.Ptr());
 						lastPipeline = pipelineInst;
 						numShaders++;
 					}
@@ -753,7 +754,6 @@ namespace GameEngine
 						cmdBuf->BindVertexBuffer(mesh->GetVertexBuffer(), mesh->vertexBufferOffset);
 						lastMesh = mesh;
 					}
-					cmdBuf->BindPipeline(pipelineInst->pipeline.Ptr());
 					cmdBuf->DrawIndexed(mesh->indexBufferOffset / sizeof(int), mesh->indexCount);
 				}
 				else

@@ -26,7 +26,6 @@ namespace VK
 {
 	const int TargetVulkanVersion_Major = 1;
 	const int TargetVulkanVersion_Minor = 0;
-	const int numCommandBuffers = 128;
 
 	unsigned int GpuId = 0;
 
@@ -182,8 +181,7 @@ namespace VK
 		vk::CommandPool swapchainCommandPool;
 		vk::CommandPool transferCommandPool;
 		vk::CommandPool renderCommandPool;
-		CoreLib::RefPtr<CoreLib::List<vk::CommandBuffer>> primaryBuffers;
-		CoreLib::RefPtr<CoreLib::List<vk::Fence>> primaryFences;
+
 		CoreLib::RefPtr<CoreLib::List<CoreLib::List<vk::CommandBuffer>>> transferCommandBufferPool, renderCommandBufferPool;
 		int currentBufferVersion = 0;
 		int transferCommandBufferAllocPtr = 0;
@@ -432,17 +430,6 @@ namespace VK
 
 			State().renderCommandPool = State().device.createCommandPool(renderCommandPoolCreateInfo);
 
-			// Create primary command buffers
-			State().primaryFences = new CoreLib::List<vk::Fence>();
-			State().primaryBuffers = new CoreLib::List<vk::CommandBuffer>();
-			
-			for (int k = 0; k < numCommandBuffers; k++)
-			{
-				// Initially all fences are signaled
-				State().primaryFences->Add(Device().createFence(vk::FenceCreateInfo(vk::FenceCreateFlagBits::eSignaled)));
-				State().primaryBuffers->Add(CreateCommandBuffer(RenderCommandPool()));
-			}
-
 			State().transferCommandBufferPool = new List<List<vk::CommandBuffer>>();
 			State().renderCommandBufferPool = new List<List<vk::CommandBuffer>>();
 
@@ -492,12 +479,6 @@ namespace VK
 
 		static void DestroyCommandPool()
 		{
-			for (auto& fence : *State().primaryFences)
-				State().device.destroyFence(fence);
-
-			State().primaryFences = nullptr;
-			State().primaryBuffers = nullptr;
-
 			State().device.destroyCommandPool(State().renderCommandPool);
 			State().device.destroyCommandPool(State().transferCommandPool);
 			State().device.destroyCommandPool(State().swapchainCommandPool);
@@ -627,35 +608,6 @@ namespace VK
 		static const vk::PipelineCache& PipelineCache()
 		{
 			return State().pipelineCache;
-		}
-
-		static std::pair<const vk::CommandBuffer, const vk::Fence> PrimaryBuffer()
-		{
-			// Round robin command buffers in order
-			static int i = 0;
-			int next = i % numCommandBuffers;
-
-			vk::CommandBuffer commandBuffer = (*State().primaryBuffers)[next];
-			vk::Fence fence = (*State().primaryFences)[next];
-
-			static int waitCounter = 0;
-
-			while (Device().waitForFences(
-				fence,
-				VK_TRUE,
-				1
-				) != vk::Result::eSuccess)
-				waitCounter++;
-			/*if (waitCounter > 1)
-			{
-				Print("waited on primary buffer %d\n", waitCounter);
-				waitCounter = 0;
-			}*/
-
-			Device().resetFences(fence);
-
-			i++;
-			return std::make_pair(commandBuffer, fence);
 		}
 
 		static const vk::DescriptorPool& DescriptorPool()
@@ -3400,23 +3352,30 @@ namespace VK
 	public:
 		vk::Fence assocFence;
 	public:
-		Fence() {}
-		~Fence() {}
+		Fence()
+		{
+			vk::FenceCreateInfo createInfo;
+			createInfo.setFlags(vk::FenceCreateFlagBits::eSignaled);
+			assocFence = RendererState::Device().createFence(createInfo);
+		}
+		~Fence() 
+		{
+			RendererState::Device().destroyFence(assocFence);
+		}
 		virtual void Reset() override
 		{
-			//if (assocFence) RendererState::Device().resetFences(assocFence);
+			RendererState::Device().resetFences(assocFence);
 		}
 		virtual void Wait() override
 		{
 			static int waitCounter = 0;
-			if (assocFence)
-				while (RendererState::Device().waitForFences(
-					assocFence,
-					VK_TRUE,
-					1
-				) != vk::Result::eSuccess) {
-					waitCounter++;
-				};
+			while (RendererState::Device().waitForFences(
+				assocFence,
+				VK_TRUE,
+				1
+			) != vk::Result::eSuccess) {
+				waitCounter++;
+			};
 			/*if (waitCounter > 10)
 				Print("waited %d\n", waitCounter);*/
 		}
@@ -3575,9 +3534,7 @@ namespace VK
 			{
 				curPipeline = newPipeline;
 				buffer.bindPipeline(newPipeline->pipelineBindPoint, newPipeline->pipeline);
-				
 			}
-			
 		}
 
 		virtual void MemoryAccessBarrier(MemoryBarrierType barrierType) override
@@ -4082,7 +4039,7 @@ namespace VK
             else
             {
                 vk::ImageMemoryBarrier textureTransferBarrier = vk::ImageMemoryBarrier()
-                    .setSrcAccessMask(LayoutFlags(vk::ImageLayout::eColorAttachmentOptimal))
+                    .setSrcAccessMask(vk::AccessFlagBits::eColorAttachmentWrite)
                     .setDstAccessMask(LayoutFlags(vk::ImageLayout::eTransferSrcOptimal))
                     .setOldLayout(vk::ImageLayout::eColorAttachmentOptimal)
                     .setNewLayout(vk::ImageLayout::eTransferSrcOptimal)
@@ -4102,7 +4059,7 @@ namespace VK
                     .setSubresourceRange(imageSubresourceRange);
 
 				cmdBuffer.pipelineBarrier(
-                    vk::PipelineStageFlagBits::eAllCommands,
+                    vk::PipelineStageFlagBits::eColorAttachmentOutput,
                     vk::PipelineStageFlagBits::eAllCommands,
                     vk::DependencyFlags(),
                     nullptr,
@@ -4159,6 +4116,7 @@ namespace VK
                 nullptr,
                 prePresentBarrier
             );
+			
 			cmdBuffer.end(); // stop recording
 
             vk::PipelineStageFlags waitDstStageMask = vk::PipelineStageFlags(vk::PipelineStageFlagBits::eTopOfPipe);
@@ -4171,7 +4129,6 @@ namespace VK
                 .setPCommandBuffers(&cmdBuffer)
                 .setSignalSemaphoreCount(1)
                 .setPSignalSemaphores(&renderFinishedSemaphore);
-
             RendererState::RenderQueue().submit(submitInfo, presentCommandBufferFences[cmdBufId]);
 
             vk::PresentInfoKHR presentInfo = vk::PresentInfoKHR()
@@ -4475,9 +4432,8 @@ namespace VK
 				.setFlags(vk::CommandBufferUsageFlagBits::eSimultaneousUse)
 				.setPInheritanceInfo(nullptr);
 
-			auto primaryBufferFence = RendererState::PrimaryBuffer();
-			vk::CommandBuffer primaryBuffer = primaryBufferFence.first;
-			vk::Fence primaryFence = primaryBufferFence.second;
+			auto primaryBuffer = RendererState::GetTempRenderCommandBuffer();
+
 			primaryBuffer.begin(primaryBeginInfo);
 
 			switch (dynamic_cast<VK::Texture2D*>(texture)->currentLayout)
@@ -4513,7 +4469,7 @@ namespace VK
 				.setSignalSemaphoreCount(0)
 				.setPSignalSemaphores(nullptr);
 
-			RendererState::RenderQueue().submit(submitInfo, primaryFence);
+			RendererState::RenderQueue().submit(submitInfo, vk::Fence());
 		}
 
 		vk::Semaphore GetWaitSemaphore()
@@ -4541,9 +4497,8 @@ namespace VK
 			}
 
 			// Record primary command buffer
-			auto primaryBufferFence = RendererState::PrimaryBuffer();
-			vk::CommandBuffer primaryBuffer = primaryBufferFence.first;
-			vk::Fence primaryFence = primaryBufferFence.second;
+			auto primaryBuffer = RendererState::GetTempRenderCommandBuffer();
+
 			primaryBuffer.begin(primaryBeginInfo);
 			primaryBuffer.executeCommands(buffers.Count(), buffers.Buffer());
 			primaryBuffer.end();
@@ -4563,7 +4518,7 @@ namespace VK
 				submitInfo.setWaitSemaphoreCount(1).setPWaitSemaphores(&waitSemaphore).setPWaitDstStageMask(
 					&waitDstStageMask);
 			}
-			RendererState::RenderQueue().submit(submitInfo, primaryFence);
+			RendererState::RenderQueue().submit(submitInfo, vk::Fence());
 		}
 
 		virtual void ExecuteRenderPass(GameEngine::FrameBuffer* frameBuffer, CoreLib::ArrayView<GameEngine::CommandBuffer*> commands, GameEngine::Fence* fence) override
@@ -4619,9 +4574,7 @@ namespace VK
 			}
 
 			// Record primary command buffer
-			auto primaryBufferFence = RendererState::PrimaryBuffer();
-			vk::CommandBuffer primaryBuffer = primaryBufferFence.first;
-			vk::Fence primaryFence = primaryBufferFence.second;
+			auto primaryBuffer = RendererState::GetTempRenderCommandBuffer();
 			primaryBuffer.begin(primaryBeginInfo);
 			if (prePassCommandBuffers.Count() > 0)
 				primaryBuffer.executeCommands(prePassCommandBuffers.Count(), prePassCommandBuffers.Buffer());
@@ -4632,10 +4585,7 @@ namespace VK
 			}
 			if (postPassCommandBuffers.Count() > 0)
 				primaryBuffer.executeCommands(postPassCommandBuffers.Count(), postPassCommandBuffers.Buffer());
-
-			if (fence)
-				static_cast<VK::Fence*>(fence)->assocFence = primaryFence;
-
+			
 			primaryBuffer.end();
 
 			vk::SubmitInfo submitInfo = vk::SubmitInfo()
@@ -4653,7 +4603,11 @@ namespace VK
 				submitInfo.setWaitSemaphoreCount(1).setPWaitSemaphores(&waitSemaphore).setPWaitDstStageMask(
 					&waitDstStageMask);
 			}
-			RendererState::RenderQueue().submit(submitInfo, primaryFence);
+			if (fence)
+				RendererState::RenderQueue().submit(submitInfo, ((Fence*)fence)->assocFence);
+			else
+				RendererState::RenderQueue().submit(submitInfo, vk::Fence());
+
 		}
 		virtual void Wait() override
 		{

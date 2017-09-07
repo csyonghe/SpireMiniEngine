@@ -122,7 +122,8 @@ namespace GameEngine
 			// initialize renderer
 			renderer = CreateRenderer(args.API);
 			renderer->Resize(args.Width, args.Height);
-            
+			syncFences.SetSize(DynamicBufferLengthMultiplier);
+			fencePool.SetSize(DynamicBufferLengthMultiplier);
 			uiSystemInterface = new UIWindowsSystemInterface(renderer->GetHardwareRenderer());
 			Global::Colors = CreateDarkColorTable();
 			
@@ -184,8 +185,6 @@ namespace GameEngine
 						levelToLoad = defaultLevelName;
 				}
 			}
-			for (int i = 0; i < DynamicBufferLengthMultiplier; i++)
-				syncFences.Add(renderer->GetHardwareRenderer()->CreateFence());
 		}
 		catch (const Exception & e)
 		{
@@ -198,8 +197,7 @@ namespace GameEngine
 	{
 		renderer->Wait();
 		level = nullptr;
-		for (auto & fence : syncFences)
-			fence = nullptr;
+		fencePool = List<List<RefPtr<Fence>>>();
         mainWindow = nullptr;
 		uiSystemInterface = nullptr;
 		renderer = nullptr;
@@ -259,7 +257,11 @@ namespace GameEngine
 		if (stats.Divisor == 0)
 			stats.StartTime = thisRenderingTime;
 
-		syncFences[frameCounter % DynamicBufferLengthMultiplier]->Wait();
+		for (auto & f : syncFences[frameCounter % DynamicBufferLengthMultiplier])
+		{
+			f->Wait();
+			f->Reset();
+		}
 		renderer->GetHardwareRenderer()->ResetTempBufferVersion(frameCounter % DynamicBufferLengthMultiplier);
 
 		auto cpuTimePoint = CoreLib::Diagnostics::PerformanceCounter::Start();
@@ -282,16 +284,24 @@ namespace GameEngine
 
         inDataTransfer = false;
 		renderer->GetHardwareRenderer()->TransferBarrier(frameCounter % DynamicBufferLengthMultiplier);
-		renderer->Wait();
 		renderer->RenderFrame();
 		
 		stats.CpuTime += CoreLib::Diagnostics::PerformanceCounter::EndSeconds(cpuTimePoint);
 
+		int fenceAlloc = 0;
+		int version = frameCounter % DynamicBufferLengthMultiplier;
+		syncFences[version].Clear();
 		for (auto && sysWindow : uiSystemInterface->windowContexts)
 		{
 			if (!sysWindow.Key->GetVisible())
 				continue;
-			uiSystemInterface->ExecuteDrawCommands(sysWindow.Value, syncFences[frameCounter % DynamicBufferLengthMultiplier].Ptr());
+			if (fencePool[version].Count() == fenceAlloc)
+				fencePool[version].Add(renderer->GetHardwareRenderer()->CreateFence());
+			auto fence = fencePool[version][fenceAlloc].Ptr();
+			fenceAlloc++;
+			fence->Reset();
+			uiSystemInterface->ExecuteDrawCommands(sysWindow.Value, fence);
+			syncFences[version].Add(fence);
 			aggregateTime += renderingTimeDelta;
 			renderer->GetHardwareRenderer()->Present(sysWindow.Value->surface.Ptr(), sysWindow.Value->uiOverlayTexture.Ptr());
 		}
