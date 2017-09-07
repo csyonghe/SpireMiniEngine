@@ -29,6 +29,8 @@ namespace GameEngine
 	class CameraActor;
 	class RendererSharedResource;
 	class Level;
+	class WorldRenderPass;
+	class AsyncCommandBuffer;
 
 	const StorageFormat DepthBufferFormat = StorageFormat::Depth32;
 
@@ -102,7 +104,9 @@ namespace GameEngine
 		int numMaterials = 0; 
 		int numShaders = 0;
 		SharedModuleInstances sharedModules; 
-		AsyncCommandBuffer * commandBuffer = nullptr; 
+		CoreLib::List<AsyncCommandBuffer*> commandBuffers;
+		CoreLib::List<CommandBuffer*> apiCommandBuffers;
+		WorldRenderPass * pass = nullptr;
 		RenderOutput * renderOutput = nullptr; 
 		FixedFunctionPipelineStates * fixedFunctionStates = nullptr;
 		Viewport viewport; 

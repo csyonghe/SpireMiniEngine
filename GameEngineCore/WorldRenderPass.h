@@ -12,9 +12,8 @@ namespace GameEngine
 		SpireShader * shader = nullptr;
 
 	protected:
-		CoreLib::Array<CoreLib::RefPtr<AsyncCommandBuffer>, 32> commandBufferPool;
+		CoreLib::List<CoreLib::RefPtr<AsyncCommandBuffer>> commandBufferPool;
 		int poolAllocPtr = 0;
-		AsyncCommandBuffer * AllocCommandBuffer();
 		virtual const char * GetShaderSource() = 0;
 		virtual RenderTargetLayout * CreateRenderTargetLayout() = 0;
 		virtual void SetPipelineStates(FixedFunctionPipelineStates & state)
@@ -30,6 +29,7 @@ namespace GameEngine
 			poolAllocPtr = 0;
 		}
 		virtual void Bind();
+		AsyncCommandBuffer * AllocCommandBuffer();
 		CoreLib::RefPtr<WorldPassRenderTask> CreateInstance(RenderOutput * output, bool clearOutput);
 	};
 }

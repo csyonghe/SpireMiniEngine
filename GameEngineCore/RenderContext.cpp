@@ -5,6 +5,7 @@
 #include "EngineLimits.h"
 #include "PostRenderPass.h"
 #include "TextureCompressor.h"
+#include "WorldRenderPass.h"
 #include "CoreLib/LibIO.h"
 #include "CoreLib/Graphics/TextureFile.h"
 #include <assert.h>
@@ -693,8 +694,13 @@ namespace GameEngine
 
 	void WorldPassRenderTask::SetFixedOrderDrawContent(PipelineContext & pipelineManager, CoreLib::ArrayView<Drawable*> drawables)
 	{
+		commandBuffers.Clear();
+		apiCommandBuffers.Clear();
 		renderOutput->GetSize(viewport.Width, viewport.Height);
-		auto cmdBuf = commandBuffer->BeginRecording(renderOutput->GetFrameBuffer());
+		auto cmd0 = pass->AllocCommandBuffer();
+		commandBuffers.Add(cmd0);
+		auto cmdBuf = cmd0->BeginRecording(renderOutput->GetFrameBuffer());
+		apiCommandBuffers.Add(cmdBuf);
 		cmdBuf->SetViewport(viewport.X, viewport.Y, viewport.Width, viewport.Height);
 		if (clearOutput)
 			cmdBuf->ClearAttachments(renderOutput->GetFrameBuffer());
@@ -723,6 +729,24 @@ namespace GameEngine
 			for (auto obj : drawables)
 			{
 				numDrawCalls++;
+				if ((numDrawCalls & 31) == 0)
+				{
+					cmdBuf->EndRecording();
+					auto cmd = pass->AllocCommandBuffer();
+					commandBuffers.Add(cmd);
+					cmdBuf = cmd->BeginRecording(renderOutput->GetFrameBuffer());
+					cmdBuf->SetViewport(viewport.X, viewport.Y, viewport.Width, viewport.Height);
+					apiCommandBuffers.Add(cmdBuf);
+					for (int i = 0; i < boundSets.Count(); i++)
+						boundSets[i] = nullptr;
+					for (int i = 0; i < bindings.Count(); i++)
+						cmdBuf->BindDescriptorSet(i, bindings[i]);
+					cmdBuf->BindIndexBuffer(obj->GetMesh()->GetIndexBuffer(), 0);
+					BindDescSet(boundSets.Buffer(), cmdBuf, bindings.Count(), lastMaterial->MaterialGeometryModule.GetCurrentDescriptorSet());
+					BindDescSet(boundSets.Buffer(), cmdBuf, bindings.Count() + 1, lastMaterial->MaterialPatternModule.GetCurrentDescriptorSet());
+					lastPipeline = nullptr;
+					lastMesh = nullptr;
+				}
 				auto newMaterial = obj->GetMaterial();
 				if (newMaterial != lastMaterial)
 				{
@@ -815,7 +839,8 @@ namespace GameEngine
 		stats.NumDrawCalls += numDrawCalls;
 		stats.NumMaterials += numMaterials;
 		stats.NumShaders += numShaders;
-		hwRenderer->ExecuteRenderPass(renderOutput->GetFrameBuffer(), MakeArrayView(commandBuffer->GetBuffer()), nullptr);
+		
+		hwRenderer->ExecuteRenderPass(renderOutput->GetFrameBuffer(), MakeArrayView<CommandBuffer*>(apiCommandBuffers.Buffer(), apiCommandBuffers.Count()), nullptr);
 	}
 	GeneralRenderTask::GeneralRenderTask(AsyncCommandBuffer * cmdBuffer)
 	{
