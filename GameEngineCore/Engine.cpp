@@ -282,9 +282,11 @@ namespace GameEngine
 
         inDataTransfer = false;
 		renderer->GetHardwareRenderer()->TransferBarrier(frameCounter % DynamicBufferLengthMultiplier);
-		stats.CpuTime += CoreLib::Diagnostics::PerformanceCounter::EndSeconds(cpuTimePoint);
 
 		renderer->RenderFrame();
+		
+		stats.CpuTime += CoreLib::Diagnostics::PerformanceCounter::EndSeconds(cpuTimePoint);
+
 		for (auto && sysWindow : uiSystemInterface->windowContexts)
 		{
 			if (!sysWindow.Key->GetVisible())
@@ -349,6 +351,11 @@ namespace GameEngine
 					Print("Unknown actor class \'%s\'.\n", typeName.Buffer());
 				}
 			}
+		}
+		else if (parser.LookAhead("drawstat"))
+		{
+			parser.ReadToken();
+			mainWindow->GetUIEntry()->ShowWindow(drawCallStatForm);
 		}
 		else
 		{

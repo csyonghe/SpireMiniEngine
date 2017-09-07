@@ -271,9 +271,15 @@ namespace GameEngine
 			{
 				reorderBuffer.Sort([=](Drawable* d1, Drawable* d2) { return d1->Bounds.Distance(params.view.Position) > d2->Bounds.Distance(params.view.Position); });
 				if (useAtmosphere)
+				{
 					transparentPassInstance = forwardRenderPass->CreateInstance(transparentAtmosphereOutput, false);
+					transparentAtmosphereOutput->GetFrameBuffer()->GetRenderAttachments().GetTextures(textures);
+				}
 				else
+				{
 					transparentPassInstance = forwardRenderPass->CreateInstance(forwardBaseOutput, false);
+					forwardBaseOutput->GetFrameBuffer()->GetRenderAttachments().GetTextures(textures);
+				}
 
 				forwardRenderPass->Bind();
 				sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
