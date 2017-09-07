@@ -3486,7 +3486,7 @@ namespace VK
 				.setPipelineStatistics(vk::QueryPipelineStatisticFlags());//
 
 			vk::CommandBufferBeginInfo commandBufferBeginInfo = vk::CommandBufferBeginInfo()
-				.setFlags(vk::CommandBufferUsageFlagBits::eSimultaneousUse)
+				.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit)
 				.setPInheritanceInfo(&inheritanceInfo);
 
 			buffer.begin(commandBufferBeginInfo);
@@ -4035,7 +4035,7 @@ namespace VK
             frameId++;
 
             vk::CommandBufferBeginInfo commandBufferBeginInfo = vk::CommandBufferBeginInfo()
-                .setFlags(vk::CommandBufferUsageFlagBits::eSimultaneousUse)
+                .setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit)
                 .setPInheritanceInfo(nullptr);
 
             vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
@@ -4306,7 +4306,7 @@ namespace VK
 				//commandBuffers[image].reset(vk::CommandBufferResetFlags()); // implicitly done by begin
 
 				vk::CommandBufferBeginInfo commandBufferBeginInfo = vk::CommandBufferBeginInfo()
-					.setFlags(vk::CommandBufferUsageFlagBits::eSimultaneousUse)
+					.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit)
 					.setPInheritanceInfo(nullptr);
 
 				vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
@@ -4482,7 +4482,7 @@ namespace VK
 		virtual void ClearTexture(GameEngine::Texture2D* texture) override
 		{
 			vk::CommandBufferBeginInfo primaryBeginInfo = vk::CommandBufferBeginInfo()
-				.setFlags(vk::CommandBufferUsageFlagBits::eSimultaneousUse)
+				.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit)
 				.setPInheritanceInfo(nullptr);
 
 			auto primaryBuffer = RendererState::GetTempRenderCommandBuffer();
@@ -4540,7 +4540,7 @@ namespace VK
 		{
 			// Create command buffer begin info
 			vk::CommandBufferBeginInfo primaryBeginInfo = vk::CommandBufferBeginInfo()
-				.setFlags(vk::CommandBufferUsageFlagBits::eSimultaneousUse)
+				.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit)
 				.setPInheritanceInfo(nullptr);
 			List<vk::CommandBuffer> buffers;
 			for (auto& buffer : commands)
@@ -4578,7 +4578,7 @@ namespace VK
 		{
 			// Create command buffer begin info
 			vk::CommandBufferBeginInfo primaryBeginInfo = vk::CommandBufferBeginInfo()
-				.setFlags(vk::CommandBufferUsageFlagBits::eSimultaneousUse)
+				.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit)
 				.setPInheritanceInfo(nullptr);
 
 			// Create render pass begin info
@@ -4671,7 +4671,7 @@ namespace VK
 			vk::CommandBuffer transferCommandBuffer = RendererState::GetTempTransferCommandBuffer();
 
 			vk::CommandBufferBeginInfo commandBufferBeginInfo = vk::CommandBufferBeginInfo()
-				.setFlags(vk::CommandBufferUsageFlagBits::eSimultaneousUse)
+				.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit)
 				.setPInheritanceInfo(nullptr);
 
 			vk::ImageSubresourceRange imageSubresourceRange = vk::ImageSubresourceRange()
