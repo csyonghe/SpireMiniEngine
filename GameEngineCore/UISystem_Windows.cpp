@@ -1463,8 +1463,6 @@ namespace GameEngine
 		if (w == 0 || h == 0)
 			return;
         hwRenderer->Wait();
-        hwRenderer->BeginDataTransfer();
-		
         surface->Resize(w, h);
         uiEntry->Posit(0, 0, w, h);
         uiOverlayTexture = hwRenderer->CreateTexture2D(TextureUsage::SampledColorAttachment, w, h, 1, StorageFormat::RGBA_8);
@@ -1473,7 +1471,7 @@ namespace GameEngine
         screenHeight = h;
         Matrix4::CreateOrthoMatrix(orthoMatrix, 0.0f, (float)screenWidth, 0.0f, (float)screenHeight, 1.0f, -1.0f);
         uniformBuffer->SetData(&orthoMatrix, sizeof(orthoMatrix));
-        hwRenderer->EndDataTransfer();
+		hwRenderer->Wait();
     }
 
     UIWindowContext::UIWindowContext()

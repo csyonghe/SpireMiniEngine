@@ -4150,7 +4150,7 @@ namespace VK
             );
 			cmdBuffer.end(); // stop recording
 
-            vk::PipelineStageFlags waitDstStageMask = vk::PipelineStageFlags(vk::PipelineStageFlagBits::eBottomOfPipe);
+            vk::PipelineStageFlags waitDstStageMask = vk::PipelineStageFlags(vk::PipelineStageFlagBits::eTopOfPipe);
 
             vk::SubmitInfo submitInfo = vk::SubmitInfo()
                 .setWaitSemaphoreCount(1)
@@ -4422,6 +4422,9 @@ namespace VK
 	class HardwareRenderer : public GameEngine::HardwareRenderer
 	{
 	private:
+		List<vk::Semaphore> transferSemaphores;
+		int pendingGraphicsQueueBarrierId = -1;
+	private:
 		virtual int GetSpireTarget() override
 		{
 			return SPIRE_GLSL_VULKAN;
@@ -4435,6 +4438,8 @@ namespace VK
 		~HardwareRenderer()
 		{
 			RendererState::Device().waitIdle();
+			for (auto & sem : transferSemaphores)
+				RendererState::Device().destroySemaphore(sem);
 			RendererState::RemRenderer();
 		}
 
@@ -4500,6 +4505,17 @@ namespace VK
 			RendererState::RenderQueue().submit(submitInfo, primaryFence);
 		}
 
+		vk::Semaphore GetWaitSemaphore()
+		{
+			if (pendingGraphicsQueueBarrierId != -1)
+			{
+				auto rs = transferSemaphores[pendingGraphicsQueueBarrierId];
+				pendingGraphicsQueueBarrierId = -1;
+				return rs;
+			}
+			return vk::Semaphore();
+		}
+
 		virtual void ExecuteNonRenderCommandBuffers(CoreLib::ArrayView<GameEngine::CommandBuffer*> commands) override
 		{
 			// Create command buffer begin info
@@ -4529,7 +4545,13 @@ namespace VK
 				.setPCommandBuffers(&primaryBuffer)
 				.setSignalSemaphoreCount(0)
 				.setPSignalSemaphores(nullptr);
-
+			vk::Semaphore waitSemaphore = GetWaitSemaphore();
+			if (waitSemaphore)
+			{
+				vk::PipelineStageFlags waitDstStageMask = vk::PipelineStageFlags(vk::PipelineStageFlagBits::eTopOfPipe);
+				submitInfo.setWaitSemaphoreCount(1).setPWaitSemaphores(&waitSemaphore).setPWaitDstStageMask(
+					&waitDstStageMask);
+			}
 			RendererState::RenderQueue().submit(submitInfo, primaryFence);
 		}
 
@@ -4613,8 +4635,13 @@ namespace VK
 				.setPCommandBuffers(&primaryBuffer)
 				.setSignalSemaphoreCount(0)
 				.setPSignalSemaphores(nullptr);
-
-			//RendererState::RenderQueue().waitIdle();
+			vk::Semaphore waitSemaphore = GetWaitSemaphore();
+			if (waitSemaphore)
+			{
+				vk::PipelineStageFlags waitDstStageMask = vk::PipelineStageFlags(vk::PipelineStageFlagBits::eTopOfPipe);
+				submitInfo.setWaitSemaphoreCount(1).setPWaitSemaphores(&waitSemaphore).setPWaitDstStageMask(
+					&waitDstStageMask);
+			}
 			RendererState::RenderQueue().submit(submitInfo, primaryFence);
 		}
 		virtual void Wait() override
@@ -4882,15 +4909,33 @@ namespace VK
 		{
 			return (int)RendererState::PhysicalDevice().getProperties().limits.minStorageBufferOffsetAlignment;
 		}
-
-		virtual void BeginDataTransfer() override
+		virtual void TransferBarrier(int barrierId) override
 		{
-			//TODO: implement
-		}
-
-		virtual void EndDataTransfer() override
-		{
-
+			if (barrierId >= transferSemaphores.Count())
+			{
+				for (int i = transferSemaphores.Count(); i < barrierId + 1; i++)
+				{
+					vk::SemaphoreCreateInfo createInfo;
+					createInfo.setFlags(vk::SemaphoreCreateFlags());
+					transferSemaphores.Add(RendererState::Device().createSemaphore(createInfo));
+				}
+			}
+			auto cmdBuf = RendererState::GetTempTransferCommandBuffer();
+			vk::CommandBufferBeginInfo beginInfo;
+			beginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+			cmdBuf.begin(beginInfo);
+			auto memBarrier = vk::MemoryBarrier(vk::AccessFlagBits::eHostWrite, vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eUniformRead);
+			cmdBuf.pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands, vk::PipelineStageFlagBits::eAllCommands, vk::DependencyFlags(),
+				1, &memBarrier, 0, nullptr, 0, nullptr);
+			cmdBuf.end();
+			vk::SubmitInfo submitInfo;
+			submitInfo
+				.setPCommandBuffers(&cmdBuf)
+				.setCommandBufferCount(1)
+				.setSignalSemaphoreCount(1)
+				.setPSignalSemaphores(&transferSemaphores[barrierId]);
+			RendererState::TransferQueue().submit(1, &submitInfo, vk::Fence());
+			pendingGraphicsQueueBarrierId = barrierId;
 		}
 
 		virtual String GetRendererName() override

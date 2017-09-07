@@ -857,10 +857,9 @@ namespace GameEngine
 		virtual int GetSpireTarget() = 0;
 		virtual int UniformBufferAlignment() = 0;
 		virtual int StorageBufferAlignment() = 0;
-		virtual void BeginDataTransfer() = 0;
-		virtual void EndDataTransfer() = 0;
         virtual WindowSurface * CreateSurface(void * windowHandle, int width, int height) = 0;
 		virtual CoreLib::String GetRendererName() = 0;
+		virtual void TransferBarrier(int barrierId) = 0;
 	};
 
 	// HardwareRenderer instance constructors

@@ -1208,9 +1208,6 @@ namespace GLL
 	class BufferObject : public GL_Object, public GameEngine::Buffer
 	{
 	public:
-#ifdef _DEBUG
-		bool * isInTransfer = nullptr;
-#endif
 		bool persistentMapping = false;
 		GLuint BindTarget;
 		void * mappedPtr = nullptr;
@@ -1229,10 +1226,6 @@ namespace GLL
 		}
 		void SetData(void * data, int sizeInBytes)
 		{
-#ifdef _DEBUG
-			if (!*isInTransfer)
-				throw HardwareRendererException("Renderer not in data-transfer mode.");
-#endif
 			if (mappedPtr)
 				memcpy(mappedPtr, data, sizeInBytes);
 			else
@@ -1240,18 +1233,10 @@ namespace GLL
 		}
 		void SetDataAsync(int offset, void * data, int size)
 		{
-#ifdef _DEBUG
-			if (!*isInTransfer)
-				throw HardwareRendererException("Renderer not in data-transfer mode.");
-#endif
 			SetData(offset, data, size);
 		}
 		void SetData(int offset, void * data, int size)
 		{
-#ifdef _DEBUG
-			if (!*isInTransfer)
-				throw HardwareRendererException("Renderer not in data-transfer mode.");
-#endif
 			if (mappedPtr)
 				memcpy((char*)mappedPtr + offset, data, size);
 			else
@@ -3097,18 +3082,8 @@ namespace GLL
 			return rs;
 		}
 
-		virtual void BeginDataTransfer() override
+		virtual void TransferBarrier(int /*barrierId*/) override
 		{
-#ifdef _DEBUG
-			//if (isInDataTransfer)
-			//	throw HardwareRendererException("Renderer is already in data transfer mode.");
-#endif
-			isInDataTransfer = true;
-		}
-
-		virtual void EndDataTransfer() override
-		{
-			isInDataTransfer = false;
 		}
 
 		Program CreateTransformFeedbackProgram(const Shader &vertexShader, const List<String> & varyings, FeedbackStorageMode format)
@@ -3511,9 +3486,6 @@ namespace GLL
 		BufferObject* CreateBuffer(BufferUsage usage, int bufferSize, int storageFlags)
 		{
 			auto rs = new BufferObject();
-#ifdef _DEBUG
-			rs->isInTransfer = &isInDataTransfer;
-#endif
 			if (storageFlags & GL_MAP_PERSISTENT_BIT)
 				rs->persistentMapping = true;
 

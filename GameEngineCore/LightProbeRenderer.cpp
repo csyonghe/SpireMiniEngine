@@ -278,18 +278,18 @@ namespace GameEngine
 			viewMatrix.values[13] = -(viewMatrix.values[1] * position.x + viewMatrix.values[5] * position.y + viewMatrix.values[9] * position.z);
 			viewMatrix.values[14] = -(viewMatrix.values[2] * position.x + viewMatrix.values[6] * position.y + viewMatrix.values[10] * position.z);
 
-			hw->BeginDataTransfer();
 			params.view.Transform = viewMatrix;
 			task.Clear();
 			renderProc->Run(task, params);
-			hw->EndDataTransfer();
-			for (auto & pass : task.GetTasks())
-				pass->Execute(hw, sharedRes->renderStats);
-
 			copyDescSet->BeginUpdate();
 			copyDescSet->Update(0, renderProc->GetOutput()->Texture.Ptr(), TextureAspect::Color);
 			copyDescSet->Update(1, sharedRes->nearestSampler.Ptr());
 			copyDescSet->EndUpdate();
+			hw->TransferBarrier(DynamicBufferLengthMultiplier);
+
+			for (auto & pass : task.GetTasks())
+				pass->Execute(hw, sharedRes->renderStats);
+			
 			RefPtr<FrameBuffer> fb0, fb1;
 			// copy to level 0 of tempEnv
 			{
@@ -399,9 +399,9 @@ namespace GameEngine
 			for (int l = 1; l < numLevels; l++)
 			{
 				prefilterParams.roughness = (l / (float)(numLevels - 1));
-				hw->BeginDataTransfer();
+
 				uniformBuffer->SetData(&prefilterParams, sizeof(prefilterParams));
-				hw->EndDataTransfer();
+				hw->TransferBarrier(DynamicBufferLengthMultiplier);
 
 				RenderAttachments attachments;
 				attachments.SetAttachment(0, dest, id, (TextureCubeFace)f, l);

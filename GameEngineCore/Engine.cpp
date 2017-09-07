@@ -83,15 +83,16 @@ namespace GameEngine
 		{
             for (auto sysWindow : uiSystemInterface->windowContexts)
             {
-                renderer->GetHardwareRenderer()->BeginDataTransfer();
                 auto entry = sysWindow.Value->uiEntry.Ptr();
                 auto uiCommands = entry->DrawUI();
                 uiSystemInterface->TransferDrawCommands(sysWindow.Value, renderer->GetRenderedImage(), uiCommands);
-                renderer->GetHardwareRenderer()->EndDataTransfer();
-                uiSystemInterface->ExecuteDrawCommands(sysWindow.Value, nullptr);
-                renderer->GetHardwareRenderer()->Present(sysWindow.Value->surface.Ptr(), sysWindow.Value->uiOverlayTexture.Ptr());
-
             }
+			renderer->GetHardwareRenderer()->TransferBarrier(DynamicBufferLengthMultiplier);
+			for (auto sysWindow : uiSystemInterface->windowContexts)
+			{
+				uiSystemInterface->ExecuteDrawCommands(sysWindow.Value, nullptr);
+				renderer->GetHardwareRenderer()->Present(sysWindow.Value->surface.Ptr(), sysWindow.Value->uiOverlayTexture.Ptr());
+			}
 			renderer->Wait();
 		}
 	}
@@ -125,7 +126,6 @@ namespace GameEngine
 			uiSystemInterface = new UIWindowsSystemInterface(renderer->GetHardwareRenderer());
 			Global::Colors = CreateDarkColorTable();
 			
-            renderer->GetHardwareRenderer()->BeginDataTransfer();
            
             // create main window
             mainWindow = new SystemWindow(uiSystemInterface.Ptr(), 22);
@@ -145,8 +145,6 @@ namespace GameEngine
             if (File::Exists(bindingFile))
                 inputDispatcher->LoadMapping(bindingFile);
             inputDispatcher->BindActionHandler("ToggleConsole", ActionInputHandlerFunc(this, &Engine::OnToggleConsoleAction));
-
-			renderer->GetHardwareRenderer()->EndDataTransfer();
 
 			uiCommandForm = new CommandForm(mainWindow->GetUIEntry());
 			uiCommandForm->OnCommand.Bind(this, &Engine::OnCommand);
@@ -261,37 +259,40 @@ namespace GameEngine
 		if (stats.Divisor == 0)
 			stats.StartTime = thisRenderingTime;
 
-		inDataTransfer = true;
 		syncFences[frameCounter % DynamicBufferLengthMultiplier]->Wait();
 		renderer->GetHardwareRenderer()->ResetTempBufferVersion(frameCounter % DynamicBufferLengthMultiplier);
+
 		auto cpuTimePoint = CoreLib::Diagnostics::PerformanceCounter::Start();
 
-		renderer->GetHardwareRenderer()->BeginDataTransfer();
+		inDataTransfer = true;
+		
 		renderer->TakeSnapshot();
-		renderer->GetHardwareRenderer()->EndDataTransfer();
-
-        renderer->RenderFrame();
-        stats.CpuTime += CoreLib::Diagnostics::PerformanceCounter::EndSeconds(cpuTimePoint);
 
         for (auto && sysWindow : uiSystemInterface->windowContexts)
         {
             if (!sysWindow.Key->GetVisible())
                 continue;
-            renderer->GetHardwareRenderer()->BeginDataTransfer();
             auto uiEntry = sysWindow.Value->uiEntry.Ptr();
             auto uiCommands = uiEntry->DrawUI();
             Texture2D * backgroundImage = nullptr;
             if (mainWindow == sysWindow.Key)
                 backgroundImage = renderer->GetRenderedImage();
             uiSystemInterface->TransferDrawCommands(sysWindow.Value, backgroundImage, uiCommands);
-            inDataTransfer = false;
-            renderer->GetHardwareRenderer()->EndDataTransfer();
-
-            uiSystemInterface->ExecuteDrawCommands(sysWindow.Value, syncFences[frameCounter % DynamicBufferLengthMultiplier].Ptr());
-            aggregateTime += renderingTimeDelta;
-			
-            renderer->GetHardwareRenderer()->Present(sysWindow.Value->surface.Ptr(), sysWindow.Value->uiOverlayTexture.Ptr());
         }
+
+        inDataTransfer = false;
+		renderer->GetHardwareRenderer()->TransferBarrier(frameCounter % DynamicBufferLengthMultiplier);
+		stats.CpuTime += CoreLib::Diagnostics::PerformanceCounter::EndSeconds(cpuTimePoint);
+
+		renderer->RenderFrame();
+		for (auto && sysWindow : uiSystemInterface->windowContexts)
+		{
+			if (!sysWindow.Key->GetVisible())
+				continue;
+			uiSystemInterface->ExecuteDrawCommands(sysWindow.Value, syncFences[frameCounter % DynamicBufferLengthMultiplier].Ptr());
+			aggregateTime += renderingTimeDelta;
+			renderer->GetHardwareRenderer()->Present(sysWindow.Value->surface.Ptr(), sysWindow.Value->uiOverlayTexture.Ptr());
+		}
 
 		if (aggregateTime > 1.0f)
 		{
@@ -319,9 +320,7 @@ namespace GameEngine
 	{
 		if (renderer && w > 2 && h > 2)
 		{
-			renderer->GetHardwareRenderer()->BeginDataTransfer();
 			renderer->Resize(w, h);
-			renderer->GetHardwareRenderer()->EndDataTransfer();
 		}
 	}
 
@@ -379,9 +378,7 @@ namespace GameEngine
 	{
         if (uiSystemInterface)
         {
-            renderer->GetHardwareRenderer()->BeginDataTransfer();
 			auto ret = uiSystemInterface->HandleSystemMessage(window, message, wparam, lparam);
-            renderer->GetHardwareRenderer()->EndDataTransfer();
             return ret;
         }
         if (message == WM_PAINT)

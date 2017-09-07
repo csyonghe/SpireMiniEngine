@@ -128,7 +128,7 @@ namespace GameEngine
 				break;
 			}
 			hardwareRenderer->SetMaxTempBufferVersions(DynamicBufferLengthMultiplier);
-			hardwareRenderer->BeginDataTransfer();
+
 			sharedRes.Init(hardwareRenderer);
 
 			mainView = new ViewResource(hardwareRenderer);
@@ -143,7 +143,7 @@ namespace GameEngine
 			
 			sceneRes = new SceneResource(&sharedRes, sharedRes.spireContext);
 			renderService = new RendererServiceImpl(this);
-			hardwareRenderer->EndDataTransfer();
+			hardwareRenderer->Wait();
 		}
 		~RendererImpl()
 		{
@@ -195,12 +195,10 @@ namespace GameEngine
 
 			sceneRes->Clear();
 			level = pLevel;
-			hardwareRenderer->BeginDataTransfer();
 			cubemapRenderView = new ViewResource(hardwareRenderer);
 			cubemapRenderView->Resize(EnvMapSize, EnvMapSize);
 			cubemapRenderProc = CreateStandardRenderProcedure(false, false);
 			cubemapRenderProc->Init(this, cubemapRenderView.Ptr());
-			hardwareRenderer->EndDataTransfer();
 
 			LightProbeRenderer lpRenderer(this, renderService.Ptr(), cubemapRenderProc.Ptr(), cubemapRenderView.Ptr());
 			int lightProbeCount = 0;
@@ -216,10 +214,9 @@ namespace GameEngine
 			}
 			if (lightProbeCount == 0)
 				lpRenderer.RenderLightProbe(sharedRes.envMapArray.Ptr(), sharedRes.AllocEnvMap(), level, Vec3::Create(0.0f, 1000.0f, 0.0f));
-			hardwareRenderer->BeginDataTransfer();
 			renderProcedure->UpdateSharedResourceBinding();
 			RunRenderProcedure();
-			hardwareRenderer->EndDataTransfer();
+			hardwareRenderer->TransferBarrier(DynamicBufferLengthMultiplier);
 			RenderFrame();
 			Wait();
 			sharedRes.renderStats.Clear();
@@ -316,6 +313,7 @@ namespace GameEngine
 		virtual void Resize(int w, int h) override
 		{
 			mainView->Resize(w, h);
+			Wait();
 		}
 		Texture2D * GetRenderedImage()
 		{
