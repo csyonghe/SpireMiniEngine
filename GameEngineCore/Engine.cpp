@@ -282,7 +282,7 @@ namespace GameEngine
 
         inDataTransfer = false;
 		renderer->GetHardwareRenderer()->TransferBarrier(frameCounter % DynamicBufferLengthMultiplier);
-
+		renderer->Wait();
 		renderer->RenderFrame();
 		
 		stats.CpuTime += CoreLib::Diagnostics::PerformanceCounter::EndSeconds(cpuTimePoint);

@@ -26,7 +26,7 @@ namespace GameEngine
 			ptr++;
 		}
 		auto buf = cmdBuf->BeginRecording();
-		buf->TransferLayout(renderTargetTextures, TextureLayoutTransfer::UndefinedToRenderAttachment);
+		buf->TransferLayout(renderTargetTextures, TextureLayoutTransfer::SampleToRenderAttachment);
 		buf->TransferLayout(samplingTextures, TextureLayoutTransfer::RenderAttachmentToSample);
 		buf->EndRecording();
 		return result;

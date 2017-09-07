@@ -214,6 +214,7 @@ namespace GameEngine
 			}
 			if (lightProbeCount == 0)
 				lpRenderer.RenderLightProbe(sharedRes.envMapArray.Ptr(), sharedRes.AllocEnvMap(), level, Vec3::Create(0.0f, 1000.0f, 0.0f));
+			Wait();
 			renderProcedure->UpdateSharedResourceBinding();
 			RunRenderProcedure();
 			hardwareRenderer->TransferBarrier(DynamicBufferLengthMultiplier);
