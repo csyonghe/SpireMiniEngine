@@ -666,7 +666,7 @@ namespace VK
 			return State().descriptorPoolChain->Last()->pool;
 		}
 
-		static std::pair<vk::DescriptorPool, vk::DescriptorSet> AllocateDescriptorSet(vk::DescriptorSetLayout layout)
+		static std::pair<vk::DescriptorPool, vk::DescriptorSet> AllocateDescriptorSet(vk::DescriptorSetLayout layout, bool canTryAgain = true)
 		{
 			//TODO: add counter mechanism to DescriptorPoolObject so we know when to destruct
 			std::pair<vk::DescriptorPool, vk::DescriptorSet> res;
@@ -681,10 +681,10 @@ namespace VK
 			auto err = RendererState::Device().allocateDescriptorSets(&descriptorSetAllocateInfo, &res.second);
 			if (err != vk::Result::eSuccess)
 			{
-				if (err == vk::Result::eErrorOutOfDeviceMemory)
+				if (canTryAgain)
 				{
 					RendererState::State().descriptorPoolChain->Add(new DescriptorPoolObject());
-					return AllocateDescriptorSet(layout);
+					return AllocateDescriptorSet(layout, false);
 				}
 				else throw HardwareRendererException("Couldn't allocate descriptor set.");
 			}
