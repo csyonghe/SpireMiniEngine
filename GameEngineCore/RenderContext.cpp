@@ -742,7 +742,6 @@ namespace GameEngine
 						numShaders++;
 					}
 					auto mesh = obj->GetMesh();
-					cmdBuf->BindPipeline(pipelineInst->pipeline.Ptr());
 					if (newMaterial != lastMaterial)
 					{
 						BindDescSet(boundSets.Buffer(), cmdBuf, bindings.Count(), newMaterial->MaterialGeometryModule.GetCurrentDescriptorSet());
@@ -754,6 +753,7 @@ namespace GameEngine
 						cmdBuf->BindVertexBuffer(mesh->GetVertexBuffer(), mesh->vertexBufferOffset);
 						lastMesh = mesh;
 					}
+					cmdBuf->BindPipeline(pipelineInst->pipeline.Ptr());
 					cmdBuf->DrawIndexed(mesh->indexBufferOffset / sizeof(int), mesh->indexCount);
 				}
 				else

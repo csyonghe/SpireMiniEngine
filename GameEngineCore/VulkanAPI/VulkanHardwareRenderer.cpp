@@ -1057,7 +1057,7 @@ namespace VK
 		case vk::ImageLayout::eGeneral:
 			return vk::AccessFlags();
 		case vk::ImageLayout::eColorAttachmentOptimal:
-			return vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eInputAttachmentRead | vk::AccessFlagBits::eShaderRead;
+			return vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eInputAttachmentRead;
 		case vk::ImageLayout::eDepthStencilAttachmentOptimal:
 			return vk::AccessFlagBits::eDepthStencilAttachmentRead | vk::AccessFlagBits::eDepthStencilAttachmentWrite;
 		case vk::ImageLayout::eDepthStencilReadOnlyOptimal:
@@ -3056,6 +3056,7 @@ namespace VK
 		CoreLib::ArrayView<GameEngine::DescriptorSetLayout*> descriptorSets;
 		bool isGraphics = true;
 #endif
+		int descSetCount = 0;
 		vk::PipelineLayout pipelineLayout;
 		vk::Pipeline pipeline;
 		vk::PipelineBindPoint pipelineBindPoint;
@@ -3251,7 +3252,7 @@ namespace VK
 			.setPSetLayouts(pipelineBuilder->setLayouts.Buffer())
 			.setPushConstantRangeCount(pipelineBuilder->pushConstantRanges.Count())
 			.setPPushConstantRanges(pipelineBuilder->pushConstantRanges.Buffer());
-
+		this->descSetCount = pipelineBuilder->setLayouts.Count();
 		this->pipelineLayout = RendererState::Device().createPipelineLayout(layoutCreateInfo);
 
 		// Vertex Input Description
@@ -3540,13 +3541,10 @@ namespace VK
 		virtual void BindDescriptorSet(int binding, GameEngine::DescriptorSet* descSet) override
 		{
 			VK::DescriptorSet* internalDescriptorSet = reinterpret_cast<VK::DescriptorSet*>(descSet);
-			if (curPipeline == nullptr)
+			pendingDescSets[binding] = (internalDescriptorSet->descriptorSet);
+			if (curPipeline)
 			{
-				pendingDescSets[binding] = (internalDescriptorSet->descriptorSet);
-			}
-			else
-			{
-				buffer.bindDescriptorSets(curPipeline->pipelineBindPoint, curPipeline->pipelineLayout, binding, internalDescriptorSet->descriptorSet, nullptr);
+				//buffer.bindDescriptorSets(curPipeline->pipelineBindPoint, curPipeline->pipelineLayout, binding, internalDescriptorSet->descriptorSet, nullptr);
 			}
 			
 		}
@@ -3573,28 +3571,13 @@ namespace VK
 			//   that is incompatible with the currently bound pipeline.
 #endif
 			auto newPipeline = reinterpret_cast<VK::Pipeline*>(pipeline);
-			if (curPipeline == nullptr)
-			{
-				for (int k = 0; k < pendingDescSets.Count(); k++)
-				{
-					if (pendingDescSets[k])
-					{
-						buffer.bindDescriptorSets(
-							reinterpret_cast<VK::Pipeline*>(pipeline)->pipelineBindPoint,
-							newPipeline->pipelineLayout,
-							k,
-							pendingDescSets[k],
-							nullptr);
-					}
-
-					pendingDescSets[k] = vk::DescriptorSet();
-				}
-			}
 			if (curPipeline != newPipeline)
 			{
 				curPipeline = newPipeline;
-				buffer.bindPipeline(reinterpret_cast<VK::Pipeline*>(pipeline)->pipelineBindPoint, reinterpret_cast<VK::Pipeline*>(pipeline)->pipeline);
+				buffer.bindPipeline(newPipeline->pipelineBindPoint, newPipeline->pipeline);
+				
 			}
+			
 		}
 
 		virtual void MemoryAccessBarrier(MemoryBarrierType barrierType) override
@@ -3623,18 +3606,46 @@ namespace VK
 
 		virtual void Draw(int firstVertex, int vertexCount) override
 		{
+			buffer.bindDescriptorSets(
+				curPipeline->pipelineBindPoint,
+				curPipeline->pipelineLayout,
+				0,
+				curPipeline->descSetCount,
+				pendingDescSets.Buffer(),
+				0, nullptr);
 			buffer.draw(vertexCount, 1, firstVertex, 0);
 		}
 		virtual void DrawInstanced(int numInstances, int firstVertex, int vertexCount) override
 		{
+			buffer.bindDescriptorSets(
+				curPipeline->pipelineBindPoint,
+				curPipeline->pipelineLayout,
+				0,
+				curPipeline->descSetCount,
+				pendingDescSets.Buffer(),
+				0, nullptr);
 			buffer.draw(vertexCount, numInstances, firstVertex, 0);
 		}
 		virtual void DrawIndexed(int firstIndex, int indexCount) override
 		{
+			buffer.bindDescriptorSets(
+				curPipeline->pipelineBindPoint,
+				curPipeline->pipelineLayout,
+				0,
+				curPipeline->descSetCount,
+				pendingDescSets.Buffer(),
+				0, nullptr);
 			buffer.drawIndexed(indexCount, 1, firstIndex, 0, 0);
 		}
 		virtual void DrawIndexedInstanced(int numInstances, int firstIndex, int indexCount) override
 		{
+			buffer.bindDescriptorSets(
+				curPipeline->pipelineBindPoint,
+				curPipeline->pipelineLayout,
+				0,
+				curPipeline->descSetCount,
+				pendingDescSets.Buffer(),
+				0, nullptr);
 			buffer.drawIndexed(indexCount, numInstances, firstIndex, 0, 0);
 		}
 
