@@ -265,10 +265,11 @@ namespace GameEngine
 		syncFences[frameCounter % DynamicBufferLengthMultiplier]->Wait();
 		renderer->GetHardwareRenderer()->ResetTempBufferVersion(frameCounter % DynamicBufferLengthMultiplier);
 		auto cpuTimePoint = CoreLib::Diagnostics::PerformanceCounter::Start();
+
 		renderer->GetHardwareRenderer()->BeginDataTransfer();
 		renderer->TakeSnapshot();
-        renderer->GetHardwareRenderer()->EndDataTransfer();
-		renderer->Wait();
+		renderer->GetHardwareRenderer()->EndDataTransfer();
+
         renderer->RenderFrame();
         stats.CpuTime += CoreLib::Diagnostics::PerformanceCounter::EndSeconds(cpuTimePoint);
 

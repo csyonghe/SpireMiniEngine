@@ -180,6 +180,7 @@
     <ClCompile Include="GLAPI\GLHardwareRenderer.cpp" />
     <ClCompile Include="GraphicsSettings.cpp" />
     <ClCompile Include="HardwareInputInterface.cpp" />
+    <ClCompile Include="ImageLayoutTransferTaskPool.cpp" />
     <ClCompile Include="InputDispatcher.cpp" />
     <ClCompile Include="Level.cpp" />
     <ClCompile Include="LightingData.cpp" />
@@ -233,6 +234,7 @@
     <ClInclude Include="CameraActor.h" />
     <ClInclude Include="CatmullSpline.h" />
     <ClInclude Include="EnvMapActor.h" />
+    <ClInclude Include="ImageLayoutTransferTaskPool.h" />
     <ClInclude Include="LightBinningPass.h" />
     <ClInclude Include="Drawable.h" />
     <ClInclude Include="EngineLimits.h" />

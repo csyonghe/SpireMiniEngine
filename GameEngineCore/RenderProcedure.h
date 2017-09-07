@@ -2,6 +2,7 @@
 #define GAME_ENGINE_RENDER_PROCEDURE_H
 
 #include "RenderContext.h"
+#include "ImageLayoutTransferTaskPool.h"
 
 namespace GameEngine
 {
@@ -21,6 +22,7 @@ namespace GameEngine
 	private:
 		int frameId = 0;
 		CoreLib::List<CoreLib::RefPtr<RenderTask>> subTasks[3];
+		ImageLayoutTransferTaskPool imageLayoutTaskPool;
 	public:
 		SharedModuleInstances sharedModuleInstances;
 		void Clear()
@@ -32,10 +34,15 @@ namespace GameEngine
 			frameId++;
 			frameId %= 3;
 			subTasks[frameId].Clear();
+			imageLayoutTaskPool.Reset();
 		}
 		void AddTask(const CoreLib::RefPtr<RenderTask>& task)
 		{
 			subTasks[frameId].Add(task);
+		}
+		void AddImageTransferTask(CoreLib::ArrayView<Texture*> renderTargetTextures, CoreLib::ArrayView<Texture*> samplingTextures)
+		{
+			subTasks[frameId].Add(imageLayoutTaskPool.NewImageLayoutTransferTask(renderTargetTextures, samplingTextures));
 		}
 		CoreLib::List<CoreLib::RefPtr<RenderTask>> & GetTasks()
 		{

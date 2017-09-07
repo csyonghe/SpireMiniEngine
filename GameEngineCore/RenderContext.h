@@ -120,16 +120,15 @@ namespace GameEngine
 		virtual void Execute(HardwareRenderer * hw, RenderStat & stats) override;
 	};
 
-	class ImageTransferRenderTask : public RenderTask
+	class GeneralRenderTask : public RenderTask
 	{
 	private:
-		ImageTransferRenderTask() = default;
+		GeneralRenderTask() = default;
+		AsyncCommandBuffer * commandBuffer = nullptr;
 	public:
-		ImageTransferRenderTask(CoreLib::ArrayView<Texture*> renderTargetTextures, CoreLib::ArrayView<Texture*> samplingTextures);
-		CoreLib::RefPtr<AsyncCommandBuffer> commandBuffer = nullptr;
+		GeneralRenderTask(AsyncCommandBuffer * cmdBuffer);
 		virtual void Execute(HardwareRenderer * hw, RenderStat & stats) override;
 	};
-
 
 	CoreLib::String GetSpireOutput(SpireDiagnosticSink * sink);
 	

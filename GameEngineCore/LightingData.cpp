@@ -169,7 +169,7 @@ namespace GameEngine
 			probe.envMapId = 0;
 			lightProbes.Add(probe);
 		}
-		tasks.AddTask(new ImageTransferRenderTask(MakeArrayView(dynamic_cast<Texture*>(shadowMapRes.shadowMapArray.Ptr())), ArrayView<Texture*>()));
+		tasks.AddImageTransferTask(MakeArrayView(dynamic_cast<Texture*>(shadowMapRes.shadowMapArray.Ptr())), ArrayView<Texture*>());
 		float zmin = params.view.ZNear;
 		int shadowMapViewInstancePtr = 0;
 		int shadowMapSize = Engine::Instance()->GetGraphicsSettings().ShadowMapResolution;
@@ -295,9 +295,10 @@ namespace GameEngine
 				AddShadowPass(tasks, shadowRenderPass, sink, shadowMapRes, light.shaderMapId, shadowMapView, shadowMapViewInstancePtr);
 			}
 		}
-		tasks.AddTask(new ImageTransferRenderTask(ArrayView<Texture*>(), MakeArrayView(dynamic_cast<Texture*>(shadowMapRes.shadowMapArray.Ptr()))));
+		tasks.AddImageTransferTask(ArrayView<Texture*>(), MakeArrayView(dynamic_cast<Texture*>(shadowMapRes.shadowMapArray.Ptr())));
 		uniformData.lightCount = lights.Count();
 		uniformData.lightProbeCount = lightProbes.Count();
+
 		moduleInstance.SetUniformData(&uniformData, sizeof(uniformData));
 		auto lightPtr = (GpuLightData*)((char*)lightBufferPtr + moduleInstance.GetCurrentVersion() * lightBufferSize);
 		memcpy(lightPtr, lights.Buffer(), lights.Count() * sizeof(GpuLightData));

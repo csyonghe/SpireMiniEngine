@@ -242,7 +242,7 @@ namespace GameEngine
 			auto cameraCullFrustum = CullFrustum(params.view.GetFrustum(aspect));
 			
 			forwardBaseOutput->GetFrameBuffer()->GetRenderAttachments().GetTextures(textures);
-			task.AddTask(new ImageTransferRenderTask(textures.GetArrayView(), CoreLib::ArrayView<Texture*>()));
+			task.AddImageTransferTask(textures.GetArrayView(), CoreLib::ArrayView<Texture*>());
 
 			forwardRenderPass->Bind();
 			sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
@@ -252,7 +252,7 @@ namespace GameEngine
 			sharedRes->pipelineManager.PopModuleInstance();
 			task.AddTask(forwardBaseInstance);
 
-			task.AddTask(new ImageTransferRenderTask(CoreLib::ArrayView<Texture*>(), textures.GetArrayView()));
+			task.AddImageTransferTask(CoreLib::ArrayView<Texture*>(), textures.GetArrayView());
 
 			if (useAtmosphere)
 			{
@@ -282,9 +282,9 @@ namespace GameEngine
 				transparentPassInstance->SetFixedOrderDrawContent(sharedRes->pipelineManager, reorderBuffer.GetArrayView());
 				sharedRes->pipelineManager.PopModuleInstance();
 				sharedRes->pipelineManager.PopModuleInstance();
-				task.AddTask(new ImageTransferRenderTask(textures.GetArrayView(), CoreLib::ArrayView<Texture*>()));
+				task.AddImageTransferTask(textures.GetArrayView(), CoreLib::ArrayView<Texture*>());
 				task.AddTask(transparentPassInstance);
-				task.AddTask(new ImageTransferRenderTask(CoreLib::ArrayView<Texture*>(), textures.GetArrayView()));
+				task.AddImageTransferTask(CoreLib::ArrayView<Texture*>(), textures.GetArrayView());
 			}
 
 			if (toneMapping)

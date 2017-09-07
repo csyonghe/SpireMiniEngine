@@ -24,5 +24,6 @@ namespace GameEngine
 			Radius = (float)parser.ReadDouble();
 			return true;
 		}
+		return false;
 	}
 }

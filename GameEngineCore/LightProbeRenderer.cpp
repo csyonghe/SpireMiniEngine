@@ -181,15 +181,15 @@ namespace GameEngine
 		HardwareRenderer * hw = renderer->GetHardwareRenderer();
 		int resolution = EnvMapSize;
 		int numLevels = Math::Log2Floor(resolution) + 1;
+		task.NewFrame();
 		RenderStat stat;
-		ImageTransferRenderTask t1(MakeArrayView(dynamic_cast<Texture*>(tempEnv.Ptr())), ArrayView<Texture*>());
-		t1.Execute(hw, stat);
-
-		ImageTransferRenderTask t3(MakeArrayView(dynamic_cast<Texture*>(dest)), ArrayView<Texture*>());
-		t3.Execute(hw, stat);
+		task.AddImageTransferTask(MakeArrayView(dynamic_cast<Texture*>(tempEnv.Ptr())), ArrayView<Texture*>());
+		task.AddImageTransferTask(MakeArrayView(dynamic_cast<Texture*>(dest)), ArrayView<Texture*>());
+		for (auto & subTask : task.GetTasks())
+			subTask->Execute(hw, stat);
+		task.Clear();
 
 		viewRes->Resize(resolution, resolution);
-		FrameRenderTask task;
 		RenderProcedureParameters params;
 		params.level = level;
 		params.renderer = renderer;
@@ -328,8 +328,11 @@ namespace GameEngine
 			}
 			hw->Wait();
 		}
-		ImageTransferRenderTask t2(ArrayView<Texture*>(), MakeArrayView(dynamic_cast<Texture*>(tempEnv.Ptr())));
-		t2.Execute(hw, stat);
+
+		task.Clear();
+		task.AddImageTransferTask(ArrayView<Texture*>(), MakeArrayView(dynamic_cast<Texture*>(tempEnv.Ptr())));
+		for (auto & subTask : task.GetTasks())
+			subTask->Execute(hw, stat);
 
 		// prefilter
 		RefPtr<PipelineBuilder> pb2 = hw->CreatePipelineBuilder();
@@ -417,8 +420,10 @@ namespace GameEngine
 				hw->Wait();
 			}
 		}
-		ImageTransferRenderTask t4(ArrayView<Texture*>(), MakeArrayView(dynamic_cast<Texture*>(dest)));
-		t4.Execute(hw, stat);
+		task.Clear();
+		task.AddImageTransferTask(ArrayView<Texture*>(), MakeArrayView(dynamic_cast<Texture*>(dest)));
+		for (auto & subTask : task.GetTasks())
+			subTask->Execute(hw, stat);
 		hw->Wait();
 	}
 }

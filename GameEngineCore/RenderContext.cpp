@@ -817,15 +817,11 @@ namespace GameEngine
 		stats.NumShaders += numShaders;
 		hwRenderer->ExecuteRenderPass(renderOutput->GetFrameBuffer(), MakeArrayView(commandBuffer->GetBuffer()), nullptr);
 	}
-	ImageTransferRenderTask::ImageTransferRenderTask(CoreLib::ArrayView<Texture*> renderTargetTextures, CoreLib::ArrayView<Texture*> samplingTextures)
+	GeneralRenderTask::GeneralRenderTask(AsyncCommandBuffer * cmdBuffer)
 	{
-		commandBuffer = new AsyncCommandBuffer(Engine::Instance()->GetRenderer()->GetHardwareRenderer());
-		auto buf = commandBuffer->BeginRecording();
-		buf->TransferLayout(renderTargetTextures, TextureLayoutTransfer::UndefinedToRenderAttachment);
-		buf->TransferLayout(samplingTextures, TextureLayoutTransfer::RenderAttachmentToSample);
-		buf->EndRecording();
+		commandBuffer = cmdBuffer;
 	}
-	void ImageTransferRenderTask::Execute(HardwareRenderer * hwRenderer, RenderStat & /*stats*/)
+	void GeneralRenderTask::Execute(HardwareRenderer * hwRenderer, RenderStat & /*stats*/)
 	{
 		hwRenderer->ExecuteNonRenderCommandBuffers(MakeArrayView(commandBuffer->GetBuffer()));
 	}

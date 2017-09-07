@@ -486,7 +486,7 @@ namespace VK
 
 		static void DestroyInstance()
 		{
-			//DEBUG_ONLY(State().instance.destroyDebugReportCallbackEXT(State().callback));
+			DEBUG_ONLY(State().instance.destroyDebugReportCallbackEXT(State().callback));
 			State().instance.destroy();
 		}
 
@@ -1126,6 +1126,7 @@ namespace VK
 		int mipLevels;
 		int arrayLayers;
 		int numSamples;
+		bool isCubeArray = false;
 		vk::Image image;
 		CoreLib::List<vk::ImageView> views;
 		vk::DeviceMemory memory;
@@ -1380,206 +1381,67 @@ namespace VK
 				dataTypeSize >>= 1;
 				data = (void*)translatedBuffer.Buffer();
 			}
-			bool useStagingImage = false;
-			if (useStagingImage)
+			
+			// Set up staging buffer and copy data to new image
+			int bufferSize = pwidth * pheight * pdepth * layerCount * dataTypeSize;
+			if (format == StorageFormat::BC1 || format == StorageFormat::BC5 || format == StorageFormat::BC3)
 			{
-				// Set up staging image and copy data to new image
-				int inputTypeSize = DataTypeSize(inputType);
-
-				// Create staging image
-				vk::ImageCreateInfo stagingImageCreateInfo = vk::ImageCreateInfo()
-					.setFlags(vk::ImageCreateFlags())
-					.setImageType(depth == 1 ? vk::ImageType::e2D : vk::ImageType::e3D)
-					.setFormat(TranslateStorageFormat(format))//TODO: base this off of inputType
-					.setExtent(vk::Extent3D(pwidth, pheight, pdepth))
-					.setMipLevels(1)
-					.setArrayLayers(layerCount)
-					.setSamples(vk::SampleCountFlagBits::e1)
-					.setTiling(vk::ImageTiling::eLinear)
-					.setUsage(vk::ImageUsageFlagBits::eTransferSrc)
-					.setSharingMode(vk::SharingMode::eExclusive)
-					.setQueueFamilyIndexCount(0)
-					.setPQueueFamilyIndices(nullptr)
-					.setInitialLayout(vk::ImageLayout::ePreinitialized);
-
-				vk::Image stagingImage = RendererState::Device().createImage(stagingImageCreateInfo);
-
-				vk::MemoryRequirements stagingImageMemoryRequirements = RendererState::Device().getImageMemoryRequirements(image);
-
-				vk::MemoryAllocateInfo imageAllocateInfo = vk::MemoryAllocateInfo()
-					.setAllocationSize(stagingImageMemoryRequirements.size)
-					.setMemoryTypeIndex(GetMemoryType(stagingImageMemoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible));
-
-				vk::DeviceMemory stagingMemory = RendererState::Device().allocateMemory(imageAllocateInfo);
-
-				RendererState::Device().bindImageMemory(stagingImage, stagingMemory, 0);
-
-				vk::ImageSubresource stagingImageSubresource = vk::ImageSubresource()
-					.setAspectMask(aspectFlags)
-					.setMipLevel(0)
-					.setArrayLayer(0);
-
-				vk::SubresourceLayout stagingSubresourceLayout = RendererState::Device().getImageSubresourceLayout(stagingImage, stagingImageSubresource);
-
-				// Copy data to staging image
-				void* stagingMappedMemory = RendererState::Device().mapMemory(stagingMemory, 0, VK_WHOLE_SIZE, vk::MemoryMapFlags());
-
-				if (format == StorageFormat::BC1 || format == StorageFormat::BC5 || format == StorageFormat::BC3)
-				{
-					int blocks = (int)(ceil(pwidth / 4.0f) * ceil(pheight / 4.0f));
-					int bufferSize = format == StorageFormat::BC1 ? blocks * 8 : blocks * 16;
-					memcpy(stagingMappedMemory, data, bufferSize);
-				}
-				else
-				{
-					char* rowPtr = reinterpret_cast<char*>(stagingMappedMemory);
-					for (int y = 0; y < pheight; y++)
-					{
-						memcpy(rowPtr, &((char*)data)[y * pwidth * inputTypeSize], pwidth * inputTypeSize);
-						rowPtr += stagingSubresourceLayout.rowPitch;
-					}
-				}
-
-				RendererState::Device().unmapMemory(stagingMemory);
-
-				// Create image copy information
-				//TODO: Should this be a blit?
-				//TODO: Correctly handle format conversions
-				vk::ImageCopy stagingCopy = vk::ImageCopy()
-					.setSrcOffset(vk::Offset3D(0, 0, 0))
-					.setSrcSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(0).setBaseArrayLayer(0).setLayerCount(1))
-					.setDstOffset(vk::Offset3D(0, 0, 0))
-					.setDstSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(level).setBaseArrayLayer(0).setLayerCount(1))
-					.setExtent(vk::Extent3D(pwidth, pheight, 1));
-
-				// Create command buffer
-				//TODO: Use CommandBuffer class?
-				vk::CommandBuffer transferCommandBuffer = RendererState::GetTempTransferCommandBuffer();
-
-				// Record command buffer
-				vk::ImageSubresourceRange textureSubresourceRange = vk::ImageSubresourceRange()
-					.setAspectMask(aspectFlags)
-					.setBaseMipLevel(0)
-					.setLevelCount(mipLevels)
-					.setBaseArrayLayer(0)
-					.setLayerCount(1);
-
-				vk::ImageMemoryBarrier textureCopyBarrier = vk::ImageMemoryBarrier()
-					.setSrcAccessMask(LayoutFlags(vk::ImageLayout::eUndefined))
-					.setDstAccessMask(LayoutFlags(vk::ImageLayout::eTransferDstOptimal))
-					.setOldLayout(vk::ImageLayout::eUndefined)
-					.setNewLayout(vk::ImageLayout::eTransferDstOptimal)
-					.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-					.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-					.setImage(this->image)
-					.setSubresourceRange(textureSubresourceRange);
-
-				vk::ImageMemoryBarrier textureUsageBarrier = vk::ImageMemoryBarrier()
-					.setSrcAccessMask(LayoutFlags(vk::ImageLayout::eTransferDstOptimal))
-					.setDstAccessMask(LayoutFlags(LayoutFromUsage(this->usage)))
-					.setOldLayout(vk::ImageLayout::eTransferDstOptimal)
-					.setNewLayout(LayoutFromUsage(this->usage))
-					.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-					.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-					.setImage(this->image)
-					.setSubresourceRange(textureSubresourceRange);
-
-				vk::CommandBufferBeginInfo transferBeginInfo = vk::CommandBufferBeginInfo()
-					.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit)
-					.setPInheritanceInfo(nullptr);
-
-				transferCommandBuffer.begin(transferBeginInfo);
-				transferCommandBuffer.pipelineBarrier(
-					vk::PipelineStageFlagBits::eTopOfPipe,
-					vk::PipelineStageFlagBits::eTopOfPipe,
-					vk::DependencyFlags(),
-					nullptr,
-					nullptr,
-					textureCopyBarrier
-				);
-				transferCommandBuffer.copyImage(stagingImage, vk::ImageLayout::ePreinitialized, this->image, vk::ImageLayout::eTransferDstOptimal, stagingCopy);
-				transferCommandBuffer.pipelineBarrier(
-					vk::PipelineStageFlagBits::eTopOfPipe,
-					vk::PipelineStageFlagBits::eTopOfPipe,
-					vk::DependencyFlags(),
-					nullptr,
-					nullptr,
-					textureUsageBarrier
-				);
-				transferCommandBuffer.end();
-
-				// Submit to queue
-				vk::SubmitInfo transferSubmitInfo = vk::SubmitInfo()
-					.setWaitSemaphoreCount(0)
-					.setPWaitSemaphores(nullptr)
-					.setPWaitDstStageMask(nullptr)
-					.setCommandBufferCount(1)
-					.setPCommandBuffers(&transferCommandBuffer)
-					.setSignalSemaphoreCount(0)
-					.setPSignalSemaphores(nullptr);
-
-				RendererState::TransferQueue().submit(transferSubmitInfo, vk::Fence());
-				RendererState::TransferQueue().waitIdle(); //TODO: Remove
-
-				// Destroy staging resources
-				RendererState::Device().freeMemory(stagingMemory);
-				RendererState::Device().destroyImage(stagingImage);
+				int blocks = (int)(ceil(pwidth / 4.0f) * ceil(pheight / 4.0f));
+				bufferSize = format == StorageFormat::BC1 ? blocks * 8 : blocks * 16;
+				bufferSize *= layerCount;
 			}
-			else
+
+			vk::BufferCreateInfo stagingBufferCreateInfo = vk::BufferCreateInfo()
+				.setFlags(vk::BufferCreateFlags())
+				.setSize(bufferSize)
+				.setUsage(vk::BufferUsageFlagBits::eTransferSrc)
+				.setSharingMode(vk::SharingMode::eExclusive)
+				.setQueueFamilyIndexCount(0)
+				.setPQueueFamilyIndices(nullptr);
+
+			vk::Buffer stagingBuffer = RendererState::Device().createBuffer(stagingBufferCreateInfo);
+
+			vk::MemoryRequirements stagingBufferMemoryRequirements = RendererState::Device().getBufferMemoryRequirements(stagingBuffer);
+
+			vk::MemoryAllocateInfo bufferAllocateInfo = vk::MemoryAllocateInfo()
+				.setAllocationSize(stagingBufferMemoryRequirements.size)
+				.setMemoryTypeIndex(GetMemoryType(stagingBufferMemoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible));
+
+			vk::DeviceMemory stagingMemory = RendererState::Device().allocateMemory(bufferAllocateInfo);
+
+			RendererState::Device().bindBufferMemory(stagingBuffer, stagingMemory, 0);
+
+			void* stagingMappedMemory = RendererState::Device().mapMemory(stagingMemory, 0, VK_WHOLE_SIZE, vk::MemoryMapFlags());
+			memcpy(stagingMappedMemory, data, bufferSize);
+
+			RendererState::Device().flushMappedMemoryRanges(vk::MappedMemoryRange(stagingMemory, 0, VK_WHOLE_SIZE));
+			RendererState::Device().unmapMemory(stagingMemory);
+
+			// Create buffer image copy information
+			vk::BufferImageCopy stagingCopy = vk::BufferImageCopy()
+				.setBufferOffset(0)
+				.setBufferRowLength(0)
+				.setBufferImageHeight(0)
+				.setImageSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(level).setBaseArrayLayer(layer).setLayerCount(layerCount))
+				.setImageOffset(vk::Offset3D(xOffset, yOffset, zOffset))
+				.setImageExtent(vk::Extent3D(pwidth, pheight, pdepth));
+
+			// Create command buffer
+			//TODO: Use CommandBuffer class?
+			vk::CommandBuffer transferCommandBuffer = RendererState::GetTempTransferCommandBuffer();
+			// Record command buffer
+			vk::CommandBufferBeginInfo transferBeginInfo = vk::CommandBufferBeginInfo()
+				.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit)
+				.setPInheritanceInfo(nullptr);
+			transferCommandBuffer.begin(transferBeginInfo);
+			List<vk::ImageMemoryBarrier> barriers;
+			barriers.Clear();
+			for (int i = 0; i < mipLevels; i++)
 			{
-				// Set up staging buffer and copy data to new image
-				int bufferSize = pwidth * pheight * pdepth * layerCount * dataTypeSize;
-				if (format == StorageFormat::BC1 || format == StorageFormat::BC5 || format == StorageFormat::BC3)
-				{
-					int blocks = (int)(ceil(pwidth / 4.0f) * ceil(pheight / 4.0f));
-					bufferSize = format == StorageFormat::BC1 ? blocks * 8 : blocks * 16;
-					bufferSize *= layerCount;
-				}
-
-				vk::BufferCreateInfo stagingBufferCreateInfo = vk::BufferCreateInfo()
-					.setFlags(vk::BufferCreateFlags())
-					.setSize(bufferSize)
-					.setUsage(vk::BufferUsageFlagBits::eTransferSrc)
-					.setSharingMode(vk::SharingMode::eExclusive)
-					.setQueueFamilyIndexCount(0)
-					.setPQueueFamilyIndices(nullptr);
-
-				vk::Buffer stagingBuffer = RendererState::Device().createBuffer(stagingBufferCreateInfo);
-
-				vk::MemoryRequirements stagingBufferMemoryRequirements = RendererState::Device().getBufferMemoryRequirements(stagingBuffer);
-
-				vk::MemoryAllocateInfo bufferAllocateInfo = vk::MemoryAllocateInfo()
-					.setAllocationSize(stagingBufferMemoryRequirements.size)
-					.setMemoryTypeIndex(GetMemoryType(stagingBufferMemoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible));
-
-				vk::DeviceMemory stagingMemory = RendererState::Device().allocateMemory(bufferAllocateInfo);
-
-				RendererState::Device().bindBufferMemory(stagingBuffer, stagingMemory, 0);
-
-				void* stagingMappedMemory = RendererState::Device().mapMemory(stagingMemory, 0, VK_WHOLE_SIZE, vk::MemoryMapFlags());
-				memcpy(stagingMappedMemory, data, bufferSize);
-
-				RendererState::Device().flushMappedMemoryRanges(vk::MappedMemoryRange(stagingMemory, 0, VK_WHOLE_SIZE));
-				RendererState::Device().unmapMemory(stagingMemory);
-
-				// Create buffer image copy information
-				vk::BufferImageCopy stagingCopy = vk::BufferImageCopy()
-					.setBufferOffset(0)
-					.setBufferRowLength(0)
-					.setBufferImageHeight(0)
-					.setImageSubresource(vk::ImageSubresourceLayers().setAspectMask(aspectFlags).setMipLevel(level).setBaseArrayLayer(layer).setLayerCount(layerCount))
-					.setImageOffset(vk::Offset3D(xOffset, yOffset, zOffset))
-					.setImageExtent(vk::Extent3D(pwidth, pheight, pdepth));
-
-				// Create command buffer
-				//TODO: Use CommandBuffer class?
-				vk::CommandBuffer transferCommandBuffer = RendererState::GetTempTransferCommandBuffer();
-
-				// Record command buffer
 				vk::ImageSubresourceRange textureSubresourceRange = vk::ImageSubresourceRange()
 					.setAspectMask(aspectFlags)
-					.setBaseMipLevel(0)
-					.setLevelCount(mipLevels)
+					.setBaseMipLevel(i)
+					.setLevelCount(1)
 					.setBaseArrayLayer(0)
 					.setLayerCount(arrayLayers);
 
@@ -1592,6 +1454,33 @@ namespace VK
 					.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
 					.setImage(this->image)
 					.setSubresourceRange(textureSubresourceRange);
+				barriers.Add(textureCopyBarrier);
+			}
+				
+			transferCommandBuffer.pipelineBarrier(
+				vk::PipelineStageFlagBits::eTransfer,
+				vk::PipelineStageFlagBits::eTransfer,
+				vk::DependencyFlags(),
+				nullptr,
+				nullptr,
+				vk::ArrayProxy<const vk::ImageMemoryBarrier>(barriers.Count(), barriers.Buffer())
+			);
+			transferCommandBuffer.copyBufferToImage(
+				stagingBuffer,
+				this->image,
+				vk::ImageLayout::eTransferDstOptimal,
+				stagingCopy
+			);
+
+			barriers.Clear();
+			for (int i = 0; i < mipLevels; i++)
+			{
+				vk::ImageSubresourceRange textureSubresourceRange = vk::ImageSubresourceRange()
+					.setAspectMask(aspectFlags)
+					.setBaseMipLevel(i)
+					.setLevelCount(1)
+					.setBaseArrayLayer(0)
+					.setLayerCount(arrayLayers);
 
 				vk::ImageMemoryBarrier textureUsageBarrier = vk::ImageMemoryBarrier()
 					.setSrcAccessMask(LayoutFlags(vk::ImageLayout::eTransferDstOptimal))
@@ -1602,53 +1491,34 @@ namespace VK
 					.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
 					.setImage(this->image)
 					.setSubresourceRange(textureSubresourceRange);
-
-				vk::CommandBufferBeginInfo transferBeginInfo = vk::CommandBufferBeginInfo()
-					.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit)
-					.setPInheritanceInfo(nullptr);
-
-				transferCommandBuffer.begin(transferBeginInfo);
-				transferCommandBuffer.pipelineBarrier(
-					vk::PipelineStageFlagBits::eTransfer,
-					vk::PipelineStageFlagBits::eTransfer,
-					vk::DependencyFlags(),
-					nullptr,
-					nullptr,
-					textureCopyBarrier
-				);
-				transferCommandBuffer.copyBufferToImage(
-					stagingBuffer,
-					this->image,
-					vk::ImageLayout::eTransferDstOptimal,
-					stagingCopy
-				);
-				transferCommandBuffer.pipelineBarrier(
-					vk::PipelineStageFlagBits::eTransfer,
-					vk::PipelineStageFlagBits::eAllCommands,
-					vk::DependencyFlags(),
-					nullptr,
-					nullptr,
-					textureUsageBarrier
-				);
-				transferCommandBuffer.end();
-
-				// Submit to queue
-				vk::SubmitInfo transferSubmitInfo = vk::SubmitInfo()
-					.setWaitSemaphoreCount(0)
-					.setPWaitSemaphores(nullptr)
-					.setPWaitDstStageMask(nullptr)
-					.setCommandBufferCount(1)
-					.setPCommandBuffers(&transferCommandBuffer)
-					.setSignalSemaphoreCount(0)
-					.setPSignalSemaphores(nullptr);
-
-				RendererState::TransferQueue().submit(transferSubmitInfo, vk::Fence());
-				RendererState::TransferQueue().waitIdle(); //TODO: Remove
-
-				// Destroy staging resources
-				RendererState::Device().freeMemory(stagingMemory);
-				RendererState::Device().destroyBuffer(stagingBuffer);
+				barriers.Add(textureUsageBarrier);
 			}
+			transferCommandBuffer.pipelineBarrier(
+				vk::PipelineStageFlagBits::eTransfer,
+				vk::PipelineStageFlagBits::eAllCommands,
+				vk::DependencyFlags(),
+				nullptr,
+				nullptr,
+				vk::ArrayProxy<const vk::ImageMemoryBarrier>(barriers.Count(), barriers.Buffer())
+			);
+			transferCommandBuffer.end();
+
+			// Submit to queue
+			vk::SubmitInfo transferSubmitInfo = vk::SubmitInfo()
+				.setWaitSemaphoreCount(0)
+				.setPWaitSemaphores(nullptr)
+				.setPWaitDstStageMask(nullptr)
+				.setCommandBufferCount(1)
+				.setPCommandBuffers(&transferCommandBuffer)
+				.setSignalSemaphoreCount(0)
+				.setPSignalSemaphores(nullptr);
+
+			RendererState::TransferQueue().submit(transferSubmitInfo, vk::Fence());
+			RendererState::TransferQueue().waitIdle(); //TODO: Remove
+
+			// Destroy staging resources
+			RendererState::Device().freeMemory(stagingMemory);
+			RendererState::Device().destroyBuffer(stagingBuffer);
 
 			this->currentLayout = LayoutFromUsage(this->usage);
 		}
@@ -1978,7 +1848,7 @@ namespace VK
 			zeroMem.SetSize(psize * psize * 6 * 4);
 			for (int i = 0; i < zeroMem.Count(); i++)
 				zeroMem[i] = 0.0f;
-			for (int i = 0; i < (int)Math::Log2Ceil(psize); i++)
+			for (int i = 0; i < mipLevels; i++)
 				VK::Texture::SetData(i, 0, 0, 0, 0, psize >> i, psize >> i, 1, 6, DataType::Float4, zeroMem.Buffer());
 		};
 		int size = 0;
@@ -1995,11 +1865,12 @@ namespace VK
 		TextureCubeArray(TextureUsage usage, int cubeCount, int psize, int mipLevels, StorageFormat format)
 			: VK::Texture(usage, psize, psize, 1, mipLevels, cubeCount * 6, 1, format, vk::ImageCreateFlagBits::eCubeCompatible), size(psize)
 		{
+			this->isCubeArray = true;
 			List<float> zeroMem;
 			zeroMem.SetSize(psize * psize * 6 * 4 * cubeCount);
 			for (int i = 0; i < zeroMem.Count(); i++)
 				zeroMem[i] = 0.0f;
-			for (int i = 0; i < (int)Math::Log2Ceil(psize); i++)
+			for (int i = 0; i < mipLevels; i++)
 				VK::Texture::SetData(i, 0, 0, 0, 0, psize >> i, psize >> i, 1, cubeCount * 6, DataType::Float4, zeroMem.Buffer());
 			count = cubeCount;
 		};
@@ -2280,7 +2151,6 @@ namespace VK
 		}
 		void SetDataAsync(int offset, void* data, int psize)
 		{
-			SetData(offset, data, psize);
 			// If the buffer is mappable, map and memcpy
 			if (location & vk::MemoryPropertyFlagBits::eHostVisible)
 			{
@@ -2349,7 +2219,7 @@ namespace VK
 			{
 				// Create command buffer
 				//TODO: Should this use a global buffer? How to handle thread safety?
-				vk::CommandBuffer transferCommandBuffer = RendererState::CreateCommandBuffer(RendererState::TransferCommandPool());
+				vk::CommandBuffer transferCommandBuffer = RendererState::GetTempTransferCommandBuffer();
 
 				//TODO: Improve switching logic
 				bool staging = psize > (1 << 18);
@@ -2407,7 +2277,6 @@ namespace VK
 
 					RendererState::TransferQueue().submit(transferSubmitInfo, vk::Fence());
 					RendererState::TransferQueue().waitIdle(); //TODO: Remove
-					RendererState::DestroyCommandBuffer(RendererState::TransferCommandPool(), transferCommandBuffer);
 
 					// Destroy staging resources
 					RendererState::Device().freeMemory(stagingMemory);
@@ -2447,7 +2316,6 @@ namespace VK
 						.setPSignalSemaphores(nullptr);
 					RendererState::TransferQueue().submit(transferSubmitInfo, vk::Fence());
 					RendererState::TransferQueue().waitIdle(); //TODO: Remove
-					RendererState::DestroyCommandBuffer(RendererState::TransferCommandPool(), transferCommandBuffer);
 				}
 			}
 		}
@@ -3831,23 +3699,49 @@ namespace VK
 					}
 				}
 
-				vk::ImageSubresourceRange subresourceRange = vk::ImageSubresourceRange()
-					.setAspectMask(aspectFlags)
-					.setBaseMipLevel(0)
-					.setLevelCount(internalTex->mipLevels)
-					.setBaseArrayLayer(0)
-					.setLayerCount(internalTex->arrayLayers);
+				// workaround for intel: miplevelCount for a barrier must be 1 when using TextureCubeArray
+				if (internalTex->isCubeArray)
+				{
+					for (int i = 0; i < internalTex->mipLevels; i++)
+					{
+						vk::ImageSubresourceRange subresourceRange = vk::ImageSubresourceRange()
+							.setAspectMask(aspectFlags)
+							.setBaseMipLevel(i)
+							.setLevelCount(1)
+							.setBaseArrayLayer(0)
+							.setLayerCount(internalTex->arrayLayers);
 
-				imageBarriers.Add(vk::ImageMemoryBarrier()
-					.setSrcAccessMask(LayoutFlags(oldLayout))
-					.setDstAccessMask(LayoutFlags(newLayout))
-					.setOldLayout(oldLayout)
-					.setNewLayout(newLayout)
-					.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-					.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-					.setImage(internalTex->image)
-					.setSubresourceRange(subresourceRange));
+						imageBarriers.Add(vk::ImageMemoryBarrier()
+							.setSrcAccessMask(LayoutFlags(oldLayout))
+							.setDstAccessMask(LayoutFlags(newLayout))
+							.setOldLayout(oldLayout)
+							.setNewLayout(newLayout)
+							.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+							.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+							.setImage(internalTex->image)
+							.setSubresourceRange(subresourceRange));
 
+					}
+				}
+				else
+				{
+					vk::ImageSubresourceRange subresourceRange = vk::ImageSubresourceRange()
+						.setAspectMask(aspectFlags)
+						.setBaseMipLevel(0)
+						.setLevelCount(internalTex->mipLevels)
+						.setBaseArrayLayer(0)
+						.setLayerCount(internalTex->arrayLayers);
+
+					imageBarriers.Add(vk::ImageMemoryBarrier()
+						.setSrcAccessMask(LayoutFlags(oldLayout))
+						.setDstAccessMask(LayoutFlags(newLayout))
+						.setOldLayout(oldLayout)
+						.setNewLayout(newLayout)
+						.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+						.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+						.setImage(internalTex->image)
+						.setSubresourceRange(subresourceRange));
+				}
 				internalTex->currentLayout = newLayout;
 			}
 
@@ -4093,6 +3987,7 @@ namespace VK
 
         CoreLib::List<vk::Image> images; //alternatively could call getSwapchainImages each time
         CoreLib::List<vk::CommandBuffer> presentCommandBuffers, clearCommandBuffers;
+		CoreLib::List<vk::Fence> presentCommandBufferFences;
         vk::Semaphore imageAvailableSemaphore, renderFinishedSemaphore;
 
         VkWindowSurface(void * hwnd, int w, int h)
@@ -4149,7 +4044,10 @@ namespace VK
                 .setImage(images[nextImage])
                 .setSubresourceRange(imageSubresourceRange);
 
-			auto cmdBuffer = RendererState::GetTempRenderCommandBuffer();
+			int cmdBufId = frameId % presentCommandBuffers.Count();
+			auto cmdBuffer = presentCommandBuffers[cmdBufId];
+			RendererState::Device().waitForFences(1, &presentCommandBufferFences[cmdBufId], true, 0);
+			RendererState::Device().resetFences(1, &presentCommandBufferFences[cmdBufId]);
 			cmdBuffer.begin(commandBufferBeginInfo); // start recording
 			cmdBuffer.pipelineBarrier(
                 vk::PipelineStageFlagBits::eAllCommands,
@@ -4263,7 +4161,7 @@ namespace VK
                 .setSignalSemaphoreCount(1)
                 .setPSignalSemaphores(&renderFinishedSemaphore);
 
-            RendererState::RenderQueue().submit(submitInfo, vk::Fence());
+            RendererState::RenderQueue().submit(submitInfo, presentCommandBufferFences[cmdBufId]);
 
             vk::PresentInfoKHR presentInfo = vk::PresentInfoKHR()
                 .setWaitSemaphoreCount(1)
@@ -4374,6 +4272,12 @@ namespace VK
 			clearCommandBuffers.SetSize(commandBufferAllocateInfo.commandBufferCount);
 			RendererState::Device().allocateCommandBuffers(&commandBufferAllocateInfo, clearCommandBuffers.Buffer());
 
+			presentCommandBufferFences.SetSize(presentCommandBuffers.Count());
+			vk::FenceCreateInfo fenceCreateInfo;
+			fenceCreateInfo.setFlags(vk::FenceCreateFlagBits::eSignaled);
+			for (int i = 0; i < presentCommandBuffers.Count(); i++)
+				presentCommandBufferFences[i] = RendererState::Device().createFence(fenceCreateInfo);
+
 			// record clear command buffers
 			for (int image = 0; image < images.Count(); image++)
 			{
@@ -4460,10 +4364,16 @@ namespace VK
 
         void DestroyCommandBuffers()
         {
+			if (presentCommandBufferFences.Count())
+				RendererState::Device().waitForFences(presentCommandBufferFences.Count(), presentCommandBufferFences.Buffer(), true, 0);
+			for (auto fence : presentCommandBufferFences)
+				RendererState::Device().destroyFence(fence);
             for (auto commandBuffer : presentCommandBuffers)
                 RendererState::Device().freeCommandBuffers(RendererState::SwapchainCommandPool(), commandBuffer);
 			for (auto commandBuffer : clearCommandBuffers)
 				RendererState::Device().freeCommandBuffers(RendererState::SwapchainCommandPool(), commandBuffer);
+			
+			presentCommandBufferFences.Clear();
         }
 
         void DestroySwapchain()
@@ -4495,8 +4405,6 @@ namespace VK
 
             this->width = pwidth;
             this->height = pheight;
-
-            size_t oldImageCount = images.Count();
 
             CreateSwapchain();
         }

@@ -136,6 +136,7 @@
     <ClCompile Include="EnvMapActor.cpp">
       <Filter>Actors</Filter>
     </ClCompile>
+    <ClCompile Include="ImageLayoutTransferTaskPool.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
@@ -289,6 +290,9 @@
     </ClInclude>
     <ClInclude Include="EnvMapActor.h">
       <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="ImageLayoutTransferTaskPool.h">
+      <Filter>Renderer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
