@@ -2,7 +2,9 @@ module ToneMappingPassParams
 {
     public param vec4 hdrExposure;
     public param Texture2D litColor;
+    public param Texture3D colorLUT;
     public param SamplerState nearestSampler;
+    public param SamplerState linearSampler;
 }
 shader ToneMappingPostPass targets StandardPipeline
 {
@@ -27,6 +29,8 @@ shader ToneMappingPostPass targets StandardPipeline
     public out @Fragment vec4 outputColor
     {
         vec3 src = litColor.Sample(nearestSampler, vertUV).xyz;
-        return vec4(hdr(src), 1.0);
+        vec3 ldr = clamp(hdr(src), vec3(0.0), vec3(1.0));
+        vec3 mapped = colorLUT.Sample(linearSampler, ldr).xyz;
+        return vec4(mapped, 1.0);
     }
 }

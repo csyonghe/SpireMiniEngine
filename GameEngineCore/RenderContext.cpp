@@ -618,6 +618,10 @@ namespace GameEngine
 		linearSampler = hardwareRenderer->CreateTextureSampler();
 		linearSampler->SetFilter(TextureFilter::Linear);
 
+		linearClampedSampler = hardwareRenderer->CreateTextureSampler();
+		linearClampedSampler->SetFilter(TextureFilter::Linear);
+		linearClampedSampler->SetWrapMode(WrapMode::Clamp);
+
 		envMapSampler = hardwareRenderer->CreateTextureSampler();
 		envMapSampler->SetFilter(TextureFilter::Trilinear);
 
@@ -640,6 +644,24 @@ namespace GameEngine
 
 		spireSink = spCreateDiagnosticSink(spireContext);
 		envMapArray = hardwareRenderer->CreateTextureCubeArray(TextureUsage::SampledColorAttachment, EnvMapSize, Math::Log2Floor(EnvMapSize) + 1, MaxEnvMapCount, StorageFormat::RGBA_F16);
+	
+		// create default color lookup texture
+		defaultColorLookupTexture = hardwareRenderer->CreateTexture3D(TextureUsage::Sampled, 16, 16, 16, 1, StorageFormat::RGBA_8);
+		struct color { unsigned char r, g, b, a; };
+		List<color> buffer;
+		buffer.SetSize(16 * 16 * 16);
+		for (int i = 0; i<16; i++)
+			for (int j = 0; j<16; j++)
+				for (int k = 0; k < 16; k++)
+				{
+					color c;
+					c.a = 255;
+					c.r = (unsigned char)(k * 255 / 15);
+					c.g = (unsigned char)(j * 255 / 15);
+					c.b = (unsigned char)(i * 255 / 15);
+					buffer[i * 16 * 16 + j * 16 + k] = c;
+				}
+		defaultColorLookupTexture->SetData(0, 0, 0, 0, 16, 16, 16, DataType::Byte4, buffer.Buffer());
 	}
 	void RendererSharedResource::Destroy()
 	{

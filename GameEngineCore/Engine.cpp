@@ -367,6 +367,23 @@ namespace GameEngine
 			parser.ReadToken();
 			mainWindow->GetUIEntry()->ShowWindow(drawCallStatForm);
 		}
+		else if (parser.LookAhead("saveframe"))
+		{
+			try
+			{
+				parser.ReadToken();
+				auto fileName = parser.ReadStringLiteral();
+				SaveImage(renderer->GetRenderedImage(), fileName);
+			}
+			catch (const IOException &)
+			{
+				Print("IO failure.\n");
+			}
+			catch (Exception & e)
+			{
+				Print("Error: %s\n", e.Message.Buffer());
+			}
+		}
 		else
 		{
 			try

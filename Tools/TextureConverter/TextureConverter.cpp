@@ -46,6 +46,33 @@ void ConvertTexture(const String & fileName, TextureStorageFormat format, bool u
 	}
 }
 
+const int colorLookupImageSize = 16;
+
+void CreateColorLookupTexture(String fileName)
+{
+	CoreLib::Graphics::TextureFile texFile;
+	Bitmap bmp(fileName);
+	if (bmp.GetHeight() != colorLookupImageSize && bmp.GetWidth() != colorLookupImageSize*colorLookupImageSize)
+		printf("Invalid input image dimension. Must be %d x %d.\n", colorLookupImageSize*colorLookupImageSize, colorLookupImageSize);
+	List<Color4ub> pixels;
+	pixels.SetSize(colorLookupImageSize*colorLookupImageSize*colorLookupImageSize);
+	Color4ub * src = (Color4ub*)bmp.GetPixels();
+	for (int i = 0; i < colorLookupImageSize; i++)
+	{
+		for (int j = 0; j < colorLookupImageSize; j++)
+		{
+			for (int k = 0; k < colorLookupImageSize; k++)
+			{
+				pixels[i * colorLookupImageSize * colorLookupImageSize + j * colorLookupImageSize + k] = src[j*colorLookupImageSize*colorLookupImageSize + k + i * colorLookupImageSize];
+			}
+		}
+	}
+	BinaryWriter writer(new FileStream(Path::ReplaceExt(fileName, "clut"), FileMode::Create));
+	writer.Write(colorLookupImageSize);
+	writer.Write(pixels.Buffer(), pixels.Count());
+	writer.Close();
+}
+
 int wmain(int argc, const wchar_t ** argv)
 {
 	if (argc > 1)
@@ -53,6 +80,7 @@ int wmain(int argc, const wchar_t ** argv)
 		bool useSquish = false;
 		TextureStorageFormat format = TextureStorageFormat::BC1;
 		String fileName = String::FromWString(argv[1]);
+		bool colorLookup = false;
 		for (int i = 0; i < argc; i++)
 		{
 			if (String::FromWString(argv[i]) == "-squish")
@@ -73,13 +101,18 @@ int wmain(int argc, const wchar_t ** argv)
 				format = TextureStorageFormat::RGBA8;
 			if (String::FromWString(argv[i]) == "-rgba32f")
 				format = TextureStorageFormat::RGBA_F32;
+			if (String::FromWString(argv[i]) == "-colorlu")
+				colorLookup = true;
 		}
-		ConvertTexture(fileName, format, useSquish);
+		if (colorLookup)
+			CreateColorLookupTexture(fileName);
+		else
+			ConvertTexture(fileName, format, useSquish);
 	}
 	else
 	{
 		printf("Command Format: TextureConverter file_name -format\n");
-		printf("Supported formats: bc1, bc5, r8, rg8, rgb8, rgba8, rgba32f\n");
+		printf("Supported formats: bc1, bc5, r8, rg8, rgb8, rgba8, rgba32f, colorlu (require %d x %d image)\n", colorLookupImageSize*colorLookupImageSize, colorLookupImageSize);
 	}
     return 0;
 }

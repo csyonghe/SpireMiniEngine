@@ -1,13 +1,12 @@
 Camera
 {
     name "FreeCam"
-    position [0.0 120.0 220.0]
-    orientation [0.0 0.1 0.0] // yaw, pitch, roll
+    orientation [0.640 0.365 0.000]
+    position [-160.01 119.70 222.91]
     znear 10.0
     zfar 50000.0
-    fov 60.0
+    fov 40.0
 }
-
 
 FreeRoamCameraController
 {
@@ -22,16 +21,11 @@ ArcBallCameraController
     TargetCamera "FreeCam"
 }
 */
-ToneMapping
-{
-    name "tonemap"
-    Exposure 0.4    
-}
 
-
+/*
 Atmosphere
 {
-    SunDir [-0.5 0.8 0.4]
+    SunDir [0.5 0.4 0.4]
     AtmosphericFogScaleFactor 0.5 
 }
 
@@ -39,54 +33,47 @@ DirectionalLight
 {
     name "sunlight"
     transform [1 0 0 0   0 1 0 0    0 0 1 0    0 5000 0 1]
-    Direction [-0.5 0.8 0.4]
-    Color [2.5 2.5 2.5]
+    Direction [0.5 0.4 0.4]
+    Color [5.5 5.5 5.5]
     EnableCascadedShadows true
     NumShadowCascades 4
     ShadowDistance 1500
     TransitionFactor 0.8 
 }
-
-PointLight
+*/
+DirectionalLight
 {
-    name "plight0"
-    transform [1 0 0 0   0 1 0 0    0 0 1 0    -250 200 -1200 1]
-    Direction [1.0 1.0 1.0]
-    Color [2 4 5]
-    EnableShadows false
-    DecayDistance90Percent 1200
-    IsSpotLight false
-    SpotLightStartAngle 30
-    SpotLightEndAngle 40
+    name "ambient"
+    transform [1 0 0 0   0 1 0 0    0 0 1 0    0 5000 0 1]
+    Direction [-0.5 0.4 -0.4]
+    Color [0.5 0.5 0.5]
+    EnableCascadedShadows false
+    NumShadowCascades 4
+    ShadowDistance 1500
+    TransitionFactor 0.8 
+}
+
+
+EnvMap
+{
+    name "envmap0"
+    transform [1 0 0 0   0 1 0 0    0 0 1 0    0 500 0 1]  
+    Radius 20000
+    TintColor [0 0 0]   
 }
 
 PointLight
 {
     name "plight1"
-    transform [1 0 0 0   0 1 0 0    0 0 1 0    400 400 400 1]
+    transform [1 0 0 0   0 1 0 0    0 0 1 0    200 200 200 1]
     Direction [-1.0 -1.0 -1.0]
-    Color [5 4 2]
+    Color [5 4.4 3.5]
     Radius 2500
     EnableShadows true
     DecayDistance90Percent 2400
     IsSpotLight true
     SpotLightStartAngle 30
     SpotLightEndAngle 40
-}
-
-StaticMesh
-{
-    name "sphere"
-    mesh "sphere.mesh"
-    CastShadow false
-    material
-    {
-        shader "Reflective.shader"        
-    }
-    transform [1.0 0.0 0.0 0.0
-               0.0 1.0 0.0 0.0
-               0.0 0.0 1.0 0.0
-               10.0 100.0 -500.0 1.0] 
 }
 
 StaticMesh
@@ -106,7 +93,7 @@ StaticMesh
     transform [0.0 0.0 -1.0 0.0
                0.0 1.0 0.0 0.0
                1.0 0.0 0.0 0.0
-               1200.0 0.0 -150.0 1.0]
+               0.0 0.0 0.0 1.0]
 }
 
 StaticMesh
@@ -115,32 +102,13 @@ StaticMesh
     mesh "plane.mesh"
     material
     {
-        shader "ParallaxGround.shader"
+        shader "CheckerBoard.shader"
 
-        var albedoMap = texture["pebbles_diffuse.TGA"]
-        var normalMap = texture["pebbles_normal.TGA"]
-        var displacementMap = texture["pebbles_height.TGA"]
+        var albedoMap = texture["checkerBoard.texture"]
         var uvScale = float[100.0]
     }
     transform [100.0 0.0 0.0 0.0
                0.0 100.0 0.0 0.0
                0.0 0.0 100.0 0.0
-               0.0 0.0 0.0 1.0]
-}
-
-SkeletalMesh
-{
-    name "hero"
-    mesh "hero/HeroTPP.mesh"
-    Skeleton "hero/HeroTPP.skeleton"
-    SimpleAnimation "hero/Run_Fwd.anim"
-    material
-    {
-        shader "Hero.shader"
-        var albedoMap = texture["Hero/Chr_FPS_D.TGA"]
-    }
-    transform [1.0 0.0 0.0 0.0
-               0.0 1.0 0.0 0.0
-               0.0 0.0 1.0 0.0
                0.0 0.0 0.0 1.0]
 }

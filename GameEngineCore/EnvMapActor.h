@@ -11,7 +11,7 @@ namespace GameEngine
 		int envMapId = -1;
 	public:
 		float Radius = 1000.0f;
-		VectorMath::Vec3 TintColor;
+		VectorMath::Vec3 TintColor = VectorMath::Vec3::Create(1.0f);
 		int GetEnvMapId()
 		{
 			return envMapId;

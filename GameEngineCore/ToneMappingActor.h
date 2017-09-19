@@ -10,6 +10,7 @@ namespace GameEngine
 	{
 	public:
 		ToneMappingParameters Parameters;
+		CoreLib::RefPtr<Texture3D> lookupTexture;
 		virtual CoreLib::String GetTypeName() override
 		{
 			return "ToneMapping";
@@ -23,6 +24,7 @@ namespace GameEngine
 			return EngineActorType::ToneMapping;
 		}
 	protected:
+		void LoadColorLookupTexture(CoreLib::String fileName);
 		virtual bool ParseField(CoreLib::Text::TokenReader & parser, bool &isInvalid) override;
 
 	};

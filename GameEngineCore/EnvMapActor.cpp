@@ -15,7 +15,7 @@ namespace GameEngine
 		if (parser.LookAhead("TintColor"))
 		{
 			parser.ReadToken();
-			TintColor = ParseVec3(parser).Normalize();
+			TintColor = ParseVec3(parser);
 			return true;
 		}
 		if (parser.LookAhead("Radius"))

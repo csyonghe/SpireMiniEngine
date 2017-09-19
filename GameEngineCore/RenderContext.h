@@ -168,7 +168,8 @@ namespace GameEngine
 	public:
 		RenderStat renderStats;
 		CoreLib::RefPtr<HardwareRenderer> hardwareRenderer;
-		CoreLib::RefPtr<TextureSampler> textureSampler, nearestSampler, linearSampler, envMapSampler, shadowSampler;
+		CoreLib::RefPtr<TextureSampler> textureSampler, nearestSampler, linearSampler, linearClampedSampler, envMapSampler, shadowSampler;
+		CoreLib::RefPtr<Texture3D> defaultColorLookupTexture;
 		CoreLib::EnumerableDictionary<SpireModuleStruct*, CoreLib::RefPtr<DescriptorSetLayout>> descLayouts;
 		SpireCompilationContext * spireContext = nullptr;
 		SpireDiagnosticSink * spireSink = nullptr;

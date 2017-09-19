@@ -123,7 +123,6 @@
       <Filter>Actors</Filter>
     </ClCompile>
     <ClCompile Include="ToneMappingPostRenderPass.cpp" />
-    <ClCompile Include="ToneMappingPostRenderPass.cpp" />
     <ClCompile Include="ArcBallCameraController.cpp">
       <Filter>Actors</Filter>
     </ClCompile>
@@ -137,6 +136,9 @@
       <Filter>Actors</Filter>
     </ClCompile>
     <ClCompile Include="ImageLayoutTransferTaskPool.cpp" />
+    <ClCompile Include="ToneMappingPostRenderPass.cpp">
+      <Filter>Renderer\PostProcess</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />

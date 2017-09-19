@@ -9,6 +9,7 @@ namespace GameEngine
 	class ToneMappingPostRenderPass : public PostRenderPass
 	{
 	protected:
+		Texture3D * lookupTexture = nullptr;
 		CoreLib::RefPtr<RenderTarget> litColorBuffer, colorOutBuffer;
 		CoreLib::RefPtr<DescriptorSet> descSet;
 		CoreLib::RefPtr<Buffer> buffer;
@@ -40,7 +41,14 @@ namespace GameEngine
 			descSet->BeginUpdate();
 			descSet->Update(0, buffer.Ptr());
 			descSet->Update(1, litColorBuffer->Texture.Ptr(), TextureAspect::Color);
-			descSet->Update(2, sharedRes->nearestSampler.Ptr());
+			if (lookupTexture)
+				descSet->Update(2, lookupTexture, TextureAspect::Color);
+			else
+				descSet->Update(2, sharedRes->defaultColorLookupTexture.Ptr(), TextureAspect::Color);
+
+			descSet->Update(3, sharedRes->nearestSampler.Ptr());
+			descSet->Update(4, sharedRes->linearClampedSampler.Ptr());
+
 			descSet->EndUpdate();
 
 			attachments.SetAttachment(0, colorOutBuffer->Texture.Ptr());
@@ -56,6 +64,14 @@ namespace GameEngine
 		virtual void SetParameters(void * data, int count) override
 		{
 			buffer->SetDataAsync(0, data, count);
+			auto param = (ToneMappingParameters*)data;
+			if (param->lookupTexture && param->lookupTexture != lookupTexture)
+			{
+				lookupTexture = param->lookupTexture;
+				descSet->BeginUpdate();
+				descSet->Update(2, lookupTexture, TextureAspect::Color);
+				descSet->EndUpdate();
+			}
 		}
 	public:
 		ToneMappingPostRenderPass(ViewResource * viewRes)

@@ -476,7 +476,7 @@ module Lighting
 
     public vec3 result
     {
-        float dielectricSpecluar = 0.02 * specular_in;
+        float dielectricSpecluar = 0.02*specular_in;
         vec3 diffuseColor = albedo - albedo * metallic_in;
         vec3 specularColor = vec3(dielectricSpecluar - dielectricSpecluar * metallic_in) + albedo * metallic_in;
         vec3 viewPos = (viewTransform * vec4(pos, 1.0)).xyz;
@@ -550,7 +550,7 @@ module Lighting
             vec3 fspecularColor = EnvBRDFApprox(specularColor, roughness_in, NoV);
             
             float RoL = max(0, dot(R, lightDir));
-            color += light.color * dotNL * (diffuseColor + fspecularColor * PhongApprox(roughness_in, RoL)) * (shadow * actualDecay);
+            color += light.color *  (diffuseColor * dotNL + fspecularColor * PhongApprox(roughness_in, RoL)) * (shadow * actualDecay);
         }
 
         // find closest light probe
