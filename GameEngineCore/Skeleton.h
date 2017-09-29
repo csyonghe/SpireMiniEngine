@@ -83,23 +83,24 @@ namespace GameEngine
 		BoneTransformation BindPose;
 	};
 
-	class BoneRetargetInfo
-	{
-	public:
-		float ScaleX = 1.0f, ScaleY = 1.0f, ScaleZ = 1.0f;
-		VectorMath::Quaternion Rotation = VectorMath::Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
-	};
-
 	class RetargetFile
 	{
 	public:
 		CoreLib::String SourceSkeletonName, TargetSkeletonName;
-		CoreLib::List<BoneRetargetInfo> RetargetTransforms;
-		CoreLib::EnumerableDictionary<CoreLib::String, int> BoneMapping;
+		/*
+		final model pos = AnimationPose * AnimationRetargetTransform * SourceRetargetTransform * InverseBindPose * modelVertPos
+		*/
+		CoreLib::List<VectorMath::Quaternion> SourceRetargetTransforms; // this is user input from retargeting tool
+		CoreLib::List<int> ModelBoneIdToAnimationBoneId; // this is user specified source model bone to animation bone mapping (which animation bone to use for driving each source bone)
+		CoreLib::List<VectorMath::Matrix4> RetargetedInversePose; // equals to InverseAnimationSkeletonBindPose * SourceRetargetTransform * InverseBindPose
+		CoreLib::List<VectorMath::Vec3> RetargetedBoneOffsets;
+		VectorMath::Vec3 RootTranslationScale = VectorMath::Vec3::Create(1.0f, 1.0f, 1.0f);
 		void SaveToStream(CoreLib::IO::Stream * stream);
 		void LoadFromStream(CoreLib::IO::Stream * stream);
 		void SaveToFile(const CoreLib::String & filename);
 		void LoadFromFile(const CoreLib::String & filename);
+
+		void SetBoneCount(int count);
 	};
 
 	class Skeleton
@@ -120,45 +121,59 @@ namespace GameEngine
 	{
 	public:
 		CoreLib::List<BoneTransformation> Transforms;
-
 		// used in Rendering
 		void GetMatrices(const Skeleton * skeleton, CoreLib::List<VectorMath::Matrix4> & matrices, bool multiplyInversePose = true, RetargetFile * retarget = nullptr) const
 		{
 			matrices.Clear();
-			matrices.SetSize(Transforms.Count());
+			matrices.SetSize(skeleton->Bones.Count());
 			for (int i = 0; i < matrices.Count(); i++)
 			{
-				auto transform = Transforms[i];
+				matrices[i] = skeleton->Bones[i].BindPose.ToMatrix();
+			}
+			for (int i = 0; i < skeleton->BoneMapping.Count(); i++)
+			{
+				BoneTransformation transform = skeleton->Bones[i].BindPose;
+				int targetId = i;
 				if (retarget)
 				{
-					transform.Rotation = transform.Rotation * retarget->RetargetTransforms[i].Rotation;
-					// YONGH: Hack: use translation from mesh's own bind pose instead of translation data from animation file to 
-					//  adapt to different body heights. Because we don't want to modify the scale factors of that many bones.
-					// this is fine if we are only talking about human character animations
-
-					transform.Translation.x *= retarget->RetargetTransforms[i].ScaleX;
-					transform.Translation.y *= retarget->RetargetTransforms[i].ScaleY;
-					transform.Translation.z *= retarget->RetargetTransforms[i].ScaleZ;
+					targetId = retarget->ModelBoneIdToAnimationBoneId[i];
+					if (targetId != -1)
+						transform = Transforms[targetId];
+					if (i == 0)
+					{
+						transform.Translation.x *= retarget->RootTranslationScale.x;
+						transform.Translation.y *= retarget->RootTranslationScale.y;
+						transform.Translation.z *= retarget->RootTranslationScale.z;
+					}
+					else
+						transform.Translation = retarget->RetargetedBoneOffsets[i];
 				}
 				else
 				{
-					// YONGH: Hack: use translation from mesh's own bind pose instead of translation data from animation file to 
-					//  adapt to different body heights.
+					if (i < Transforms.Count())
+						transform = Transforms[i];
 					if (i != 0)
 						transform.Translation = skeleton->Bones[i].BindPose.Translation;
 				}
 				matrices[i] = transform.ToMatrix();
 			}
-			for (int i = 0; i < skeleton->Bones.Count(); i++)
+			for (int i = 1; i < skeleton->Bones.Count(); i++)
 			{
-				auto tmp = matrices[i];
-				if (skeleton->Bones[i].ParentId != -1)
-					VectorMath::Matrix4::Multiply(matrices[i], matrices[skeleton->Bones[i].ParentId], tmp);
+				VectorMath::Matrix4::Multiply(matrices[i], matrices[skeleton->Bones[i].ParentId], matrices[i]);
 			}
+			
 			if (multiplyInversePose)
 			{
-				for (int i = 0; i < matrices.Count(); i++)
-					VectorMath::Matrix4::Multiply(matrices[i], matrices[i], skeleton->InversePose[i]);
+				if (retarget)
+				{
+					for (int i = 0; i < skeleton->Bones.Count(); i++)
+						VectorMath::Matrix4::Multiply(matrices[i], matrices[i], retarget->RetargetedInversePose[i]);
+				}
+				else
+				{
+					for (int i = 0; i < matrices.Count(); i++)
+						VectorMath::Matrix4::Multiply(matrices[i], matrices[i], skeleton->InversePose[i]);
+				}
 			}
 		}
 	};
@@ -176,6 +191,29 @@ namespace GameEngine
 		CoreLib::String BoneName;
 		int BoneId = -1;
 		CoreLib::List<AnimationKeyFrame> KeyFrames;
+		BoneTransformation Sample(float time);
+		int BinarySearchForKeyFrame(float time)
+		{
+			int begin = 0;
+			int end = KeyFrames.Count();
+			while (begin < end)
+			{
+				int mid = (begin + end) >> 1;
+				if (KeyFrames[mid].Time > time)
+					end = mid;
+				else if (KeyFrames[mid].Time == time)
+					return mid;
+				else
+					begin = mid + 1;
+			}
+			if (begin >= KeyFrames.Count())
+				begin = KeyFrames.Count() - 1;
+			if (KeyFrames[begin].Time > time)
+				begin--;
+			if (begin < 0)
+				begin = 0;
+			return begin;
+		}
 	};
 
 	class SkeletalAnimation

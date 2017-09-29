@@ -15,30 +15,60 @@ namespace GameEngine
 		stream->Close();
 	}
 
+	bool CheckMeshIdentifier(char * str)
+	{
+		MeshHeader header;
+		for (int i = 0; i < sizeof(header.MeshFileIdentifier); i++)
+			if (header.MeshFileIdentifier[i] != str[i])
+				return false;
+		return true;
+	}
+
 	void Mesh::LoadFromStream(Stream * stream)
 	{
 		auto reader = BinaryReader(stream);
+		MeshHeader header;
+		reader.Read(header);
+		if (!CheckMeshIdentifier(header.MeshFileIdentifier))
+		{
+			stream->Seek(SeekOrigin::Start, 0);
+			header = MeshHeader();
+		}
 		int typeId = reader.ReadInt32();
 		vertexFormat = MeshVertexFormat(typeId);
 		vertCount = reader.ReadInt32();
+	
 		int indexCount = reader.ReadInt32();
 		reader.Read(&Bounds, 1);
 		AllocVertexBuffer(vertCount);
 		Indices.SetSize(indexCount);
 		reader.Read((char*)GetVertexBuffer(), vertCount * vertexFormat.GetVertexSize());
 		reader.Read(Indices.Buffer(), indexCount);
+		ElementRanges.SetSize(header.ElementCount);
+		reader.Read(ElementRanges.Buffer(), ElementRanges.Count());
 		reader.ReleaseStream();
+		if (ElementRanges.Count() == 0)
+		{
+			MeshElementRange range;
+			range.StartIndex = 0;
+			range.Count = indexCount;
+			ElementRanges.Add(range);
+		}
 	}
 
 	void Mesh::SaveToStream(Stream * stream)
 	{
 		auto writer = BinaryWriter(stream);
+		MeshHeader header;
+		header.ElementCount = ElementRanges.Count();
+		writer.Write(header);
 		writer.Write(GetVertexTypeId());
 		writer.Write(vertCount);
 		writer.Write(Indices.Count());
 		writer.Write(&Bounds, 1);
 		writer.Write((char*)GetVertexBuffer(), vertCount * GetVertexSize());
 		writer.Write(Indices.Buffer(), Indices.Count());
+		writer.Write(ElementRanges.Buffer(), ElementRanges.Count());
 		writer.ReleaseStream();
 	}
 
@@ -130,6 +160,7 @@ namespace GameEngine
 	{
 		Bounds.Init();
 		this->Indices.Clear();
+		this->vertexData.Clear();
 		SetVertexFormat(MeshVertexFormat(0, 0, true, true));
 		List<SkeletonMeshVertex> vertices;
 		List<Matrix4> forwardTransforms;
@@ -235,6 +266,11 @@ namespace GameEngine
 			SetVertexSkinningBinding(i, MakeArrayView(vertices[i].boneId), MakeArrayView(1.0f));
 		}
 		vertCount = vertices.Count();
+		MeshElementRange range;
+		range.StartIndex = 0;
+		range.Count = Indices.Count();
+		this->ElementRanges.Clear();
+		this->ElementRanges.Add(range);
 	}
 	Mesh Mesh::CreateBox(VectorMath::Vec3 vmin, VectorMath::Vec3 vmax)
 	{

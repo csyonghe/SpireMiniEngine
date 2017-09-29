@@ -265,3 +265,8 @@ paket-files/
 /Factory
 /ExampleGame/Models/factory
 /ExampleGame/Levels/factory.level
+/ExampleGame/Materials/Malcom
+/ExampleGame/Models/hero/Run_Fwd.reshaped.anim
+/ExampleGame/Models/hero/reshapeHero.txt
+/ExampleGame/Models/hero/HeroTPP.reshaped.skeleton
+/ExampleGame/Models/test

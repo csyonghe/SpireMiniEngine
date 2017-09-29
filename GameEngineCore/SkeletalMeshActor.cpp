@@ -1,5 +1,6 @@
 #include "SkeletalMeshActor.h"
 #include "Engine.h"
+#include "Skeleton.h"
 
 namespace GameEngine
 {
@@ -7,42 +8,22 @@ namespace GameEngine
 	{
 		if (Actor::ParseField(parser, isInvalid))
 			return true;
-		if (parser.LookAhead("mesh"))
+		if (parser.LookAhead("model"))
 		{
 			parser.ReadToken();
-			MeshName = parser.ReadStringLiteral();
-			Mesh = level->LoadMesh(MeshName);
-			Bounds = Mesh->Bounds;
-			if (!Mesh)
-				isInvalid = false;
-			return true;
-		}
-		if (parser.LookAhead("material"))
-		{
-			if (parser.NextToken(1).Content == "{")
-			{
-				MaterialInstance = level->CreateNewMaterial();
-				MaterialInstance->Parse(parser);
-				MaterialInstance->Name = Name;
-			}
-			else
-			{
-				parser.ReadToken();
-				auto materialName = parser.ReadStringLiteral();
-				MaterialInstance = level->LoadMaterial(materialName);
-				if (!MaterialInstance)
-					isInvalid = true;
-			}
-			return true;
-		}
-		if (parser.LookAhead("Skeleton"))
-		{
-			parser.ReadToken();
-			SkeletonName = parser.ReadStringLiteral();
-			Skeleton = level->LoadSkeleton(SkeletonName);
-			if (!Skeleton)
+			ModelFileName = parser.ReadStringLiteral();
+			model = level->LoadModel(ModelFileName);
+			if (!model)
 				isInvalid = true;
+			else
+				Bounds = model->GetBounds();
 			return true;
+		}
+		if (parser.LookAhead("RetargetFile"))
+		{
+			parser.ReadToken();
+			RetargetFileName = parser.ReadStringLiteral();
+			retargetFile = level->LoadRetargetFile(RetargetFileName);
 		}
 		if (parser.LookAhead("SimpleAnimation"))
 		{
@@ -65,22 +46,32 @@ namespace GameEngine
 
 	void SkeletalMeshActor::GetDrawables(const GetDrawablesParameter & params)
 	{
-		if (!drawable)
-			drawable = params.rendererService->CreateSkeletalDrawable(Mesh, Skeleton, MaterialInstance);
-		drawable->UpdateTransformUniform(localTransform, nextPose);
-		params.sink->AddDrawable(drawable.Ptr());
+		if (modelInstance.IsEmpty())
+			modelInstance = model->GetDrawableInstance(params);
+		modelInstance.UpdateTransformUniform(localTransform, nextPose, retargetFile);
+		Matrix4 rootTransform = localTransform;
+		if (nextPose.Transforms.Count())
+			Matrix4::Multiply(rootTransform, localTransform, nextPose.Transforms[0].ToMatrix());
+		TransformBBox(Bounds, rootTransform, model->GetBounds());
+		auto insertDrawable = [&](Drawable * d)
+		{
+			d->CastShadow = CastShadow;
+			d->Bounds = Bounds;
+			params.sink->AddDrawable(d);
+		};
+		for (auto & drawable : modelInstance.Drawables)
+			insertDrawable(drawable.Ptr());
 	}
 
 	void SkeletalMeshActor::OnLoad()
 	{
-		if (this->SimpleAnimation)
-			Animation = new SimpleAnimationSynthesizer(Skeleton, this->SimpleAnimation);
+		if (this->SimpleAnimation && model)
+			Animation = new SimpleAnimationSynthesizer(model->GetSkeleton(), this->SimpleAnimation);
 		Tick();
 	}
 
 	void SkeletalMeshActor::SetLocalTransform(const VectorMath::Matrix4 & val)
 	{
 		Actor::SetLocalTransform(val);
-		CoreLib::Graphics::TransformBBox(Bounds, localTransform, Mesh->Bounds);
 	}
 }

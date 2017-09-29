@@ -4,7 +4,33 @@ namespace GameEngine
 {
     using namespace VectorMath;
 
-    void MeshBuilder::AddTriangle(Vec3 v1, Vec3 v2, Vec3 v3)
+	void MeshBuilder::UpdateElementRange(bool newElement)
+	{
+		if (newElement)
+		{
+			MeshElementRange range;
+			if (elementRanges.Count())
+				range.StartIndex = elementRanges.Last().StartIndex + elementRanges.Last().Count;
+			else
+				range.StartIndex = 0;
+			range.Count = indices.Count() - range.StartIndex;
+			elementRanges.Add(range);
+		}
+		else
+		{
+			if (elementRanges.Count())
+				elementRanges.Last().Count = indices.Count() - elementRanges.Last().StartIndex;
+			else
+			{
+				MeshElementRange range;
+				range.StartIndex = 0;
+				range.Count = indices.Count();
+				elementRanges.Add(range);
+			}
+		}
+	}
+
+	void MeshBuilder::AddTriangle(Vec3 v1, Vec3 v2, Vec3 v3, bool asNewElement)
     {
         Vec3 normal = Vec3::Cross(v2 - v1, v3 - v1).Normalize();
         Vec3 tangent = (v2 - v1).Normalize();
@@ -14,9 +40,10 @@ namespace GameEngine
         vertices.Add(Vertex{ v2, Vec2::Create(0.0f), normal, tangent });
         indices.Add(vertices.Count());
         vertices.Add(Vertex{ v3, Vec2::Create(0.0f), normal, tangent });
+		UpdateElementRange(asNewElement);
     }
 
-    void MeshBuilder::AddTriangle(Vec3 v1, Vec2 uv1, Vec3 v2, Vec2 uv2, Vec3 v3, Vec2 uv3)
+    void MeshBuilder::AddTriangle(Vec3 v1, Vec2 uv1, Vec3 v2, Vec2 uv2, Vec3 v3, Vec2 uv3, bool asNewElement)
     {
         Vec3 normal = Vec3::Cross(v2 - v1, v3 - v1).Normalize();
         Vec3 tangent = (v2 - v1).Normalize();
@@ -26,9 +53,10 @@ namespace GameEngine
         vertices.Add(Vertex{v2, uv2, normal, tangent});
         indices.Add(vertices.Count());
         vertices.Add(Vertex{v3, uv3, normal, tangent});
+		UpdateElementRange(asNewElement);
     }
 
-    void MeshBuilder::AddQuad(Vec3 v1, Vec3 v2, Vec3 v3, Vec3 v4)
+    void MeshBuilder::AddQuad(Vec3 v1, Vec3 v2, Vec3 v3, Vec3 v4, bool asNewElement)
     {
         Vec3 normal = Vec3::Cross(v2 - v1, v3 - v1).Normalize();
         Vec3 tangent = (v2 - v1).Normalize();
@@ -44,9 +72,10 @@ namespace GameEngine
         vertices.Add(Vertex{ v3, Vec2::Create(1.0f, 1.0f), normal, tangent });
         indices.Add(vertices.Count());
         vertices.Add(Vertex{ v4, Vec2::Create(0.0f, 1.0f), normal, tangent });
+		UpdateElementRange(asNewElement);
     }
 
-    void MeshBuilder::AddLine(Vec3 v1, Vec3 v2, Vec3 normal, float width)
+    void MeshBuilder::AddLine(Vec3 v1, Vec3 v2, Vec3 normal, float width, bool asNewElement)
     {
         Vec3 tangent = (v2 - v1).Normalize();
         Vec3 binormal = Vec3::Cross(tangent, normal).Normalize();
@@ -56,9 +85,10 @@ namespace GameEngine
         Vec3 p3 = v2 - delta;
         Vec3 p4 = v1 - delta;
         AddQuad(p1, p2, p3, p4);
+		UpdateElementRange(asNewElement);
     }
 
-    void MeshBuilder::AddDisk(Vec3 center, Vec3 normal, float radiusOuter, float radiusInner, int edges)
+    void MeshBuilder::AddDisk(Vec3 center, Vec3 normal, float radiusOuter, float radiusInner, int edges, bool asNewElement)
     {
         Vec3 tangent;
         GetOrthoVec(tangent, normal);
@@ -92,9 +122,10 @@ namespace GameEngine
             indices.Add(startId + (i * 2 + 2) % vertCount);
             indices.Add(startId + (i * 2 + 3) % vertCount);
         }
+		UpdateElementRange(asNewElement);
     }
 
-    void MeshBuilder::AddBox(Vec3 vmin, Vec3 vmax)
+    void MeshBuilder::AddBox(Vec3 vmin, Vec3 vmax, bool asNewElement)
     {
         AddQuad(Vec3::Create(vmax.x, vmax.y, vmin.z),
                 Vec3::Create(vmin.x, vmax.y, vmin.z),
@@ -125,9 +156,10 @@ namespace GameEngine
                 Vec3::Create(vmax.x, vmin.y, vmin.z),
                 Vec3::Create(vmax.x, vmax.y, vmin.z),
                 Vec3::Create(vmax.x, vmax.y, vmax.z));
+		UpdateElementRange(asNewElement);
     }
 
-    void MeshBuilder::AddFrustum(Vec3 /*v1*/, Vec3 /*v2*/, float /*radius1*/, float /*radius2*/, int /*edges*/)
+    void MeshBuilder::AddFrustum(Vec3 /*v1*/, Vec3 /*v2*/, float /*radius1*/, float /*radius2*/, int /*edges*/, bool /*asNewElement*/)
     {
         // TO be implemented
     }
@@ -149,6 +181,7 @@ namespace GameEngine
             rs.SetVertexTangentFrame(i, q);
         }
         rs.Indices = indices;
+		rs.ElementRanges = elementRanges;
         return rs;
     }
 

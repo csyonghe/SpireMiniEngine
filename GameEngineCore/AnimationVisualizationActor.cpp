@@ -54,7 +54,7 @@ namespace GameEngine
     void AnimationVisualizationActor::GetDrawables(const GetDrawablesParameter & params)
     {
         if (!drawable)
-            drawable = params.rendererService->CreateSkeletalDrawable(Mesh, Skeleton, MaterialInstance);
+            drawable = params.rendererService->CreateSkeletalDrawable(Mesh, 0, Skeleton, MaterialInstance);
         drawable->UpdateTransformUniform(localTransform, nextPose);
         params.sink->AddDrawable(drawable.Ptr());
     }

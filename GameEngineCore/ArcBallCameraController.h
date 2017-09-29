@@ -35,7 +35,7 @@ namespace GameEngine
 		float zoomScale = 1.1f;
 		float minDist = 10.0f;
 		float maxDist = 10000.0f;
-
+		bool needAlt = true;
 		MouseState state = MouseState::None;
 
 		CoreLib::String targetCameraName;

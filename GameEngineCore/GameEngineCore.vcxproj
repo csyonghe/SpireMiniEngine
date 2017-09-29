@@ -188,6 +188,7 @@
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="MeshBuilder.cpp" />
+    <ClCompile Include="Model.cpp" />
     <ClCompile Include="MotionGraph.cpp" />
     <ClCompile Include="PipelineContext.cpp" />
     <ClCompile Include="PointLightActor.cpp" />
@@ -256,6 +257,7 @@
     <ClInclude Include="Material.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="MeshBuilder.h" />
+    <ClInclude Include="Model.h" />
     <ClInclude Include="MotionGraph.h" />
     <ClInclude Include="OS.h" />
     <ClInclude Include="PipelineContext.h" />

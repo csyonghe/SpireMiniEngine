@@ -4,6 +4,27 @@ namespace GameEngine
 {
 	using namespace CoreLib::IO;
 
+	BoneTransformation AnimationChannel::Sample(float animTime)
+	{
+		BoneTransformation result;
+		int frame0 = BinarySearchForKeyFrame(animTime);
+		int frame1 = frame0 + 1;
+		float t = 0.0f;
+		if (frame0 < KeyFrames.Count() - 1)
+		{
+			t = (animTime - KeyFrames[frame0].Time) / (KeyFrames[frame1].Time - KeyFrames[frame0].Time);
+		}
+		else
+		{
+			t = 0.0f;
+			frame1 = 0;
+		}
+		auto & f0 = KeyFrames[frame0];
+		auto & f1 = KeyFrames[frame1];
+		return BoneTransformation::Lerp(f0.Transform, f1.Transform, t);
+
+	}
+
     Skeleton Skeleton::TopologySort()
     {
         Skeleton result;
@@ -136,14 +157,12 @@ namespace GameEngine
 		BinaryWriter writer(stream);
 		writer.Write(SourceSkeletonName);
 		writer.Write(TargetSkeletonName);
-		writer.Write(RetargetTransforms.Count());
-		writer.Write(RetargetTransforms.Buffer(), RetargetTransforms.Count());
-		writer.Write(BoneMapping.Count());
-		for (auto & kv : BoneMapping)
-		{
-			writer.Write(kv.Key);
-			writer.Write(kv.Value);
-		}
+		writer.Write(RootTranslationScale);
+		writer.Write(RetargetedBoneOffsets.Count());
+		writer.Write(RetargetedBoneOffsets.Buffer(), RetargetedBoneOffsets.Count());
+		writer.Write(RetargetedInversePose.Buffer(), RetargetedInversePose.Count());
+		writer.Write(SourceRetargetTransforms.Buffer(), SourceRetargetTransforms.Count());
+		writer.Write(ModelBoneIdToAnimationBoneId.Buffer(), ModelBoneIdToAnimationBoneId.Count());
 		writer.ReleaseStream();
 	}
 	void RetargetFile::LoadFromStream(CoreLib::IO::Stream * stream)
@@ -151,17 +170,17 @@ namespace GameEngine
 		BinaryReader reader(stream);
 		reader.Read(SourceSkeletonName);
 		reader.Read(TargetSkeletonName);
+		reader.Read(RootTranslationScale);
 		int retargetTransformCount;
 		reader.Read(retargetTransformCount);
-		RetargetTransforms.SetSize(retargetTransformCount);
-		reader.Read(RetargetTransforms.Buffer(), RetargetTransforms.Count());
-		int mappingCount = reader.ReadInt32();
-		for (int i = 0; i <mappingCount; i++)
-		{
-			auto key = reader.ReadString();
-			auto value = reader.ReadInt32();
-			BoneMapping[key] = value;
-		}
+		RetargetedBoneOffsets.SetSize(retargetTransformCount);
+		reader.Read(RetargetedBoneOffsets.Buffer(), RetargetedBoneOffsets.Count());
+		RetargetedInversePose.SetSize(retargetTransformCount);
+		reader.Read(RetargetedInversePose.Buffer(), RetargetedInversePose.Count());
+		SourceRetargetTransforms.SetSize(retargetTransformCount);
+		reader.Read(SourceRetargetTransforms.Buffer(), SourceRetargetTransforms.Count());
+		ModelBoneIdToAnimationBoneId.SetSize(retargetTransformCount);
+		reader.Read(ModelBoneIdToAnimationBoneId.Buffer(), ModelBoneIdToAnimationBoneId.Count());
 		reader.ReleaseStream();
 	}
 	void RetargetFile::SaveToFile(const CoreLib::String & filename)
@@ -175,5 +194,16 @@ namespace GameEngine
 		RefPtr<FileStream> stream = new FileStream(filename, FileMode::Open);
 		LoadFromStream(stream.Ptr());
 		stream->Close();
+	}
+	void RetargetFile::SetBoneCount(int count)
+	{
+		RetargetedInversePose.SetSize(count);
+		SourceRetargetTransforms.SetSize(count);
+		RetargetedBoneOffsets.SetSize(count);
+		ModelBoneIdToAnimationBoneId.SetSize(count);
+		for (auto & q : SourceRetargetTransforms)
+			q = VectorMath::Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
+		for (auto & id : ModelBoneIdToAnimationBoneId)
+			id = -1;
 	}
 }

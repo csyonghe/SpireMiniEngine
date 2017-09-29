@@ -126,7 +126,7 @@ public:
 		if (!boxDrawable)
 		{
 			Mesh boxMesh = Mesh::CreateBox(VectorMath::Vec3::Create(-30.0f, 0.0f, -30.0f), VectorMath::Vec3::Create(30.0, 80.0f, 30.0f));
-			boxDrawable = param.rendererService->CreateStaticDrawable(&boxMesh, &material);
+			boxDrawable = param.rendererService->CreateStaticDrawable(&boxMesh, 0, &material);
 		}
 		if (boxDrawable)
 		{

@@ -28,8 +28,9 @@ namespace GameEngine
 	void ArcBallCameraControllerActor::MouseDown(GraphicsUI::UI_Base * /*sender*/, GraphicsUI::UIMouseEventArgs & e)
 	{
 		lastArcBall = currentArcBall;
-		auto leftAltMask = (GraphicsUI::SS_ALT | GraphicsUI::SS_BUTTONLEFT);
-		auto rightAltMask = (GraphicsUI::SS_ALT | GraphicsUI::SS_BUTTONRIGHT);
+		auto altMask = needAlt ? GraphicsUI::SS_ALT : 0;
+		auto leftAltMask = (altMask | GraphicsUI::SS_BUTTONLEFT);
+		auto rightAltMask = (altMask | GraphicsUI::SS_BUTTONRIGHT);
 		lastX = e.X;
 		lastY = e.Y;
 		if ((e.Shift & leftAltMask) == leftAltMask)
@@ -149,6 +150,12 @@ namespace GameEngine
             currentArcBall.beta = parser.ReadFloat();
 			return true;
         }
+		else if (parser.LookAhead("NeedAlt"))
+		{
+			parser.ReadToken();
+			needAlt = ParseBool(parser);
+			return true;
+		}
 		return false;
 	}
 

@@ -460,6 +460,18 @@ namespace GameEngine
 		}
 	}
 
+	void Engine::LoadLevelFromText(const CoreLib::String & text)
+	{
+		if (level)
+			renderer->DestroyContext();
+		level = nullptr;
+		level = new GameEngine::Level();
+		level->LoadFromText(text);
+		inDataTransfer = true;
+		renderer->InitializeLevel(level.Ptr());
+		inDataTransfer = false;
+	}
+
 	Level * Engine::NewLevel()
 	{
 		if (level)
@@ -498,6 +510,10 @@ namespace GameEngine
 		auto engineFile = Path::Combine(GetDirectory(true, type), fileName);
 		if (File::Exists(engineFile))
 			return engineFile;
+		if (type == ResourceType::Shader)
+		{
+			return FindFile(fileName, ResourceType::Material);
+		}
 		return CoreLib::String();
 	}
 

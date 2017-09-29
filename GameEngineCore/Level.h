@@ -2,8 +2,7 @@
 #define GAME_ENGINE_LEVEL_H
 
 #include "CoreLib/Basic.h"
-#include "Mesh.h"
-#include "Skeleton.h"
+#include "Model.h"
 #include "StaticMeshActor.h"
 #include "CameraActor.h"
 #include "Material.h"
@@ -16,6 +15,7 @@ namespace GameEngine
 	{
 	public:
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<Material>> Materials;
+		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<Model>> Models;
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<Mesh>> Meshes;
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<Skeleton>> Skeletons;
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<SkeletalAnimation>> Animations;
@@ -29,6 +29,7 @@ namespace GameEngine
 		~Level();
 		Mesh * LoadMesh(CoreLib::String fileName);
 		Mesh * LoadMesh(CoreLib::String name, Mesh m);
+		Model * LoadModel(CoreLib::String fileName);
 		Skeleton * LoadSkeleton(const CoreLib::String & fileName);
 		RetargetFile * LoadRetargetFile(const CoreLib::String & fileName);
 		Material * LoadMaterial(const CoreLib::String & fileName);

@@ -9,6 +9,11 @@ namespace GameEngine
 	{
 		if (Actor::ParseField(parser, isInvalid))
 			return true;
+		if (parser.LookAhead("model"))
+		{
+			parser.ReadWord();
+			Model = level->LoadModel(parser.ReadStringLiteral());
+		}
 		if (parser.LookAhead("mesh"))
 		{
 			parser.ReadToken();
@@ -73,16 +78,35 @@ namespace GameEngine
 
 	void StaticMeshActor::GetDrawables(const GetDrawablesParameter & params)
 	{
-		if (!drawable)
-			drawable = params.rendererService->CreateStaticDrawable(Mesh, MaterialInstance);
-		drawable->CastShadow = CastShadow;
-		if (localTransformChanged)
+		auto insertDrawable = [&](Drawable * d)
 		{
-			drawable->UpdateTransformUniform(localTransform);
-			localTransformChanged = false;
+			d->CastShadow = CastShadow;
+			d->Bounds = Bounds;
+			params.sink->AddDrawable(d);
+		};
+		if (Model)
+		{
+			if (modelInstance.IsEmpty())
+				modelInstance = Model->GetDrawableInstance(params);
+			if (localTransformChanged)
+			{
+				modelInstance.UpdateTransformUniform(localTransform);
+				localTransformChanged = false;
+			}
+			for (auto &d : modelInstance.Drawables)
+				insertDrawable(d.Ptr());
 		}
-		drawable->Bounds = Bounds;
-		params.sink->AddDrawable(drawable.Ptr());
+		else
+		{
+			if (!drawable)
+				drawable = params.rendererService->CreateStaticDrawable(Mesh, 0, MaterialInstance);
+			if (localTransformChanged)
+			{
+				drawable->UpdateTransformUniform(localTransform);
+				localTransformChanged = false;
+			}
+			insertDrawable(drawable.Ptr());
+		}
 	}
 
 	void StaticMeshActor::SetLocalTransform(const VectorMath::Matrix4 & val)

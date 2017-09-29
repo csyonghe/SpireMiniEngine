@@ -3,6 +3,7 @@
 
 #include "Actor.h"
 #include "RendererService.h"
+#include "Model.h"
 
 namespace GameEngine
 {
@@ -12,12 +13,14 @@ namespace GameEngine
 	{
 	protected:
 		CoreLib::RefPtr<Drawable> drawable;
+		ModelDrawableInstance modelInstance;
 		bool localTransformChanged = true;
 	protected:
 		virtual bool ParseField(CoreLib::Text::TokenReader & parser, bool & isInvalid) override;
 	public:
 		CoreLib::String MeshName;
 		Mesh * Mesh = nullptr;
+		Model * Model = nullptr;
 		Material * MaterialInstance;
 		
 		virtual void OnLoad() override;

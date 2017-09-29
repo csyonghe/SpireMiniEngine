@@ -3,26 +3,32 @@
 
 #include "Actor.h"
 #include "RendererService.h"
+#include "Model.h"
 
 namespace GameEngine
 {
+	class RetargetFile;
+
 	class SkeletalMeshActor : public Actor
 	{
 	private:
 		Pose nextPose;
-		RefPtr<Drawable> drawable;
+		ModelDrawableInstance modelInstance;
 		float startTime = 0.0f;
+		Model * model = nullptr;
+		RetargetFile * retargetFile = nullptr;
 	protected:
 		virtual bool ParseField(CoreLib::Text::TokenReader & parser, bool &isInvalid) override;
 	public:
 		CoreLib::RefPtr<AnimationSynthesizer> Animation;
-		Mesh * Mesh = nullptr;
-		Skeleton * Skeleton = nullptr;
 		SkeletalAnimation * SimpleAnimation = nullptr;
 
-		CoreLib::String MeshName, SkeletonName, SimpleAnimationName;
-		Material * MaterialInstance = nullptr;
+		CoreLib::String ModelFileName, RetargetFileName, SimpleAnimationName;
 		virtual void Tick() override;
+		Model * GetModel()
+		{
+			return model;
+		}
 		Pose & GetCurrentPose()
 		{
 			return nextPose;

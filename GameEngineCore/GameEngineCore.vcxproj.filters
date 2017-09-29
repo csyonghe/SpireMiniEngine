@@ -139,6 +139,7 @@
     <ClCompile Include="ToneMappingPostRenderPass.cpp">
       <Filter>Renderer\PostProcess</Filter>
     </ClCompile>
+    <ClCompile Include="Model.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
@@ -296,6 +297,7 @@
     <ClInclude Include="ImageLayoutTransferTaskPool.h">
       <Filter>Renderer</Filter>
     </ClInclude>
+    <ClInclude Include="Model.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Spire">

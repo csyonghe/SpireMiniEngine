@@ -156,7 +156,7 @@ namespace GameEngine
 	void TerrainActor::GetDrawables(const GetDrawablesParameter & params)
 	{
 		if (!drawable)
-			drawable = params.rendererService->CreateStaticDrawable(&terrainMesh, MaterialInstance);
+			drawable = params.rendererService->CreateStaticDrawable(&terrainMesh, 0, MaterialInstance);
 		if (localTransformChanged)
 		{
 			drawable->UpdateTransformUniform(localTransform);

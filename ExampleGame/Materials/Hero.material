@@ -1,0 +1,5 @@
+material
+{
+    shader "Hero.shader"
+    var albedoMap = texture["Hero/Chr_FPS_D.TGA"]
+}

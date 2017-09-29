@@ -34,10 +34,11 @@ ArcBallCameraController
 {
 	name "CamControl"
 	TargetCamera "FreeCam"
-	Radius 364.566
-	Center[0.0 0.0 0.0]
+	Radius 500.00
+	Center[0.0 50.0 0.0]
 	Alpha 1.57
 	Beta 0.439
+	NeedAlt false
 }
 
 DirectionalLight
@@ -45,17 +46,25 @@ DirectionalLight
 	name "sunlight"
 	transform[1 0 0 0   0 1 0 0    0 0 1 0    10000 10000 0 1]
 	Direction[0.8 0.7 0.3]
-	Color[2.1 2.1 2.1]
+	Color[3.1 3.1 3.1]
 	EnableCascadedShadows true
 	NumShadowCascades 8
 	ShadowDistance 4500
 	TransitionFactor 0.8
 }
 
+EnvMap
+{
+	name "envMap"
+	transform[1 0 0 0   0 1 0 0    0 0 1 0    0 5000 0 1]
+    Radius 2000000.0
+	TintColor [0.7 0.7 0.7]
+}
+
 ToneMapping
 {
 	name "tonemapping"
-	Exposure 1.1
+	Exposure 0.7
 }
 Atmosphere
 {
@@ -101,8 +110,7 @@ int wWinMain(
 			Engine::Instance()->Init(args);
 			RegisterRetargetActor();
 			InitUI(Engine::Instance()->GetMainWindow());
-			auto level = Engine::Instance()->NewLevel();
-			level->LoadFromText(levelSrc);
+			Engine::Instance()->LoadLevelFromText(levelSrc);
 			
 			Engine::Run();
 			Engine::Destroy();

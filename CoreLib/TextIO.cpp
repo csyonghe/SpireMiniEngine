@@ -162,7 +162,7 @@ namespace CoreLib
 					sb << newLine;
 				else if (str[i] == '\n')
 				{
-					if (i > 0 && str[i - 1] != '\r')
+					if (i == 0 || str[i - 1] != '\r')
 						sb << newLine;
 				}
 				else

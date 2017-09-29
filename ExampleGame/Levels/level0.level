@@ -131,14 +131,8 @@ StaticMesh
 SkeletalMesh
 {
     name "hero"
-    mesh "hero/HeroTPP.mesh"
-    Skeleton "hero/HeroTPP.skeleton"
+    model "hero.model"
     SimpleAnimation "hero/Run_Fwd.anim"
-    material
-    {
-        shader "Hero.shader"
-        var albedoMap = texture["Hero/Chr_FPS_D.TGA"]
-    }
     transform [1.0 0.0 0.0 0.0
                0.0 1.0 0.0 0.0
                0.0 0.0 1.0 0.0

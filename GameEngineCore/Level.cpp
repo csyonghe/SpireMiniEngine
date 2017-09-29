@@ -88,6 +88,26 @@ namespace GameEngine
 		}
 		return result.Ptr();
 	}
+	Model * Level::LoadModel(CoreLib::String fileName)
+	{
+		RefPtr<Model> result = nullptr;
+		if (!Models.TryGetValue(fileName, result))
+		{
+			auto actualName = Engine::Instance()->FindFile(fileName, ResourceType::Mesh);
+			if (actualName.Length())
+			{
+				result = new Model();
+				result->LoadFromFile(this, actualName);
+				Models[fileName] = result;
+			}
+			else
+			{
+				Print("error: cannot load model \'%S\'\n", fileName.ToWString());
+				return nullptr;
+			}
+		}
+		return result.Ptr();
+	}
 	Skeleton * Level::LoadSkeleton(const CoreLib::String & fileName)
 	{
 		RefPtr<Skeleton> result = nullptr;

@@ -50,6 +50,7 @@ namespace GameEngine
 		DrawableType type = DrawableType::Static;
 		MeshVertexFormat vertFormat;
 		CoreLib::RefPtr<DrawableMesh> mesh = nullptr;
+		MeshElementRange elementRange;
 		Material * material = nullptr;
 		ModuleInstance * transformModule = nullptr;
 		Skeleton * skeleton = nullptr;
@@ -78,6 +79,10 @@ namespace GameEngine
 		MeshVertexFormat & GetVertexFormat()
 		{
 			return vertFormat;
+		}
+		MeshElementRange GetElementRange()
+		{
+			return elementRange;
 		}
 		void UpdateMaterialUniform();
 		void UpdateTransformUniform(const VectorMath::Matrix4 & localTransform);

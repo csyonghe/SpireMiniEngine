@@ -1,0 +1,6 @@
+model
+{
+    mesh "hero/HeroTPP.mesh"
+    skeleton "hero/HeroTPP.skeleton"
+    material "Hero.material"
+}

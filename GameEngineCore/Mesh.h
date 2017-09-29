@@ -30,13 +30,16 @@ namespace GameEngine
 			return 3 * sizeof(float) + (key.fields.numColors + key.fields.numUVs) * sizeof(unsigned int) + (key.fields.hasTangent ? 4 : 0) + (key.fields.hasSkinning ? 8 : 0);
 		}
 	public:
-		MeshVertexFormat() {}
+		MeshVertexFormat() 
+		{
+			key.typeId = 0;
+		}
 		MeshVertexFormat(int typeId);
 		MeshVertexFormat(int colorChannels, int uvChannels, bool pHasTangent, bool pHasSkinning)
 		{
 			assert(colorChannels <= 7);
 			assert(uvChannels <= 7);
-
+			key.typeId = 0;
 			key.fields.numColors = colorChannels;
 			key.fields.numUVs = uvChannels;
 			key.fields.hasTangent = pHasTangent ? 1 : 0;
@@ -73,6 +76,21 @@ namespace GameEngine
 
 	class Skeleton;
 
+	const int CurrentMeshFileVersion = 1;
+
+	struct MeshHeader
+	{
+		char MeshFileIdentifier[6] = {'M', 'E', 'S', 'H', '|', 'Y'};
+		int MeshFileVersion = CurrentMeshFileVersion;
+		int ElementCount = 0;
+		int Reserved[8] = { 0,0,0,0,0,0,0,0 };
+	};
+
+	struct MeshElementRange
+	{
+		int StartIndex, Count;
+	};
+
 	class Mesh : public CoreLib::Object 
 	{
 	private:
@@ -82,6 +100,7 @@ namespace GameEngine
 	public:
 		CoreLib::Graphics::BBox Bounds;
 		CoreLib::Basic::List<int> Indices;
+		CoreLib::Basic::List<MeshElementRange> ElementRanges;
 		MeshVertexFormat GetVertexFormat() { return vertexFormat; }
 		void SetVertexFormat(const MeshVertexFormat & value) { vertexFormat = value; }
 		void SetVertexPosition(int vertId, const VectorMath::Vec3 & pos)

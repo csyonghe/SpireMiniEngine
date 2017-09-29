@@ -802,7 +802,8 @@ namespace GameEngine
 						cmdBuf->BindVertexBuffer(mesh->GetVertexBuffer(), mesh->vertexBufferOffset);
 						lastMesh = mesh;
 					}
-					cmdBuf->DrawIndexed(mesh->indexBufferOffset / sizeof(int), mesh->indexCount);
+					auto range = obj->GetElementRange();
+					cmdBuf->DrawIndexed(mesh->indexBufferOffset / sizeof(int) + range.StartIndex, range.Count);
 				}
 				else
 					throw "error";
@@ -853,7 +854,7 @@ namespace GameEngine
 		SetFixedOrderDrawContent(pipelineManager, reorderBuffer.GetArrayView());
 
 	}
-	void PostPassRenderTask::Execute(HardwareRenderer * hwRenderer, RenderStat & /*stats*/)
+	void PostPassRenderTask::Execute(HardwareRenderer * /*hwRenderer*/, RenderStat & /*stats*/)
 	{
 		postPass->Execute(sharedModules);
 	}
