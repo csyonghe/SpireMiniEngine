@@ -514,6 +514,10 @@ namespace GameEngine
 		{
 			return FindFile(fileName, ResourceType::Material);
 		}
+		else if (type == ResourceType::Texture || type == ResourceType::Material || type == ResourceType::Animation)
+		{
+			return FindFile(fileName, ResourceType::Mesh);
+		}
 		return CoreLib::String();
 	}
 
@@ -534,6 +538,9 @@ namespace GameEngine
 		case ResourceType::Texture:
 		case ResourceType::Material:
 			subDirName = "Materials";
+			break;
+		case ResourceType::Animation:
+			subDirName = "Animations";
 			break;
 		case ResourceType::Landscape:
 			subDirName = "Landscapes";
