@@ -136,12 +136,11 @@ public:
 		for (int i = 0; i < matrices.Count(); i++)
 			Matrix4::Multiply(matrices[i], matrices[i], sourceSkeleton->InversePose[i]);
 
-		List<Matrix4> inverseAnimBindPose;
-		inverseAnimBindPose.SetSize(matrices.Count());
 		for (int i = 0; i < matrices.Count(); i++)
 		{
-			animationBindPoseM[i].Inverse(inverseAnimBindPose[i]);
-			Matrix4::Multiply(retargetFile.RetargetedInversePose[i], inverseAnimBindPose[i], matrices[i]);
+			Matrix4 invAnimBindPose;
+			animationBindPoseM[i].Inverse(invAnimBindPose);
+			Matrix4::Multiply(retargetFile.RetargetedInversePose[i], invAnimBindPose, matrices[i]);
 		}
 		// derive the retargeted offset
 		for (int i = 0; i < matrices.Count(); i++)
@@ -356,7 +355,7 @@ public:
 		if (cmbAnimBones.Count() == retargetFile.ModelBoneIdToAnimationBoneId.Count())
 		{
 			for (int i = 0; i < retargetFile.ModelBoneIdToAnimationBoneId.Count(); i++)
-				cmbAnimBones[i]->SetSelectedIndex(Math::Clamp(retargetFile.ModelBoneIdToAnimationBoneId[i], -1, cmbAnimBones[i]->Items.Count() - 1));
+				cmbAnimBones[i]->SetSelectedIndex(Math::Clamp(retargetFile.ModelBoneIdToAnimationBoneId[i] + 1, -1, cmbAnimBones[i]->Items.Count() - 1));
 		}
 	}
 
