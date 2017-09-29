@@ -379,6 +379,7 @@ void Export(ExportArguments args)
 					for (auto mid = 0u; mid < scene->mRootNode->mChildren[cid]->mNumMeshes; mid++)
 					{
 						auto mesh = scene->mMeshes[scene->mRootNode->mChildren[cid]->mMeshes[mid]];
+						printf("Mesh element %d: %s\n", meshOut->ElementRanges.Count(), mesh->mName.C_Str());
 						MeshElementRange elementRange;
 						elementRange.StartIndex = idxPtr;
 						elementRange.Count = mesh->mNumFaces * 3;
