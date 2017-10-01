@@ -4,6 +4,7 @@
 #include "CoreLib/Graphics/ViewFrustum.h"
 #include "CoreLib/VectorMath.h"
 #include "Actor.h"
+#include "Physics.h"
 
 namespace GameEngine
 {
@@ -31,6 +32,7 @@ namespace GameEngine
 		void SetPitch(float value);
 		void SetRoll(float value);
 		void SetOrientation(float pYaw, float pPitch, float pRoll);
+		Ray GetRayFromViewCoordinates(float x, float y, float aspect); // coordinate range from 0.0 to 1.0
 		View GetView()
 		{
 			return view;

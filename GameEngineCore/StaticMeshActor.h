@@ -13,6 +13,7 @@ namespace GameEngine
 	{
 	protected:
 		CoreLib::RefPtr<Drawable> drawable;
+		CoreLib::RefPtr<ModelPhysicsInstance> physInstance;
 		ModelDrawableInstance modelInstance;
 		bool localTransformChanged = true;
 	protected:
@@ -24,6 +25,7 @@ namespace GameEngine
 		Material * MaterialInstance;
 		
 		virtual void OnLoad() override;
+		virtual void OnUnload() override;
 		virtual void GetDrawables(const GetDrawablesParameter & params) override;
 		virtual void SetLocalTransform(const VectorMath::Matrix4 & val) override;
 		virtual EngineActorType GetEngineType() override

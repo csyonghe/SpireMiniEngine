@@ -59,6 +59,29 @@ namespace GameEngine
 		TransformFromCamera(localTransform, view.Yaw, view.Pitch, view.Roll, view.Position);
 		view.Transform = localTransform;
 	}
+
+	Ray CameraActor::GetRayFromViewCoordinates(float x, float y, float aspect)
+	{
+		Vec3 camDir, camUp;
+		camDir.x = -localTransform.m[0][2];
+		camDir.y = -localTransform.m[1][2];
+		camDir.z = -localTransform.m[2][2];
+		camUp.x = localTransform.m[0][1];
+		camUp.y = localTransform.m[1][1];
+		camUp.z = localTransform.m[2][1];
+		auto right = Vec3::Cross(camDir, camUp).Normalize();
+		float zNear = 1.0f;
+		auto nearCenter = view.Position + camDir * zNear;
+		auto tanFOV = tan(view.FOV / 180.0f * (Math::Pi * 0.5f));
+		auto nearUpScale = tanFOV * zNear;
+		auto nearRightScale = nearUpScale * aspect;
+		auto tarPos = nearCenter + right * nearRightScale * (x * 2.0f - 1.0f) + camUp * nearUpScale * (1.0f - y * 2.0f);
+		Ray r;
+		r.Origin = view.Position;
+		r.Dir = tarPos - r.Origin;
+		r.Dir = r.Dir.Normalize();
+		return r;
+	}
 	
 	void CameraActor::SetCollisionRadius(float value)
 	{

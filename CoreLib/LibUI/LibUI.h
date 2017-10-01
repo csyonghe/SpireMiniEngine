@@ -890,6 +890,7 @@ namespace GraphicsUI
 		void Delete(Control *Item);
 		void Clear();
 		bool ItemInSelection(Control *Item);
+		void SetSelectedIndex(int index);
 	public:
 		virtual void Draw(int absX, int absY) override;
 		virtual void SizeChanged() override;

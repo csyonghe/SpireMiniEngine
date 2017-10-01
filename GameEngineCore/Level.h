@@ -8,11 +8,14 @@
 #include "Material.h"
 #include "MotionGraph.h"
 #include "RendererService.h"
+#include "Physics.h"
 
 namespace GameEngine
 {
 	class Level : public CoreLib::Object
 	{
+	private:
+		PhysicsScene physicsScene;
 	public:
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<Material>> Materials;
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<Model>> Models;
@@ -36,6 +39,10 @@ namespace GameEngine
 		Material * CreateNewMaterial();
 		SkeletalAnimation * LoadSkeletalAnimation(const CoreLib::String & fileName);
 		Actor * FindActor(const CoreLib::String & name);
+		PhysicsScene & GetPhysicsScene()
+		{
+			return physicsScene;
+		}
 		void RegisterActor(Actor * actor);
 		void UnregisterActor(Actor * actor);
 	};

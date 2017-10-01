@@ -13,6 +13,7 @@ namespace GameEngine
 		{
 			parser.ReadWord();
 			Model = level->LoadModel(parser.ReadStringLiteral());
+			Bounds = Model->GetBounds();
 		}
 		if (parser.LookAhead("mesh"))
 		{
@@ -73,7 +74,18 @@ namespace GameEngine
 
 	void StaticMeshActor::OnLoad()
 	{
+		if (!Model)
+		{
+			Model = new GameEngine::Model(Mesh, MaterialInstance);
+		}
 		SetLocalTransform(localTransform); // update bbox
+		// update physics scene
+		physInstance = Model->CreatePhysicsInstance(level->GetPhysicsScene(), this, nullptr);
+	}
+
+	void StaticMeshActor::OnUnload()
+	{
+		physInstance->RemoveFromScene();
 	}
 
 	void StaticMeshActor::GetDrawables(const GetDrawablesParameter & params)
@@ -96,17 +108,6 @@ namespace GameEngine
 			for (auto &d : modelInstance.Drawables)
 				insertDrawable(d.Ptr());
 		}
-		else
-		{
-			if (!drawable)
-				drawable = params.rendererService->CreateStaticDrawable(Mesh, 0, MaterialInstance);
-			if (localTransformChanged)
-			{
-				drawable->UpdateTransformUniform(localTransform);
-				localTransformChanged = false;
-			}
-			insertDrawable(drawable.Ptr());
-		}
 	}
 
 	void StaticMeshActor::SetLocalTransform(const VectorMath::Matrix4 & val)
@@ -114,6 +115,8 @@ namespace GameEngine
 		Actor::SetLocalTransform(val);
 		localTransformChanged = true;
 		CoreLib::Graphics::TransformBBox(Bounds, localTransform, Mesh->Bounds);
+		if (physInstance)
+			physInstance->SetTransform(val);
 	}
 
 }

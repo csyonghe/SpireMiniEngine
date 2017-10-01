@@ -38,7 +38,7 @@ ArcBallCameraController
 	Center[0.0 50.0 0.0]
 	Alpha 1.57
 	Beta 0.439
-	NeedAlt false
+	NeedAlt true
 }
 
 DirectionalLight

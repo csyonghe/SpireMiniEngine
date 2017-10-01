@@ -141,6 +141,8 @@ namespace GameEngine
 		Level* NewLevel();
 		CoreLib::RefPtr<Actor> ParseActor(GameEngine::Level * level, CoreLib::Text::TokenReader & parser);
 	public:
+		Ray GetRayFromMousePosition(int x, int y);
+	public:
 		CoreLib::String FindFile(const CoreLib::String & fileName, ResourceType type);
 		CoreLib::String GetDirectory(bool useEngineDir, ResourceType type);
 	public:

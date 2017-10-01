@@ -176,6 +176,7 @@ namespace GameEngine
 		}
 		for (int i = 0; i < skeleton->Bones.Count(); i++)
 		{
+			float boneWidth = width;
 			int parent = skeleton->Bones[i].ParentId;
 			Vec3 bonePos = positions[i];
 			Vec3 parentPos = parent == -1 ? bonePos : positions[parent];
@@ -188,7 +189,7 @@ namespace GameEngine
 			{
 				float length = (bonePos - parentPos).Length();
 				if (length < width * 2.0f)
-					width = length * 0.5f;
+					boneWidth = length * 0.5f;
 			}
 			Bounds.Union(bonePos);
 			Bounds.Union(parentPos);
@@ -205,10 +206,10 @@ namespace GameEngine
 				{
 					int vCoord = vCoords[j];
 					int vCoord1 = vCoords[(j + 1) & 3];
-					Vec3 v0 = pos + dir * width + xAxis * (width * ((float)(vCoord & 1) - 0.5f))
-						+ yAxis * (width * ((float)((vCoord >> 1) & 1) - 0.5f));
-					Vec3 v1 = pos + dir * width + xAxis * (width * ((float)(vCoord1 & 1) - 0.5f))
-						+ yAxis * (width * ((float)((vCoord1 >> 1) & 1) - 0.5f));
+					Vec3 v0 = pos + dir * boneWidth + xAxis * (boneWidth * ((float)(vCoord & 1) - 0.5f))
+						+ yAxis * (boneWidth * ((float)((vCoord >> 1) & 1) - 0.5f));
+					Vec3 v1 = pos + dir * boneWidth + xAxis * (boneWidth * ((float)(vCoord1 & 1) - 0.5f))
+						+ yAxis * (boneWidth * ((float)((vCoord1 >> 1) & 1) - 0.5f));
 					Bounds.Union(v0);
 
 					// triangle1: v1->v0->parent
@@ -253,7 +254,7 @@ namespace GameEngine
 			};
 			addBoneStruct(parentPos, bonePos, (parent == -1 ? i : parent));
 			if(i != 0)
-				addBoneStruct(bonePos-Vec3::Create(width, 0.0f, 0.0f), bonePos + Vec3::Create(width, 0.0f, 0.0f), i);
+				addBoneStruct(bonePos-Vec3::Create(boneWidth, 0.0f, 0.0f), bonePos + Vec3::Create(boneWidth, 0.0f, 0.0f), i);
 			bonePos = positions[i];
 
 		}

@@ -17,13 +17,14 @@ using namespace GameEngine;
 class SkeletonRetargetVisualizerActor : public Actor
 {
 private:
+	RefPtr<ModelPhysicsInstance> physInstance, skeletonPhysInstance;
 	RefPtr<Drawable> targetSkeletonDrawable, sourceSkeletonDrawable;
 	RefPtr<Drawable> xAxisDrawable, yAxisDrawable, zAxisDrawable;
 	RefPtr<SystemWindow> sysWindow;
 	Mesh * mMesh = nullptr;
 	Skeleton * mSkeleton = nullptr;
 	Mesh sourceSkeletonMesh, targetSkeletonMesh;
-	RefPtr<Model> sourceModel;
+	RefPtr<Model> sourceModel, sourceSkeletonModel;
 	ModelDrawableInstance sourceModelInstance;
 	RefPtr<Skeleton> targetSkeleton;
 	Material sourceSkeletonMaterial, targetSkeletonMaterial, sourceMeshMaterial,
@@ -162,7 +163,7 @@ public:
 		{
 			targetSkeleton = new Skeleton();
 			targetSkeleton->LoadFromFile(dlg.FileName);
-			targetSkeletonMesh.FromSkeleton(targetSkeleton.Ptr(), 3.0f);
+			targetSkeletonMesh.FromSkeleton(targetSkeleton.Ptr(), 6.0f);
 			targetSkeletonDrawable = nullptr;
 			targetSkeletonMaterial.SetVariable("highlightId", -1);
 			retargetFile.RetargetedInversePose = sourceModel->GetSkeleton()->InversePose;
@@ -217,16 +218,19 @@ public:
 			sourceModel = new Model();
 			sourceModel->LoadFromFile(level, dlg.FileName);
 			sourceModelInstance.Drawables.Clear();
-			sourceSkeletonMesh.FromSkeleton(sourceModel->GetSkeleton(), 3.0f);
+			sourceSkeletonMesh.FromSkeleton(sourceModel->GetSkeleton(), 5.0f);
 			sourceSkeletonDrawable = nullptr;
 			sourceSkeletonMaterial.SetVariable("highlightId", -1);
 			sourceMeshMaterial.SetVariable("highlightId", -1);
+			sourceSkeletonModel = new Model(&sourceSkeletonMesh, sourceModel->GetSkeleton(), &sourceSkeletonMaterial);
 			retargetFile.SourceSkeletonName = sourceModel->GetSkeleton()->Name;
 			retargetFile.SetBoneCount(sourceModel->GetSkeleton()->Bones.Count()); 
 			lstBones->Clear();
 			auto sourceSkeleton = sourceModel->GetSkeleton();
 			for (int i = 0; i < sourceSkeleton->Bones.Count(); i++)
 				lstBones->AddTextItem(sourceSkeleton->Bones[i].Name);
+			physInstance = sourceModel->CreatePhysicsInstance(level->GetPhysicsScene(), this, 0);
+			skeletonPhysInstance = sourceSkeletonModel->CreatePhysicsInstance(level->GetPhysicsScene(), this, (void*)1);
 		}
 	}
 
@@ -375,6 +379,7 @@ public:
 		
 			StringBuilder sbInfo;
 			auto sourceSkeleton = sourceModel->GetSkeleton();
+			sbInfo << sourceSkeleton->Bones[lstBones->SelectedIndex].Name << "\n";
 			sbInfo << "Parent: ";
 			if (sourceSkeleton->Bones[lstBones->SelectedIndex].ParentId == -1)
 				sbInfo << "null\n";
@@ -653,6 +658,8 @@ public:
 		infoFormTextBox->DockStyle = GraphicsUI::Control::dsFill;
 		infoForm->SizeChanged();
 		uiEntry->CloseWindow(infoForm);
+
+		uiEntry->OnMouseDown.Bind(this, &SkeletonRetargetVisualizerActor::WindowMouseDown);
 	}
 	
 	virtual void OnLoad() override
@@ -687,6 +694,20 @@ public:
 		Actor::OnUnload();
 	}
 	
+	void WindowMouseDown(UI_Base *, GraphicsUI::UIMouseEventArgs & e)
+	{
+		Ray r = Engine::Instance()->GetRayFromMousePosition(e.X, e.Y);
+		auto traceRs = level->GetPhysicsScene().RayTraceFirst(r);
+		if (traceRs.Object)
+		{
+			if (traceRs.Object->SkeletalBoneId != -1)
+			{
+				lstBones->SetSelectedIndex(traceRs.Object->SkeletalBoneId);
+				SelectedBoneChanged(nullptr);
+			}
+		}
+	}
+
 	virtual void GetDrawables(const GetDrawablesParameter & param) override
 	{
 		Matrix4 identity;
@@ -745,6 +766,8 @@ public:
 				Pose p = GetCurrentPose();
 				sourceSkeletonDrawable->UpdateTransformUniform(offset1, p, &retargetFile);
 				sourceModelInstance.UpdateTransformUniform(identity, p, &retargetFile);
+				skeletonPhysInstance->SetTransform(offset1, p, &retargetFile);
+				physInstance->SetTransform(identity, p, &retargetFile);
 			}
 			else
 			{
@@ -754,6 +777,8 @@ public:
 					p.Transforms[i] = sourceSkeleton->Bones[i].BindPose;
 				sourceSkeletonDrawable->UpdateTransformUniform(offset1, p, nullptr);
 				sourceModelInstance.UpdateTransformUniform(identity, p, nullptr);
+				skeletonPhysInstance->SetTransform(offset1, p, nullptr);
+				physInstance->SetTransform(identity, p, nullptr);
 			}
 			param.sink->AddDrawable(sourceSkeletonDrawable.Ptr());
 		}

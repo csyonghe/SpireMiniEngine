@@ -10,6 +10,20 @@ using namespace CoreLib::Text;
 
 namespace GameEngine
 {
+	Model::Model(Mesh * pMesh, Material * material)
+	{
+		mesh = *pMesh;
+		materials.Add(material);
+		InitPhysicsModel();
+	}
+	Model::Model(Mesh * pMesh, Skeleton * pSkeleton, Material * material)
+	{
+		mesh = *pMesh;
+		materials.Add(material);
+		if (pSkeleton)
+			skeleton = *pSkeleton;
+		InitPhysicsModel();
+	}
 	void Model::LoadFromFile(Level * level, CoreLib::String fileName)
 	{
 		LoadFromString(level, File::ReadAllText(fileName));
@@ -61,6 +75,7 @@ namespace GameEngine
 		parser.Read("}");
 		for (int i = materials.Count(); i < mesh.ElementRanges.Count(); i++)
 			materials.Add(level->LoadMaterial("Error.material"));
+		InitPhysicsModel();
 	}
 	void Model::SaveToFile(CoreLib::String fileName)
 	{
@@ -76,6 +91,31 @@ namespace GameEngine
 			sb << "\tmaterial \"" << EscapeStringLiteral(m) << "\"\n";
 		sb << "}";
 		return sb.ProduceString();
+	}
+	void Model::InitPhysicsModel()
+	{
+		List<PhysicsModelBuilder> builders;
+		builders.SetSize(Math::Max(1, skeleton.Bones.Count()));
+		for (int i = 0; i < mesh.Indices.Count(); i += 3)
+		{
+			PhysicsModelFace face;
+			face.Vertices[0] = mesh.GetVertexPosition(mesh.Indices[i]);
+			face.Vertices[1] = mesh.GetVertexPosition(mesh.Indices[i + 1]);
+			face.Vertices[2] = mesh.GetVertexPosition(mesh.Indices[i + 2]);
+			face.Normal = Vec3::Cross(face.Vertices[1] - face.Vertices[0], face.Vertices[2] - face.Vertices[0]).Normalize();
+			if (builders.Count() == 0)
+				builders[0].AddFace(face);
+			else
+			{
+				CoreLib::Array<int, 8> boneIds;
+				CoreLib::Array<float, 8> boneWeights;
+				mesh.GetVertexSkinningBinding(mesh.Indices[i], boneIds, boneWeights);
+				builders[boneIds[0]].AddFace(face);
+			}
+		}
+		physModels.SetSize(builders.Count());
+		for (int i = 0; i < builders.Count(); i++)
+			physModels[i] = builders[i].GetModel();
 	}
 	ModelDrawableInstance Model::GetDrawableInstance(const GetDrawablesParameter & params)
 	{
@@ -107,6 +147,27 @@ namespace GameEngine
 		return _Move(rs);
 	}
 
+	CoreLib::RefPtr<ModelPhysicsInstance> Model::CreatePhysicsInstance(PhysicsScene & physScene, Actor * actor, void * tag)
+	{
+		CoreLib::RefPtr<ModelPhysicsInstance> rs = new ModelPhysicsInstance(&physScene);
+		rs->isSkeletal = skeleton.Bones.Count() != 0;
+		rs->skeleton = &skeleton;
+		rs->objects.SetSize(physModels.Count());
+		for (int i = 0; i < physModels.Count(); i++)
+		{
+			auto obj = new PhysicsObject(physModels[i].Ptr());
+			obj->ParentActor = actor;
+			obj->Tag = tag;
+			obj->SkeletalBoneId = i;
+			Matrix4 identity;
+			Matrix4::CreateIdentityMatrix(identity);
+			obj->SetModelTransform(identity);
+			rs->objects[i] = obj;
+			physScene.AddObject(obj);
+		}
+		return rs;
+	}
+
 	void ModelDrawableInstance::UpdateTransformUniform(VectorMath::Matrix4 localTransform)
 	{
 		for (auto & drawable : Drawables)
@@ -116,5 +177,25 @@ namespace GameEngine
 	{
 		for (auto & drawable : Drawables)
 			drawable->UpdateTransformUniform(localTransform, pose, retargetFile);
+	}
+	void ModelPhysicsInstance::SetTransform(VectorMath::Matrix4 localTransform)
+	{
+		for (int i = 0; i < objects.Count(); i++)
+			objects[i]->SetModelTransform(localTransform);
+	}
+	void ModelPhysicsInstance::SetTransform(VectorMath::Matrix4 localTransform, Pose & pose, RetargetFile * retarget)
+	{
+		List<Matrix4> matrices;
+		pose.GetMatrices(skeleton, matrices, true, retarget);
+		for (int i = 0; i < matrices.Count(); i++)
+		{
+			Matrix4::Multiply(matrices[i], localTransform, matrices[i]);
+			objects[i]->SetModelTransform(matrices[i]);
+		}
+	}
+	void ModelPhysicsInstance::RemoveFromScene()
+	{
+		for (auto obj : objects)
+			scene->RemoveObject(obj);
 	}
 }

@@ -42,6 +42,8 @@ namespace GameEngine
 		auto time = Engine::Instance()->GetTime();
 		if (Animation)
 			Animation->GetPose(nextPose, time);
+		if (physInstance)
+			physInstance->SetTransform(localTransform, nextPose, retargetFile);
 	}
 
 	void SkeletalMeshActor::GetDrawables(const GetDrawablesParameter & params)
@@ -49,6 +51,7 @@ namespace GameEngine
 		if (modelInstance.IsEmpty())
 			modelInstance = model->GetDrawableInstance(params);
 		modelInstance.UpdateTransformUniform(localTransform, nextPose, retargetFile);
+		
 		Matrix4 rootTransform = localTransform;
 		if (nextPose.Transforms.Count())
 			Matrix4::Multiply(rootTransform, localTransform, nextPose.Transforms[0].ToMatrix());
@@ -67,11 +70,19 @@ namespace GameEngine
 	{
 		if (this->SimpleAnimation && model)
 			Animation = new SimpleAnimationSynthesizer(model->GetSkeleton(), this->SimpleAnimation);
+		physInstance = model->CreatePhysicsInstance(level->GetPhysicsScene(), this, nullptr);
 		Tick();
+	}
+
+	void SkeletalMeshActor::OnUnload()
+	{
+		physInstance->RemoveFromScene();
 	}
 
 	void SkeletalMeshActor::SetLocalTransform(const VectorMath::Matrix4 & val)
 	{
 		Actor::SetLocalTransform(val);
+		if (physInstance)
+			physInstance->SetTransform(localTransform, nextPose, retargetFile);
 	}
 }

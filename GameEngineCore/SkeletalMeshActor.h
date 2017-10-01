@@ -13,6 +13,7 @@ namespace GameEngine
 	{
 	private:
 		Pose nextPose;
+		CoreLib::RefPtr<ModelPhysicsInstance> physInstance;
 		ModelDrawableInstance modelInstance;
 		float startTime = 0.0f;
 		Model * model = nullptr;
@@ -44,6 +45,7 @@ namespace GameEngine
 			return "SkeletalMesh";
 		}
 		virtual void OnLoad() override;
+		virtual void OnUnload() override;
 	};
 }
 

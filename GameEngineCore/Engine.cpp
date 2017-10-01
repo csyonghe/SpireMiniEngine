@@ -245,6 +245,7 @@ namespace GameEngine
 		}
 		else
 		{
+			level->GetPhysicsScene().Tick();
 			for (auto & actor : level->Actors)
 				actor.Value->Tick();
 		}
@@ -500,6 +501,21 @@ namespace GameEngine
 			return actor;
 		else
 			return nullptr;
+	}
+
+	Ray Engine::GetRayFromMousePosition(int x, int y)
+	{
+		if (level && level->CurrentCamera)
+		{
+			int w = mainWindow->GetUIEntry()->GetWidth();
+			int h = mainWindow->GetUIEntry()->GetHeight();
+			float invH = 1.0f / h;
+			return level->CurrentCamera->GetRayFromViewCoordinates(x / (float)w , y * invH, w * invH);
+		}
+		Ray rs;
+		rs.Origin.SetZero();
+		rs.Dir = Vec3::Create(0.0f, 0.0f, -1.0f);
+		return rs;
 	}
 
 	CoreLib::String Engine::FindFile(const CoreLib::String & fileName, ResourceType type)

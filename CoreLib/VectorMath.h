@@ -19,7 +19,7 @@ namespace VectorMath
 {
 	using namespace CoreLib::Basic;
 	const float PI = 3.1415926535f;
-	const float Epsilon = 1e-4f;
+	const float Epsilon = 1e-7f;
 	const int DefaultFloatUlps = 1024;
 	inline int Clamp(int val, int vmin, int vmax)
 	{

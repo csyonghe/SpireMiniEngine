@@ -3884,6 +3884,21 @@ namespace GraphicsUI
 		return false;
 	}
 
+	void ListBox::SetSelectedIndex(int index)
+	{
+		SelectedIndex = ClampInt(index, 0, Items.Count() - 1);
+		if (SelectedIndex != -1)
+		{
+			if (SelectedIndex - this->ScrollBar->GetPosition() + 1 > Height / ItemHeight)
+			{
+				this->ScrollBar->SetPosition(Math::Clamp(SelectedIndex + 1 - Height / ItemHeight, 0, this->ScrollBar->GetMax()));
+			}
+			if (SelectedIndex < this->ScrollBar->GetPosition())
+				this->ScrollBar->SetPosition(SelectedIndex);
+		}
+		SelectionChanged();
+	}
+
 	void ListBox::Draw(int absX, int absY)
 	{
 		Control::Draw(absX,absY);
