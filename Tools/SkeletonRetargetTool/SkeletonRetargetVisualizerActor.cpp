@@ -44,6 +44,7 @@ private:
 	Pose currentPose;
 	GraphicsUI::UIEntry * uiEntry = nullptr;
 	bool isPlaying = false;
+	float curTime = 0.0f;
 	RefPtr<SimpleAnimationSynthesizer> animSynthesizer = new SimpleAnimationSynthesizer();
 public:
 
@@ -58,8 +59,10 @@ public:
 		{
 			if (currentAnim.Duration > 0.0f)
 			{
-				auto time = fmod(Engine::Instance()->GetTime(), currentAnim.Duration);
-				int newFrame = (int)(time * 30.0f);
+				auto deltaTime = Engine::Instance()->GetTimeDelta(EngineThread::Rendering);
+				curTime += deltaTime;
+				auto time = fmod(curTime, currentAnim.Duration);
+				int newFrame = (int)(curTime * 30.0f);
 				while (newFrame >= scTimeline->GetMax())
 					newFrame -= scTimeline->GetMax();
 				if (newFrame < 1)
@@ -68,6 +71,8 @@ public:
 					scTimeline->SetPosition(newFrame);
 			}
 		}
+		else
+			curTime = scTimeline->GetPosition() / 30.0f;
 	}
 
 	void SetBoneMapping(int sourceBone, int animBone)
@@ -250,22 +255,31 @@ public:
 		WinForm::FileDialog dlg(Engine::Instance()->GetMainWindow());
 		dlg.Filter = "Retarget File|*.retarget|All Files|*.*";
 		dlg.DefaultEXT = "retarget";
-		if (sourceModel &&  dlg.ShowOpen())
+		if (sourceModel && targetSkeleton)
 		{
-			RetargetFile file;
-			file.LoadFromFile(dlg.FileName);
-			if (file.ModelBoneIdToAnimationBoneId.Count() != sourceModel->GetSkeleton()->Bones.Count())
-				Engine::Instance()->GetMainWindow()->MessageBox("This retarget file does not match the current model.", "Error", MB_ICONEXCLAMATION);
-			else
+			if (dlg.ShowOpen())
 			{
-				retargetFile = file;
-				txtScaleX->SetText(String(file.RootTranslationScale.x));
-				txtScaleY->SetText(String(file.RootTranslationScale.y));
-				txtScaleZ->SetText(String(file.RootTranslationScale.z));
-				UpdateMappingSelection();
-				UpdateCombinedRetargetTransform();
+				RetargetFile file;
+				file.LoadFromFile(dlg.FileName);
+				bool isValid = true;
+				for (auto id : file.ModelBoneIdToAnimationBoneId)
+					if (id >= targetSkeleton->Bones.Count())
+						isValid = false;
+				if (!isValid || file.ModelBoneIdToAnimationBoneId.Count() != sourceModel->GetSkeleton()->Bones.Count())
+					Engine::Instance()->GetMainWindow()->MessageBox("This retarget file does not match the current model / target skeleton.", "Error", MB_ICONEXCLAMATION);
+				else
+				{
+					retargetFile = file;
+					txtScaleX->SetText(String(file.RootTranslationScale.x));
+					txtScaleY->SetText(String(file.RootTranslationScale.y));
+					txtScaleZ->SetText(String(file.RootTranslationScale.z));
+					UpdateMappingSelection();
+					UpdateCombinedRetargetTransform();
+				}
 			}
 		}
+		else
+			Engine::Instance()->GetMainWindow()->MessageBox("Please load source model and target skeleton first.", "Error", MB_ICONEXCLAMATION);
 	}
 	
 	bool disableTextChange = false;

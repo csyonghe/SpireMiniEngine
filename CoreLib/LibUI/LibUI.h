@@ -410,13 +410,37 @@ namespace GraphicsUI
 	{
     private:
         float x0, x1, y0, y1;
+		VectorMath::Vec2 normal;
 	public:
+		bool EnableDpiScale = true;
         LineCap StartCap = LineCap::None;
         LineCap EndCap = LineCap::None;
 		Line(Container * owner);
         void SetPoints(float x0, float y0, float x1, float y1, float lineWidth = 1.0f);
 		virtual void Draw(int absX, int absY);
         virtual void DoDpiChanged() override;
+		bool HitTest(int x, int y); // x,y in parent coordinates
+	};
+
+	struct TriangleFace
+	{
+		VectorMath::Vec2 vertex0, vertex1, vertex2;
+		VectorMath::Vec3 plane0, plane1, plane2;
+		void SetPoints(VectorMath::Vec2 v0, VectorMath::Vec2 v1, VectorMath::Vec2 v2);
+		bool HitTest(VectorMath::Vec2 p);
+	};
+
+	class LinePath : public Control
+	{
+	private:
+		CoreLib::List<TriangleFace> triangles;
+	public:
+		bool EnableDpiScale = true;
+		LinePath(Container * owner);
+		void SetPoints(CoreLib::ArrayView<VectorMath::Vec2> points, float lineWidth = 1.0f);
+		virtual void Draw(int absX, int absY);
+		virtual void DoDpiChanged() override;
+		bool HitTest(int x, int y); // x,y in parent coordinates
 	};
 
     class Ellipse : public Control

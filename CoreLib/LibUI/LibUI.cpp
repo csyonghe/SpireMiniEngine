@@ -7155,6 +7155,7 @@ namespace GraphicsUI
         x1 = px1 + 0.5f;
         y0 = py0 + 0.5f;
         y1 = py1 + 0.5f;
+		normal = Vec2::Create(y1 - y0, x0 - x1).Normalize();
         BorderWidth = lineWidth;
         float margin = BorderWidth * 6.0f;
         Left = (int)(Math::Min(x0, x1) - margin);
@@ -7173,9 +7174,25 @@ namespace GraphicsUI
 	}
     void Line::DoDpiChanged()
     {
+		if (!EnableDpiScale)
+			return;
         auto scale = GetEntry()->GetDpiScale();
         SetPoints(x0 * scale, y0 * scale, x1 * scale, y1 * scale, BorderWidth * scale);
     }
+	bool Line::HitTest(int x, int y)
+	{
+		auto d = Vec2::Create((float)x - x0, (float)y - y0);
+		if (abs(Vec2::Dot(d, normal)) < BorderWidth)
+		{
+			Vec2 dir = Vec2::Create(x1 - x0, y1 - y0);
+			float len = dir.Length();
+			dir *= 1.0f / len;
+			float t = Vec2::Dot(dir, d);
+			if (t >= 0 && t <= len)
+				return true;
+		}
+		return false;
+	}
     Ellipse::Ellipse(Container * owner)
         : Control(owner)
     {
@@ -7332,5 +7349,108 @@ namespace GraphicsUI
         auto scale = GetEntry()->GetDpiScale();
         SetPoints(BorderWidth * scale, p0 * scale, cp0 * scale, cp1 * scale, p1 * scale);
     }
+
+	LinePath::LinePath(Container * owner)
+		: Control(owner)
+	{
+		BorderColor = Global::Colors.ControlFontColor;
+	}
+
+	void LinePath::SetPoints(ArrayView<VectorMath::Vec2> points, float lineWidth)
+	{
+		List<Vec2> normals;
+		normals.SetSize(points.Count());
+		for (int i = 0; i < points.Count(); i++)
+		{
+			Vec2 t = Vec2::Create(0.0f, 0.0f);
+			float w = 0.0f;
+			if (i > 0)
+			{
+				normals[i] = (points[i] - points[i - 1]).Normalize();
+				w += 1.0f;
+			}
+			if (i < points.Count() - 1)
+			{
+				normals[i] += (points[i + 1] - points[i]).Normalize();
+				w += 1.0f;
+			}
+			normals[i] *= 1.0f / w;
+			normals[i] = Vec2::Create(normals[i].y, -normals[i].x);
+		}
+		float halfLineWidth = lineWidth * 0.5f;
+		for (int i = 0; i < points.Count() - 1; i++)
+		{
+			TriangleFace f;
+			f.SetPoints(points[i] - normals[i] * halfLineWidth, points[i] + normals[i] * halfLineWidth, 
+				points[i + 1] - normals[i + 1] * halfLineWidth);
+			triangles.Add(f);
+			f.SetPoints(points[i] + normals[i] * halfLineWidth, points[i + 1] + normals[i + 1] * halfLineWidth,
+				points[i + 1] - normals[i + 1] * halfLineWidth);
+			triangles.Add(f);
+		}
+	}
+
+	void LinePath::Draw(int absX, int absY)
+	{
+		if (!Visible)
+			return;
+		auto & graphics = GetEntry()->DrawCommands;
+		graphics.PenColor = BorderColor;
+		graphics.PenWidth = this->BorderWidth;
+		graphics.SolidBrushColor = BorderColor;
+		for (auto & tri : triangles)
+		{
+			graphics.FillTriangle(absX + tri.vertex0.x, absY + tri.vertex0.y, 
+				absX + tri.vertex1.x, absY + tri.vertex1.y, 
+				absX + tri.vertex2.x, absY + tri.vertex2.y);
+		}
+	}
+
+	void LinePath::DoDpiChanged()
+	{
+		if (!EnableDpiScale)
+			return;
+		// todo: implement rescaling
+	}
+
+	bool LinePath::HitTest(int x, int y)
+	{
+		auto v = Vec2::Create((float)x, (float)y);
+		for (auto & tri : triangles)
+			if (tri.HitTest(v))
+				return true;
+		return false;
+	}
+
+	void TriangleFace::SetPoints(VectorMath::Vec2 v0, VectorMath::Vec2 v1, VectorMath::Vec2 v2)
+	{
+		vertex0 = v0;
+		vertex1 = v1;
+		vertex2 = v2;
+		auto a = v1 - v0;
+		plane0.x = a.y;
+		plane0.y = -a.x;
+		plane0.z = -plane0.x * v0.x - plane0.y * v0.y;
+		auto b = v2 - v1;
+		plane1.x = b.y;
+		plane1.y = -b.x;
+		plane1.z = -plane1.x * v1.x - plane1.y * v1.y;
+		auto c = v0 - v2;
+		plane2.x = c.y;
+		plane2.y = -c.x;
+		plane2.z = -plane2.x * v2.x - plane2.y * v2.y;
+	}
+
+	bool TriangleFace::HitTest(VectorMath::Vec2 p)
+	{
+		auto a = p.x * plane0.x + p.y * plane0.y + plane0.z;
+		auto b = p.x * plane1.x + p.y * plane1.y + plane1.z;
+		auto c = p.x * plane2.x + p.y * plane2.y + plane2.z;
+		if (a <= 0 && b <= 0 && c <= 0)
+			return true;
+		if (a >= 0 && b >= 0 && c >= 0)
+			return true;
+		return false;
+	}
 
 }
