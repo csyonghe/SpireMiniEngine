@@ -32,9 +32,9 @@ namespace GameEngine
 	public:
 		struct MeshFace
 		{
-			float PlaneU, PlaneV, PlaneD;
 			unsigned int ProjectionAxis : 2;
 			unsigned int PackedNormal : 30;
+			float PlaneU, PlaneV, PlaneD;
 			float K_beta_u, K_beta_v, K_beta_d;
 			float K_gamma_u, K_gamma_v, K_gamma_d;
 		};

@@ -203,7 +203,11 @@ namespace GameEngine
 		ModelBoneIdToAnimationBoneId.SetSize(count);
 		for (auto & q : SourceRetargetTransforms)
 			q = VectorMath::Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
+		int i = 0;
 		for (auto & id : ModelBoneIdToAnimationBoneId)
-			id = -1;
+		{
+			id = i;
+			i++;
+		}
 	}
 }

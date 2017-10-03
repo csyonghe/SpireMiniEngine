@@ -1,0 +1,7 @@
+material
+{
+    shader "BoneHighlight.shader"
+    var highlightColor = vec3[1.4 0.0 0.0]
+    var highlightId = int[-1]
+    var alpha = float[0.8]
+}

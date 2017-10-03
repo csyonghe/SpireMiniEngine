@@ -10,6 +10,7 @@
 #include "CoreLib/LibUI/LibUI.h"
 #include "SystemWindow.h"
 #include "AnimationSynthesizer.h"
+#include "ArcBallCameraController.h"
 
 using namespace GraphicsUI;
 using namespace GameEngine;
@@ -24,8 +25,10 @@ private:
 	Mesh * mMesh = nullptr;
 	Skeleton * mSkeleton = nullptr;
 	Mesh sourceSkeletonMesh, targetSkeletonMesh;
+	Quaternion originalTransform;
 	RefPtr<Model> sourceModel, sourceSkeletonModel;
-	ModelDrawableInstance sourceModelInstance;
+	RotationManipulator * manipulator;
+	ModelDrawableInstance sourceModelInstance, highlightModelInstance;
 	RefPtr<Skeleton> targetSkeleton;
 	Material sourceSkeletonMaterial, targetSkeletonMaterial, sourceMeshMaterial,
 		xAxisMaterial, yAxisMaterial, zAxisMaterial;
@@ -44,8 +47,16 @@ private:
 	Pose currentPose;
 	GraphicsUI::UIEntry * uiEntry = nullptr;
 	bool isPlaying = false;
+	bool showSourceModel = true; // if false, draw skeleton
 	float curTime = 0.0f;
 	RefPtr<SimpleAnimationSynthesizer> animSynthesizer = new SimpleAnimationSynthesizer();
+	List<Vec3> bonePositions;
+	struct Modification
+	{
+		int boneId;
+		Quaternion originalTransform, newTransform;
+	};
+	List<Modification> undoStack;
 public:
 
 	virtual EngineActorType GetEngineType() override
@@ -73,6 +84,30 @@ public:
 		}
 		else
 			curTime = scTimeline->GetPosition() / 30.0f;
+		if (sourceModel && lstBones->SelectedIndex != -1)
+		{
+			ManipulatorSceneView view;
+			view.FOV = level->CurrentCamera->GetView().FOV;
+			view.ViewportX = 0.0f;
+			view.ViewportY = 0.0f;
+			view.ViewportW = (float)uiEntry->GetWidth();
+			view.ViewportH = (float)uiEntry->GetHeight();
+			auto sourceSkeleton = sourceModel->GetSkeleton();
+			bonePositions.SetSize(sourceSkeleton->Bones.Count());
+			if (curPose.Transforms.Count())
+			{
+				List<Matrix4> matrices;
+				curPose.GetMatrices(sourceSkeleton, matrices, false, &retargetFile);
+				for (int i = 0; i < sourceSkeleton->Bones.Count(); i++)
+				{
+					bonePositions[i] = Vec3::Create(matrices[i].values[12], matrices[i].values[13], matrices[i].values[14]);
+				}
+			}
+			manipulator->SetTarget(view, level->CurrentCamera->GetLocalTransform(), level->CurrentCamera->GetPosition(), bonePositions[lstBones->SelectedIndex]);
+			manipulator->Visible = true;
+		}
+		else
+			manipulator->Visible = false;
 	}
 
 	void SetBoneMapping(int sourceBone, int animBone)
@@ -83,11 +118,13 @@ public:
 
 	void UpdateCombinedRetargetTransform()
 	{
-		if (!targetSkeleton)
-			return;
+		auto sourceSkeleton = sourceModel->GetSkeleton();
+		
+		Skeleton* tarSekeleton = targetSkeleton.Ptr();
+		if (!tarSekeleton)
+			tarSekeleton = sourceModel->GetSkeleton();
 		List<BoneTransformation> animationBindPose;
 		List<Matrix4> matrices, accumSourceBindPose, animationBindPoseM;
-		auto sourceSkeleton = sourceModel->GetSkeleton();
 		accumSourceBindPose.SetSize(sourceSkeleton->Bones.Count());
 		animationBindPoseM.SetSize(sourceSkeleton->Bones.Count());
 		for (int i = 0; i < accumSourceBindPose.Count(); i++)
@@ -117,7 +154,7 @@ public:
 			int animBoneId = retargetFile.ModelBoneIdToAnimationBoneId[i];
 			if (animBoneId != -1)
 			{
-				animationBindPose[i].Rotation = targetSkeleton->Bones[animBoneId].BindPose.Rotation;
+				animationBindPose[i].Rotation = tarSekeleton->Bones[animBoneId].BindPose.Rotation;
 			}
 			if (i > 0)
 			{
@@ -153,6 +190,7 @@ public:
 		{
 			retargetFile.RetargetedBoneOffsets[i] = animationBindPose[i].Translation;
 		}
+		
 	}
 
 	void LoadTargetSkeleton(GraphicsUI::UI_Base *)
@@ -196,6 +234,13 @@ public:
 			}
 			UpdateBoneMappingPanel();
 		}
+		undoStack.Clear();
+		undoPtr = -1;
+	}
+	
+	void mnToggleSkeletonModel_Clicked(UI_Base *)
+	{
+		showSourceModel = !showSourceModel;
 	}
 
 	void ViewBindPose(GraphicsUI::UI_Base *)
@@ -230,13 +275,18 @@ public:
 			sourceSkeletonModel = new Model(&sourceSkeletonMesh, sourceModel->GetSkeleton(), &sourceSkeletonMaterial);
 			retargetFile.SourceSkeletonName = sourceModel->GetSkeleton()->Name;
 			retargetFile.SetBoneCount(sourceModel->GetSkeleton()->Bones.Count()); 
+			
 			lstBones->Clear();
 			auto sourceSkeleton = sourceModel->GetSkeleton();
 			for (int i = 0; i < sourceSkeleton->Bones.Count(); i++)
 				lstBones->AddTextItem(sourceSkeleton->Bones[i].Name);
 			physInstance = sourceModel->CreatePhysicsInstance(level->GetPhysicsScene(), this, 0);
 			skeletonPhysInstance = sourceSkeletonModel->CreatePhysicsInstance(level->GetPhysicsScene(), this, (void*)1);
+
+			UpdateCombinedRetargetTransform();
 		}
+		undoStack.Clear();
+		undoPtr = -1;
 	}
 
 	void Save(GraphicsUI::UI_Base *)
@@ -286,6 +336,10 @@ public:
 
 	int GetAnimationBoneIndex(int modelBoneIndex)
 	{
+		if (modelBoneIndex == -1)
+			return -1;
+		if (retargetFile.ModelBoneIdToAnimationBoneId.Count() <= modelBoneIndex)
+			return modelBoneIndex;
 		return retargetFile.ModelBoneIdToAnimationBoneId[modelBoneIndex];
 	}
 
@@ -379,11 +433,11 @@ public:
 
 	void SelectedBoneChanged(GraphicsUI::UI_Base *)
 	{
+		sourceMeshMaterial.SetVariable("highlightId", lstBones->SelectedIndex);
+		sourceSkeletonMaterial.SetVariable("highlightId", lstBones->SelectedIndex);
+		targetSkeletonMaterial.SetVariable("highlightId", GetAnimationBoneIndex(lstBones->SelectedIndex));
 		if (lstBones->SelectedIndex != -1)
 		{
-			sourceSkeletonMaterial.SetVariable("highlightId", lstBones->SelectedIndex);
-			sourceMeshMaterial.SetVariable("highlightId", lstBones->SelectedIndex);
-			targetSkeletonMaterial.SetVariable("highlightId", GetAnimationBoneIndex(lstBones->SelectedIndex));
 			float x, y, z;
 			QuaternionToEulerAngle(retargetFile.SourceRetargetTransforms[lstBones->SelectedIndex], x, y, z, EulerAngleOrder::ZXY);
 			disableTextChange = true;
@@ -413,6 +467,7 @@ public:
 				auto trans = targetSkeleton->Bones[animBoneId].BindPose.Translation;
 				sbInfo << "  Offset " << String(trans.x, "%.1f") << ", " << String(trans.y, "%.1f") << ", " << String(trans.z, "%.1f") << "\n";
 			}
+			originalTransform = retargetFile.SourceRetargetTransforms[lstBones->SelectedIndex];
 			txtInfo->SetText(sbInfo.ProduceString());
 			disableTextChange = false;
 		}
@@ -545,17 +600,123 @@ public:
 		UpdateCombinedRetargetTransform();
 	}
 
+	Quaternion GetAccumRotation(int id)
+	{
+		Quaternion rs = Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
+		int curId = id;
+		while (curId != -1)
+		{
+			rs = retargetFile.SourceRetargetTransforms[curId] * rs;
+			curId = sourceModel->GetSkeleton()->Bones[curId].ParentId;
+		}
+		Skeleton * tarSkeleton = targetSkeleton.Ptr();
+		if (!tarSkeleton)
+			tarSkeleton = sourceModel->GetSkeleton();
+		int animBoneId = GetAnimationBoneIndex(id);
+		Pose bindPose = GetAnimSkeletonBindPose();
+		Quaternion animRot = Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
+		Quaternion animBindRot = Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
+		if (bindPose.Transforms.Count())
+		{
+			while (animBoneId != -1)
+			{
+				animBindRot = bindPose.Transforms[animBoneId].Rotation * animBindRot;
+				animRot = curPose.Transforms[animBoneId].Rotation * animRot;
+				animBoneId = tarSkeleton->Bones[animBoneId].ParentId;
+			}
+		}
+		rs = animRot * animBindRot.Inverse() * rs;
+		return rs;
+	}
+
+	void ApplyRotation(UI_Base *, RotationEventArgs e)
+	{
+		PreviewRotation(nullptr, e);
+		Modification m;
+		m.boneId = lstBones->SelectedIndex;
+		m.originalTransform = originalTransform;
+		m.newTransform = retargetFile.SourceRetargetTransforms[lstBones->SelectedIndex];
+		originalTransform = retargetFile.SourceRetargetTransforms[lstBones->SelectedIndex];
+		undoStack.SetSize(undoPtr + 1);
+		undoStack.Add(m);
+		undoPtr = undoStack.Count() - 1;
+		UpdateCombinedRetargetTransform();
+	}
+
+	void PreviewRotation(UI_Base *, RotationEventArgs e)
+	{
+		Vec3 axis;
+		switch (e.Axis)
+		{
+		case 0: axis = Vec3::Create(1.0f, 0.0f, 0.0f); break;
+		case 1: axis = Vec3::Create(0.0f, 1.0f, 0.0f); break;
+		case 2: axis = Vec3::Create(0.0f, 0.0f, 1.0f); break;
+		}
+		retargetFile.SourceRetargetTransforms[lstBones->SelectedIndex] = originalTransform;
+		auto rot = Quaternion::FromAxisAngle(axis, e.Angle);
+		auto accumRot = GetAccumRotation(lstBones->SelectedIndex);
+		auto accumParentRot = accumRot * originalTransform.Inverse();
+
+		retargetFile.SourceRetargetTransforms[lstBones->SelectedIndex] = accumParentRot.Inverse() * rot * accumRot;
+		UpdateCombinedRetargetTransform();
+	}
+
+	int undoPtr = -1;
+	void mnUndo_Clicked(UI_Base *)
+	{
+		if (sourceModel && undoPtr >= 0)
+		{
+			retargetFile.SourceRetargetTransforms[undoStack[undoPtr].boneId] = undoStack[undoPtr].originalTransform;
+			undoPtr--;
+			UpdateCombinedRetargetTransform();
+		}
+	}
+
+	void mnRedo_Clicked(UI_Base *)
+	{
+		if (sourceModel && undoPtr < undoStack.Count() - 1)
+		{
+			undoPtr++;
+			retargetFile.SourceRetargetTransforms[undoStack[undoPtr].boneId] = undoStack[undoPtr].newTransform;
+			UpdateCombinedRetargetTransform();
+		}
+	}
+
+	void OnKeyDown(UI_Base *, GraphicsUI::UIKeyEventArgs & e)
+	{
+		if (e.Shift == SS_CONTROL && (e.Key == 'Z' || e.Key == 'z'))
+			mnUndo_Clicked(nullptr);
+		if (e.Shift == SS_CONTROL && (e.Key == 'Y' || e.Key == 'y'))
+			mnRedo_Clicked(nullptr);
+		if (e.Shift == SS_CONTROL && (e.Key == 'T' || e.Key == 't'))
+			mnToggleSkeletonModel_Clicked(nullptr);
+	}
+
 	virtual void RegisterUI(GraphicsUI::UIEntry * pUiEntry) override
 	{
 		this->uiEntry = pUiEntry;
+		manipulator = new GraphicsUI::RotationManipulator(uiEntry);
+		manipulator->OnPreviewRotation.Bind(this, &SkeletonRetargetVisualizerActor::PreviewRotation);
+		manipulator->OnApplyRotation.Bind(this, &SkeletonRetargetVisualizerActor::ApplyRotation);
+
 		auto menu = new GraphicsUI::Menu(uiEntry, GraphicsUI::Menu::msMainMenu);
 		menu->BackColor = GraphicsUI::Color(0, 0, 0, 200);
 		uiEntry->MainMenu = menu;
 		auto mnFile = new GraphicsUI::MenuItem(menu, "File");
+		auto mnEdit = new GraphicsUI::MenuItem(menu, "Edit");
 		auto mnView = new GraphicsUI::MenuItem(menu, "View");
 
+		auto mnUndo = new GraphicsUI::MenuItem(mnEdit, "Undo", "Ctrl+Z");
+		mnUndo->OnClick.Bind(this, &SkeletonRetargetVisualizerActor::mnUndo_Clicked);
+		auto mnRedo = new GraphicsUI::MenuItem(mnEdit, "Redo", "Ctrl+Y");
+		mnRedo->OnClick.Bind(this, &SkeletonRetargetVisualizerActor::mnRedo_Clicked);
+		uiEntry->OnKeyDown.Bind(this, &SkeletonRetargetVisualizerActor::OnKeyDown);
+		
 		auto mnViewBindPose = new GraphicsUI::MenuItem(mnView, "Bind Pose");
 		mnViewBindPose->OnClick.Bind(this, &SkeletonRetargetVisualizerActor::ViewBindPose);
+
+		auto mnToggleSkeletonModel = new GraphicsUI::MenuItem(mnView, "Toggle Skeelton/Model", "Ctrl+T");
+		mnToggleSkeletonModel->OnClick.Bind(this, &SkeletonRetargetVisualizerActor::mnToggleSkeletonModel_Clicked);
 
 		auto mnLoadSourceMesh = new GraphicsUI::MenuItem(mnFile, "Load Model...");
 		mnLoadSourceMesh->OnClick.Bind(this, &SkeletonRetargetVisualizerActor::LoadSourceModel);
@@ -674,6 +835,8 @@ public:
 		uiEntry->CloseWindow(infoForm);
 
 		uiEntry->OnMouseDown.Bind(this, &SkeletonRetargetVisualizerActor::WindowMouseDown);
+		uiEntry->OnDblClick.Bind(this, &SkeletonRetargetVisualizerActor::WindowDblClick);
+
 	}
 	
 	virtual void OnLoad() override
@@ -682,17 +845,13 @@ public:
 		auto actualName = Engine::Instance()->FindFile("SkeletonVisualize.material", ResourceType::Material);
 
 		sourceSkeletonMaterial.LoadFromFile(actualName);
-		sourceMeshMaterial.LoadFromFile(actualName);
 		targetSkeletonMaterial.LoadFromFile(actualName);
-
+		actualName = Engine::Instance()->FindFile("BoneHighlight.material", ResourceType::Material);
+		sourceMeshMaterial.LoadFromFile(actualName);
 		targetSkeletonMaterial.SetVariable("solidColor", Vec3::Create(0.2f, 0.3f, 0.9f));
 		targetSkeletonMaterial.SetVariable("alpha", 0.8f);
 		targetSkeletonMaterial.SetVariable("highlightColor", Vec3::Create(0.7f, 0.7f, 0.1f));
-
-		sourceMeshMaterial.SetVariable("alpha", 1.0f);
-		sourceMeshMaterial.SetVariable("solidColor", Vec3::Create(0.2f, 0.2f, 0.2f));
-		sourceMeshMaterial.SetVariable("highlightColor", Vec3::Create(1.0f, 0.2f, 0.2f));
-
+		
 		auto solidMaterialFileName = Engine::Instance()->FindFile("SolidColor.material", ResourceType::Material);
 		xAxisMaterial.LoadFromFile(solidMaterialFileName);
 		xAxisMaterial.SetVariable("solidColor", Vec3::Create(1.0f, 0.0f, 0.0f));
@@ -700,7 +859,8 @@ public:
 		yAxisMaterial.SetVariable("solidColor", Vec3::Create(0.0f, 1.0f, 0.0f));
 		zAxisMaterial.LoadFromFile(solidMaterialFileName);
 		zAxisMaterial.SetVariable("solidColor", Vec3::Create(0.0f, 0.0f, 1.0f));
-
+		undoStack.Clear();
+		undoPtr = -1;
 	}
 	
 	virtual void OnUnload() override
@@ -708,8 +868,17 @@ public:
 		Actor::OnUnload();
 	}
 	
+	void WindowDblClick(UI_Base *)
+	{
+		if (lstBones->SelectedIndex != -1)
+			((ArcBallCameraControllerActor*)(level->FindActor("CamControl")))->SetCenter(bonePositions[lstBones->SelectedIndex]);
+	}
+
+
 	void WindowMouseDown(UI_Base *, GraphicsUI::UIMouseEventArgs & e)
 	{
+		if (e.Shift & SS_ALT)
+			return;
 		Ray r = Engine::Instance()->GetRayFromMousePosition(e.X, e.Y);
 		auto traceRs = level->GetPhysicsScene().RayTraceFirst(r);
 		if (traceRs.Object)
@@ -720,7 +889,14 @@ public:
 				SelectedBoneChanged(nullptr);
 			}
 		}
+		else
+		{
+			lstBones->SetSelectedIndex(-1);
+			SelectedBoneChanged(nullptr);
+		}
 	}
+
+	Pose curPose;
 
 	virtual void GetDrawables(const GetDrawablesParameter & param) override
 	{
@@ -757,44 +933,55 @@ public:
 		if (sourceModel)
 		{
 			auto sourceSkeleton = sourceModel->GetSkeleton();
+			Model highlightModel(sourceModel->GetMesh(), sourceModel->GetSkeleton(), &sourceMeshMaterial);
 			if (sourceModelInstance.IsEmpty())
 			{
 				sourceModelInstance = sourceModel->GetDrawableInstance(param);
+				highlightModelInstance = highlightModel.GetDrawableInstance(param);
 			}
 			Pose p;
 			p.Transforms.SetSize(sourceModel->GetSkeleton()->Bones.Count());
 			for (int i = 0; i < p.Transforms.Count(); i++)
 				p.Transforms[i] = sourceSkeleton->Bones[i].BindPose;
-			for (auto & d : sourceModelInstance.Drawables)
+			if (showSourceModel)
 			{
-				d->Bounds.Min = Vec3::Create(-1e9f);
-				d->Bounds.Max = Vec3::Create(1e9f);
-				param.sink->AddDrawable(d.Ptr());
+				for (auto & d : sourceModelInstance.Drawables)
+				{
+					d->Bounds.Min = Vec3::Create(-1e9f);
+					d->Bounds.Max = Vec3::Create(1e9f);
+					param.sink->AddDrawable(d.Ptr());
+				}
+				for (auto & d : highlightModelInstance.Drawables)
+				{
+					param.sink->AddDrawable(d.Ptr());
+				}
 			}
 			if (!sourceSkeletonDrawable)
 				sourceSkeletonDrawable = param.rendererService->CreateSkeletalDrawable(&sourceSkeletonMesh, 0, sourceModel->GetSkeleton(), &sourceSkeletonMaterial, false);
-			Matrix4 offset1;
-			Matrix4::Translation(offset1, 300.0f, 0.0f, 0.0f);
+			
 			if (targetSkeleton)
 			{
-				Pose p = GetCurrentPose();
-				sourceSkeletonDrawable->UpdateTransformUniform(offset1, p, &retargetFile);
+				p = GetCurrentPose();
+				sourceSkeletonDrawable->UpdateTransformUniform(identity, p, &retargetFile);
 				sourceModelInstance.UpdateTransformUniform(identity, p, &retargetFile);
-				skeletonPhysInstance->SetTransform(offset1, p, &retargetFile);
+				highlightModelInstance.UpdateTransformUniform(identity, p, &retargetFile);
+				skeletonPhysInstance->SetTransform(identity, p, &retargetFile);
 				physInstance->SetTransform(identity, p, &retargetFile);
 			}
 			else
 			{
-				Pose p;
 				p.Transforms.SetSize(sourceSkeleton->Bones.Count());
 				for (int i = 0; i < p.Transforms.Count(); i++)
 					p.Transforms[i] = sourceSkeleton->Bones[i].BindPose;
-				sourceSkeletonDrawable->UpdateTransformUniform(offset1, p, nullptr);
-				sourceModelInstance.UpdateTransformUniform(identity, p, nullptr);
-				skeletonPhysInstance->SetTransform(offset1, p, nullptr);
-				physInstance->SetTransform(identity, p, nullptr);
+				sourceSkeletonDrawable->UpdateTransformUniform(identity, p, &retargetFile);
+				sourceModelInstance.UpdateTransformUniform(identity, p, &retargetFile);
+				highlightModelInstance.UpdateTransformUniform(identity, p, &retargetFile);
+				skeletonPhysInstance->SetTransform(identity, p, &retargetFile);
+				physInstance->SetTransform(identity, p, &retargetFile);
 			}
-			param.sink->AddDrawable(sourceSkeletonDrawable.Ptr());
+			curPose = p;
+			if (!showSourceModel)
+				param.sink->AddDrawable(sourceSkeletonDrawable.Ptr());
 		}
 		if (targetSkeleton)
 		{
@@ -803,7 +990,7 @@ public:
 				targetSkeletonDrawable = param.rendererService->CreateSkeletalDrawable(&targetSkeletonMesh, 0, targetSkeleton.Ptr(), &targetSkeletonMaterial, false);
 			}
 			Matrix4 offset2;
-			Matrix4::Translation(offset2, 300.0f, 0.0f, 200.0f);
+			Matrix4::Translation(offset2, 300.0f, 0.0f, 0.0f);
 			Pose p = GetCurrentPose();
 			targetSkeletonDrawable->UpdateTransformUniform(offset2, p, nullptr);
 			param.sink->AddDrawable(targetSkeletonDrawable.Ptr());

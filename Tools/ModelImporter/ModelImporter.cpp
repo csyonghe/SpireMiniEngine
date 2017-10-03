@@ -10,6 +10,7 @@
 #include "WinForm/WinForm.h"
 #include "WinForm/WinApp.h"
 #include "WinForm/WinTextBox.h"
+#include "FBX_SDK/include/fbxsdk.h"
 
 using namespace CoreLib;
 using namespace CoreLib::IO;
@@ -485,6 +486,8 @@ void Export(ExportArguments args)
 								for (int j = 0; j < boneIds[i].Count(); j++)
 									if (boneIds[i][j] != -1)
 										sumWeight += boneWeights[i][j];
+								if (sumWeight > 1.0f)
+									printf("Break");
 								if (sumWeight > 0.0f)
 								{
 									sumWeight = 1.0f / sumWeight;

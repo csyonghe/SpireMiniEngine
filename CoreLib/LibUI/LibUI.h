@@ -171,7 +171,7 @@ namespace GraphicsUI
 
 		void DrawRectangle(int x1, int y1, int x2, int y2);
         void FillRectangle(int x1, int y1, int x2, int y2);
-        		void FillRectangle(float x1, float y1, float x2, float y2);
+        void FillRectangle(float x1, float y1, float x2, float y2);
 		void FillEllipse(float x1, float y1, float x2, float y2);
 		void FillTriangle(int x0, int y0, int x1, int y1, int x2, int y2);
 		void FillTriangle(float x0, float y0, float x1, float y1, float x2, float y2);
@@ -308,9 +308,9 @@ namespace GraphicsUI
 		bool LastInClient;
 		bool TopMost;
 		int Height, Width;
+		bool clipDraw = true;
 		bool IsPointInClient(int X, int Y);
 		virtual Control * FindControlAtPosition(int x, int y);
-		void LocalPosToAbsolutePos(int x, int y, int & ax, int & ay);
 	public:
 		Control(Container * parent);
 		Control(Container * parent, bool addToParent);
@@ -338,6 +338,7 @@ namespace GraphicsUI
 		BORDERSTYLE BorderStyle;
 		int AbsolutePosX; int AbsolutePosY;
 		void SetName(CoreLib::String pName);
+		virtual bool IsPointInContent(int x, int y);
 		virtual void Posit(int pLeft, int pTop, int pWidth, int pHeight);
 		void SetHeight(int val);
 		void SetWidth(int val);
@@ -346,12 +347,17 @@ namespace GraphicsUI
 		Rect ClientRect();
 		virtual void SizeChanged();
 		bool IsFocused();
+		void LocalPosToAbsolutePos(int x, int y, int & ax, int & ay);
 		virtual void Draw(int absX, int absY);
 		virtual void SetFont(IFont * AFont);
 		virtual void KillFocus();
 		IFont * GetFont() { return font; }
 		bool IsChildOf(Container * ctrl);
 		void ReleaseMouse();
+		bool GetClipDraw()
+		{
+			return clipDraw;
+		}
 	public:
 		virtual UIEntry * GetEntry();
 	public:
@@ -1470,6 +1476,56 @@ namespace GraphicsUI
 		}
 		CoreLib::Event<const CoreLib::String &> OnWriteText;
 		virtual void Write(const CoreLib::String & text) override;
+	};
+
+	class ManipulatorSceneView
+	{
+	public:
+		float FOV;
+		float ViewportX, ViewportY, ViewportW, ViewportH;
+	};
+	struct RotationEventArgs
+	{
+		int Axis;
+		float Angle;
+	};
+	class RotationManipulator : public Container
+	{
+	private:
+		Label * label;
+		CoreLib::List<TriangleFace> rotXFaces, rotXFullFaces, rotYFaces, rotYFullFaces, rotZFaces, rotZFullFaces, rotDiscFaces,
+			xAxis, yAxis, zAxis, tangentLineFaces;
+		int highlight = -1;
+		ManipulatorSceneView view;
+		VectorMath::Vec3 mouseDownWorldPos;
+		VectorMath::Vec2 mouseDownScreenSpace;
+		int activeRotationAxis = -1;
+		float worldRadius;
+		VectorMath::Vec3 xAxisV, yAxisV, zAxisV;
+		float startAngle = 0.0f;
+		VectorMath::Matrix4 viewTransform, projTransform, invViewProjTransform, viewportTransform;
+		VectorMath::Vec3 camPos, pos, sphereCenter;
+		VectorMath::Vec2 labelPositions[3];
+		VectorMath::Vec2 screenSpaceTangent;
+		VectorMath::Vec3 virtualPlaneAxesW[3][2];
+		VectorMath::Vec4 virtualPlane;
+		VectorMath::Vec3 ScreenCoordToVirtualPlanePoint(VectorMath::Vec2 p);
+		float GetPhaseFromWorldPos(VectorMath::Vec3 p);
+		void UpdateLabel(float angle);
+	protected:
+		virtual Control * FindControlAtPosition(int x, int y);
+	public:
+		RotationManipulator(Container * owner);
+		CoreLib::Event<UI_Base *, RotationEventArgs> OnApplyRotation;
+		CoreLib::Event<UI_Base *, RotationEventArgs> OnPreviewRotation;
+		float ScreenSpaceRadius = 100.0f;
+		virtual void Draw(int absX, int absY);
+		void SetTarget(const ManipulatorSceneView & view, const VectorMath::Matrix4& viewTransform, const VectorMath::Vec3 & camPos, const VectorMath::Vec3 & pos);
+		virtual bool DoMouseMove(int X, int Y);
+		virtual bool IsPointInContent(int x, int y) override;
+		virtual bool DoMouseDown(int X, int Y, SHIFTSTATE Shift);
+		virtual bool DoMouseUp(int X, int Y, SHIFTSTATE Shift);
+		virtual bool DoMouseLeave();
 	};
 }
 #endif

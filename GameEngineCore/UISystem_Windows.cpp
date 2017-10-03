@@ -712,7 +712,7 @@ namespace GameEngine
 			pipeBuilder->FixedFunctionStates.PrimitiveTopology = PrimitiveType::TriangleFans;
 			pipeBuilder->FixedFunctionStates.BlendMode = BlendMode::AlphaBlend;
 			pipeBuilder->FixedFunctionStates.DepthCompareFunc = CompareFunc::Disabled;
-
+			pipeBuilder->FixedFunctionStates.CullMode = CullMode::Disabled;
 			
 
 			Array<AttachmentLayout, 1> frameBufferLayout;

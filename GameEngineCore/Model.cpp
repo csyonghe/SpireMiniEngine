@@ -19,7 +19,8 @@ namespace GameEngine
 	Model::Model(Mesh * pMesh, Skeleton * pSkeleton, Material * material)
 	{
 		mesh = *pMesh;
-		materials.Add(material);
+		for (int i = 0; i < mesh.ElementRanges.Count(); i++)
+			materials.Add(material);
 		if (pSkeleton)
 			skeleton = *pSkeleton;
 		InitPhysicsModel();

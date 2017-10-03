@@ -177,6 +177,13 @@ namespace GameEngine
 		return EngineActorType::UserController;
 	}
 
+	void ArcBallCameraControllerActor::SetCenter(VectorMath::Vec3 p)
+	{
+		currentArcBall.center = p;
+		FindTargetCamera();
+		UpdateCamera();
+	}
+
 	bool ArcBallCameraControllerActor::DumpCamera(const CoreLib::String & /*axisName*/, ActionInput /*input*/)
 	{
 		//FindTargetCamera();

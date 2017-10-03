@@ -56,6 +56,7 @@ namespace GameEngine
 			return "ArcBallCameraController";
 		}
 	public:
+		void SetCenter(VectorMath::Vec3 center);
 		bool DumpCamera(const CoreLib::String & axisName, ActionInput scale);
 	};
 }
