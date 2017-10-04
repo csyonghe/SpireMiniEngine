@@ -102,8 +102,8 @@ public:
 	bool ExportAnimation = true;
 	bool FlipUV = false;
 	bool FlipWindingOrder = false;
-	bool FlipYZ = true;
-	bool CreateMeshFromSkeleton = true;
+	bool FlipYZ = false;
+	bool CreateMeshFromSkeleton = false;
 };
 
 using namespace CoreLib::WinForm;

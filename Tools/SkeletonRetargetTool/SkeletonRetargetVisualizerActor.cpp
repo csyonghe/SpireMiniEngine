@@ -233,6 +233,7 @@ public:
 				i++;
 			}
 			UpdateBoneMappingPanel();
+			currentAnim = SkeletalAnimation();
 		}
 		undoStack.Clear();
 		undoPtr = -1;
