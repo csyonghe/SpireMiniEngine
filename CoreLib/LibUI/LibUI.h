@@ -594,6 +594,7 @@ namespace GraphicsUI
 	public:
 		int TextWidth = 0;
 		int TextHeight = 0;
+		bool DrawPrefix = false;
 		VerticalAlignment VertAlignment = VerticalAlignment::Top;
 		Label(Container * parent);
 		~Label();

@@ -291,6 +291,20 @@ namespace GameEngine
 		return rs;
 	}
 
+	UINT GetFormat(const DrawTextOptions & options)
+	{
+		if (options.EditorText)
+			return DT_EDITCONTROL | DT_NOCLIP | DT_NOPREFIX;
+		else
+		{
+			if (!options.ProcessPrefix)
+				return DT_NOPREFIX;
+			if (options.HidePrefix)
+				return DT_HIDEPREFIX;
+		}
+		return 0;
+	}
+
 	class Canvas
 	{
 	private:
@@ -330,25 +344,34 @@ namespace GameEngine
 			HGDIOBJ OldFont = SelectObject(Handle, hdFont);
 			DeleteObject(OldFont);
 		}
-		void DrawText(const CoreLib::String & text, int X, int Y)
+		void DrawText(const CoreLib::String & text, int X, int Y, DrawTextOptions options)
 		{
 			int len = 0;
-			text.ToWString(&len);
-			(::TextOut(Handle, X, Y, text.ToWString(), len));
+			auto wstr = text.ToWString(&len);
+			RECT rect;
+			rect.left = X;
+			rect.top = Y;
+			rect.bottom = 0;
+			rect.right = 0;
+			::DrawText(Handle, wstr, len, &rect, GetFormat(options));
 		}
 
-		TextSize GetTextSize(const CoreLib::String& Text)
+		TextSize GetTextSize(const CoreLib::String& Text, DrawTextOptions options)
 		{
-			SIZE sText;
-			TextSize result;
-			sText.cx = 0; sText.cy = 0;
 			int len;
-			Text.ToWString(&len);
-			GetTextExtentPoint32W(Handle, Text.ToWString(), len, &sText);
-			result.x = sText.cx;  result.y = sText.cy;
-			return result;
+			auto wstr = Text.ToWString(&len);
+			RECT rect;
+			rect.left = 0;
+			rect.top = 0;
+			rect.bottom = 0;
+			rect.right = 0;
+			::DrawText(Handle, wstr, len, &rect, GetFormat(options) | DT_CALCRECT);
+			TextSize rs;
+			rs.x = rect.right;
+			rs.y = rect.bottom;
+			return rs;
 		}
-		TextSize GetTextSize(const CoreLib::List<unsigned int> & Text)
+		TextSize GetTextSize(const CoreLib::List<unsigned int> & Text, DrawTextOptions options)
 		{
 			SIZE sText;
 			TextSize result;
@@ -361,8 +384,16 @@ namespace GameEngine
 				int len = CoreLib::IO::EncodeUnicodePointToUTF16(buffer, Text[i]);
 				wstr.AddRange(buffer, len);
 			}
-			GetTextExtentPoint32W(Handle, (wchar_t*)wstr.Buffer(), wstr.Count(), &sText);
-			result.x = sText.cx;  result.y = sText.cy;
+			RECT rect;
+			rect.left = 0;
+			rect.top = 0;
+			rect.bottom = 0;
+			rect.right = 0;
+			::DrawText(Handle, (LPCWSTR)wstr.Buffer(), wstr.Count(), &rect, GetFormat(options) | DT_CALCRECT);
+			TextSize rs;
+			rs.x = rect.right;
+			rs.y = rect.bottom;
+			return rs;
 			return result;
 		}
 		void Clear(int w, int h)
@@ -1344,32 +1375,32 @@ namespace GameEngine
 		return font.Ptr();
 	}
 
-	Rect WindowsFont::MeasureString(const CoreLib::String & text)
+	Rect WindowsFont::MeasureString(const CoreLib::String & text, DrawTextOptions options)
 	{
 		Rect rs;
-		auto size = rasterizer->GetTextSize(text);
+		auto size = rasterizer->GetTextSize(text, options);
 		rs.x = rs.y = 0;
 		rs.w = size.x;
 		rs.h = size.y;
 		return rs;
 	}
 
-	Rect WindowsFont::MeasureString(const List<unsigned int> & text)
+	Rect WindowsFont::MeasureString(const List<unsigned int> & text, DrawTextOptions options)
 	{
 		Rect rs;
-		auto size = rasterizer->GetTextSize(text);
+		auto size = rasterizer->GetTextSize(text, options);
 		rs.x = rs.y = 0;
 		rs.w = size.x;
 		rs.h = size.y;
 		return rs;
 	}
 
-	IBakedText * WindowsFont::BakeString(const CoreLib::String & text, IBakedText * previous)
+	IBakedText * WindowsFont::BakeString(const CoreLib::String & text, IBakedText * previous, DrawTextOptions options)
 	{
 		BakedText * prev = (BakedText*)previous;
 		auto prevBuffer = (prev ? prev->textBuffer : nullptr);
 		system->WaitForDrawFence();
-		auto imageData = rasterizer->RasterizeText(system, text, prevBuffer, (prev?prev->BufferSize:0));
+		auto imageData = rasterizer->RasterizeText(system, text, prevBuffer, (prev?prev->BufferSize:0), options);
 		BakedText * result = prev;
 		if (!prevBuffer || imageData.ImageData != prevBuffer)
 			result = new BakedText();
@@ -1397,17 +1428,17 @@ namespace GameEngine
 		Bit->canvas->ChangeFont(Font, dpi);
 	}
 
-	TextRasterizationResult TextRasterizer::RasterizeText(UIWindowsSystemInterface * system, const CoreLib::String & text, unsigned char * existingBuffer, int existingBufferSize) // Set the text that is going to be displayed.
+	TextRasterizationResult TextRasterizer::RasterizeText(UIWindowsSystemInterface * system, const CoreLib::String & text, unsigned char * existingBuffer, int existingBufferSize, const DrawTextOptions & options) // Set the text that is going to be displayed.
 	{
 		int TextWidth, TextHeight;
 		List<unsigned char> pic;
 		TextSize size;
-		size = Bit->canvas->GetTextSize(text);
+		size = Bit->canvas->GetTextSize(text, options);
 		TextWidth = size.x;
 		TextHeight = size.y;
 		Bit->SetSize(TextWidth, TextHeight);
 		Bit->canvas->Clear(TextWidth, TextHeight);
-		Bit->canvas->DrawText(text, 0, 0);
+		Bit->canvas->DrawText(text, 0, 0, options);
 
 
 		int pixelCount = (TextWidth * TextHeight);
@@ -1442,14 +1473,14 @@ namespace GameEngine
 		return result;
 	}
 
-	TextSize TextRasterizer::GetTextSize(const CoreLib::String & text)
+	TextSize TextRasterizer::GetTextSize(const CoreLib::String & text, const DrawTextOptions & options)
 	{
-		return Bit->canvas->GetTextSize(text);
+		return Bit->canvas->GetTextSize(text, options);
 	}
 
-	TextSize TextRasterizer::GetTextSize(const CoreLib::List<unsigned int> & text)
+	TextSize TextRasterizer::GetTextSize(const CoreLib::List<unsigned int> & text, const DrawTextOptions & options)
 	{
-		return Bit->canvas->GetTextSize(text);
+		return Bit->canvas->GetTextSize(text, options);
 	}
 
 	BakedText::~BakedText()

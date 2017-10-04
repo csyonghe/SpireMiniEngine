@@ -84,9 +84,9 @@ namespace GameEngine
 		~TextRasterizer();
 		bool MultiLine = false;
 		void SetFont(const Font & Font, int dpi);
-		TextRasterizationResult RasterizeText(UIWindowsSystemInterface * system, const CoreLib::String & text, unsigned char * existingBuffer, int existingBufferSize);
-		TextSize GetTextSize(const CoreLib::String & text);
-		TextSize GetTextSize(const CoreLib::List<unsigned int> & text);
+		TextRasterizationResult RasterizeText(UIWindowsSystemInterface * system, const CoreLib::String & text, unsigned char * existingBuffer, int existingBufferSize, const GraphicsUI::DrawTextOptions & options);
+		TextSize GetTextSize(const CoreLib::String & text, const GraphicsUI::DrawTextOptions & options);
+		TextSize GetTextSize(const CoreLib::List<unsigned int> & text, const GraphicsUI::DrawTextOptions & options);
 
 	};
 
@@ -134,9 +134,9 @@ namespace GameEngine
         {
             return wndHandle;
         }
-		virtual GraphicsUI::Rect MeasureString(const CoreLib::String & text) override;
-		virtual GraphicsUI::Rect MeasureString(const CoreLib::List<unsigned int> & text) override;
-		virtual GraphicsUI::IBakedText * BakeString(const CoreLib::String & text, GraphicsUI::IBakedText * previous) override;
+		virtual GraphicsUI::Rect MeasureString(const CoreLib::String & text, GraphicsUI::DrawTextOptions options) override;
+		virtual GraphicsUI::Rect MeasureString(const CoreLib::List<unsigned int> & text, GraphicsUI::DrawTextOptions options) override;
+		virtual GraphicsUI::IBakedText * BakeString(const CoreLib::String & text, GraphicsUI::IBakedText * previous, GraphicsUI::DrawTextOptions options) override;
 
 	};
 

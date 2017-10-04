@@ -974,7 +974,7 @@ namespace GraphicsUI
 	{
 		if (text)
 			text = nullptr;
-		auto size = font->MeasureString(FCaption);
+		auto size = font->MeasureString(FCaption, DrawTextOptions(true, true, false));
 		TextWidth = size.w;
 		TextHeight = size.h;
 		FChanged = false;
@@ -998,7 +998,7 @@ namespace GraphicsUI
 		}
 		if (FChanged || !text)
 		{
-			text = font->BakeString(FCaption, text.Ptr());
+			text = font->BakeString(FCaption, text.Ptr(), DrawTextOptions(!DrawPrefix, true, false));
 			FChanged = false;
 		}
 		if (VertAlignment == VerticalAlignment::Top)
@@ -1057,7 +1057,7 @@ namespace GraphicsUI
 			font = entry->defaultFont.Ptr();
 		if (FChanged || !text)
 		{
-			text = font->BakeString(FCaption, text.Ptr());
+			text = font->BakeString(FCaption, text.Ptr(), DrawTextOptions(true, true, false));
 		}
 		int tx,ty;
 		tx = (Width - TextWidth)/2;
@@ -2318,7 +2318,7 @@ namespace GraphicsUI
 
 	void UIEntry::DoDpiChanged()
 	{
-		int nLineHeight = font->MeasureString("M").h;
+		int nLineHeight = font->MeasureString("M", DrawTextOptions(true, true, false)).h;
 		if (lineHeight != 0)
 			dpiScale = nLineHeight / (float)lineHeight;
 		Global::DeviceLineHeight = lineHeight = nLineHeight;
@@ -2939,7 +2939,7 @@ namespace GraphicsUI
 	void CustomTextBox::CursorPosChanged()
 	{
 		//Calculate Text offset.
-		int txtWidth = font->MeasureString(FText).w;
+		int txtWidth = font->MeasureString(FText, DrawTextOptions(false, false, true)).w;
 		if (txtWidth <= Width-TextBorderX*2)
 		{
 			LabelOffset = TextBorderX;
@@ -2948,7 +2948,7 @@ namespace GraphicsUI
 		{
 			String ls;
 			ls = FText.SubString(0, CursorPos);
-			int px = font->MeasureString(ls).w+LabelOffset;
+			int px = font->MeasureString(ls, DrawTextOptions(false, false, true)).w+LabelOffset;
 			if (px>Width-TextBorderX)
 			{
 				int delta = px-(Width-TextBorderX);
@@ -2977,10 +2977,10 @@ namespace GraphicsUI
 				curText = curText + FText[i];
 				i++;
 			} while (i < FText.Length() && IsUtf8ContinuationByte(FText[i]));
-			int tw = font->MeasureString(curText).w;
+			int tw = font->MeasureString(curText, DrawTextOptions(false, false, true)).w;
 			if (tw>posX)
 			{
-				int cw = font->MeasureString(FText.SubString(lastI, i - lastI)).w;
+				int cw = font->MeasureString(FText.SubString(lastI, i - lastI), DrawTextOptions(false, false, true)).w;
 				cw /= 2;
 				if (tw - cw > posX)
 					return lastI;
@@ -3326,7 +3326,7 @@ namespace GraphicsUI
 	{
 		Changed = true;
 		if (font)
-			Height = (int)(font->MeasureString("M").h * 1.2f);
+			Height = (int)(font->MeasureString("M", DrawTextOptions(false, false, true)).h * 1.2f);
 		Container::DoDpiChanged();
 	}
 
@@ -3373,7 +3373,7 @@ namespace GraphicsUI
 		}
 		if (Changed)
 		{
-			text = font->BakeString(FText, text.Ptr());
+			text = font->BakeString(FText, text.Ptr(), DrawTextOptions(false, false, true));
 			Changed = false;
 		}
 		auto & graphics = entry->DrawCommands;
@@ -3395,9 +3395,9 @@ namespace GraphicsUI
 			if (SelStart + SelLength > FText.Length())
 				SelLength = FText.Length() - SelStart;
 			ls = FText.SubString(0, SelStart);
-			spX = font->MeasureString(ls).w;
+			spX = font->MeasureString(ls, DrawTextOptions(false, false, true)).w;
 			ls = FText.SubString(0, SelStart+SelLength);
-			epX = font->MeasureString(ls).w;
+			epX = font->MeasureString(ls, DrawTextOptions(false, false, true)).w;
 			spX+=LabelOffset+absX; epX+=LabelOffset+absX;
 			graphics.SolidBrushColor = SelectionColor;
 			graphics.FillRectangle(spX, absY + TextBorderX, epX - 1, absY + Height - TextBorderX);
@@ -3412,7 +3412,7 @@ namespace GraphicsUI
 		int tick = int(timePassed / CURSOR_FREQUENCY);
 		if (IsFocused() && ((tick&1)==0 || KeyDown))
 		{
-			int csX = font->MeasureString(ls).w;
+			int csX = font->MeasureString(ls, DrawTextOptions(false, false, true)).w;
 			csX += LabelOffset;
 			AbsCursorPosX = absX+csX;
 			AbsCursorPosY = absY+Height-TextBorderX;
@@ -4092,7 +4092,7 @@ namespace GraphicsUI
 	{
 		ItemHeight = 18;
 		if (font)
-			ItemHeight = (int)(font->MeasureString("M").h * 1.1f);
+			ItemHeight = (int)(font->MeasureString("M", DrawTextOptions(false, false, true)).h * 1.1f);
 		Container::DoDpiChanged();
 	}
 

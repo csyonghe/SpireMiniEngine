@@ -79,12 +79,23 @@ namespace GraphicsUI
 		virtual ~IBakedText() {}
 	};
 
+	struct DrawTextOptions
+	{
+		bool HidePrefix = true;
+		bool ProcessPrefix = true;
+		bool EditorText = false;
+		DrawTextOptions() = default;
+		DrawTextOptions(bool hidePrefix, bool processPrefix, bool editorText)
+			: HidePrefix(hidePrefix), ProcessPrefix(processPrefix), EditorText(editorText)
+		{}
+	};
+
 	class IFont : public CoreLib::RefObject
 	{
 	public:
-		virtual Rect MeasureString(const CoreLib::String & text) = 0;
-		virtual Rect MeasureString(const CoreLib::List<unsigned int> & text) = 0;
-		virtual IBakedText * BakeString(const CoreLib::String & tex, IBakedText * previous) = 0;
+		virtual Rect MeasureString(const CoreLib::String & text, DrawTextOptions options) = 0;
+		virtual Rect MeasureString(const CoreLib::List<unsigned int> & text, DrawTextOptions options) = 0;
+		virtual IBakedText * BakeString(const CoreLib::String & tex, IBakedText * previous, DrawTextOptions options) = 0;
 	};
 
 	enum class DefaultFontType

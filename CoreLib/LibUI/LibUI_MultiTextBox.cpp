@@ -501,7 +501,7 @@ namespace GraphicsUI
 				docPosY *= lineHeight;
 				int start = textBuffer.Lines[cpos.Line].GetSubLineStartCharIndex(subLine);
 				int end = Math::Min(cpos.Col, textBuffer.Lines[cpos.Line].Chars.Count());
-				docPosX = font->MeasureString(textBuffer.Lines[cpos.Line].GetDisplayLine(subLine, TabSpaces, end - start)).w;
+				docPosX = font->MeasureString(textBuffer.Lines[cpos.Line].GetDisplayLine(subLine, TabSpaces, end - start), DrawTextOptions(false, false, true)).w;
 			}
 			return Vec2i::Create(docPosX, docPosY);
 		}
@@ -530,7 +530,7 @@ namespace GraphicsUI
 			for (int i = start; i < line.Chars.Count(); i++)
 			{
 				int chWidth = GetCharWidth(line.Chars[i]);
-				int nx = font->MeasureString(line.GetDisplayLine(counter, TabSpaces, i - start + 1)).w;
+				int nx = font->MeasureString(line.GetDisplayLine(counter, TabSpaces, i - start + 1), DrawTextOptions(false, false, true)).w;
 				if (nx > docX)
 				{
 					if ((docX - cx) <= (chWidth >> 1))
@@ -568,9 +568,9 @@ namespace GraphicsUI
 			if (!textWidthCache.TryGetValue(ch, rs))
 			{
 				if (ch == '\t')
-					rs = font->MeasureString(" ").w * TabSpaces;
+					rs = font->MeasureString(" ", DrawTextOptions(false, false, true)).w * TabSpaces;
 				else
-					rs = font->MeasureString(String::FromUnicodePoint(ch)).w;
+					rs = font->MeasureString(String::FromUnicodePoint(ch), DrawTextOptions(false, false, true)).w;
 				textWidthCache[ch] = rs;
 			}
 			return rs;
@@ -717,7 +717,7 @@ namespace GraphicsUI
 			textWidthCache.Clear();
 			if (font)
 			{
-				int fontLineHeight = this->font->MeasureString("X").h;
+				int fontLineHeight = this->font->MeasureString("X", DrawTextOptions(false, false, true)).h;
 				lineHeight = (int)(fontLineHeight * 1.1f);
 				CreateLineLabels(Height / lineHeight + 1);
 			}
