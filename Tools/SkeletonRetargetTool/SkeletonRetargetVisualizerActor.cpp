@@ -691,6 +691,8 @@ public:
 			mnRedo_Clicked(nullptr);
 		if (e.Shift == SS_CONTROL && (e.Key == 'T' || e.Key == 't'))
 			mnToggleSkeletonModel_Clicked(nullptr);
+		if (e.Shift == 0 && e.Key == ' ')
+			mnPlayAnim_Clicked(nullptr);
 	}
 
 	virtual void RegisterUI(GraphicsUI::UIEntry * pUiEntry) override
@@ -740,7 +742,7 @@ public:
 		mnShowSourceSkeletonShape->OnClick.Bind(this, &SkeletonRetargetVisualizerActor::mnShowSourceSkeletonShape_Clicked);
 		auto mnShowTargetSkeletonShape = new GraphicsUI::MenuItem(mnView, "Target Skeleton Shape");
 		mnShowTargetSkeletonShape->OnClick.Bind(this, &SkeletonRetargetVisualizerActor::mnShowTargetSkeletonShape_Clicked);
-		auto mnPlayAnimation = new GraphicsUI::MenuItem(mnView, "Play/Stop Animation");
+		auto mnPlayAnimation = new GraphicsUI::MenuItem(mnView, "Play/Stop Animation", "Space");
 		mnPlayAnimation->OnClick.Bind(this, &SkeletonRetargetVisualizerActor::mnPlayAnim_Clicked);
 
 		auto pnl = new GraphicsUI::Container(uiEntry);

@@ -1945,21 +1945,7 @@ namespace GraphicsUI
 			}
 			return true;
 		}
-		else if (Key == 0x12) // VK_MENU
-		{
-			Menu * menu = nullptr;
-			if (ActiveForm && ActiveForm->MainMenu)
-				menu = ActiveForm->MainMenu;
-			else if (this->MainMenu)
-				menu = this->MainMenu;
-			if (menu)
-			{
-				menu->SetFocus();
-				if (menu->Count())
-					menu->GetItem(0)->Selected = true;
-				return true;
-			}
-		}
+		
 	noTabProcess:;
 		auto ctrl = FocusedControl;
 		while (ctrl && ctrl != this)
@@ -1975,16 +1961,38 @@ namespace GraphicsUI
 
 	bool UIEntry::DoKeyUp(unsigned short Key, SHIFTSTATE Shift)
 	{
+		bool result = false;
+		
 		auto ctrl = FocusedControl;
 		while (ctrl && ctrl != this)
 		{
 			if (ctrl->DoKeyUp(Key, Shift))
-				return true;
+			{
+				result = true;
+				break;
+			}
 			ctrl = ctrl->Parent;
 		}
-		Control::DoKeyUp(Key, Shift);
-
-		return false;
+		if (!result)
+			Control::DoKeyUp(Key, Shift);
+		/*
+		if (Key == 0x12 && (Shift == SS_ALT || Shift == 0)) // VK_MENU
+		{
+			Menu * menu = nullptr;
+			if (ActiveForm && ActiveForm->MainMenu)
+				menu = ActiveForm->MainMenu;
+			else if (this->MainMenu)
+				menu = this->MainMenu;
+			if (menu)
+			{
+				menu->SetFocus();
+				if (menu->Count())
+					menu->GetItem(0)->Selected = true;
+				return true;
+			}
+		}
+		*/
+		return result;
 	}
 
 	bool UIEntry::DoKeyPress(unsigned short Key, SHIFTSTATE Shift)
@@ -5166,8 +5174,9 @@ namespace GraphicsUI
 			if (id >= 0 && Items[id]->Selected && Items[id]->Enabled && !Items[id]->IsSeperator())
 			{
 				Items[id]->Hit();
+				return true;
 			}
-			return true;
+			return false;
 		}
 		if (style == msPopup)
 		{
