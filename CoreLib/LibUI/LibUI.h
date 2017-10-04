@@ -765,6 +765,7 @@ namespace GraphicsUI
 		CoreLib::EnumerableHashSet<Control*> tickEventSubscribers;
 		int lineHeight = 0;
 		float dpiScale = 1.0f;
+		CoreLib::List<Control*> popupList;
 	protected:
 		void DeactivateAllForms();
 	public:
@@ -780,6 +781,7 @@ namespace GraphicsUI
 		Form *ActiveForm = nullptr;
 		Graphics DrawCommands;
 		CoreLib::List<Form*> Forms;
+		CoreLib::EnumerableHashSet<Control*> Popups;
 		CoreLib::List<DrawCommand> & DrawUI();
 		void RemoveForm(Form *Form);
 		void ShowWindow(Form *Form);
@@ -1042,6 +1044,10 @@ namespace GraphicsUI
 		virtual void DoDpiChanged() override;
 	};
 
+	enum class MouseOperation
+	{
+		MouseDown, MouseUp
+	};
 	class MenuItem : public Container
 	{
 		friend Menu;
@@ -1083,7 +1089,7 @@ namespace GraphicsUI
 
 		MenuItem(Menu* menu, const CoreLib::String & text, const CoreLib::String & shortcutText);
 		MenuItem(MenuItem* menu, const CoreLib::String & text, const CoreLib::String & shortcutText);
-		void Hit();
+		void Hit(MouseOperation mouseOperation);
 		void DrawMenuItem(int width, int height);
 		void DrawMenuButton(int width, int height);
 		virtual bool DoMouseEnter() override;

@@ -2577,7 +2577,7 @@ namespace GraphicsUI
 	{
 		if (Visible)
 		{
-			auto checkCtrl = [&](Control * ctrl) -> Control*
+			auto checkCtrl = [&](Control * ctrl, bool isPopup) -> Control*
 			{
 				if (!ctrl->Visible)
 					return nullptr;
@@ -2588,20 +2588,35 @@ namespace GraphicsUI
 					dx = clientRect.x;
 					dy = clientRect.y;
 				}
-				int nx = x - dx;
-				int ny = y - dy;
-				if (auto child = ctrl->FindControlAtPosition(nx - ctrl->Left, ny - ctrl->Top))
+				int nx = x - dx - ctrl->Left;
+				int ny = y - dy - ctrl->Top;
+				if (isPopup)
+				{
+					nx = x - ctrl->AbsolutePosX;
+					ny = y - ctrl->AbsolutePosY;
+				}
+				if (auto child = ctrl->FindControlAtPosition(nx, ny))
 					return child;
 				return nullptr;
 			};
+			popupList.Clear();
+			for (auto & popup : Popups)
+			{
+				popupList.Add(popup);
+			}
+			for (int i = popupList.Count() - 1; i >= 0; i--)
+			{
+				if (auto rs = checkCtrl(popupList[i], true))
+					return rs;
+			}
 			for (int i = Forms.Count() - 1; i >= 0; i--)
 			{
-				if (auto rs = checkCtrl(Forms[i]))
+				if (auto rs = checkCtrl(Forms[i], true))
 					return rs;
 			}
 			for (int i = controls.Count() - 1; i >= 0; i--)
 			{
-				if (auto rs = checkCtrl(controls[i].Ptr()))
+				if (auto rs = checkCtrl(controls[i].Ptr(), false))
 					return rs;
 			}
 			return this;
@@ -4993,6 +5008,7 @@ namespace GraphicsUI
 				Top -= Height;
 			Visible = true;
 			SetFocus();
+			GetEntry()->Popups.Add(this);
 			Global::MouseCaptureControl = this;
 		}
 	}
@@ -5016,6 +5032,7 @@ namespace GraphicsUI
 			enableMouseHover = false;
 			curSubMenu = nullptr;
 			ReleaseMouse();
+			GetEntry()->Popups.Remove(this);
 			if (Global::MouseCaptureControl && Global::MouseCaptureControl->IsChildOf(this))
 				Global::MouseCaptureControl = nullptr;
 		}
@@ -5117,12 +5134,15 @@ namespace GraphicsUI
 		Container::DoMouseDown(X, Y, Shift);
 		if (!IsPointInClient(X, Y))
 		{
-			if (style == msPopup)
-				CloseMenu();
-			else
+			if (style != msPopup)
 			{
 				for (int i=0; i<Items.Count(); i++)
 					Items[i]->Selected = false;
+			}
+			else
+			{
+				if (this->Visible)
+					CloseMenu();
 			}
 		}
 		else
@@ -5139,6 +5159,18 @@ namespace GraphicsUI
 	bool Menu::DoMouseUp(int X, int Y, SHIFTSTATE Shift)
 	{
 		Container::DoMouseUp(X, Y, Shift);
+		if (IsPointInClient(X, Y))
+		{
+			for (auto & item : Items)
+				if (X >= item->Left && X < item->Left + item->Width &&
+					Y >= item->Top && Y <= item->Top + item->Height)
+					item->DoMouseUp(X - item->Left, Y - item->Top, Shift);
+		}
+		else if (style == msPopup)
+		{
+			if (Global::PointedComponent != this->parentItem)
+				CloseMenu();
+		}
 		return true;
 	}
 
@@ -5161,7 +5193,7 @@ namespace GraphicsUI
 			for (int i=0; i<Items.Count(); i++)
 				if (Items[i]->GetAccessKey() == Key)
 				{
-					Items[i]->Hit();
+					Items[i]->Hit(MouseOperation::MouseUp);
 					Items[i]->Selected = true;
 					return true;
 				}
@@ -5173,7 +5205,7 @@ namespace GraphicsUI
 		{
 			if (id >= 0 && Items[id]->Selected && Items[id]->Enabled && !Items[id]->IsSeperator())
 			{
-				Items[id]->Hit();
+				Items[id]->Hit(MouseOperation::MouseUp);
 				return true;
 			}
 			return false;
@@ -5266,7 +5298,7 @@ namespace GraphicsUI
 						item->Selected = false;
 					parentMainMenu->Items[npId]->Selected = true;
 
-					parentMainMenu->Items[npId]->Hit();
+					parentMainMenu->Items[npId]->Hit(MouseOperation::MouseDown);
 				}
 				return true;
 			}
@@ -5289,7 +5321,7 @@ namespace GraphicsUI
 					for (auto item : parentMainMenu->Items)
 						item->Selected = false;
 					parentMainMenu->Items[npId]->Selected = true;
-					parentMainMenu->Items[npId]->Hit();
+					parentMainMenu->Items[npId]->Hit(MouseOperation::MouseUp);
 				}
 				else if (parentItem && parentItem->Parent)
 				{
@@ -5368,7 +5400,7 @@ namespace GraphicsUI
 			else if (Key == 0x28) // VK_DOWN
  			{
 				if (id != -1)
-					Items[id]->Hit();
+					Items[id]->Hit(MouseOperation::MouseDown);
 				if (curSubMenu)
 				{
 					for (int i=0; i<curSubMenu->Count(); i++)
@@ -5761,7 +5793,7 @@ namespace GraphicsUI
 		Padding.Left = Padding.Right = GetEntry()->GetLineHeight() / 2;
 	}
 
-	void MenuItem::Hit()
+	void MenuItem::Hit(MouseOperation mouseOperation)
 	{
 		Menu * mn = (Menu*)Parent;
 
@@ -5772,7 +5804,7 @@ namespace GraphicsUI
 			else
 				mn->PopupSubMenu(SubMenu, Width - Padding.Left, -Padding.Top);
 		}
-		else
+		else if (mouseOperation == MouseOperation::MouseUp)
 		{
 			while (mn)
 			{
@@ -5792,7 +5824,7 @@ namespace GraphicsUI
 		Control::DoMouseDown(X,Y, Shift);
 		if (IsPointInClient(X, Y))
 		{
-			Hit();
+			Hit(MouseOperation::MouseDown);
 			return true;
 		}
 		return false;
@@ -5800,7 +5832,11 @@ namespace GraphicsUI
 	bool MenuItem::DoMouseUp(int X, int Y, SHIFTSTATE Shift)
 	{
 		Control::DoMouseUp(X, Y, Shift);
-
+		if (IsPointInClient(X, Y))
+		{
+			Hit(MouseOperation::MouseUp);
+			return true;
+		}
 		return false;
 	}
 	bool MenuItem::DoKeyDown(unsigned short Key, SHIFTSTATE Shift)
