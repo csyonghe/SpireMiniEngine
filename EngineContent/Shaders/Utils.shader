@@ -35,6 +35,7 @@ module TangentSpaceTransform
     require vec3 coarseVertTangent;
     require vec3 coarseVertBinormal;
     require vec3 worldTransformTangent(vec3 pos);
+    require float binormalSign;
     public vec3 vTangent = worldTransformTangent(coarseVertTangent);
     public vec3 vBiTangent = worldTransformTangent(coarseVertBinormal);
     public vec3 vNormal = cross(vBiTangent, vTangent);
@@ -45,7 +46,7 @@ module TangentSpaceTransform
     }
     public vec3 TangentSpaceToWorldSpace(vec3 v)
     {
-        return v.x * vTangent + v.y * vBiTangent + v.z * vNormal;        
+        return v.x * vTangent + v.y * vBiTangent * binormalSign + v.z * vNormal;        
     }
 }
 
@@ -55,7 +56,6 @@ module VertexTransform
     require vec3 displacement;
     require mat4 viewProjectionTransform;
     require vec3 worldTransformPos(vec3 pos);
-
     public vec3 pos = worldTransformPos(fineVertPos+displacement); 
     public vec4 projCoord
     {
@@ -101,7 +101,7 @@ module SkeletalAnimation
     require vec3 vertBinormal;
     require vec3 vertTangent;
     require uint boneIds;
-    require uint boneWeights;
+    require vec4 boneWeights;
 
     require mat4 viewProjectionTransform;
 
@@ -117,7 +117,7 @@ module SkeletalAnimation
         {
             uint boneId = (boneIds >> (i*8)) & 255;
             if (boneId == 255) break;
-            float boneWeight = float((boneWeights >> (i*8)) & 255) * (1.0/255.0);
+            float boneWeight = boneWeights[i];
             vec3 tp = (boneTransforms[boneId] * vec4(vertPos, 1.0)).xyz;
             result.pos += tp * boneWeight;
             tp = mat3(boneTransforms[boneId]) * vertBinormal;

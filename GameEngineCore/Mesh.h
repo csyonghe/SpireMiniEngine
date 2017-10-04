@@ -187,11 +187,14 @@ namespace GameEngine
                 cBoneIds[i] = 255;
                 cWeights[i] = 0;
             }
+			unsigned char residual = 255;
 			for (int i = 0; i < CoreLib::Math::Min(4, boneIds.Count()); i++)
 			{
 				cBoneIds[i] = boneIds[i] == -1 ? 255 : (unsigned char)boneIds[i];
 				cWeights[i] = (unsigned char)CoreLib::Math::Clamp((int)(boneWeights[i] * 255.0f), 0, 255);
+				residual -= cWeights[i];
 			}
+			cWeights[0] += residual;
 			vBoneIds = (unsigned int)(cBoneIds[0] + (cBoneIds[1] << 8) + (cBoneIds[2] << 16) + (cBoneIds[3] << 24));
 			vBoneWeights = (unsigned int)(cWeights[0] + (cWeights[1] << 8) + (cWeights[2] << 16) + (cWeights[3] << 24));
 		}

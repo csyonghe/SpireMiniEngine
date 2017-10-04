@@ -10,7 +10,7 @@ module BoneHighlightPattern implements IMaterialPattern
     require float time;
     param int highlightId;
     require uint boneIds;
-    require uint boneWeights;
+    require vec4 boneWeights;
     public vec3 albedo
     {
         return highlightColor;
@@ -21,11 +21,11 @@ module BoneHighlightPattern implements IMaterialPattern
         for (int i = 0; i < 4; i++)
         {
             uint boneId = (boneIds >> (i*8)) & 255;
-            float boneWeight = float((boneWeights >> (i*8)) & 255);
+            float boneWeight = boneWeights[i];
             if (boneId == 255) continue;
             if (boneId == highlightId)
             {
-                result = mix(0.4, 1.0, (sin(time * 4.0)*0.5 + 0.5)) * alpha * (boneWeight / 255.0);
+                result = mix(0.4, 1.0, (sin(time * 4.0)*0.5 + 0.5)) * alpha * boneWeight;
                 break;
             }   
         }

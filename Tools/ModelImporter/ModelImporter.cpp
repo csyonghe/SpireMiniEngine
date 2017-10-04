@@ -1,6 +1,6 @@
-#include "FBXImport/include/Importer.hpp"
-#include "FBXImport/include/scene.h"
-#include "FBXImport/include/postprocess.h"
+//#include "FBXImport/include/Importer.hpp"
+//#include "FBXImport/include/scene.h"
+//#include "FBXImport/include/postprocess.h"
 #include "CoreLib/Basic.h"
 #include "CoreLib/LibIO.h"
 #include "Skeleton.h"
@@ -17,13 +17,13 @@ using namespace CoreLib::IO;
 using namespace GameEngine;
 using namespace VectorMath;
 
-Quaternion ToQuaternion(const aiQuaternion & q)
+Quaternion ToQuaternion(const FbxVector4 & q)
 {
 	Quaternion rs;
-	rs.x = q.x;
-	rs.y = q.y;
-	rs.z = q.z;
-	rs.w = q.w;
+	rs.x = (float)q[0];
+	rs.y = (float)q[1];
+	rs.z = (float)q[2];
+	rs.w = (float)q[3];
 	return rs;
 }
 
@@ -67,28 +67,28 @@ void IndentString(StringBuilder & sb, String src)
 		}
 	}
 }
-
-void ConvertLevelNode(StringBuilder & sb, const aiScene * scene, aiNode * node)
-{
-	for (auto i = 0u; i < node->mNumMeshes; i++)
-	{
-		sb << "StaticMesh\n{\n";
-		sb << "name \"" << String(node->mName.C_Str()) << "\"\n";
-		sb << "transform [";
-		for (int i = 0; i < 16; i++)
-			sb << String(node->mTransformation[i % 4][i / 4]) << " ";
-		sb << "]\n";
-		auto name = String(scene->mMeshes[node->mMeshes[i]]->mName.C_Str());
-		if (name.Length() == 0)
-			name = "mesh_" + String((int)(node->mMeshes[i])) + ".mesh";
-		sb << "mesh \"" << name << "\"\n";
-		for (auto i = 0u; i < node->mNumChildren; i++)
-		{
-			ConvertLevelNode(sb, scene, node->mChildren[i]);
-		}
-		sb << "}\n";
-	}
-}
+//
+//void ConvertLevelNode(StringBuilder & sb, const aiScene * scene, aiNode * node)
+//{
+//	for (auto i = 0u; i < node->mNumMeshes; i++)
+//	{
+//		sb << "StaticMesh\n{\n";
+//		sb << "name \"" << String(node->mName.C_Str()) << "\"\n";
+//		sb << "transform [";
+//		for (int i = 0; i < 16; i++)
+//			sb << String(node->mTransformation[i % 4][i / 4]) << " ";
+//		sb << "]\n";
+//		auto name = String(scene->mMeshes[node->mMeshes[i]]->mName.C_Str());
+//		if (name.Length() == 0)
+//			name = "mesh_" + String((int)(node->mMeshes[i])) + ".mesh";
+//		sb << "mesh \"" << name << "\"\n";
+//		for (auto i = 0u; i < node->mNumChildren; i++)
+//		{
+//			ConvertLevelNode(sb, scene, node->mChildren[i]);
+//		}
+//		sb << "}\n";
+//	}
+//}
 
 class ExportArguments
 {
@@ -146,11 +146,11 @@ void FlipKeyFrame(BoneTransformation & kf)
 	Swap(kf.Scale.y, kf.Scale.z);
 }
 
-void GetSkeletonNodes(List<aiNode*> & nodes, aiNode * node)
+void GetSkeletonNodes(List<FbxNode*> & nodes, FbxNode * node)
 {
 	nodes.Add(node);
-	for (auto i = 0u; i < node->mNumChildren; i++)
-		GetSkeletonNodes(nodes, node->mChildren[i]);
+	for (auto i = 0; i < node->GetChildCount(); i++)
+		GetSkeletonNodes(nodes, node->GetChild(i));
 }
 
 class RootTransformApplier
@@ -203,6 +203,77 @@ public:
 	}
 };
 
+void PrintNode(FbxNode* pNode, int numTabs = 0)
+{
+	for (int i = 0; i < numTabs; i++) printf("  ");
+	const char* nodeName = pNode->GetName();
+	FbxDouble3 translation = pNode->LclTranslation.Get();
+	FbxDouble3 rotation = pNode->LclRotation.Get();
+	FbxDouble3 scaling = pNode->LclScaling.Get();
+	
+	// Print the contents of the node.
+	printf("<node type='%s' name='%s' translation='(%f, %f, %f)' rotation='(%f, %f, %f)' scaling='(%f, %f, %f)'>\n",
+		pNode->GetTypeName(), nodeName,
+		translation[0], translation[1], translation[2],
+		rotation[0], rotation[1], rotation[2],
+		scaling[0], scaling[1], scaling[2]
+	);
+
+	// Recursively print the children.
+	for (int j = 0; j < pNode->GetChildCount(); j++)
+		PrintNode(pNode->GetChild(j), numTabs + 1);
+	for (int i = 0; i < numTabs; i++) printf("  ");
+	printf("</node>\n");
+}
+
+Matrix4 GetMatrix(FbxAMatrix m)
+{
+	Matrix4 rs;
+	for (int i = 0; i < 16; i++)
+		rs.values[i] = (float)m.Get(i >> 2, i & 3);
+	return rs;
+}
+
+Vec2 GetVec2(FbxVector2 v)
+{
+	Vec2 rs;
+	rs.x = (float)v[0];
+	rs.y = (float)v[1];
+	return rs;
+}
+
+Vec4 GetVec4(FbxColor v)
+{
+	Vec4 rs;
+	rs.x = (float)v.mRed;
+	rs.y = (float)v.mGreen;
+	rs.z = (float)v.mBlue;
+	rs.w = (float)v.mAlpha;
+	return rs;
+}
+
+Vec3 GetVec3(FbxVector4 v)
+{
+	Vec3 rs;
+	rs.x = (float)v[0];
+	rs.y = (float)v[1];
+	rs.z = (float)v[2];
+	return rs;
+}
+
+FbxNode * FindFirstSkeletonNode(FbxNode * node)
+{
+	if (node->GetSkeleton())
+		return node;
+	for (int i = 0; i < node->GetChildCount(); i++)
+	{
+		auto rs = FindFirstSkeletonNode(node->GetChild(i));
+		if (rs)
+			return rs;
+	}
+	return nullptr;
+}
+
 void Export(ExportArguments args)
 {
 	if (args.FlipYZ)
@@ -217,6 +288,550 @@ void Export(ExportArguments args)
 	auto fileName = args.FileName;
 	auto outFileName = Path::ReplaceExt(fileName, "out");
 	printf("loading %S...\n", fileName.ToWString());
+	
+	FbxManager * lSdkManager = FbxManager::Create();
+	FbxIOSettings *ios = FbxIOSettings::Create(lSdkManager, IOSROOT);
+	lSdkManager->SetIOSettings(ios);
+
+	// Create an importer using the SDK manager.
+	::FbxImporter* lImporter = ::FbxImporter::Create(lSdkManager, "");
+
+	// Use the first argument as the filename for the importer.
+	if (!lImporter->Initialize(fileName.Buffer(), -1, lSdkManager->GetIOSettings()))
+	{
+		printf("Call to FbxImporter::Initialize() failed.\n");
+		printf("Error returned: %s\n\n", lImporter->GetStatus().GetErrorString());
+		return;
+	}
+	// Create a new scene so that it can be populated by the imported file.
+	FbxScene* lScene = FbxScene::Create(lSdkManager, "myScene");
+
+	// Import the contents of the file into the scene.
+	lImporter->Import(lScene);
+
+	// The file is imported, so get rid of the importer.
+	lImporter->Destroy();
+
+	// Print the nodes of the scene and their attributes recursively.
+	// Note that we are not printing the root node because it should
+	// not contain any attributes.
+	FbxNode* lRootNode = lScene->GetRootNode();
+
+	Skeleton skeleton;
+	List<fbxsdk::FbxNode*> skeletonNodes;
+	if (args.ExportSkeleton || args.ExportAnimation)
+	{
+		// find root bone
+		if (args.RootNodeName.Length() == 0)
+		{
+			bool rootBoneFound = false;
+			// find root bone
+			auto skeletonRootNode = FindFirstSkeletonNode(lRootNode);
+			if (skeletonRootNode)
+				args.RootNodeName = skeletonRootNode->GetName();
+			else
+			{
+				printf("error: root bone not specified.\n");
+				goto endOfSkeletonExport;
+			}
+		}
+		auto firstBoneNode = lRootNode->FindChild(args.RootNodeName.Buffer());
+		if (!firstBoneNode)
+		{
+			printf("error: root node named '%s' not found.\n", args.RootNodeName.Buffer());
+			goto endOfSkeletonExport;
+		}
+		auto rootBoneNode = firstBoneNode;
+		printf("root bone is \'%s\'\n", rootBoneNode->GetName());
+		
+		GetSkeletonNodes(skeletonNodes, rootBoneNode);
+		skeleton.Bones.SetSize(skeletonNodes.Count());
+		skeleton.InversePose.SetSize(skeleton.Bones.Count());
+		for (auto i = 0; i < skeletonNodes.Count(); i++)
+		{
+			skeleton.Bones[i].Name = skeletonNodes[i]->GetName();
+			skeleton.Bones[i].ParentId = -1;
+			skeleton.BoneMapping[skeleton.Bones[i].Name] = i;
+			auto trans = GetMatrix(skeletonNodes[i]->EvaluateLocalTransform());
+			skeleton.Bones[i].BindPose.FromMatrix(trans);
+		}
+		for (auto i = 0; i < skeletonNodes.Count(); i++)
+		{
+			if (skeletonNodes[i])
+			{
+				for (auto j = 0; j < skeletonNodes[i]->GetChildCount(); j++)
+				{
+					int boneId = -1;
+					if (skeleton.BoneMapping.TryGetValue(skeletonNodes[i]->GetChild(j)->GetName(), boneId))
+					{
+						skeleton.Bones[boneId].ParentId = i;
+					}
+				}
+			}
+		}
+
+		// apply root fix transform
+		skeleton.Bones[0].BindPose = RootTransformApplier::ApplyFix(rootFixTransform, skeleton.Bones[0].BindPose);
+
+		// apply root transform
+		for (auto & bone : skeleton.Bones)
+			bone.BindPose = rootTransformApplier.Apply(bone.BindPose);
+
+		// compute inverse matrices
+		for (auto i = 0; i < skeletonNodes.Count(); i++)
+			skeleton.InversePose[i] = skeleton.Bones[i].BindPose.ToMatrix();
+		for (auto i = 0; i < skeletonNodes.Count(); i++)
+		{
+			if (skeleton.Bones[i].ParentId != -1)
+				Matrix4::Multiply(skeleton.InversePose[i], skeleton.InversePose[skeleton.Bones[i].ParentId], skeleton.InversePose[i]);
+		}
+		for (auto i = 0; i < skeletonNodes.Count(); i++)
+			skeleton.InversePose[i].Inverse(skeleton.InversePose[i]);
+		if (args.ExportSkeleton)
+		{
+			skeleton.SaveToFile(Path::ReplaceExt(outFileName, "skeleton"));
+			printf("skeleton converted. total bones: %d.\n", skeleton.Bones.Count());
+			if (args.CreateMeshFromSkeleton)
+			{
+				Mesh m;
+				m.FromSkeleton(&skeleton, 5.0f);
+				m.SaveToFile(Path::ReplaceExt(outFileName, "skeleton.mesh"));
+			}
+		}
+	}
+
+endOfSkeletonExport:
+	if (args.ExportMesh)
+	{
+		int numColorChannels = 0;
+		int numUVChannels = 0;
+		int numVerts = 0;
+		int numFaces = 0;
+		bool hasBones = false;
+
+		for (auto cid = 0; cid < lRootNode->GetChildCount(); cid++)
+		{
+			if (auto mesh = lRootNode->GetChild(cid)->GetMesh())
+			{
+				numColorChannels = Math::Max(numColorChannels, (int)mesh->GetElementVertexColorCount());
+				numUVChannels = Math::Max(numUVChannels, (int)mesh->GetElementUVCount());
+				int deformerCount = mesh->GetDeformerCount(FbxDeformer::eSkin);
+				hasBones |= (deformerCount != 0);
+				for (auto i = 0; i < mesh->GetPolygonCount(); i++)
+				{
+					numVerts += mesh->GetPolygonSize(i);
+					if (mesh->GetPolygonSize(i) >= 3)
+						numFaces += mesh->GetPolygonSize(i) - 2;
+				}
+			}
+		}
+		RefPtr<Mesh> meshOut = new Mesh();
+		meshOut->Bounds.Init();
+		meshOut->SetVertexFormat(MeshVertexFormat(numColorChannels, numUVChannels, true, hasBones));
+		meshOut->AllocVertexBuffer(numVerts);
+		meshOut->Indices.SetSize(numFaces * 3);
+		int vertPtr = 0, idxPtr = 0;
+		for (auto cid = 0; cid < lRootNode->GetChildCount(); cid++)
+		{
+			auto transformMat = GetMatrix(lRootNode->GetChild(cid)->EvaluateGlobalTransform());
+			if (auto mesh = lRootNode->GetChild(cid)->GetMesh())
+			{
+				Matrix4::Multiply(transformMat, args.RootTransform.ToMatrix4(), transformMat);
+				Matrix4 normMat;
+				transformMat.GetNormalMatrix(normMat);
+				printf("Mesh element %d: %s\n", meshOut->ElementRanges.Count(), lRootNode->GetChild(cid)->GetName());
+				MeshElementRange elementRange;
+				elementRange.StartIndex = idxPtr;
+				int meshNumFaces = 0;
+				int meshNumVerts = 0;
+				for (auto i = 0; i < mesh->GetPolygonCount(); i++)
+				{
+					if (mesh->GetPolygonSize(i) >= 3)
+						meshNumFaces += mesh->GetPolygonSize(i) - 2;
+					meshNumVerts += mesh->GetPolygonSize(i);
+				}
+				elementRange.Count = meshNumFaces * 3;
+				meshOut->ElementRanges.Add(elementRange);
+				int startVertId = vertPtr;
+				vertPtr += meshNumVerts;
+				int faceId = 0;
+				auto srcIndices = mesh->GetPolygonVertices();
+				auto srcVerts = mesh->GetControlPoints();
+				mesh->GenerateNormals();
+				mesh->GenerateTangentsData(0);
+				int mvptr = startVertId;
+				int vertexId = 0;
+				List<int> vertexIdToControlPointIndex;
+				vertexIdToControlPointIndex.SetSize(meshNumVerts);
+				for (auto i = 0; i < mesh->GetPolygonCount(); i++)
+				{
+					if (mesh->GetPolygonSize(i) < 3)
+					{
+						vertexId += mesh->GetPolygonSize(i);
+						continue;
+					}
+					auto srcPolygonIndices = srcIndices + mesh->GetPolygonVertexIndex(i);
+					for (auto j = 0; j < mesh->GetPolygonSize(i); j++)
+					{
+						int controlPointIndex = srcPolygonIndices[j];
+						auto srcVert = srcVerts[srcPolygonIndices[j]];
+						auto vertPos = Vec3::Create((float)srcVert[0], (float)srcVert[1], (float)srcVert[2]);
+						vertPos = transformMat.TransformHomogeneous(vertPos);
+						meshOut->Bounds.Union(vertPos);
+						meshOut->SetVertexPosition(mvptr + j, vertPos);
+						vertexIdToControlPointIndex[vertexId] = controlPointIndex;
+						for (auto k = 0; k < mesh->GetElementUVCount(); k++)
+						{
+							FbxGeometryElementUV* leUV = mesh->GetElementUV(k);
+							Vec2 vertUV;
+							switch (leUV->GetMappingMode())
+							{
+							default:
+								break;
+							case FbxGeometryElement::eByControlPoint:
+								switch (leUV->GetReferenceMode())
+								{
+								case FbxGeometryElement::eDirect:
+									vertUV = GetVec2(leUV->GetDirectArray().GetAt(controlPointIndex));
+									break;
+								case FbxGeometryElement::eIndexToDirect:
+								{
+									int id = leUV->GetIndexArray().GetAt(controlPointIndex);
+									vertUV = GetVec2(leUV->GetDirectArray().GetAt(id));
+								}
+								break;
+								default:
+									break; // other reference modes not shown here!
+								}
+								break;
+
+							case FbxGeometryElement::eByPolygonVertex:
+							{
+								int lTextureUVIndex = mesh->GetTextureUVIndex(i, j);
+								switch (leUV->GetReferenceMode())
+								{
+								case FbxGeometryElement::eDirect:
+								case FbxGeometryElement::eIndexToDirect:
+								{
+									vertUV = GetVec2(leUV->GetDirectArray().GetAt(lTextureUVIndex));
+								}
+								break;
+								default:
+									break; // other reference modes not shown here!
+								}
+							}
+							break;
+
+							case FbxGeometryElement::eByPolygon: // doesn't make much sense for UVs
+							case FbxGeometryElement::eAllSame:   // doesn't make much sense for UVs
+							case FbxGeometryElement::eNone:       // doesn't make much sense for UVs
+								break;
+							}
+							meshOut->SetVertexUV(mvptr + j, k, vertUV);
+						}
+
+						for (auto k = 0; k < mesh->GetElementVertexColorCount(); k++)
+						{
+							FbxGeometryElementVertexColor* leVtxc = mesh->GetElementVertexColor(k);
+							Vec4 vertColor;
+							vertColor.SetZero();
+							switch (leVtxc->GetMappingMode())
+							{
+							default:
+								break;
+							case FbxGeometryElement::eByControlPoint:
+								switch (leVtxc->GetReferenceMode())
+								{
+								case FbxGeometryElement::eDirect:
+									vertColor = GetVec4(leVtxc->GetDirectArray().GetAt(controlPointIndex));
+									break;
+								case FbxGeometryElement::eIndexToDirect:
+								{
+									int id = leVtxc->GetIndexArray().GetAt(controlPointIndex);
+									vertColor = GetVec4(leVtxc->GetDirectArray().GetAt(id));
+								}
+								break;
+								default:
+									break; // other reference modes not shown here!
+								}
+								break;
+
+							case FbxGeometryElement::eByPolygonVertex:
+							{
+								switch (leVtxc->GetReferenceMode())
+								{
+								case FbxGeometryElement::eDirect:
+									vertColor = GetVec4(leVtxc->GetDirectArray().GetAt(vertexId));
+									break;
+								case FbxGeometryElement::eIndexToDirect:
+								{
+									int id = leVtxc->GetIndexArray().GetAt(vertexId);
+									vertColor = GetVec4(leVtxc->GetDirectArray().GetAt(id));
+								}
+								break;
+								default:
+									break; // other reference modes not shown here!
+								}
+							}
+							break;
+
+							case FbxGeometryElement::eByPolygon: // doesn't make much sense for UVs
+							case FbxGeometryElement::eAllSame:   // doesn't make much sense for UVs
+							case FbxGeometryElement::eNone:       // doesn't make much sense for UVs
+								break;
+							}
+							meshOut->SetVertexColor(mvptr + j, k, vertColor);
+						}
+
+						Vec3 vertNormal, vertTangent, vertBitangent;
+						vertNormal.SetZero();
+						vertTangent.SetZero();
+						vertBitangent.SetZero();
+						if (mesh->GetElementNormalCount() > 0)
+						{
+							FbxGeometryElementNormal* leNormal = mesh->GetElementNormal(0);
+							if (leNormal->GetMappingMode() == FbxGeometryElement::eByPolygonVertex)
+							{
+								switch (leNormal->GetReferenceMode())
+								{
+								case FbxGeometryElement::eDirect:
+									vertNormal = GetVec3(leNormal->GetDirectArray().GetAt(vertexId));
+									break;
+								case FbxGeometryElement::eIndexToDirect:
+								{
+									int id = leNormal->GetIndexArray().GetAt(vertexId);
+									vertNormal = GetVec3(leNormal->GetDirectArray().GetAt(id));
+								}
+								break;
+								default:
+									break; // other reference modes not shown here!
+								}
+							}
+						}
+
+						for (int l = 0; l < mesh->GetElementTangentCount(); ++l)
+						{
+							FbxGeometryElementTangent* leTangent = mesh->GetElementTangent(l);
+
+							if (leTangent->GetMappingMode() == FbxGeometryElement::eByPolygonVertex)
+							{
+								switch (leTangent->GetReferenceMode())
+								{
+								case FbxGeometryElement::eDirect:
+									vertTangent = GetVec3(leTangent->GetDirectArray().GetAt(vertexId));
+									break;
+								case FbxGeometryElement::eIndexToDirect:
+								{
+									int id = leTangent->GetIndexArray().GetAt(vertexId);
+									vertTangent = GetVec3(leTangent->GetDirectArray().GetAt(id));
+								}
+								break;
+								default:
+									break; // other reference modes not shown here!
+								}
+							}
+
+						}
+						for (int l = 0; l < mesh->GetElementBinormalCount(); ++l)
+						{
+							FbxGeometryElementBinormal* leBinormal = mesh->GetElementBinormal(l);
+
+							if (leBinormal->GetMappingMode() == FbxGeometryElement::eByPolygonVertex)
+							{
+								switch (leBinormal->GetReferenceMode())
+								{
+								case FbxGeometryElement::eDirect:
+									vertBitangent = GetVec3(leBinormal->GetDirectArray().GetAt(vertexId));
+									break;
+								case FbxGeometryElement::eIndexToDirect:
+								{
+									int id = leBinormal->GetIndexArray().GetAt(vertexId);
+									vertBitangent = GetVec3(leBinormal->GetDirectArray().GetAt(id));
+								}
+								break;
+								default:
+									break; // other reference modes not shown here!
+								}
+							}
+						}
+						vertTangent = transformMat.TransformNormal(vertTangent);
+						vertBitangent = transformMat.TransformNormal(vertBitangent);
+						vertNormal = normMat.TransformNormal(vertNormal);
+						Vec3 refBitangent = Vec3::Cross(vertTangent, vertNormal);
+						Quaternion q = Quaternion::FromCoordinates(vertTangent, vertNormal, refBitangent);
+						auto vq = q.ToVec4().Normalize();
+						if (vq.w < 0)
+							vq = -vq;
+						if (Vec3::Dot(refBitangent, vertTangent) < 0.0f)
+							vq = -vq;
+						meshOut->SetVertexTangentFrame(mvptr + j, vq);
+						vertexId++;
+					}
+					for (auto j = 1; j < mesh->GetPolygonSize(i) - 1; j++)
+					{
+						meshOut->Indices[elementRange.StartIndex + faceId * 3] = mvptr;
+						meshOut->Indices[elementRange.StartIndex + faceId * 3 + 1] = mvptr + j;
+						meshOut->Indices[elementRange.StartIndex + faceId * 3 + 2] = mvptr + j + 1;
+						faceId++;
+					}
+					mvptr += mesh->GetPolygonSize(i);
+				}
+				idxPtr += faceId * 3;
+				int deformCount = mesh->GetDeformerCount(fbxsdk::FbxDeformer::eSkin);
+				if (deformCount)
+				{
+					struct IdWeight
+					{
+						int boneId;
+						float weight;
+					};
+					List<List<IdWeight>> cpWeights;
+					cpWeights.SetSize(mesh->GetControlPointsCount());
+					for (int i = 0; i < deformCount; i++)
+					{
+						auto deformer = mesh->GetDeformer(i, FbxDeformer::eSkin);
+						auto skin = (::FbxSkin*)(deformer);
+						for (int j = 0; j < skin->GetClusterCount(); j++)
+						{
+							auto boneNode = skin->GetCluster(j)->GetLink();
+							int boneId = -1;
+							for (int k = 0; k < skeletonNodes.Count(); k++)
+								if (skeletonNodes[k] == boneNode)
+								{
+									boneId = k;
+									break;
+								}
+							auto cpIndices = skin->GetCluster(j)->GetControlPointIndices();
+							auto weights = skin->GetCluster(j)->GetControlPointWeights();
+							for (int k = 0; k < skin->GetCluster(j)->GetControlPointIndicesCount(); k++)
+							{
+								IdWeight p;
+								p.boneId = boneId;
+								p.weight = (float)weights[k];
+								cpWeights[cpIndices[k]].Add(p);
+							}
+						}
+					}
+					// trim bone weights
+					for (auto & weights : cpWeights)
+					{
+						weights.Sort([](IdWeight w0, IdWeight w1) {return w0.weight > w1.weight; });
+
+						if (weights.Count() > 4)
+						{
+							weights.SetSize(4);
+						}
+						float sumWeight = 0.0f;
+						for (int k = 0; k < weights.Count(); k++)
+							sumWeight += weights[k].weight;
+						sumWeight = 1.0f / sumWeight;
+						for (int k = 0; k < weights.Count(); k++)
+							weights[k].weight *= sumWeight;
+					}
+					
+					vertexId = 0;
+					for (auto i = 0; i < mesh->GetPolygonCount(); i++)
+					{
+						if (mesh->GetPolygonSize(i) < 3)
+						{
+							vertexId += mesh->GetPolygonSize(i);
+							continue;
+						}
+						auto srcPolygonIndices = srcIndices + mesh->GetPolygonVertexIndex(i);
+						for (auto j = 0; j < mesh->GetPolygonSize(i); j++)
+						{
+							int cpId = srcPolygonIndices[j];
+							Array<int, 8> boneIds;
+							Array<float, 8> boneWeights;
+							boneIds.SetSize(4);
+							boneWeights.SetSize(4);
+							boneIds[0] = boneIds[1] = boneIds[2] = boneIds[3] = -1;
+							boneWeights[0] = boneWeights[1] = boneWeights[2] = boneWeights[3] = 0.0f;
+							for (int k = 0; k < cpWeights[cpId].Count(); k++)
+							{
+								boneIds[k] = (cpWeights[cpId][k].boneId);
+								boneWeights[k] = (cpWeights[cpId][k].weight);
+							}
+							meshOut->SetVertexSkinningBinding(startVertId + vertexId, 
+								boneIds.GetArrayView(), boneWeights.GetArrayView());
+							vertexId++;
+						}
+					}
+				}
+				else if (hasBones)
+				{
+					Array<int, 8> boneIds;
+					Array<float, 8> boneWeights;
+					boneIds.SetSize(4);
+					boneWeights.SetSize(4);
+					boneIds[0] = 0;
+					for (int i = 1; i < boneIds.GetCapacity(); i++)
+						boneIds[i] = 255;
+					boneWeights[0] = 1.0f;
+					for (int i = 1; i < boneIds.GetCapacity(); i++)
+						boneWeights[i] = 0.0f;
+					for (auto i = 0; i < vertexId; i++)
+						meshOut->SetVertexSkinningBinding(startVertId + i, boneIds.GetArrayView(), boneWeights.GetArrayView());
+				}
+				startVertId += vertexId;
+			}
+		}
+		if (meshOut->ElementRanges.Count())
+		{
+			meshOut->SaveToFile(Path::ReplaceExt(outFileName, "mesh"));
+			wprintf(L"mesh converted: elements %d, faces: %d, vertices: %d, skeletal: %s.\n", meshOut->ElementRanges.Count(), meshOut->Indices.Count() / 3, meshOut->GetVertexCount(),
+				hasBones ? L"true" : L"false");
+		}
+	}
+
+	if (args.ExportAnimation && skeletonNodes.Count())
+	{
+		bool inconsistentKeyFrames = false;
+		SkeletalAnimation anim;
+		FbxAnimStack* currAnimStack = lScene->GetCurrentAnimationStack();
+		FbxString animStackName = currAnimStack->GetName();
+		char * mAnimationName = animStackName.Buffer();
+		FbxTakeInfo* takeInfo = lScene->GetTakeInfo(animStackName);
+		fbxsdk::FbxTime start = takeInfo->mLocalTimeSpan.GetStart();
+		fbxsdk::FbxTime end = takeInfo->mLocalTimeSpan.GetStop();
+		int mAnimationLength = (int)(end.GetFrameCount(fbxsdk::FbxTime::eNTSCFullFrame) - start.GetFrameCount(fbxsdk::FbxTime::eNTSCFullFrame) + 1);
+		anim.Speed = 1.0f;
+		anim.Duration = mAnimationLength / 30.0f;
+		anim.Name = mAnimationName;
+		anim.Channels.SetSize(skeletonNodes.Count());
+		memset(anim.Reserved, 0, sizeof(anim.Reserved));
+		int channelId = 0;
+		for (auto inNode : skeletonNodes)
+		{
+			anim.Channels[channelId].BoneName = inNode->GetName();
+			bool isRoot = anim.Channels[channelId].BoneName == args.RootNodeName;
+			unsigned int ptrPos = 0, ptrRot = 0, ptrScale = 0;
+			for (FbxLongLong i = start.GetFrameCount(fbxsdk::FbxTime::eNTSCFullFrame); i <= end.GetFrameCount(fbxsdk::FbxTime::eNTSCFullFrame); ++i)
+			{
+				fbxsdk::FbxTime currTime;
+				currTime.SetFrame(i, fbxsdk::FbxTime::eNTSCFullFrame);
+				AnimationKeyFrame keyFrame;
+				keyFrame.Time = (float)currTime.GetSecondDouble();
+				FbxAMatrix currentTransformOffset = inNode->EvaluateLocalTransform(currTime);
+				keyFrame.Transform.FromMatrix(GetMatrix(currentTransformOffset));
+				// apply root fix transform
+				keyFrame.Transform = RootTransformApplier::ApplyFix(rootFixTransform, keyFrame.Transform);
+				keyFrame.Transform = rootTransformApplier.Apply(keyFrame.Transform);
+				anim.Channels[channelId].KeyFrames.Add(keyFrame);
+			}
+			channelId++;
+		}
+		anim.SaveToFile(Path::ReplaceExt(outFileName, "anim"));
+		int maxKeyFrames = 0;
+		for (auto & c : anim.Channels)
+			maxKeyFrames = Math::Max(maxKeyFrames, c.KeyFrames.Count());
+		printf("animation converted. keyframes %d, bones %d\n", maxKeyFrames, anim.Channels.Count());
+	}
+	
+	// Destroy the SDK manager and all the other objects it was handling.
+	lSdkManager->Destroy();
+
+	/*
 	Assimp::Importer importer;
 	int process = aiProcess_CalcTangentSpace | aiProcess_Triangulate | aiProcess_SortByPType;
 	if (args.FlipUV)
@@ -643,6 +1258,7 @@ void Export(ExportArguments args)
 	{
 		printf("cannot load '%S'.\n", fileName.ToWString());
 	}
+	*/
 }
 
 /*

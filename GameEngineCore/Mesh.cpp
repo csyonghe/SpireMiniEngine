@@ -111,6 +111,7 @@ namespace GameEngine
 					result.w = float((tangentFrame >> 24) & 255) * inv255 - 1.0;
 					return result;
 				}
+				public @CoarseVertex float binormalSign = sign(tangentFrameQuaternion.w);
 				public @CoarseVertex vec3 vertNormal
 				{
 					return normalize(QuaternionRotate(tangentFrameQuaternion, vec3(0.0, 1.0, 0.0)));
@@ -137,13 +138,24 @@ namespace GameEngine
 			if (key.fields.hasSkinning)
 			{
 				sb << "public @MeshVertex uint boneIds;\n";
-				sb << "public @MeshVertex uint boneWeights;\n";
+				sb << "public @MeshVertex uint packedBoneWeights;\n";
 			}
 			else
 			{
 				sb << "public inline uint boneIds = 255;\n";
-				sb << "public inline uint boneWeights = 0;\n";
+				sb << "public inline uint packedBoneWeights = 0;\n";
 			}
+			sb << R"(
+			public @CoarseVertex vec4 boneWeights
+			{
+				vec4 rs;
+				rs.x = float((packedBoneWeights >> (0*8)) & 255) * (1.0/255.0);
+				rs.y = float((packedBoneWeights >> (1*8)) & 255) * (1.0/255.0);
+				rs.z = float((packedBoneWeights >> (2*8)) & 255) * (1.0/255.0);
+				rs.w = float((packedBoneWeights >> (3*8)) & 255) * (1.0/255.0);
+				return rs;
+			}
+			)";
 			sb << "}\n";
 			shaderDef = sb.ProduceString();
 		}
