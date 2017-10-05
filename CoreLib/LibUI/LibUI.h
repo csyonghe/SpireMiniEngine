@@ -1496,43 +1496,74 @@ namespace GraphicsUI
 		float FOV;
 		float ViewportX, ViewportY, ViewportW, ViewportH;
 	};
-	struct RotationEventArgs
+	enum class ManipulationHandleType
 	{
-		int Axis;
-		float Angle;
+		None = -1, RotationX, RotationY, RotationZ, AxisX, AxisY, AxisZ, TranslationX, TranslationY, TranslationZ, TranslationXY, TranslationXZ, TranslationYZ,
+		ScaleX, ScaleY, ScaleZ, ScaleXYZ
 	};
-	class RotationManipulator : public Container
+	struct ManipulationEventArgs
+	{
+		ManipulationHandleType Handle;
+		float Value;
+	};
+	class ManipulationHandle
+	{
+	public:
+		ManipulationHandleType Type;
+		CoreLib::List<TriangleFace> UIFaces;
+		VectorMath::Vec3 VirtualPlaneAxesW[2];
+		VectorMath::Vec4 VirtualPlane;
+		VectorMath::Vec2 LabelPosition;
+		Color GetNormalColor();
+		Color GetHighlightColor();
+		bool HitTest(VectorMath::Vec2 v);
+		void UpdateShape(const VectorMath::Matrix4 & viewportTransform, const VectorMath::Matrix4 & viewPorjTransform,
+			const VectorMath::Vec3 & viewDir, const VectorMath::Vec3 & wHandleCenter, float wSize, const VectorMath::Vec3 & worldObjPos);
+	};
+	enum class ManipulationMode
+	{
+		Translation, Rotation, Scale
+	};
+
+	bool IsManipulationHandleForMode(ManipulationHandleType handleType, ManipulationMode mode);
+
+	class TransformManipulator : public Container
 	{
 	private:
+		CoreLib::List<ManipulationHandle> handles;
+		ManipulationMode mode;
 		Label * label;
-		CoreLib::List<TriangleFace> rotXFaces, rotXFullFaces, rotYFaces, rotYFullFaces, rotZFaces, rotZFullFaces, rotDiscFaces,
-			xAxis, yAxis, zAxis, tangentLineFaces;
-		int highlight = -1;
+		CoreLib::List<TriangleFace> rotXFullFaces, rotYFullFaces, rotZFullFaces, rotDiscFaces, tangentLineFaces;
+		ManipulationHandleType highlightHandle = ManipulationHandleType::None;
+		ManipulationHandleType activeHandle = ManipulationHandleType::None;
 		ManipulatorSceneView view;
 		VectorMath::Vec3 mouseDownWorldPos;
 		VectorMath::Vec2 mouseDownScreenSpace;
-		int activeRotationAxis = -1;
 		float worldRadius;
-		VectorMath::Vec3 xAxisV, yAxisV, zAxisV;
+		VectorMath::Vec3 xAxisW, yAxisW, zAxisW;
 		float startAngle = 0.0f;
-		VectorMath::Matrix4 viewTransform, projTransform, invViewProjTransform, viewportTransform;
+		VectorMath::Matrix4 viewTransform, projTransform, viewProjTransform, invViewProjTransform, viewportTransform;
 		VectorMath::Vec3 camPos, pos, sphereCenter;
-		VectorMath::Vec2 labelPositions[3];
 		VectorMath::Vec2 screenSpaceTangent;
-		VectorMath::Vec3 virtualPlaneAxesW[3][2];
-		VectorMath::Vec4 virtualPlane;
-		VectorMath::Vec3 ScreenCoordToVirtualPlanePoint(VectorMath::Vec2 p);
+
+		ManipulationHandle & GetManipulationHandle(ManipulationHandleType type)
+		{
+			return handles[(int)type];
+		}
 		float GetPhaseFromWorldPos(VectorMath::Vec3 p);
+		VectorMath::Vec3 ScreenCoordToVirtualPlanePoint(VectorMath::Vec2 p);
+		const char * GetManipulationAxisNames(ManipulationHandleType handle);
 		void UpdateLabel(float angle);
 	protected:
 		virtual Control * FindControlAtPosition(int x, int y);
 	public:
-		RotationManipulator(Container * owner);
-		CoreLib::Event<UI_Base *, RotationEventArgs> OnApplyRotation;
-		CoreLib::Event<UI_Base *, RotationEventArgs> OnPreviewRotation;
+		TransformManipulator(Container * owner);
+		CoreLib::Event<UI_Base *, ManipulationEventArgs> OnApplyManipulation;
+		CoreLib::Event<UI_Base *, ManipulationEventArgs> OnPreviewManipulation;
 		float ScreenSpaceRadius = 100.0f;
 		virtual void Draw(int absX, int absY);
-		void SetTarget(const ManipulatorSceneView & view, const VectorMath::Matrix4& viewTransform, const VectorMath::Vec3 & camPos, const VectorMath::Vec3 & pos);
+		void SetTarget(ManipulationMode manipulationMode, const ManipulatorSceneView & view, const VectorMath::Matrix4& viewTransform,
+			const VectorMath::Vec3 & camPos, const VectorMath::Vec3 & pos);
 		virtual bool DoMouseMove(int X, int Y);
 		virtual bool IsPointInContent(int x, int y) override;
 		virtual bool DoMouseDown(int X, int Y, SHIFTSTATE Shift);

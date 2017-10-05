@@ -7626,47 +7626,87 @@ namespace GraphicsUI
 		return origin;
 	}
 
+	const char * TransformManipulator::GetManipulationAxisNames(ManipulationHandleType handle)
+	{
+		switch (handle)
+		{
+		case ManipulationHandleType::None:
+			return "";
+		case ManipulationHandleType::RotationX:
+		case ManipulationHandleType::TranslationX:
+		case ManipulationHandleType::ScaleX:
+			return "X";
+		case ManipulationHandleType::RotationY:
+		case ManipulationHandleType::TranslationY:
+		case ManipulationHandleType::ScaleY:
+			return "Y";
+		case ManipulationHandleType::RotationZ:
+		case ManipulationHandleType::TranslationZ:
+		case ManipulationHandleType::ScaleZ:
+			return "Z";
+		case ManipulationHandleType::TranslationXY:
+			return "XY";
+		case ManipulationHandleType::TranslationYZ:
+			return "YZ";
+		case ManipulationHandleType::TranslationXZ:
+			return "XZ";
+		case ManipulationHandleType::ScaleXYZ:
+			return "XYZ";
+		}
+		return "";
+	}
 
-	VectorMath::Vec3 RotationManipulator::ScreenCoordToVirtualPlanePoint(VectorMath::Vec2 p)
+	bool IsRotationHandle(ManipulationHandleType t)
+	{
+		return t == ManipulationHandleType::RotationX || t == ManipulationHandleType::RotationY || t == ManipulationHandleType::RotationZ;
+	}
+
+	VectorMath::Vec3 TransformManipulator::ScreenCoordToVirtualPlanePoint(VectorMath::Vec2 p)
 	{
 		auto screenCoord = Vec3::Create((p.x - view.ViewportX) / view.ViewportW * 2.0f - 1.0f, -(p.y - view.ViewportY) / view.ViewportH * 2.0f + 1.0f, -1.0f);
 		auto viewTarget = invViewProjTransform.TransformHomogeneous(screenCoord);
 		auto rayDir = (viewTarget - camPos).Normalize();
-		return RayPlaneIntersection(camPos, rayDir, virtualPlane);
+		return RayPlaneIntersection(camPos, rayDir, GetManipulationHandle(activeHandle).VirtualPlane);
 	}
 
-	float RotationManipulator::GetPhaseFromWorldPos(VectorMath::Vec3 p)
+	float TransformManipulator::GetPhaseFromWorldPos(VectorMath::Vec3 p)
 	{
-		if (activeRotationAxis != -1)
+		if (activeHandle != ManipulationHandleType::None)
 		{
 			auto v = (p - pos).Normalize();
-			float x = Vec3::Dot(v, virtualPlaneAxesW[activeRotationAxis][0]);
-			float y = Vec3::Dot(v, virtualPlaneAxesW[activeRotationAxis][1]);
+			float x = Vec3::Dot(v, GetManipulationHandle(activeHandle).VirtualPlaneAxesW[0]);
+			float y = Vec3::Dot(v, GetManipulationHandle(activeHandle).VirtualPlaneAxesW[1]);
 			return atan2(y, x);
 		}
 		return 0.0f;
 	}
 
-	void RotationManipulator::UpdateLabel(float angle)
+	void TransformManipulator::UpdateLabel(float value)
 	{
 		StringBuilder sb;
-		sb << (char)('X' + activeRotationAxis) << ": " << String(angle / Math::Pi * 180.0f, "%.1f");
+		sb << GetManipulationAxisNames(activeHandle) << ": " << String(value, "%.1f");
 		label->SetText(sb.ProduceString());
 	}
 
-	Control * RotationManipulator::FindControlAtPosition(int x, int y)
+	Control * TransformManipulator::FindControlAtPosition(int x, int y)
 	{
 		return Control::FindControlAtPosition(x, y);
 	}
 
-	RotationManipulator::RotationManipulator(Container * owner)
+	TransformManipulator::TransformManipulator(Container * owner)
 		: Container(owner)
 	{
 		label = new Label(this);
 		clipDraw = false;
+		xAxisW = Vec3::Create(1.0f, 0.0f, 0.0f);
+		yAxisW = Vec3::Create(0.0f, 1.0f, 0.0f);
+		zAxisW = Vec3::Create(0.0f, 0.0f, 1.0f);
+		handles.SetSize((int)ManipulationHandleType::ScaleXYZ + 1);
+		for (int i = 0; i < handles.Count(); i++)
+			handles[i].Type = (ManipulationHandleType)i;
 	}
 
-	void RotationManipulator::Draw(int /*absX*/, int /*absY*/)
+	void TransformManipulator::Draw(int /*absX*/, int /*absY*/)
 	{
 		auto & graphics = GetEntry()->DrawCommands;
 		auto drawFaces = [&](List<TriangleFace> & faces)
@@ -7681,33 +7721,16 @@ namespace GraphicsUI
 		auto rotDiscColor = Color(50, 160, 220, 150);
 		auto tangentLineColor = Color(240, 150, 20, 220);
 		unsigned char axisAlpha = 255;
-		if (activeRotationAxis == -1)
-		{
-			if (highlight == 0)
-				graphics.SolidBrushColor = highlightColor;
-			else
-				graphics.SolidBrushColor = trackColor;
-			drawFaces(rotXFaces);
-			if (highlight == 1)
-				graphics.SolidBrushColor = highlightColor;
-			else
-				graphics.SolidBrushColor = trackColor;
-			drawFaces(rotYFaces);
-			if (highlight == 2)
-				graphics.SolidBrushColor = highlightColor;
-			else
-				graphics.SolidBrushColor = trackColor;
-			drawFaces(rotZFaces);
-		}
-		else
+
+		if (IsRotationHandle(activeHandle))
 		{
 			axisAlpha = 50;
 			graphics.SolidBrushColor = highlightColor;
-			if (activeRotationAxis == 0)
+			if (highlightHandle == ManipulationHandleType::RotationX)
 				drawFaces(rotXFullFaces);
-			else if (activeRotationAxis == 1)
+			else if (highlightHandle == ManipulationHandleType::RotationY)
 				drawFaces(rotYFullFaces);
-			else if (activeRotationAxis == 2)
+			else if (highlightHandle == ManipulationHandleType::RotationZ)
 				drawFaces(rotZFullFaces);
 			graphics.SolidBrushColor = rotDiscColor;
 			drawFaces(rotDiscFaces);
@@ -7715,18 +7738,30 @@ namespace GraphicsUI
 			graphics.SolidBrushColor = tangentLineColor;
 			drawFaces(tangentLineFaces);
 			graphics.SolidBrushColor = Global::Colors.EditableAreaBackColor;
-			float x0 = labelPositions[activeRotationAxis].x - label->GetWidth() * 0.5f;
-			float y0 = labelPositions[activeRotationAxis].y - label->GetHeight() - emToPixel(1.5f);
+			float x0 = GetManipulationHandle(activeHandle).LabelPosition.x - label->GetWidth() * 0.5f;
+			float y0 = GetManipulationHandle(activeHandle).LabelPosition.y - label->GetHeight() - emToPixel(1.5f);
 			graphics.FillRectangle(x0 - emToPixel(0.5f), y0 - emToPixel(0.5f),
 				x0 + label->GetWidth() + emToPixel(0.5f), y0 + label->GetHeight() + emToPixel(0.5f));
 			label->Draw((int)x0, (int)y0);
+
+			graphics.SolidBrushColor = Color(255, 0, 0, axisAlpha);
+			drawFaces(GetManipulationHandle(ManipulationHandleType::AxisX).UIFaces);
+			graphics.SolidBrushColor = Color(0, 255, 0, axisAlpha);
+			drawFaces(GetManipulationHandle(ManipulationHandleType::AxisY).UIFaces);
+			graphics.SolidBrushColor = Color(0, 0, 255, axisAlpha);
+			drawFaces(GetManipulationHandle(ManipulationHandleType::AxisZ).UIFaces);
 		}
-		graphics.SolidBrushColor = Color(255, 0, 0, axisAlpha);
-		drawFaces(xAxis);
-		graphics.SolidBrushColor = Color(0, 255, 0, axisAlpha);
-		drawFaces(yAxis);
-		graphics.SolidBrushColor = Color(0, 0, 255, axisAlpha);
-		drawFaces(zAxis);
+		else
+		{
+			for (auto & handle : handles)
+			{
+				if (handle.Type == highlightHandle)
+					graphics.SolidBrushColor = handle.GetHighlightColor();
+				else
+					graphics.SolidBrushColor = handle.GetNormalColor();
+				drawFaces(handle.UIFaces);
+			}
+		}
 	}
 
 	void AddAxis(CoreLib::List<TriangleFace> & faces, const VectorMath::Matrix4 & viewportTransform,
@@ -7808,17 +7843,13 @@ namespace GraphicsUI
 		return rs;
 	}
 
-	void RotationManipulator::SetTarget(const ManipulatorSceneView & pView, const VectorMath::Matrix4& pViewTransform, const VectorMath::Vec3 & pCamPos, const VectorMath::Vec3 & pPos)
+	void TransformManipulator::SetTarget(ManipulationMode maniMode, const ManipulatorSceneView & pView, const VectorMath::Matrix4& pViewTransform, const VectorMath::Vec3 & pCamPos, const VectorMath::Vec3 & pPos)
 	{
-		rotXFaces.Clear();
-		rotYFaces.Clear();
-		rotZFaces.Clear();
+		mode = maniMode;
 		rotXFullFaces.Clear();
 		rotYFullFaces.Clear();
 		rotZFullFaces.Clear();
-		xAxis.Clear();
-		yAxis.Clear();
-		zAxis.Clear();
+		rotDiscFaces.Clear();
 		this->view = pView;
 		this->viewTransform = pViewTransform;
 		this->camPos = pCamPos;
@@ -7831,172 +7862,120 @@ namespace GraphicsUI
 		viewportTransform.values[13] = 0.5f * view.ViewportH + view.ViewportY;
 
 		Matrix4::CreatePerspectiveMatrixFromViewAngle(projTransform, view.FOV, view.ViewportW / view.ViewportH, 1.0f, 100.0f);
-		Matrix4 viewProjTransform;
 		Matrix4::Multiply(viewProjTransform, projTransform, viewTransform);
 		viewProjTransform.Inverse(invViewProjTransform);
 
-		auto v = viewTransform.TransformHomogeneous(pos);
-		auto c = v.Normalize() * 50.0f;
-		sphereCenter = c;
-		auto worldHeightAtC = tan(view.FOV / 360.0f * Math::Pi) * abs(c.z) * 2.0f;
+		auto v = (pos - camPos).Normalize();
+		sphereCenter = v * 50.0f + camPos;
+		auto sphereCenterZ = viewTransform.TransformHomogeneous(sphereCenter).z;
+		auto worldHeightAtC = tan(view.FOV / 360.0f * Math::Pi) * abs(sphereCenterZ) * 2.0f;
 		worldRadius = ScreenSpaceRadius / view.ViewportH * worldHeightAtC;
-		xAxisV = viewTransform.TransformNormal(Vec3::Create(1.0f, 0.0f, 0.0f));
-		yAxisV = viewTransform.TransformNormal(Vec3::Create(0.0f, 1.0f, 0.0f));
-		zAxisV = viewTransform.TransformNormal(Vec3::Create(0.0f, 0.0f, 1.0f));
 
-		auto dir = camPos - pos;
-		float xBegin;
-		if (dir.y > 0 && dir.z > 0)
-			xBegin = 0.0f;
-		else if (dir.y < 0 && dir.z > 0)
-			xBegin = Math::Pi * 0.5f;
-		else if (dir.y < 0 && dir.z < 0)
-			xBegin = Math::Pi;
-		else
-			xBegin = Math::Pi * 1.5f;
-		virtualPlaneAxesW[0][0] = Vec3::Create(0.0f, 1.0f, 0.0f);
-		virtualPlaneAxesW[0][1] = Vec3::Create(0.0f, 0.0f, 1.0f);
+		Vec4 handleBounds = Vec4::Create(1e9f, 1e9f, -1e9f, -1e9f);
+		for (int i = 0; i < handles.Count(); i++)
+		{
+			if (IsManipulationHandleForMode(handles[i].Type, mode))
+			{
+				handles[i].UpdateShape(viewportTransform, viewProjTransform, -v, sphereCenter, worldRadius, pos);
+				auto handleBBox = GetBBox(handles[i].UIFaces);
+				handleBounds.x = Math::Min(handleBounds.x, handleBBox.x);
+				handleBounds.y = Math::Min(handleBounds.y, handleBBox.y);
+				handleBounds.z = Math::Max(handleBounds.z, handleBBox.z);
+				handleBounds.w = Math::Max(handleBounds.w, handleBBox.w);
+			}
+		}
 
-		
-		ArcDisc(rotXFaces, viewportTransform, projTransform, c, yAxisV, zAxisV, worldRadius * 0.75f, worldRadius, xBegin, xBegin + Math::Pi * 0.5f);
-		ArcDisc(rotXFullFaces, viewportTransform, projTransform, c, yAxisV, zAxisV, worldRadius * 0.75f, worldRadius, 0.0f, Math::Pi * 2.0f);
+		ArcDisc(rotXFullFaces, viewportTransform, viewProjTransform, sphereCenter, yAxisW, zAxisW, worldRadius * 0.75f, worldRadius, 0.0f, Math::Pi * 2.0f);
 		auto bbox = GetBBox(rotXFullFaces);
-		labelPositions[0] = Vec2::Create(bbox.x + (bbox.z - bbox.x) * 0.5f, bbox.y);
+		GetManipulationHandle(ManipulationHandleType::RotationX).LabelPosition = Vec2::Create(bbox.x + (bbox.z - bbox.x) * 0.5f, bbox.y);
 
-		float yBegin;
-		if (dir.x > 0 && dir.z > 0)
-			yBegin = 0.0f;
-		else if (dir.x > 0 && dir.z < 0)
-			yBegin = Math::Pi * 0.5f;
-		else if (dir.x < 0 && dir.z < 0)
-			yBegin = Math::Pi;
-		else
-			yBegin = Math::Pi * 1.5f;
-		virtualPlaneAxesW[1][0] = Vec3::Create(0.0f, 0.0f, 1.0f);
-		virtualPlaneAxesW[1][1] = Vec3::Create(1.0f, 0.0f, 0.0f);
-		
-		ArcDisc(rotYFaces, viewportTransform, projTransform, c, zAxisV, xAxisV, worldRadius * 0.75f, worldRadius, yBegin, yBegin + Math::Pi * 0.5f);
-		ArcDisc(rotYFullFaces, viewportTransform, projTransform, c, zAxisV, xAxisV, worldRadius * 0.75f, worldRadius, 0.0f, Math::Pi * 2.0f);
+		ArcDisc(rotYFullFaces, viewportTransform, viewProjTransform, sphereCenter, zAxisW, xAxisW, worldRadius * 0.75f, worldRadius, 0.0f, Math::Pi * 2.0f);
 		bbox = GetBBox(rotYFullFaces);
-		labelPositions[1] = Vec2::Create(bbox.x + (bbox.z - bbox.x) * 0.5f, bbox.y);
+		GetManipulationHandle(ManipulationHandleType::RotationY).LabelPosition = Vec2::Create(bbox.x + (bbox.z - bbox.x) * 0.5f, bbox.y);
 
-		float zBegin;
-		if (dir.x > 0 && dir.y > 0)
-			zBegin = 0.0f;
-		else if (dir.x < 0 && dir.y > 0)
-			zBegin = Math::Pi * 0.5f;
-		else if (dir.x < 0 && dir.y < 0)
-			zBegin = Math::Pi;
-		else
-			zBegin = Math::Pi * 1.5f;
-		virtualPlaneAxesW[2][0] = Vec3::Create(1.0f, 0.0f, 0.0f);
-		virtualPlaneAxesW[2][1] = Vec3::Create(0.0f, 1.0f, 0.0f);
-		ArcDisc(rotZFaces, viewportTransform, projTransform, c, xAxisV, yAxisV, worldRadius * 0.75f, worldRadius, zBegin, zBegin + Math::Pi * 0.5f);
-		ArcDisc(rotZFullFaces, viewportTransform, projTransform, c, xAxisV, yAxisV, worldRadius * 0.75f, worldRadius, 0.0f, Math::Pi * 2.0f);
+		ArcDisc(rotZFullFaces, viewportTransform, viewProjTransform, sphereCenter, xAxisW, yAxisW, worldRadius * 0.75f, worldRadius, 0.0f, Math::Pi * 2.0f);
 		bbox = GetBBox(rotZFullFaces);
-		labelPositions[2] = Vec2::Create(bbox.x + (bbox.z - bbox.x) * 0.5f, bbox.y);
-
-		Vec2 vmin, vmax;
-		vmin.x = 1e9f;
-		vmin.y = 1e9f;
-		vmax.x = -1e9f;
-		vmax.y = -1e9f;
-		AddAxis(xAxis, viewportTransform, projTransform, c, xAxisV * Sign(dir.x), worldRadius * 1.1f, 1.0f, 8.0f, vmin, vmax);
-		AddAxis(yAxis, viewportTransform, projTransform, c, yAxisV * Sign(dir.y), worldRadius * 1.1f, 1.0f, 8.0f, vmin, vmax);
-		AddAxis(zAxis, viewportTransform, projTransform, c, zAxisV * Sign(dir.z), worldRadius * 1.1f, 1.0f, 8.0f, vmin, vmax);
+		GetManipulationHandle(ManipulationHandleType::RotationZ).LabelPosition = Vec2::Create(bbox.x + (bbox.z - bbox.x) * 0.5f, bbox.y);
 
 		Left = 0;
 		Top = 0;
 		auto offset = GetRelativePos(GetEntry());
-		Left = (int)(vmin.x - (float)offset.x);
-		Top = (int)(vmin.y - (float)offset.y);
-		Width = (int)(vmax.x-vmin.x);
-		Height = (int)(vmax.y-vmin.y);
+		Left = (int)(handleBounds.x - (float)offset.x);
+		Top = (int)(handleBounds.y - (float)offset.y);
+		Width = (int)(handleBounds.z - handleBounds.x);
+		Height = (int)(handleBounds.w - handleBounds.y);
 	}
 
-	bool RotationManipulator::IsPointInContent(int x, int y)
+	bool TransformManipulator::IsPointInContent(int x, int y)
 	{
 		int absX, absY;
 		LocalPosToAbsolutePos(x, y, absX, absY);
 		auto p = Vec2::Create((float)absX, (float)absY);
-		for (auto & f : rotXFaces)
-			if (f.HitTest(p))
-				return true;
-		for (auto & f : rotYFaces)
-			if (f.HitTest(p))
-				return true;
-		for (auto & f : rotZFaces)
-			if (f.HitTest(p))
-				return true;
+		for (int i = 0; i < handles.Count(); i++)
+		{
+			if (IsManipulationHandleForMode(handles[i].Type, mode))
+			{
+				if (handles[i].HitTest(p))
+					return true;
+			}
+		}
 		return false;
 	}
 
-	bool RotationManipulator::DoMouseDown(int X, int Y, SHIFTSTATE Shift)
+	bool TransformManipulator::DoMouseDown(int X, int Y, SHIFTSTATE Shift)
 	{
 		if ((Shift & (SS_CONTROL|SS_ALT|SS_SHIFT)) != 0)
 			return false;
 		int absX, absY;
 		this->LocalPosToAbsolutePos(X, Y, absX, absY);
 		auto p = Vec2::Create((float)absX, (float)absY);
-		activeRotationAxis = -1;
-		Vec3 planeNormal;
-		for (auto & f : rotXFaces)
-			if (f.HitTest(p))
-			{
-				activeRotationAxis = 0;
-				planeNormal = Vec3::Create(1.0f, 0.0f, 0.0f);
-				break;
-			}
-		for (auto & f : rotYFaces)
-			if (f.HitTest(p))
-			{
-				planeNormal = Vec3::Create(0.0f, 1.0f, 0.0f);
-				activeRotationAxis = 1;
-				break;
-			}
-		for (auto & f : rotZFaces)
-			if (f.HitTest(p))
-			{
-				planeNormal = Vec3::Create(0.0f, 0.0f, 1.0f);
-				activeRotationAxis = 2;
-				break;
-			}
-		virtualPlane.w = -Vec3::Dot(planeNormal, pos);
-		virtualPlane.x = planeNormal.x;
-		virtualPlane.y = planeNormal.y;
-		virtualPlane.z = planeNormal.z;
 		mouseDownScreenSpace = p;
-		mouseDownWorldPos = ScreenCoordToVirtualPlanePoint(p);
-		if (activeRotationAxis != -1)
+		activeHandle = ManipulationHandleType::None;
+		for (auto & handle : handles)
 		{
-			startAngle = GetPhaseFromWorldPos(mouseDownWorldPos);
-			auto phaseVector = viewTransform.TransformNormal((mouseDownWorldPos - pos).Normalize());
-			auto worldTangent = Vec3::Cross(mouseDownWorldPos - pos, virtualPlane.xyz()).Normalize();
-			auto v1 = mouseDownWorldPos + worldTangent;
-			auto p1 = viewportTransform.TransformHomogeneous(projTransform.TransformHomogeneous(viewTransform.TransformHomogeneous(v1)));
-			screenSpaceTangent = (p - Vec2::Create(p1.x, p1.y)).Normalize();
+			if (handle.HitTest(p))
+			{
+				activeHandle = handle.Type;
+				mouseDownWorldPos = ScreenCoordToVirtualPlanePoint(p);
+				switch (handle.Type)
+				{
+				case ManipulationHandleType::RotationX:
+				case ManipulationHandleType::RotationY:
+				case ManipulationHandleType::RotationZ:
+				{
+					startAngle = GetPhaseFromWorldPos(mouseDownWorldPos);
+					auto phaseVector = (mouseDownWorldPos - pos).Normalize();
+					auto worldTangent = Vec3::Cross(mouseDownWorldPos - pos, handle.VirtualPlane.xyz()).Normalize();
+					tangentLineFaces.Clear();
+					Vec2 vmin, vmax;
+					Vec3 tangentCenter = sphereCenter + phaseVector * worldRadius;
 
-			auto viewTangent = viewTransform.TransformNormal(worldTangent);
-			tangentLineFaces.Clear();
-			Vec2 vmin, vmax;
-			Vec3 tangentCenter = sphereCenter + phaseVector * worldRadius;
-			AddAxis(tangentLineFaces, viewportTransform, projTransform, tangentCenter, viewTangent, worldRadius * 0.8f, 3.0f, 16.0f, vmin, vmax);
-			AddAxis(tangentLineFaces, viewportTransform, projTransform, tangentCenter, -viewTangent, worldRadius * 0.8f, 3.0f, 16.0f, vmin, vmax);
+					auto v1 = mouseDownWorldPos + worldTangent;
+					auto p1 = viewportTransform.TransformHomogeneous(projTransform.TransformHomogeneous(viewTransform.TransformHomogeneous(v1)));
+					screenSpaceTangent = (p - Vec2::Create(p1.x, p1.y)).Normalize();
 
-			Global::MouseCaptureControl = this;
+					AddAxis(tangentLineFaces, viewportTransform, viewProjTransform, tangentCenter, worldTangent, worldRadius * 0.8f, 3.0f, 16.0f, vmin, vmax);
+					AddAxis(tangentLineFaces, viewportTransform, viewProjTransform, tangentCenter, -worldTangent, worldRadius * 0.8f, 3.0f, 16.0f, vmin, vmax);
+					rotDiscFaces.Clear();
+					Global::MouseCaptureControl = this;
+				}
+				break;
+				}
+				UpdateLabel(0.0f);
+				break;
+			}
 		}
-		UpdateLabel(0.0f);
-		rotDiscFaces.Clear();
+		
 		return false;
 	}
 
 
-	bool RotationManipulator::DoMouseMove(int X, int Y)
+	bool TransformManipulator::DoMouseMove(int X, int Y)
 	{
 		int absX, absY;
 		this->LocalPosToAbsolutePos(X, Y, absX, absY);
 		auto p = Vec2::Create((float)absX, (float)absY);
-		if (activeRotationAxis != -1)
+		if (IsRotationHandle(activeHandle))
 		{
 			auto newMouseWorldPos = ScreenCoordToVirtualPlanePoint(p);
 			float angle = Vec2::Dot(screenSpaceTangent, (p - mouseDownScreenSpace)) / 180.0f * Math::Pi * 0.5f;
@@ -8004,54 +7983,43 @@ namespace GraphicsUI
 			angle = fmod(abs(angle), Math::Pi*2.0f) * sign;
 			
 			rotDiscFaces.Clear();
-			if (activeRotationAxis == 0)
-				ArcDisc(rotDiscFaces, viewportTransform, projTransform, sphereCenter, yAxisV, zAxisV, worldRadius * 0.2f, worldRadius, startAngle, startAngle + angle);
-			else if (activeRotationAxis == 1)
-				ArcDisc(rotDiscFaces, viewportTransform, projTransform, sphereCenter, zAxisV, xAxisV, worldRadius * 0.2f, worldRadius, startAngle, startAngle + angle);
+			if (activeHandle == ManipulationHandleType::RotationX)
+				ArcDisc(rotDiscFaces, viewportTransform, viewProjTransform, sphereCenter, yAxisW, zAxisW, worldRadius * 0.2f, worldRadius, startAngle, startAngle + angle);
+			else if (activeHandle == ManipulationHandleType::RotationY)
+				ArcDisc(rotDiscFaces, viewportTransform, viewProjTransform, sphereCenter, zAxisW, xAxisW, worldRadius * 0.2f, worldRadius, startAngle, startAngle + angle);
 			else
-				ArcDisc(rotDiscFaces, viewportTransform, projTransform, sphereCenter, xAxisV, yAxisV, worldRadius * 0.2f, worldRadius, startAngle, startAngle + angle);
+				ArcDisc(rotDiscFaces, viewportTransform, viewProjTransform, sphereCenter, xAxisW, yAxisW, worldRadius * 0.2f, worldRadius, startAngle, startAngle + angle);
 
-			RotationEventArgs e;
-			e.Axis = activeRotationAxis;
-			e.Angle = angle;
-			UpdateLabel(angle);
-			OnPreviewRotation(this, e);
-
+			ManipulationEventArgs e;
+			e.Handle = activeHandle;
+			e.Value = angle;
+			UpdateLabel(angle * 180.0f / Math::Pi);
+			OnPreviewManipulation(this, e);
 			return true;
 		}
 		else
 		{
-			highlight = -1;
-			for (auto & f : rotXFaces)
-				if (f.HitTest(p))
+			highlightHandle = ManipulationHandleType::None;
+			for (auto & handle : handles)
+			{
+				if (handle.HitTest(p))
 				{
-					highlight = 0;
+					highlightHandle = handle.Type;
 					break;
 				}
-			for (auto & f : rotYFaces)
-				if (f.HitTest(p))
-				{
-					highlight = 1;
-					break;
-				}
-			for (auto & f : rotZFaces)
-				if (f.HitTest(p))
-				{
-					highlight = 2;
-					break;
-				}
+			}
 		}
 		return false;
 	}
 
 
-	bool RotationManipulator::DoMouseUp(int X, int Y, SHIFTSTATE /*Shift*/)
+	bool TransformManipulator::DoMouseUp(int X, int Y, SHIFTSTATE /*Shift*/)
 	{
 		int absX, absY;
 		this->LocalPosToAbsolutePos(X, Y, absX, absY); 
-		highlight = -1;
+		highlightHandle = ManipulationHandleType::None;
 		Global::MouseCaptureControl = nullptr;
-		if (activeRotationAxis != -1)
+		if (IsRotationHandle(activeHandle))
 		{
 			auto p = Vec2::Create((float)absX, (float)absY);
 			auto newMouseWorldPos = ScreenCoordToVirtualPlanePoint(p);
@@ -8060,29 +8028,191 @@ namespace GraphicsUI
 			angle = fmod(abs(angle), Math::Pi*2.0f) * sign;
 
 			rotDiscFaces.Clear();
-			if (activeRotationAxis == 0)
-				ArcDisc(rotDiscFaces, viewportTransform, projTransform, sphereCenter, yAxisV, zAxisV, worldRadius * 0.2f, worldRadius, startAngle, startAngle + angle);
-			else if (activeRotationAxis == 1)
-				ArcDisc(rotDiscFaces, viewportTransform, projTransform, sphereCenter, zAxisV, xAxisV, worldRadius * 0.2f, worldRadius, startAngle, startAngle + angle);
+			if (activeHandle == ManipulationHandleType::RotationX)
+				ArcDisc(rotDiscFaces, viewportTransform, viewProjTransform, sphereCenter, yAxisW, zAxisW, worldRadius * 0.2f, worldRadius, startAngle, startAngle + angle);
+			else if (activeHandle == ManipulationHandleType::RotationY)
+				ArcDisc(rotDiscFaces, viewportTransform, viewProjTransform, sphereCenter, zAxisW, xAxisW, worldRadius * 0.2f, worldRadius, startAngle, startAngle + angle);
 			else
-				ArcDisc(rotDiscFaces, viewportTransform, projTransform, sphereCenter, xAxisV, yAxisV, worldRadius * 0.2f, worldRadius, startAngle, startAngle + angle);
+				ArcDisc(rotDiscFaces, viewportTransform, viewProjTransform, sphereCenter, xAxisW, yAxisW, worldRadius * 0.2f, worldRadius, startAngle, startAngle + angle);
 
-			RotationEventArgs e;
-			e.Axis = activeRotationAxis;
-			e.Angle = angle;
-			OnApplyRotation(this, e);
-
-			activeRotationAxis = -1;
+			ManipulationEventArgs e;
+			e.Handle = activeHandle;
+			e.Value = angle;
+			OnApplyManipulation(this, e);
+			activeHandle = ManipulationHandleType::None;
 			return true;
 		}
-		
 		return false;
 	}
 
-	bool RotationManipulator::DoMouseLeave()
+	bool TransformManipulator::DoMouseLeave()
 	{
-		highlight = -1;
+		highlightHandle = ManipulationHandleType::None;
 		return true;
+	}
+
+	Color ManipulationHandle::GetNormalColor()
+	{
+		switch (Type)
+		{
+		case ManipulationHandleType::AxisX:
+		case ManipulationHandleType::TranslationX:
+		case ManipulationHandleType::ScaleX:
+			return Color(255, 0, 0, 255);
+
+		case ManipulationHandleType::AxisY:
+		case ManipulationHandleType::TranslationY:
+		case ManipulationHandleType::ScaleY:
+			return Color(0, 255, 0, 255);
+
+		case ManipulationHandleType::AxisZ:
+		case ManipulationHandleType::TranslationZ:
+		case ManipulationHandleType::ScaleZ:
+			return Color(0, 0, 255, 255);
+
+		case ManipulationHandleType::RotationX:
+		case ManipulationHandleType::RotationY:
+		case ManipulationHandleType::RotationZ:
+			return Color(240, 170, 50, 170);
+		}
+		return Color();
+	}
+
+	Color ManipulationHandle::GetHighlightColor()
+	{
+		switch (Type)
+		{
+		case ManipulationHandleType::AxisX:
+			return Color(255, 0, 0, 255);
+
+		case ManipulationHandleType::TranslationX:
+		case ManipulationHandleType::ScaleX:
+			return Color(255, 80, 80, 255);
+
+		case ManipulationHandleType::AxisY:
+			return Color(255, 0, 0, 255);
+
+		case ManipulationHandleType::TranslationY:
+		case ManipulationHandleType::ScaleY:
+			return Color(80, 255, 80, 255);
+
+		case ManipulationHandleType::AxisZ:
+			return Color(255, 0, 0, 255);
+
+		case ManipulationHandleType::TranslationZ:
+		case ManipulationHandleType::ScaleZ:
+			return Color(80, 80, 255, 255);
+
+		case ManipulationHandleType::RotationX:
+		case ManipulationHandleType::RotationY:
+		case ManipulationHandleType::RotationZ:
+			return Color(240, 220, 90, 210);
+		}
+		return Color();
+	}
+
+	bool ManipulationHandle::HitTest(VectorMath::Vec2 v)
+	{
+		if (Type == ManipulationHandleType::AxisX ||
+			Type == ManipulationHandleType::AxisY ||
+			Type == ManipulationHandleType::AxisZ)
+			return false;
+		for (auto & f : UIFaces)
+			if (f.HitTest(v))
+				return true;
+		return false;
+	}
+
+	void ManipulationHandle::UpdateShape(const Matrix4 & viewportTransform, const Matrix4 & viewProjTransform,
+		const Vec3 & dir, const Vec3 & wHandleCenter, float wSize, const Vec3 & worldObjPos)
+	{
+		auto xAxisW = Vec3::Create(1.0f, 0.0f, 0.0f);
+		auto yAxisW = Vec3::Create(0.0f, 1.0f, 0.0f);
+		auto zAxisW = Vec3::Create(0.0f, 0.0f, 1.0f);
+		UIFaces.Clear();
+		Vec3 planeNormal = xAxisW;
+		switch (Type)
+		{
+		case ManipulationHandleType::RotationX:
+		{
+			float xBegin;
+			if (dir.y > 0 && dir.z > 0)
+				xBegin = 0.0f;
+			else if (dir.y < 0 && dir.z > 0)
+				xBegin = Math::Pi * 0.5f;
+			else if (dir.y < 0 && dir.z < 0)
+				xBegin = Math::Pi;
+			else
+				xBegin = Math::Pi * 1.5f;
+			VirtualPlaneAxesW[0] = Vec3::Create(0.0f, 1.0f, 0.0f);
+			VirtualPlaneAxesW[1] = Vec3::Create(0.0f, 0.0f, 1.0f);
+			planeNormal = xAxisW;
+			ArcDisc(UIFaces, viewportTransform, viewProjTransform, wHandleCenter, VirtualPlaneAxesW[0], VirtualPlaneAxesW[1], wSize * 0.75f, wSize, xBegin, xBegin + Math::Pi * 0.5f);
+		}
+		break;
+		case ManipulationHandleType::RotationY:
+		{
+			float yBegin;
+			if (dir.x > 0 && dir.z > 0)
+				yBegin = 0.0f;
+			else if (dir.x > 0 && dir.z < 0)
+				yBegin = Math::Pi * 0.5f;
+			else if (dir.x < 0 && dir.z < 0)
+				yBegin = Math::Pi;
+			else
+				yBegin = Math::Pi * 1.5f;
+			VirtualPlaneAxesW[0] = Vec3::Create(0.0f, 0.0f, 1.0f);
+			VirtualPlaneAxesW[1] = Vec3::Create(1.0f, 0.0f, 0.0f);
+			planeNormal = yAxisW;
+			ArcDisc(UIFaces, viewportTransform, viewProjTransform, wHandleCenter, VirtualPlaneAxesW[0], VirtualPlaneAxesW[1], wSize * 0.75f, wSize, yBegin, yBegin + Math::Pi * 0.5f);
+		}
+		break;
+		case ManipulationHandleType::RotationZ:
+		{
+			float zBegin;
+			if (dir.x > 0 && dir.y > 0)
+				zBegin = 0.0f;
+			else if (dir.x < 0 && dir.y > 0)
+				zBegin = Math::Pi * 0.5f;
+			else if (dir.x < 0 && dir.y < 0)
+				zBegin = Math::Pi;
+			else
+				zBegin = Math::Pi * 1.5f;
+			VirtualPlaneAxesW[0] = Vec3::Create(1.0f, 0.0f, 0.0f);
+			VirtualPlaneAxesW[1] = Vec3::Create(0.0f, 1.0f, 0.0f);
+			planeNormal = zAxisW;
+			ArcDisc(UIFaces, viewportTransform, viewProjTransform, wHandleCenter, VirtualPlaneAxesW[0], VirtualPlaneAxesW[1], wSize * 0.75f, wSize, zBegin, zBegin + Math::Pi * 0.5f);
+		}
+		break;
+		case ManipulationHandleType::AxisX:
+		{
+			Vec2 vmin, vmax;
+			vmin.x = vmin.y = 1e9f;	
+			vmax.x = vmax.y = -1e9f;
+			AddAxis(UIFaces, viewportTransform, viewProjTransform, wHandleCenter, xAxisW * Sign(dir.x), wSize * 1.1f, 1.0f, 8.0f, vmin, vmax);
+		}
+		break;
+		case ManipulationHandleType::AxisY:
+		{
+			Vec2 vmin, vmax;
+			vmin.x = vmin.y = 1e9f;
+			vmax.x = vmax.y = -1e9f;
+			AddAxis(UIFaces, viewportTransform, viewProjTransform, wHandleCenter, yAxisW * Sign(dir.y), wSize * 1.1f, 1.0f, 8.0f, vmin, vmax);
+		}
+		break;
+		case ManipulationHandleType::AxisZ:
+		{
+			Vec2 vmin, vmax;
+			vmin.x = vmin.y = 1e9f;
+			vmax.x = vmax.y = -1e9f;
+			AddAxis(UIFaces, viewportTransform, viewProjTransform, wHandleCenter, zAxisW * Sign(dir.z), wSize * 1.1f, 1.0f, 8.0f, vmin, vmax);
+		}
+		break;
+		}
+		VirtualPlane.w = -Vec3::Dot(planeNormal, worldObjPos);
+		VirtualPlane.x = planeNormal.x;
+		VirtualPlane.y = planeNormal.y;
+		VirtualPlane.z = planeNormal.z;
 	}
 
 }

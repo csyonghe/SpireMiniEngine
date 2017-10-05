@@ -27,7 +27,7 @@ private:
 	Mesh sourceSkeletonMesh, targetSkeletonMesh;
 	Quaternion originalTransform;
 	RefPtr<Model> sourceModel, sourceSkeletonModel;
-	RotationManipulator * manipulator;
+	TransformManipulator * manipulator;
 	ModelDrawableInstance sourceModelInstance, highlightModelInstance;
 	RefPtr<Skeleton> targetSkeleton;
 	Material sourceSkeletonMaterial, targetSkeletonMaterial, sourceMeshMaterial,
@@ -103,7 +103,7 @@ public:
 					bonePositions[i] = Vec3::Create(matrices[i].values[12], matrices[i].values[13], matrices[i].values[14]);
 				}
 			}
-			manipulator->SetTarget(view, level->CurrentCamera->GetLocalTransform(), level->CurrentCamera->GetPosition(), bonePositions[lstBones->SelectedIndex]);
+			manipulator->SetTarget(ManipulationMode::Rotation, view, level->CurrentCamera->GetLocalTransform(), level->CurrentCamera->GetPosition(), bonePositions[lstBones->SelectedIndex]);
 			manipulator->Visible = true;
 		}
 		else
@@ -639,9 +639,9 @@ public:
 		return rs;
 	}
 
-	void ApplyRotation(UI_Base *, RotationEventArgs e)
+	void ApplyManipulation(UI_Base *, ManipulationEventArgs e)
 	{
-		PreviewRotation(nullptr, e);
+		PreviewManipulation(nullptr, e);
 		Modification m;
 		m.boneId = lstBones->SelectedIndex;
 		m.originalTransform = originalTransform;
@@ -653,17 +653,17 @@ public:
 		UpdateCombinedRetargetTransform();
 	}
 
-	void PreviewRotation(UI_Base *, RotationEventArgs e)
+	void PreviewManipulation(UI_Base *, ManipulationEventArgs e)
 	{
 		Vec3 axis;
-		switch (e.Axis)
+		switch (e.Handle)
 		{
-		case 0: axis = Vec3::Create(1.0f, 0.0f, 0.0f); break;
-		case 1: axis = Vec3::Create(0.0f, 1.0f, 0.0f); break;
-		case 2: axis = Vec3::Create(0.0f, 0.0f, 1.0f); break;
+		case ManipulationHandleType::RotationX: axis = Vec3::Create(1.0f, 0.0f, 0.0f); break;
+		case ManipulationHandleType::RotationY: axis = Vec3::Create(0.0f, 1.0f, 0.0f); break;
+		case ManipulationHandleType::RotationZ: axis = Vec3::Create(0.0f, 0.0f, 1.0f); break;
 		}
 		retargetFile.SourceRetargetTransforms[lstBones->SelectedIndex] = originalTransform;
-		auto rot = Quaternion::FromAxisAngle(axis, e.Angle);
+		auto rot = Quaternion::FromAxisAngle(axis, e.Value);
 		auto accumRot = GetAccumRotation(lstBones->SelectedIndex);
 		auto accumParentRot = accumRot * originalTransform.Inverse();
 
@@ -707,9 +707,9 @@ public:
 	virtual void RegisterUI(GraphicsUI::UIEntry * pUiEntry) override
 	{
 		this->uiEntry = pUiEntry;
-		manipulator = new GraphicsUI::RotationManipulator(uiEntry);
-		manipulator->OnPreviewRotation.Bind(this, &SkeletonRetargetVisualizerActor::PreviewRotation);
-		manipulator->OnApplyRotation.Bind(this, &SkeletonRetargetVisualizerActor::ApplyRotation);
+		manipulator = new GraphicsUI::TransformManipulator(uiEntry);
+		manipulator->OnPreviewManipulation.Bind(this, &SkeletonRetargetVisualizerActor::PreviewManipulation);
+		manipulator->OnApplyManipulation.Bind(this, &SkeletonRetargetVisualizerActor::ApplyManipulation);
 
 		auto menu = new GraphicsUI::Menu(uiEntry, GraphicsUI::Menu::msMainMenu);
 		menu->BackColor = GraphicsUI::Color(0, 0, 0, 200);
