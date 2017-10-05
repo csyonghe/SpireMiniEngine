@@ -708,11 +708,6 @@ public:
 		auto mnFile = new GraphicsUI::MenuItem(menu, "&File");
 		auto mnEdit = new GraphicsUI::MenuItem(menu, "&Edit");
 		auto mnView = new GraphicsUI::MenuItem(menu, "&View");
-		auto mnTest = new GraphicsUI::MenuItem(mnFile, "Test");
-		auto mnTest1 = new GraphicsUI::MenuItem(mnTest, "Test1");
-		auto mnTest2 = new GraphicsUI::MenuItem(mnTest, "Test2");
-		auto mnTest3 = new GraphicsUI::MenuItem(mnTest2, "Test3");
-		auto mnTest4 = new GraphicsUI::MenuItem(mnTest2, "Test4");
 		auto mnUndo = new GraphicsUI::MenuItem(mnEdit, "Undo", "Ctrl+Z");
 		mnUndo->OnClick.Bind(this, &SkeletonRetargetVisualizerActor::mnUndo_Clicked);
 		auto mnRedo = new GraphicsUI::MenuItem(mnEdit, "Redo", "Ctrl+Y");

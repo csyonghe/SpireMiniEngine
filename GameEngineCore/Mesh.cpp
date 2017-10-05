@@ -324,19 +324,22 @@ namespace GameEngine
 		result.SetVertexFormat(vertexFormat);
 		MemoryStream ms;
 		BinaryWriter bw(&ms);
-		HashSet<ByteStreamView> vertSet;
+		Dictionary<ByteStreamView, int> vertSet;
 		List<int> vertIds;
 		vertIds.SetSize(vertCount);
 		int vertId = 0;
 		for (int i = 0; i < vertCount; i++)
 		{
 			ByteStreamView vert = ByteStreamView(vertexData.Buffer(), GetVertexSize() * i, GetVertexSize());
-			if (vertSet.Add(vert))
+			int id = -1;
+			if (!vertSet.TryGetValue(vert, id))
 			{
+				vertSet[vert] = vertId;
 				bw.Write(vert.bytes, vert.length);
-				vertIds[i] = vertId;
+				id = vertId;
 				vertId++;
 			}
+			vertIds[i] = id;
 		}
 		result.vertCount = vertId;
 		result.vertexData.AddRange((unsigned char*)ms.GetBuffer(), vertId * GetVertexSize());
