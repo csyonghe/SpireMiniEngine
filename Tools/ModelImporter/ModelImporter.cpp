@@ -778,8 +778,9 @@ endOfSkeletonExport:
 		}
 		if (meshOut->ElementRanges.Count())
 		{
-			meshOut->SaveToFile(Path::ReplaceExt(outFileName, "mesh"));
-			wprintf(L"mesh converted: elements %d, faces: %d, vertices: %d, skeletal: %s.\n", meshOut->ElementRanges.Count(), meshOut->Indices.Count() / 3, meshOut->GetVertexCount(),
+			auto optimizedMesh = meshOut->DeduplicateVertices();
+			optimizedMesh.SaveToFile(Path::ReplaceExt(outFileName, "mesh"));
+			wprintf(L"mesh converted: elements %d, faces: %d, vertices: %d, skeletal: %s.\n", optimizedMesh.ElementRanges.Count(), optimizedMesh.Indices.Count() / 3, optimizedMesh.GetVertexCount(),
 				hasBones ? L"true" : L"false");
 		}
 	}

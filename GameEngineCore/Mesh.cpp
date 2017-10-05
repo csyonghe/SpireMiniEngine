@@ -285,6 +285,69 @@ namespace GameEngine
 		this->ElementRanges.Clear();
 		this->ElementRanges.Add(range);
 	}
+
+	struct ByteStreamView
+	{
+		unsigned char * bytes;
+		int length;
+		ByteStreamView() = default;
+		ByteStreamView(unsigned char * stream, int offset, int len)
+		{
+			bytes = stream + offset;
+			length = len;
+		}
+		int GetHashCode()
+		{
+			int hash = 0;
+			for (int i = 0; i < length; i++)
+			{
+				int c = bytes[i];
+				hash = c + (hash << 6) + (hash << 16) - hash;
+			}
+			return hash;
+		}
+		bool operator == (ByteStreamView v)
+		{
+			if (length != v.length)
+				return false;
+			for (int i = 0; i < length; i++)
+				if (bytes[i] != v.bytes[i])
+					return false;
+			return true;
+		}
+	};
+	Mesh Mesh::DeduplicateVertices()
+	{
+		Mesh result;
+		result.ElementRanges = ElementRanges;
+		result.Bounds = Bounds;
+		result.SetVertexFormat(vertexFormat);
+		MemoryStream ms;
+		BinaryWriter bw(&ms);
+		HashSet<ByteStreamView> vertSet;
+		List<int> vertIds;
+		vertIds.SetSize(vertCount);
+		int vertId = 0;
+		for (int i = 0; i < vertCount; i++)
+		{
+			ByteStreamView vert = ByteStreamView(vertexData.Buffer(), GetVertexSize() * i, GetVertexSize());
+			if (vertSet.Add(vert))
+			{
+				bw.Write(vert.bytes, vert.length);
+				vertIds[i] = vertId;
+				vertId++;
+			}
+		}
+		result.vertCount = vertId;
+		result.vertexData.AddRange((unsigned char*)ms.GetBuffer(), vertId * GetVertexSize());
+		result.Indices.SetSize(Indices.Count());
+		for (int i = 0; i < Indices.Count(); i++)
+		{
+			result.Indices[i] = vertIds[Indices[i]];
+		}
+		bw.ReleaseStream();
+		return result;
+	}
 	Mesh Mesh::CreateBox(VectorMath::Vec3 vmin, VectorMath::Vec3 vmax)
 	{
 		Mesh rs;
