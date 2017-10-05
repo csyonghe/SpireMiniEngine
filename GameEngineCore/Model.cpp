@@ -104,7 +104,7 @@ namespace GameEngine
 			face.Vertices[1] = mesh.GetVertexPosition(mesh.Indices[i + 1]);
 			face.Vertices[2] = mesh.GetVertexPosition(mesh.Indices[i + 2]);
 			face.Normal = Vec3::Cross(face.Vertices[1] - face.Vertices[0], face.Vertices[2] - face.Vertices[0]).Normalize();
-			if (builders.Count() == 0)
+			if (builders.Count() == 1)
 				builders[0].AddFace(face);
 			else
 			{
@@ -198,5 +198,6 @@ namespace GameEngine
 	{
 		for (auto obj : objects)
 			scene->RemoveObject(obj);
+		objects.Clear();
 	}
 }

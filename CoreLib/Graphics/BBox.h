@@ -112,6 +112,14 @@ namespace CoreLib
 				cornerPoints[7] = Vec3::Create(xMax, yMax, zMax);
 			}
 			float Distance(Vec3 p);
+			bool operator == (BBox other)
+			{
+				return this->Min == other.Min && this->Max == other.Max;
+			}
+			bool operator != (BBox other)
+			{
+				return this->Min != other.Min || this->Max != other.Max;
+			}
 		};
 
 		inline bool RayBBoxIntersection(const BBox & bbox, const Vec3 & origin, const Vec3 & dir, float & tmin, float & tmax)

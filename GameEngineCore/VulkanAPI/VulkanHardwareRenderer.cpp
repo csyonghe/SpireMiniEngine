@@ -2156,6 +2156,8 @@ namespace VK
 		}
 		void SetDataAsync(int offset, void* data, int psize)
 		{
+			if (psize == 0)
+				return;
 			// If the buffer is mappable, map and memcpy
 			if (location & vk::MemoryPropertyFlagBits::eHostVisible)
 			{

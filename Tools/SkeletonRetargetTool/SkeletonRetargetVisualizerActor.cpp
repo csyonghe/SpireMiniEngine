@@ -108,6 +108,15 @@ public:
 		}
 		else
 			manipulator->Visible = false;
+		if (physInstance)
+		{
+			Bounds.Init();
+			for (auto & obj : physInstance->objects)
+				Bounds.Union(obj->GetBounds());
+			auto boundExtent = (Bounds.Max - Bounds.Min);
+			Bounds.Min -= boundExtent;
+			Bounds.Max += boundExtent;
+		}
 	}
 
 	void SetBoneMapping(int sourceBone, int animBone)

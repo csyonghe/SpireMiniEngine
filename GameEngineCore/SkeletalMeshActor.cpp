@@ -37,13 +37,26 @@ namespace GameEngine
 		return false;
 	}
 
+	void SkeletalMeshActor::UpdateBounds()
+	{
+		if (physInstance)
+		{
+			Bounds.Init();
+			for (auto & obj : physInstance->objects)
+				Bounds.Union(obj->GetBounds());
+		}
+	}
+
 	void GameEngine::SkeletalMeshActor::Tick()
 	{
 		auto time = Engine::Instance()->GetTime();
 		if (Animation)
 			Animation->GetPose(nextPose, time);
 		if (physInstance)
+		{
 			physInstance->SetTransform(localTransform, nextPose, retargetFile);
+		}
+		UpdateBounds();
 	}
 
 	void SkeletalMeshActor::GetDrawables(const GetDrawablesParameter & params)
@@ -52,10 +65,6 @@ namespace GameEngine
 			modelInstance = model->GetDrawableInstance(params);
 		modelInstance.UpdateTransformUniform(localTransform, nextPose, retargetFile);
 		
-		Matrix4 rootTransform = localTransform;
-		if (nextPose.Transforms.Count())
-			Matrix4::Multiply(rootTransform, localTransform, nextPose.Transforms[0].ToMatrix());
-		TransformBBox(Bounds, rootTransform, model->GetBounds());
 		auto insertDrawable = [&](Drawable * d)
 		{
 			d->CastShadow = CastShadow;

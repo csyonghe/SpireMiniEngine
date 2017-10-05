@@ -738,6 +738,8 @@ namespace GameEngine
 		numShaders = 0;
 		Array<DescriptorSet*, 32> boundSets;
 		boundSets.SetSize(boundSets.GetCapacity());
+		for (auto & descSet : boundSets)
+			descSet = nullptr;
 		DrawableMesh * lastMesh = nullptr;
 		if (drawables.Count())
 		{

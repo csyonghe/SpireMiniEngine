@@ -20,6 +20,7 @@ namespace GameEngine
 		RetargetFile * retargetFile = nullptr;
 	protected:
 		virtual bool ParseField(CoreLib::Text::TokenReader & parser, bool &isInvalid) override;
+		void UpdateBounds();
 	public:
 		CoreLib::RefPtr<AnimationSynthesizer> Animation;
 		SkeletalAnimation * SimpleAnimation = nullptr;

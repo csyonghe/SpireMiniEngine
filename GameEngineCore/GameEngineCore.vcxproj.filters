@@ -335,5 +335,40 @@
     <Filter Include="Renderer\ComputePasses">
       <UniqueIdentifier>{4c10def7-e5db-4883-9e2e-704af2063de5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{d5ba9b7e-8244-4b5b-afcc-6fea450e3b94}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\EngineContent\Shaders\Atmosphere.shader">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\EngineContent\Shaders\BoneHighlight.shader">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\EngineContent\Shaders\Default.shader">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\EngineContent\Shaders\DeferredLighting.shader">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\EngineContent\Shaders\GlPipeline.shader">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\EngineContent\Shaders\SkeletalMesh.shader">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\EngineContent\Shaders\SkeletonVisualize.shader">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\EngineContent\Shaders\SolidColor.shader">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\EngineContent\Shaders\ToneMapping.shader">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\EngineContent\Shaders\Utils.shader">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

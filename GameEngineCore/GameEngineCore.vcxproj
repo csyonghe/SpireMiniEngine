@@ -295,6 +295,18 @@
     <ClInclude Include="VulkanAPI\vulkan.hpp" />
     <ClInclude Include="WorldRenderPass.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\EngineContent\Shaders\Atmosphere.shader" />
+    <None Include="..\EngineContent\Shaders\BoneHighlight.shader" />
+    <None Include="..\EngineContent\Shaders\Default.shader" />
+    <None Include="..\EngineContent\Shaders\DeferredLighting.shader" />
+    <None Include="..\EngineContent\Shaders\GlPipeline.shader" />
+    <None Include="..\EngineContent\Shaders\SkeletalMesh.shader" />
+    <None Include="..\EngineContent\Shaders\SkeletonVisualize.shader" />
+    <None Include="..\EngineContent\Shaders\SolidColor.shader" />
+    <None Include="..\EngineContent\Shaders\ToneMapping.shader" />
+    <None Include="..\EngineContent\Shaders\Utils.shader" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

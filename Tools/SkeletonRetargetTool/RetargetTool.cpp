@@ -44,12 +44,12 @@ ArcBallCameraController
 DirectionalLight
 {
 	name "sunlight"
-	transform[1 0 0 0   0 1 0 0    0 0 1 0    10000 10000 0 1]
+	transform[1 0 0 0   0 1 0 0    0 0 1 0    2000 3000 0 1]
 	Direction[0.8 0.7 0.3]
 	Color[3.1 3.1 3.1]
-	EnableCascadedShadows true
-	NumShadowCascades 8
-	ShadowDistance 4500
+	EnableCascadedShadows false
+	NumShadowCascades 4
+	ShadowDistance 10000
 	TransitionFactor 0.8
 }
 

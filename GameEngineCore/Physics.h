@@ -77,6 +77,10 @@ namespace GameEngine
 		void * Tag = nullptr;
 		Actor * ParentActor = nullptr;
 		int SkeletalBoneId = -1;
+		PhysicsObject()
+		{
+			bounds.Init();
+		}
 		VectorMath::Matrix4 GetInverseModelTransform()
 		{
 			return inverseModelTransform;
@@ -90,7 +94,11 @@ namespace GameEngine
 			modelTransform = m;
 			m.Inverse(inverseModelTransform);
 			modelTransformChanged = true;
-			CoreLib::Graphics::TransformBBox(bounds, m, model->GetBounds());
+			CoreLib::Graphics::BBox nullBox;
+			nullBox.Init();
+			bounds.Init();
+			if (nullBox != model->GetBounds())
+				CoreLib::Graphics::TransformBBox(bounds, m, model->GetBounds());
 		}
 		PhysicsObject(PhysicsModel * physModel)
 		{

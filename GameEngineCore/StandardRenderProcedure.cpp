@@ -206,8 +206,9 @@ namespace GameEngine
 			sink.Clear();
 						
 			CoreLib::Graphics::BBox levelBounds;
-			levelBounds.Init();
-
+			// initialize bounds to a small extent to prevent error
+			levelBounds.Min = Vec3::Create(-10.0f);
+			levelBounds.Max = Vec3::Create(10.0f);
 			for (auto & actor : params.level->Actors)
 			{
 				levelBounds.Union(actor.Value->Bounds);

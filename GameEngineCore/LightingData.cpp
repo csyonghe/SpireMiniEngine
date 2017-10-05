@@ -87,7 +87,8 @@ namespace GameEngine
 		auto shadowMapRes = renderer->GetSharedResource()->shadowMapResources;
 		shadowMapRes.Reset();
 		CoreLib::Graphics::BBox levelBounds;
-		levelBounds.Init();
+		levelBounds.Min = Vec3::Create(-10.0f);
+		levelBounds.Max = Vec3::Create(10.0f);
 		DirectionalLightActor * sunlight = nullptr;
 		for (auto & actor : level->Actors)
 		{

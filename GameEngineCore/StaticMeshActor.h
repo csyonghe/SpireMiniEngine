@@ -21,7 +21,7 @@ namespace GameEngine
 	public:
 		CoreLib::String MeshName;
 		Mesh * Mesh = nullptr;
-		Model * Model = nullptr;
+		CoreLib::RefPtr<Model> Model = nullptr;
 		Material * MaterialInstance;
 		
 		virtual void OnLoad() override;
