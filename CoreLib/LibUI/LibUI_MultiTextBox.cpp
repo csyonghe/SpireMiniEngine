@@ -552,6 +552,8 @@ namespace GraphicsUI
 			for (int i = 0; i < lines; i++)
 			{
 				auto lbl = new Label(content);
+				lbl->EditorMode = true;
+				lbl->DrawPrefix = false;
 				ScreenLine sl;
 				sl.label = lbl;
 				sl.LogicalLine = 0;
@@ -1507,8 +1509,8 @@ namespace GraphicsUI
 			content->Posit(0, 0, Width - vScrollWidth, Height - hScrollHeight);
 			UpdateWordWrap();
 			
-			vScroll->Left = Width - vScroll->GetWidth();
-			hScroll->Top = Height - hScroll->GetHeight();
+			vScroll->Left = Width - vScroll->GetWidth() - 1;
+			hScroll->Top = Height - hScroll->GetHeight() - 1;
 			vScroll->SetHeight(Height - hScrollHeight);
 			hScroll->SetWidth(Width - vScrollWidth + 2);
 			UpdateScrollBars();
@@ -1592,7 +1594,7 @@ namespace GraphicsUI
 			}
 			auto entry = GetEntry();
 			auto & graphics = entry->DrawCommands;
-			entry->ClipRects->AddRect(GraphicsUI::Rect(absX + Left + LeftIndent, absY + Top + 1, Width - 1, Height - 1));
+			entry->ClipRects->AddRect(GraphicsUI::Rect(absX + Left + LeftIndent, absY + Top + 1, Width - LeftIndent - 1, Height - 2));
 			Container::DrawChildren(absX + Left, absY + Top);
 			if (selStart != selEnd)
 			{
@@ -1643,7 +1645,7 @@ namespace GraphicsUI
 					quadStart += ox;
 					quadEnd += ox;
 					int oy = absY + Top;
-					entry->ClipRects->AddRect(Rect(ox + 1, oy + 1, content->GetWidth() - 1, content->GetHeight() - 1));
+					entry->ClipRects->AddRect(Rect(ox + 1, oy + 1, content->GetWidth() - 2, content->GetHeight() - 2));
 					entry->ClipRects->AddRect(Rect(quadStart, oy + i * lineHeight, quadEnd - quadStart, lineHeight));
 					graphics.FillRectangle(quadStart, oy + i * lineHeight, quadEnd, oy + i * lineHeight + lineHeight);
 					screen[i].label->FontColor = Global::Colors.SelectionForeColor;

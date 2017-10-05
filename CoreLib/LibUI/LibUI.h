@@ -595,6 +595,7 @@ namespace GraphicsUI
 		int TextWidth = 0;
 		int TextHeight = 0;
 		bool DrawPrefix = false;
+		bool EditorMode = false;
 		VerticalAlignment VertAlignment = VerticalAlignment::Top;
 		Label(Container * parent);
 		~Label();
@@ -1010,6 +1011,7 @@ namespace GraphicsUI
 	private:
 		CoreLib::List<MenuItem*> Items;
 		MenuStyle style;
+		bool mnemonicKeyVisible = false;
 		bool enableMouseHover = false; // handle mouse hover only when true
 	protected:
 		MenuItem * parentItem = nullptr;
@@ -1032,6 +1034,7 @@ namespace GraphicsUI
 		void Draw(int absX, int absY) override;
 		void Popup(int x, int y);
 		void CloseMenu();
+		void ShowMnemonicKey(bool v);
 		virtual bool DoClosePopup() override;
 		Menu(Container * parent, MenuStyle mstyle = msPopup);
         ~Menu();
@@ -1043,6 +1046,7 @@ namespace GraphicsUI
 		virtual void HandleMessage(const UI_MsgArgs * Args) override;
 		virtual void SetFocus() override;
 		virtual void DoDpiChanged() override;
+		virtual void LostFocus(Control * newFocus) override;
 	};
 
 	enum class MouseOperation
@@ -1090,6 +1094,7 @@ namespace GraphicsUI
 
 		MenuItem(Menu* menu, const CoreLib::String & text, const CoreLib::String & shortcutText);
 		MenuItem(MenuItem* menu, const CoreLib::String & text, const CoreLib::String & shortcutText);
+		void ShowMnemonicKey(bool v);
 		void Hit(MouseOperation mouseOperation);
 		void DrawMenuItem(int width, int height);
 		void DrawMenuButton(int width, int height);

@@ -974,7 +974,7 @@ namespace GraphicsUI
 	{
 		if (text)
 			text = nullptr;
-		auto size = font->MeasureString(FCaption, DrawTextOptions(true, true, false));
+		auto size = font->MeasureString(FCaption, DrawTextOptions(!DrawPrefix, true, EditorMode));
 		TextWidth = size.w;
 		TextHeight = size.h;
 		FChanged = false;
@@ -998,7 +998,7 @@ namespace GraphicsUI
 		}
 		if (FChanged || !text)
 		{
-			text = font->BakeString(FCaption, text.Ptr(), DrawTextOptions(!DrawPrefix, true, false));
+			text = font->BakeString(FCaption, text.Ptr(), DrawTextOptions(!DrawPrefix, true, EditorMode));
 			FChanged = false;
 		}
 		if (VertAlignment == VerticalAlignment::Top)
@@ -1918,7 +1918,15 @@ namespace GraphicsUI
 	bool UIEntry::DoKeyDown(unsigned short Key, SHIFTSTATE Shift)
 	{
 		KeyInputConsumed = true;
-		if (Key == 0x09)  // VK_TAB
+		if (Shift && SS_ALT)
+		{
+			if (MainMenu)
+			{
+				if (MainMenu->DoKeyDown(Key, Shift))
+					return true;
+			}
+		}
+		if (Key == 0x09 && Popups.Count() == 0)  // VK_TAB
 		{
 			if (Shift & SS_CONTROL)
 			{
@@ -4814,6 +4822,15 @@ namespace GraphicsUI
 		PositMenuItems();
 	}
 
+	void Menu::LostFocus(Control * newFocus)
+	{
+		if (this->style == msMainMenu)
+		{
+			if (!newFocus->IsChildOf(this))
+				ShowMnemonicKey(false);
+		}
+	}
+
 	void Menu::PopupSubMenu(Menu * subMenu, int x, int y)
 	{
 		if (!subMenu->Visible || subMenu != curSubMenu)
@@ -4835,6 +4852,11 @@ namespace GraphicsUI
 			ReleaseMouse();
 			if (this->style != msMainMenu)
 				Global::MouseCaptureControl = this;
+			else
+			{
+				if (mnemonicKeyVisible)
+					this->ShowMnemonicKey(false);
+			}
 		}
 	}
 
@@ -5038,6 +5060,18 @@ namespace GraphicsUI
 		}
 	}
 
+	void Menu::ShowMnemonicKey(bool v)
+	{
+		if (v != mnemonicKeyVisible)
+		{
+			mnemonicKeyVisible = v;
+			for (auto node : Items)
+			{
+				node->ShowMnemonicKey(v);
+			}
+		}
+	}
+
 	void Menu::DrawMenuBar(int absX, int absY)
 	{
 		Control::Draw(absX, absY);
@@ -5134,6 +5168,7 @@ namespace GraphicsUI
 		Container::DoMouseDown(X, Y, Shift);
 		if (!IsPointInClient(X, Y))
 		{
+			ShowMnemonicKey(false);
 			if (style != msPopup)
 			{
 				for (int i=0; i<Items.Count(); i++)
@@ -5182,10 +5217,12 @@ namespace GraphicsUI
 		return -1;
 	}
 
-	bool Menu::DoKeyDown(unsigned short Key, SHIFTSTATE /*Shift*/)
+	bool Menu::DoKeyDown(unsigned short Key, SHIFTSTATE Shift)
 	{
 		if (!Enabled || !Visible)
 			return false;
+		if (Shift & SS_ALT)
+			ShowMnemonicKey(true);
 		if ((Key >= L'A' && Key <= L'Z') || (Key >= L'0' && Key <= L'9'))
 		{
 			for (int i=0; i<Items.Count(); i++)
@@ -5269,7 +5306,7 @@ namespace GraphicsUI
 			{
 				if (id != -1 && Items[id]->SubMenu && Items[id]->SubMenu->Count())
 				{
-					PopupSubMenu(Items[id]->SubMenu, Items[id]->Width - 2, 0);
+					Items[id]->Hit(MouseOperation::MouseDown);
 					for (int i=0; i<Items[id]->SubMenu->Count(); i++)
 					{
 						MenuItem * item = Items[id]->SubMenu->GetItem(i);
@@ -5478,6 +5515,17 @@ namespace GraphicsUI
 		lblShortcut->SetText(shortcutText);
 	}
 
+	void MenuItem::ShowMnemonicKey(bool v)
+	{
+		if (lblText)
+		{
+			lblText->DrawPrefix = v;
+			lblText->UpdateText();
+		}
+		if (SubMenu)
+			SubMenu->ShowMnemonicKey(v);
+	}
+
 	MenuItem::MenuItem(Menu * parent, const String & text)
 		: MenuItem(parent, text, "")
 	{
@@ -5490,25 +5538,22 @@ namespace GraphicsUI
 
 	void MenuItem::SetText(const String & text)
 	{
-		StringBuilder unescape;
 		accKey = 0;
 		accKeyId = -1;
-		for (int i = 0; i < text.Length(); i++)
+		for (int i = 0; i < text.Length() - 1; i++)
 		{
-			if (text[i] != L'&')
-				unescape << text[i];
-			else if (i < text.Length() - 1)
+			if (text[i] == '&')
 			{
-				if (text[i + 1] != L'&')
+				if (text[i + 1] != '&')
 				{
 					accKey = text[i + 1];
-					accKeyId = unescape.Length();
+					accKeyId = i + 1;
 				}
 			}
 		}
 		if (accKey >= 97 && accKey <= 122)
 			accKey = accKey + (-97 + 65);
-		lblText->SetText(unescape.ProduceString());
+		lblText->SetText(text);
 	}
 
 	String MenuItem::GetText()

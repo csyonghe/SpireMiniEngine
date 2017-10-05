@@ -705,9 +705,9 @@ public:
 		auto menu = new GraphicsUI::Menu(uiEntry, GraphicsUI::Menu::msMainMenu);
 		menu->BackColor = GraphicsUI::Color(0, 0, 0, 200);
 		uiEntry->MainMenu = menu;
-		auto mnFile = new GraphicsUI::MenuItem(menu, "File");
-		auto mnEdit = new GraphicsUI::MenuItem(menu, "Edit");
-		auto mnView = new GraphicsUI::MenuItem(menu, "View");
+		auto mnFile = new GraphicsUI::MenuItem(menu, "&File");
+		auto mnEdit = new GraphicsUI::MenuItem(menu, "&Edit");
+		auto mnView = new GraphicsUI::MenuItem(menu, "&View");
 		auto mnTest = new GraphicsUI::MenuItem(mnFile, "Test");
 		auto mnTest1 = new GraphicsUI::MenuItem(mnTest, "Test1");
 		auto mnTest2 = new GraphicsUI::MenuItem(mnTest, "Test2");
@@ -753,7 +753,7 @@ public:
 		pnl->BackColor = GraphicsUI::Color(0, 0, 0, 200);
 		pnl->DockStyle = GraphicsUI::Control::dsLeft;
 		pnl->SetWidth(EM(12.0f));
-		pnl->Padding = EM(0.2f);
+		pnl->Padding = EM(0.5f);
 
 		auto pnl2 = new GraphicsUI::Container(pnl);
 		pnl2->SetHeight(EM(19.0f));
@@ -766,7 +766,7 @@ public:
 			lbl->SetText(label);
 		};
 
-		addLabel(pnl2, "Root Translation Scale", 0, 0.0f, 4.0f, 1.0f);
+		addLabel(pnl2, "Root Translation Scale", 0.0f, 0.0f, 4.0f, 1.0f);
 
 		addLabel(pnl2, "X", 1.8f, 1.0f);
 		txtScaleX = new GraphicsUI::TextBox(pnl2);
@@ -774,45 +774,43 @@ public:
 		txtScaleX->SetText("1.0");
 		txtScaleX->OnChanged.Bind(this, &SkeletonRetargetVisualizerActor::ChangeScaleX);
 
-		addLabel(pnl2, "Y", 5.8f, 1.0f);
+		addLabel(pnl2, "Y", 5.5f, 1.0f);
 		txtScaleY = new GraphicsUI::TextBox(pnl2);
-		txtScaleY->Posit(EM(4.5f), EM(2.0f), EM(2.8f), EM(1.0f));
+		txtScaleY->Posit(EM(4.2f), EM(2.0f), EM(2.8f), EM(1.0f));
 		txtScaleY->SetText("1.0");
 		txtScaleY->OnChanged.Bind(this, &SkeletonRetargetVisualizerActor::ChangeScaleY);
 
-		addLabel(pnl2, "Z", 9.8f, 1.0f);
+		addLabel(pnl2, "Z", 9.2f, 1.0f);
 		txtScaleZ = new GraphicsUI::TextBox(pnl2);
-		txtScaleZ->Posit(EM(8.5f), EM(2.0f), EM(2.8f), EM(1.0f));
+		txtScaleZ->Posit(EM(7.9f), EM(2.0f), EM(2.8f), EM(1.0f));
 		txtScaleZ->SetText("1.0");
 		txtScaleZ->OnChanged.Bind(this, &SkeletonRetargetVisualizerActor::ChangeScaleZ);
 
-		addLabel(pnl2, "Rotation", 0, 4.0f, 4.0f, 1.0f);
+		addLabel(pnl2, "Rotation", 0.0f, 4.0f, 4.0f, 1.0f);
 
 		addLabel(pnl2, "X", 1.8f, 5.0f);
 		txtX = new GraphicsUI::TextBox(pnl2);
 		txtX->Posit(EM(0.5f), EM(6.0f), EM(2.8f), EM(1.0f));
 		txtX->OnChanged.Bind(this, &SkeletonRetargetVisualizerActor::ChangeRotation);
 
-		addLabel(pnl2, "Y", 5.8f, 5.0f);
+		addLabel(pnl2, "Y", 5.5f, 5.0f);
 		txtY = new GraphicsUI::TextBox(pnl2);
-		txtY->Posit(EM(4.5f), EM(6.0f), EM(2.8f), EM(1.0f));
+		txtY->Posit(EM(4.2f), EM(6.0f), EM(2.8f), EM(1.0f));
 		txtY->OnChanged.Bind(this, &SkeletonRetargetVisualizerActor::ChangeRotation);
 
-		addLabel(pnl2, "Z", 9.8f, 5.0f);
+		addLabel(pnl2, "Z", 9.2f, 5.0f);
 		txtZ = new GraphicsUI::TextBox(pnl2);
-		txtZ->Posit(EM(8.5f), EM(6.0f), EM(2.8f), EM(1.0f));
+		txtZ->Posit(EM(7.9f), EM(6.0f), EM(2.8f), EM(1.0f));
 		txtZ->OnChanged.Bind(this, &SkeletonRetargetVisualizerActor::ChangeRotation);
 		
 		auto lblBones = new GraphicsUI::Label(pnl2);
 		lblBones->SetText("Bones");
 		lblBones->DockStyle = GraphicsUI::Control::dsBottom;
-		
 		lstBones = new GraphicsUI::ListBox(pnl);
 		lstBones->DockStyle = GraphicsUI::Control::dsFill;
 		lstBones->OnClick.Bind(this, &SkeletonRetargetVisualizerActor::SelectedBoneChanged);
-
 		txtInfo = GraphicsUI::CreateMultiLineTextBox(pnl2);
-		txtInfo->Posit(EM(0.2f), EM(9.0f), EM(11.6f), EM(8.5f));
+		txtInfo->Posit(EM(0.0f), EM(9.0f), EM(11.0f), EM(8.5f));
 
 		pnlBoneMapping = new GraphicsUI::VScrollPanel(uiEntry);
 		pnlBoneMapping->BackColor = pnl->BackColor;

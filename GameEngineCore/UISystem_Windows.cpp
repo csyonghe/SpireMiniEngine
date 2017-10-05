@@ -298,11 +298,11 @@ namespace GameEngine
 		else
 		{
 			if (!options.ProcessPrefix)
-				return DT_NOPREFIX;
+				return DT_NOCLIP | DT_NOPREFIX;
 			if (options.HidePrefix)
-				return DT_HIDEPREFIX;
+				return DT_NOCLIP | DT_HIDEPREFIX;
+			return DT_NOCLIP;
 		}
-		return 0;
 	}
 
 	class Canvas
@@ -373,9 +373,6 @@ namespace GameEngine
 		}
 		TextSize GetTextSize(const CoreLib::List<unsigned int> & Text, DrawTextOptions options)
 		{
-			SIZE sText;
-			TextSize result;
-			sText.cx = 0; sText.cy = 0;
 			CoreLib::List<unsigned short> wstr;
 			wstr.Reserve(Text.Count());
 			for (int i = 0; i < Text.Count(); i++)
@@ -394,7 +391,6 @@ namespace GameEngine
 			rs.x = rect.right;
 			rs.y = rect.bottom;
 			return rs;
-			return result;
 		}
 		void Clear(int w, int h)
 		{

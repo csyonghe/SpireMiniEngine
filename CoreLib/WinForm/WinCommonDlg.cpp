@@ -7,23 +7,6 @@ namespace CoreLib
 {
 	namespace WinForm
 	{
-		UINT_PTR CALLBACK OFNHookProc(HWND hdlg, UINT uiMsg, WPARAM /*wParam*/, LPARAM /*lParam*/)
-		{
-			if (uiMsg == WM_INITDIALOG)
-			{
-				RECT r, rs;
-				HWND handle = GetParent(hdlg);
-				HWND hp = GetParent(handle);
-				GetWindowRect(hp , &r);
-				GetWindowRect(handle, &rs);
-				int w = rs.right - rs.left;
-				int h = rs.bottom - rs.top;
-				MoveWindow(handle, (r.left + r.right-w)/2, (r.top+r.bottom-h)/2, w,h, TRUE);
-				return 1;
-			}
-			return 0;
-		}
-
 		FileDialog::FileDialog(const Component * _owner)
 		{
 			owner = const_cast<Component*>(_owner);
@@ -32,10 +15,10 @@ namespace CoreLib
 			memset(filterBuf,0,sizeof(filterBuf));
 			fn.lStructSize = sizeof(OPENFILENAME);
 			fn.hInstance = 0;
-			fn.Flags = OFN_EXPLORER|OFN_ENABLEHOOK;
+			fn.Flags = OFN_EXPLORER|OFN_ENABLESIZING;
 			fn.hwndOwner = owner->GetHandle();
 			fn.lpstrCustomFilter = 0;
-			fn.lpfnHook = OFNHookProc;
+			fn.lpfnHook = nullptr;
 			fn.nMaxCustFilter = 0;
 			fn.lpstrFile = fileBuf;
 			fn.nMaxFile = FileBufferSize;
@@ -82,7 +65,7 @@ namespace CoreLib
 			initDir = Path::GetDirectoryName(FileName);
 			fn.lpstrInitialDir = initDir.ToWString();
 			
-			fn.Flags = OFN_EXPLORER|OFN_ENABLEHOOK;
+			fn.Flags = OFN_EXPLORER | OFN_ENABLESIZING;
 			if (MultiSelect)
 				fn.Flags = (fn.Flags | OFN_ALLOWMULTISELECT);
 			if (CreatePrompt)
