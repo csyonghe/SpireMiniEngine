@@ -1501,10 +1501,22 @@ namespace GraphicsUI
 		None = -1, RotationX, RotationY, RotationZ, AxisX, AxisY, AxisZ, TranslationX, TranslationY, TranslationZ, TranslationXY, TranslationXZ, TranslationYZ,
 		ScaleX, ScaleY, ScaleZ, ScaleXYZ
 	};
+	bool IsRotationHandle(ManipulationHandleType t);
+	bool IsTranslationHandle(ManipulationHandleType t);
+	bool IsScaleHandle(ManipulationHandleType t);
 	struct ManipulationEventArgs
 	{
 		ManipulationHandleType Handle;
-		float Value;
+		float RotationAngle;
+		VectorMath::Vec3 TranslationOffset;
+		VectorMath::Vec3 Scale;
+		ManipulationEventArgs()
+		{
+			RotationAngle = 0.0f;
+			TranslationOffset.SetZero();
+			Scale.SetZero();
+		}
+
 	};
 	class ManipulationHandle
 	{
@@ -1533,7 +1545,9 @@ namespace GraphicsUI
 		CoreLib::List<ManipulationHandle> handles;
 		ManipulationMode mode;
 		Label * label;
-		CoreLib::List<TriangleFace> rotXFullFaces, rotYFullFaces, rotZFullFaces, rotDiscFaces, tangentLineFaces;
+		VectorMath::Vec3 viewDir;
+		bool lockViewDir = false;
+		CoreLib::List<TriangleFace> rotXFullFaces, rotYFullFaces, rotZFullFaces, rotDiscFaces, tangentLineFaces, coreCircleFaces;
 		ManipulationHandleType highlightHandle = ManipulationHandleType::None;
 		ManipulationHandleType activeHandle = ManipulationHandleType::None;
 		ManipulatorSceneView view;
