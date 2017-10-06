@@ -94,13 +94,17 @@ namespace GameEngine
 	class Mesh : public CoreLib::Object 
 	{
 	private:
+		static int uid;
 		MeshVertexFormat vertexFormat;
 		CoreLib::Basic::List<unsigned char> vertexData;
 		int vertCount = 0;
+		CoreLib::String fileName;
 	public:
 		CoreLib::Graphics::BBox Bounds;
 		CoreLib::Basic::List<int> Indices;
 		CoreLib::Basic::List<MeshElementRange> ElementRanges;
+		Mesh();
+		CoreLib::String GetUID();
 		MeshVertexFormat GetVertexFormat() { return vertexFormat; }
 		void SetVertexFormat(const MeshVertexFormat & value) { vertexFormat = value; }
 		void SetVertexPosition(int vertId, const VectorMath::Vec3 & pos)

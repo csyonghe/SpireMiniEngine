@@ -1918,7 +1918,7 @@ namespace GraphicsUI
 	bool UIEntry::DoKeyDown(unsigned short Key, SHIFTSTATE Shift)
 	{
 		KeyInputConsumed = true;
-		if (Shift && SS_ALT)
+		if (Shift & SS_ALT)
 		{
 			if (MainMenu)
 			{
@@ -4279,6 +4279,7 @@ namespace GraphicsUI
 		for (auto item : Items)
 			RemoveChild(item);
 		Items.Clear();
+		SelectedIndex = -1;
 	}
 
 	void ListBox::ListChanged()
@@ -4439,6 +4440,12 @@ namespace GraphicsUI
 		if (ShowList)
 		{
 			Global::MouseCaptureControl = this;
+			GetEntry()->Popups.Add(this);
+		}
+		else
+		{
+			GetEntry()->SetFocusedControl(this);
+			GetEntry()->Popups.Remove(this);
 		}
 	}
 
@@ -7036,14 +7043,17 @@ namespace GraphicsUI
 		auto focusedCtrl = GetEntry()->FocusedControl;
 		if (focusedCtrl && focusedCtrl->IsChildOf(content))
 		{
-			auto pos = focusedCtrl->GetRelativePos(content);
-			if (pos.y - vscrollBar->GetPosition() < 0)
+			if (GetEntry()->Popups.Count() == 0)
 			{
-				vscrollBar->SetPosition(Math::Clamp(pos.y, vscrollBar->GetMin(), vscrollBar->GetMax()));
-			}
-			else if (pos.y - vscrollBar->GetPosition() + focusedCtrl->GetHeight() > Height)
-			{
-				vscrollBar->SetPosition(Math::Clamp(pos.y - Height + focusedCtrl->GetHeight(), vscrollBar->GetMin(), vscrollBar->GetMax()));
+				auto pos = focusedCtrl->GetRelativePos(content);
+				if (pos.y - vscrollBar->GetPosition() < 0)
+				{
+					vscrollBar->SetPosition(Math::Clamp(pos.y, vscrollBar->GetMin(), vscrollBar->GetMax()));
+				}
+				else if (pos.y - vscrollBar->GetPosition() + focusedCtrl->GetHeight() > Height)
+				{
+					vscrollBar->SetPosition(Math::Clamp(pos.y - Height + focusedCtrl->GetHeight(), vscrollBar->GetMin(), vscrollBar->GetMax()));
+				}
 			}
 		}
 	}
@@ -7849,7 +7859,6 @@ namespace GraphicsUI
 		rotXFullFaces.Clear();
 		rotYFullFaces.Clear();
 		rotZFullFaces.Clear();
-		rotDiscFaces.Clear();
 		this->view = pView;
 		this->viewTransform = pViewTransform;
 		this->camPos = pCamPos;
@@ -8026,15 +8035,6 @@ namespace GraphicsUI
 			float angle = Vec2::Dot(screenSpaceTangent, (p - mouseDownScreenSpace)) / 180.0f * Math::Pi * 0.5f;
 			float sign = Sign(angle);
 			angle = fmod(abs(angle), Math::Pi*2.0f) * sign;
-
-			rotDiscFaces.Clear();
-			if (activeHandle == ManipulationHandleType::RotationX)
-				ArcDisc(rotDiscFaces, viewportTransform, viewProjTransform, sphereCenter, yAxisW, zAxisW, worldRadius * 0.2f, worldRadius, startAngle, startAngle + angle);
-			else if (activeHandle == ManipulationHandleType::RotationY)
-				ArcDisc(rotDiscFaces, viewportTransform, viewProjTransform, sphereCenter, zAxisW, xAxisW, worldRadius * 0.2f, worldRadius, startAngle, startAngle + angle);
-			else
-				ArcDisc(rotDiscFaces, viewportTransform, viewProjTransform, sphereCenter, xAxisW, yAxisW, worldRadius * 0.2f, worldRadius, startAngle, startAngle + angle);
-
 			ManipulationEventArgs e;
 			e.Handle = activeHandle;
 			e.Value = angle;

@@ -123,11 +123,11 @@ namespace GameEngine
 	RefPtr<DrawableMesh> SceneResource::LoadDrawableMesh(Mesh * mesh)
 	{
 		RefPtr<DrawableMesh> result;
-		if (meshes.TryGetValue(mesh, result))
+		if (meshes.TryGetValue(mesh->GetUID(), result))
 		    return result;
 
         result = CreateDrawableMesh(mesh);
-		meshes[mesh] = result;
+		meshes[mesh->GetUID()] = result;
 		return result;
 	}
 	Texture2D * SceneResource::LoadTexture2D(const String & name, CoreLib::Graphics::TextureFile & data)
@@ -377,7 +377,7 @@ namespace GameEngine
 	
 	void SceneResource::Clear()
 	{
-		meshes = CoreLib::EnumerableDictionary<Mesh*, RefPtr<DrawableMesh>>();
+		meshes = CoreLib::EnumerableDictionary<CoreLib::String, RefPtr<DrawableMesh>>();
 		textures = EnumerableDictionary<String, RefPtr<Texture2D>>();
 		spPopContext(spireContext);
 		spPushContext(spireContext);

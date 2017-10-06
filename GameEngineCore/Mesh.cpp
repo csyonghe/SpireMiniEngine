@@ -8,11 +8,13 @@ using namespace VectorMath;
 
 namespace GameEngine
 {
-	void Mesh::LoadFromFile(const CoreLib::Basic::String & fileName)
+	int Mesh::uid = 0;
+	void Mesh::LoadFromFile(const CoreLib::Basic::String & pfileName)
 	{
-		RefPtr<FileStream> stream = new FileStream(fileName);
+		RefPtr<FileStream> stream = new FileStream(pfileName);
 		LoadFromStream(stream.Ptr());
 		stream->Close();
+		this->fileName = pfileName;
 	}
 
 	bool CheckMeshIdentifier(char * str)
@@ -54,6 +56,17 @@ namespace GameEngine
 			range.Count = indexCount;
 			ElementRanges.Add(range);
 		}
+		fileName = String("mesh_") + String(uid++);
+	}
+
+	Mesh::Mesh()
+	{
+		fileName = String("mesh_") + String(uid++);
+	}
+
+	CoreLib::String Mesh::GetUID()
+	{
+		return fileName;
 	}
 
 	void Mesh::SaveToStream(Stream * stream)
@@ -72,11 +85,12 @@ namespace GameEngine
 		writer.ReleaseStream();
 	}
 
-	void Mesh::SaveToFile(const CoreLib::String & fileName)
+	void Mesh::SaveToFile(const CoreLib::String & pfileName)
 	{
-		RefPtr<FileStream> stream = new FileStream(fileName, FileMode::Create);
+		RefPtr<FileStream> stream = new FileStream(pfileName, FileMode::Create);
 		SaveToStream(stream.Ptr());
 		stream->Close();
+		fileName = pfileName;
 	}
 
 	MeshVertexFormat::MeshVertexFormat(int typeId)

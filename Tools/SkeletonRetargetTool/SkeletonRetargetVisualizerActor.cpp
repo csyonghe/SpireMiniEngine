@@ -213,6 +213,8 @@ public:
 		dlg.Filter = "Skeleton|*.skeleton|All Files|*.*";
 		if (dlg.ShowOpen())
 		{
+			Engine::Instance()->GetRenderer()->Wait();
+
 			targetSkeleton = new Skeleton();
 			targetSkeleton->LoadFromFile(dlg.FileName);
 			targetSkeletonMesh.FromSkeleton(targetSkeleton.Ptr(), 6.0f);
@@ -275,6 +277,8 @@ public:
 		dlg.Filter = "Model|*.model|All Files|*.*";
 		if (dlg.ShowOpen())
 		{
+			Engine::Instance()->GetRenderer()->Wait();
+
 			sourceModel = new Model();
 			sourceModel->LoadFromFile(level, dlg.FileName);
 			sourceModelInstance.Drawables.Clear();
@@ -283,9 +287,10 @@ public:
 			sourceSkeletonMaterial.SetVariable("highlightId", -1);
 			sourceMeshMaterial.SetVariable("highlightId", -1);
 			sourceSkeletonModel = new Model(&sourceSkeletonMesh, sourceModel->GetSkeleton(), &sourceSkeletonMaterial);
+			highlightModelInstance.Drawables = List<RefPtr<Drawable>>();
 			retargetFile.SourceSkeletonName = sourceModel->GetSkeleton()->Name;
 			retargetFile.SetBoneCount(sourceModel->GetSkeleton()->Bones.Count()); 
-			
+			curPose.Transforms.Clear();
 			lstBones->Clear();
 			auto sourceSkeleton = sourceModel->GetSkeleton();
 			for (int i = 0; i < sourceSkeleton->Bones.Count(); i++)
@@ -614,9 +619,10 @@ public:
 	{
 		Quaternion rs = Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
 		int curId = id;
+		Skeleton * srcSkeleton = sourceModel->GetSkeleton();
 		while (curId != -1)
 		{
-			rs = retargetFile.SourceRetargetTransforms[curId] * rs;
+			rs = retargetFile.SourceRetargetTransforms[curId] * srcSkeleton->Bones[curId].BindPose.Rotation * rs;
 			curId = sourceModel->GetSkeleton()->Bones[curId].ParentId;
 		}
 		Skeleton * tarSkeleton = targetSkeleton.Ptr();
@@ -665,9 +671,10 @@ public:
 		retargetFile.SourceRetargetTransforms[lstBones->SelectedIndex] = originalTransform;
 		auto rot = Quaternion::FromAxisAngle(axis, e.Value);
 		auto accumRot = GetAccumRotation(lstBones->SelectedIndex);
-		auto accumParentRot = accumRot * originalTransform.Inverse();
+		auto invSrcLocal = sourceModel->GetSkeleton()->Bones[lstBones->SelectedIndex].BindPose.Rotation.Inverse();
+		auto accumParentRot = accumRot * invSrcLocal * originalTransform.Inverse();
 
-		retargetFile.SourceRetargetTransforms[lstBones->SelectedIndex] = accumParentRot.Inverse() * rot * accumRot;
+		retargetFile.SourceRetargetTransforms[lstBones->SelectedIndex] = accumParentRot.Inverse() * rot * accumRot * invSrcLocal;
 		UpdateCombinedRetargetTransform();
 	}
 

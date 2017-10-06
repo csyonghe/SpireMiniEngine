@@ -207,7 +207,7 @@ namespace GameEngine
 	private:
 		RendererSharedResource * rendererResource;
 		SpireCompilationContext * spireContext = nullptr;
-		CoreLib::EnumerableDictionary<Mesh*, CoreLib::RefPtr<DrawableMesh>> meshes;
+		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<DrawableMesh>> meshes;
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<Texture2D>> textures;
 		void CreateMaterialModuleInstance(ModuleInstance & mInst, Material* material, const char * moduleName, bool isPatternModule);
 	public:
