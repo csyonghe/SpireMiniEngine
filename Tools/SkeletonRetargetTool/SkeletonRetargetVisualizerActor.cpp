@@ -18,21 +18,23 @@ using namespace GameEngine;
 class SkeletonRetargetVisualizerActor : public Actor
 {
 private:
-	RefPtr<ModelPhysicsInstance> physInstance, skeletonPhysInstance;
+	RefPtr<ModelPhysicsInstance> physInstance, skeletonPhysInstance, targetSkeletonPhysInstance;
 	RefPtr<Drawable> targetSkeletonDrawable, sourceSkeletonDrawable;
 	RefPtr<Drawable> xAxisDrawable, yAxisDrawable, zAxisDrawable;
 	RefPtr<SystemWindow> sysWindow;
 	Mesh * mMesh = nullptr;
 	Skeleton * mSkeleton = nullptr;
+	bool mappingMode = false;
+	Matrix4 targetSkeletonTransform, oldTargetSkeletonTransform;
 	Mesh sourceSkeletonMesh, targetSkeletonMesh;
 	Quaternion originalTransform;
-	RefPtr<Model> sourceModel, sourceSkeletonModel;
+	RefPtr<Model> sourceModel, sourceSkeletonModel, targetSkeletonModel;
 	TransformManipulator * manipulator;
 	ModelDrawableInstance sourceModelInstance, highlightModelInstance;
 	RefPtr<Skeleton> targetSkeleton;
 	Material sourceSkeletonMaterial, targetSkeletonMaterial, sourceMeshMaterial,
 		xAxisMaterial, yAxisMaterial, zAxisMaterial;
-	GraphicsUI::Label * lblFrame;
+	GraphicsUI::Label * lblFrame, * lblMappingMode;
 	GraphicsUI::Form * infoForm;
 	GraphicsUI::MultiLineTextBox * infoFormTextBox;
 	GraphicsUI::ListBox* lstBones;
@@ -48,6 +50,7 @@ private:
 	GraphicsUI::UIEntry * uiEntry = nullptr;
 	bool isPlaying = false;
 	bool showSourceModel = true; // if false, draw skeleton
+	bool targetSkeletonSelected = false;
 	float curTime = 0.0f;
 	RefPtr<SimpleAnimationSynthesizer> animSynthesizer = new SimpleAnimationSynthesizer();
 	List<Vec3> bonePositions;
@@ -58,7 +61,20 @@ private:
 	};
 	List<Modification> undoStack;
 public:
-
+	void ToggleMappingMode(bool v)
+	{
+		mappingMode = v;
+		if (mappingMode)
+		{
+			this->targetSkeletonSelected = false;
+			pnlBoneMapping->BackColor = GraphicsUI::Color(0xBF, 0x36, 0x0C, 200);
+		}
+		else
+		{
+			pnlBoneMapping->BackColor = GraphicsUI::Color(0, 0, 0, 200);
+		}
+		lblMappingMode->Visible = mappingMode;
+	}
 	virtual EngineActorType GetEngineType() override
 	{
 		return EngineActorType::Drawable;
@@ -84,14 +100,16 @@ public:
 		}
 		else
 			curTime = scTimeline->GetPosition() / 30.0f;
+
+		ManipulatorSceneView view;
+		view.FOV = level->CurrentCamera->GetView().FOV;
+		view.ViewportX = 0.0f;
+		view.ViewportY = 0.0f;
+		view.ViewportW = (float)uiEntry->GetWidth();
+		view.ViewportH = (float)uiEntry->GetHeight();
+
 		if (sourceModel && lstBones->SelectedIndex != -1)
 		{
-			ManipulatorSceneView view;
-			view.FOV = level->CurrentCamera->GetView().FOV;
-			view.ViewportX = 0.0f;
-			view.ViewportY = 0.0f;
-			view.ViewportW = (float)uiEntry->GetWidth();
-			view.ViewportH = (float)uiEntry->GetHeight();
 			auto sourceSkeleton = sourceModel->GetSkeleton();
 			bonePositions.SetSize(sourceSkeleton->Bones.Count());
 			if (curPose.Transforms.Count())
@@ -104,6 +122,12 @@ public:
 				}
 			}
 			manipulator->SetTarget(ManipulationMode::Rotation, view, level->CurrentCamera->GetLocalTransform(), level->CurrentCamera->GetPosition(), bonePositions[lstBones->SelectedIndex]);
+			manipulator->Visible = true;
+		}
+		else if (targetSkeletonSelected)
+		{
+			manipulator->SetTarget(ManipulationMode::Translation, view, level->CurrentCamera->GetLocalTransform(), level->CurrentCamera->GetPosition(), 
+				Vec3::Create(targetSkeletonTransform.values[12], targetSkeletonTransform.values[13], targetSkeletonTransform.values[14]));
 			manipulator->Visible = true;
 		}
 		else
@@ -245,6 +269,10 @@ public:
 			}
 			UpdateBoneMappingPanel();
 			currentAnim = SkeletalAnimation();
+			currentPose.Transforms.Clear();
+			
+			targetSkeletonModel = new Model(&targetSkeletonMesh, targetSkeleton.Ptr(), &targetSkeletonMaterial);
+			targetSkeletonPhysInstance = targetSkeletonModel->CreatePhysicsInstance(level->GetPhysicsScene(), this, (void*)2);
 		}
 		undoStack.Clear();
 		undoPtr = -1;
@@ -554,7 +582,10 @@ public:
 		sb << "}\n";
 		
 	}
-
+	void mnMappingMode_Clicked(UI_Base * sender)
+	{
+		ToggleMappingMode(!mappingMode);
+	}
 	void mnPlayAnim_Clicked(UI_Base * sender)
 	{
 		isPlaying = !isPlaying;
@@ -648,34 +679,48 @@ public:
 	void ApplyManipulation(UI_Base *, ManipulationEventArgs e)
 	{
 		PreviewManipulation(nullptr, e);
-		Modification m;
-		m.boneId = lstBones->SelectedIndex;
-		m.originalTransform = originalTransform;
-		m.newTransform = retargetFile.SourceRetargetTransforms[lstBones->SelectedIndex];
-		originalTransform = retargetFile.SourceRetargetTransforms[lstBones->SelectedIndex];
-		undoStack.SetSize(undoPtr + 1);
-		undoStack.Add(m);
-		undoPtr = undoStack.Count() - 1;
-		UpdateCombinedRetargetTransform();
+		if (IsRotationHandle(e.Handle))
+		{
+			Modification m;
+			m.boneId = lstBones->SelectedIndex;
+			m.originalTransform = originalTransform;
+			m.newTransform = retargetFile.SourceRetargetTransforms[lstBones->SelectedIndex];
+			originalTransform = retargetFile.SourceRetargetTransforms[lstBones->SelectedIndex];
+			undoStack.SetSize(undoPtr + 1);
+			undoStack.Add(m);
+			undoPtr = undoStack.Count() - 1;
+			UpdateCombinedRetargetTransform();
+		}
+		else
+			oldTargetSkeletonTransform = targetSkeletonTransform;
 	}
 
 	void PreviewManipulation(UI_Base *, ManipulationEventArgs e)
 	{
-		Vec3 axis;
-		switch (e.Handle)
+		if (IsTranslationHandle(e.Handle))
 		{
-		case ManipulationHandleType::RotationX: axis = Vec3::Create(1.0f, 0.0f, 0.0f); break;
-		case ManipulationHandleType::RotationY: axis = Vec3::Create(0.0f, 1.0f, 0.0f); break;
-		case ManipulationHandleType::RotationZ: axis = Vec3::Create(0.0f, 0.0f, 1.0f); break;
+			targetSkeletonTransform.values[12] = oldTargetSkeletonTransform.values[12] + e.TranslationOffset.x;
+			targetSkeletonTransform.values[13] = oldTargetSkeletonTransform.values[13] + e.TranslationOffset.y;
+			targetSkeletonTransform.values[14] = oldTargetSkeletonTransform.values[14] + e.TranslationOffset.z;
 		}
-		retargetFile.SourceRetargetTransforms[lstBones->SelectedIndex] = originalTransform;
-		auto rot = Quaternion::FromAxisAngle(axis, e.Value);
-		auto accumRot = GetAccumRotation(lstBones->SelectedIndex);
-		auto invSrcLocal = sourceModel->GetSkeleton()->Bones[lstBones->SelectedIndex].BindPose.Rotation.Inverse();
-		auto accumParentRot = accumRot * invSrcLocal * originalTransform.Inverse();
+		else if (IsRotationHandle(e.Handle))
+		{
+			Vec3 axis;
+			switch (e.Handle)
+			{
+			case ManipulationHandleType::RotationX: axis = Vec3::Create(1.0f, 0.0f, 0.0f); break;
+			case ManipulationHandleType::RotationY: axis = Vec3::Create(0.0f, 1.0f, 0.0f); break;
+			case ManipulationHandleType::RotationZ: axis = Vec3::Create(0.0f, 0.0f, 1.0f); break;
+			}
+			retargetFile.SourceRetargetTransforms[lstBones->SelectedIndex] = originalTransform;
+			auto rot = Quaternion::FromAxisAngle(axis, e.RotationAngle);
+			auto accumRot = GetAccumRotation(lstBones->SelectedIndex);
+			auto invSrcLocal = sourceModel->GetSkeleton()->Bones[lstBones->SelectedIndex].BindPose.Rotation.Inverse();
+			auto accumParentRot = accumRot * invSrcLocal * originalTransform.Inverse();
 
-		retargetFile.SourceRetargetTransforms[lstBones->SelectedIndex] = accumParentRot.Inverse() * rot * accumRot * invSrcLocal;
-		UpdateCombinedRetargetTransform();
+			retargetFile.SourceRetargetTransforms[lstBones->SelectedIndex] = accumParentRot.Inverse() * rot * accumRot * invSrcLocal;
+			UpdateCombinedRetargetTransform();
+		}
 	}
 
 	int undoPtr = -1;
@@ -709,6 +754,8 @@ public:
 			mnToggleSkeletonModel_Clicked(nullptr);
 		if (e.Shift == 0 && e.Key == ' ')
 			mnPlayAnim_Clicked(nullptr);
+		if (e.Shift == 0 && (e.Key == 'M' || e.Key == 'm'))
+			mnMappingMode_Clicked(nullptr);
 	}
 
 	virtual void RegisterUI(GraphicsUI::UIEntry * pUiEntry) override
@@ -759,6 +806,8 @@ public:
 		mnShowTargetSkeletonShape->OnClick.Bind(this, &SkeletonRetargetVisualizerActor::mnShowTargetSkeletonShape_Clicked);
 		auto mnPlayAnimation = new GraphicsUI::MenuItem(mnView, "Play/Stop Animation", "Space");
 		mnPlayAnimation->OnClick.Bind(this, &SkeletonRetargetVisualizerActor::mnPlayAnim_Clicked);
+		auto mnMappingMode = new GraphicsUI::MenuItem(mnView, "Mapping Mode", "M");
+		mnMappingMode->OnClick.Bind(this, &SkeletonRetargetVisualizerActor::mnMappingMode_Clicked);
 
 		auto pnl = new GraphicsUI::Container(uiEntry);
 		pnl->BackColor = GraphicsUI::Color(0, 0, 0, 200);
@@ -850,6 +899,12 @@ public:
 		infoForm->SizeChanged();
 		uiEntry->CloseWindow(infoForm);
 
+		lblMappingMode = new GraphicsUI::Label(uiEntry);
+		lblMappingMode->Posit(EM(0.5f), EM(0.5f), 100, 30);
+		lblMappingMode->SetText("Bone Mapping Mode On");
+		lblMappingMode->FontColor = GraphicsUI::Color(0xD8, 0x43, 0x15, 255);
+		lblMappingMode->Visible = false;
+
 		uiEntry->OnMouseDown.Bind(this, &SkeletonRetargetVisualizerActor::WindowMouseDown);
 		uiEntry->OnDblClick.Bind(this, &SkeletonRetargetVisualizerActor::WindowDblClick);
 
@@ -866,17 +921,20 @@ public:
 		sourceMeshMaterial.LoadFromFile(actualName);
 		targetSkeletonMaterial.SetVariable("solidColor", Vec3::Create(0.2f, 0.3f, 0.9f));
 		targetSkeletonMaterial.SetVariable("alpha", 0.8f);
-		targetSkeletonMaterial.SetVariable("highlightColor", Vec3::Create(0.7f, 0.7f, 0.1f));
+		targetSkeletonMaterial.SetVariable("highlightColor", Vec3::Create(0.9f, 0.3f, 0.1f));
 		
 		auto solidMaterialFileName = Engine::Instance()->FindFile("SolidColor.material", ResourceType::Material);
 		xAxisMaterial.LoadFromFile(solidMaterialFileName);
-		xAxisMaterial.SetVariable("solidColor", Vec3::Create(1.0f, 0.0f, 0.0f));
+		xAxisMaterial.SetVariable("solidColor", Vec3::Create(0xF4 / 255.0f, 0x43 / 255.0f, 0x36 / 255.0f));
 		yAxisMaterial.LoadFromFile(solidMaterialFileName);
-		yAxisMaterial.SetVariable("solidColor", Vec3::Create(0.0f, 1.0f, 0.0f));
+		yAxisMaterial.SetVariable("solidColor", Vec3::Create(0x4C / 255.0f, 0xAF / 255.0f, 0x50 / 255.0f));
 		zAxisMaterial.LoadFromFile(solidMaterialFileName);
-		zAxisMaterial.SetVariable("solidColor", Vec3::Create(0.0f, 0.0f, 1.0f));
+		zAxisMaterial.SetVariable("solidColor", Vec3::Create(0x21 / 255.0f, 0x96 / 255.0f, 0xF3 / 255.0f));
 		undoStack.Clear();
 		undoPtr = -1;
+
+		Matrix4::Translation(targetSkeletonTransform, 200.0f, 0.0f, 0.0f);
+		oldTargetSkeletonTransform = targetSkeletonTransform;
 	}
 	
 	virtual void OnUnload() override
@@ -897,9 +955,27 @@ public:
 			return;
 		Ray r = Engine::Instance()->GetRayFromMousePosition(e.X, e.Y);
 		auto traceRs = level->GetPhysicsScene().RayTraceFirst(r);
+		targetSkeletonSelected = false;
 		if (traceRs.Object)
 		{
-			if (traceRs.Object->SkeletalBoneId != -1)
+			if (traceRs.Object->Tag == (void*)2)
+			{
+				if (mappingMode)
+				{
+					if (traceRs.Object->SkeletalBoneId != -1 && lstBones->SelectedIndex != -1)
+					{
+						targetSkeletonMaterial.SetVariable("highlightId", traceRs.Object->SkeletalBoneId);
+						SetBoneMapping(lstBones->SelectedIndex, traceRs.Object->SkeletalBoneId);
+						UpdateBoneMappingPanel();
+					}
+				}
+				else
+				{
+					targetSkeletonSelected = true;
+					lstBones->SetSelectedIndex(-1);
+				}
+			}
+			else if (traceRs.Object->SkeletalBoneId != -1)
 			{
 				lstBones->SetSelectedIndex(traceRs.Object->SkeletalBoneId);
 				SelectedBoneChanged(nullptr);
@@ -1005,10 +1081,9 @@ public:
 			{
 				targetSkeletonDrawable = param.rendererService->CreateSkeletalDrawable(&targetSkeletonMesh, 0, targetSkeleton.Ptr(), &targetSkeletonMaterial, false);
 			}
-			Matrix4 offset2;
-			Matrix4::Translation(offset2, 300.0f, 0.0f, 0.0f);
 			Pose p = GetCurrentPose();
-			targetSkeletonDrawable->UpdateTransformUniform(offset2, p, nullptr);
+			targetSkeletonDrawable->UpdateTransformUniform(targetSkeletonTransform, p, nullptr);
+			targetSkeletonPhysInstance->SetTransform(targetSkeletonTransform, p, nullptr);
 			param.sink->AddDrawable(targetSkeletonDrawable.Ptr());
 		}
 	}
