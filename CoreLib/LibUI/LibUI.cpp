@@ -8240,6 +8240,15 @@ namespace GraphicsUI
 		auto zAxisW = Vec3::Create(0.0f, 0.0f, 1.0f);
 		UIFaces.Clear();
 		Vec3 planeNormal = xAxisW;
+		auto selectPlaneNormal = [&](Vec3 a0, Vec3 a1)
+		{
+			float d0 = abs(Vec3::Dot(a0, dir));
+			float d1 = abs(Vec3::Dot(a1, dir));
+			if (d0 < d1)
+				return a0;
+			else
+				return a1;
+		};
 		switch (Type)
 		{
 		case ManipulationHandleType::RotationX:
@@ -8322,7 +8331,7 @@ namespace GraphicsUI
 			Vec2 vmin, vmax;
 			vmin.x = vmin.y = 1e9f;
 			vmax.x = vmax.y = -1e9f;
-			planeNormal = yAxisW;
+			planeNormal = selectPlaneNormal(yAxisW, zAxisW);
 			AddAxis(UIFaces, viewportTransform, viewProjTransform, wHandleCenter, xAxisW * Sign(dir.x), wSize * 1.1f, (float)emToPixel(0.3f), (float)emToPixel(1.5f), vmin, vmax);
 		}
 		break;
@@ -8331,7 +8340,7 @@ namespace GraphicsUI
 			Vec2 vmin, vmax;
 			vmin.x = vmin.y = 1e9f;
 			vmax.x = vmax.y = -1e9f;
-			planeNormal = zAxisW;
+			planeNormal = selectPlaneNormal(zAxisW, xAxisW);
 			AddAxis(UIFaces, viewportTransform, viewProjTransform, wHandleCenter, yAxisW * Sign(dir.y), wSize * 1.1f, (float)emToPixel(0.3f), (float)emToPixel(1.5f), vmin, vmax);
 		}
 		break;
@@ -8340,7 +8349,7 @@ namespace GraphicsUI
 			Vec2 vmin, vmax;
 			vmin.x = vmin.y = 1e9f;
 			vmax.x = vmax.y = -1e9f;
-			planeNormal = xAxisW;
+			planeNormal = selectPlaneNormal(xAxisW, yAxisW);
 			AddAxis(UIFaces, viewportTransform, viewProjTransform, wHandleCenter, zAxisW * Sign(dir.z), wSize * 1.1f, (float)emToPixel(0.3f), (float)emToPixel(1.5f), vmin, vmax);
 		}
 		break;
