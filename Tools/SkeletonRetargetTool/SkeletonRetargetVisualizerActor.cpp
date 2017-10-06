@@ -683,7 +683,7 @@ public:
 	{
 		if (sourceModel && undoPtr >= 0)
 		{
-			retargetFile.SourceRetargetTransforms[undoStack[undoPtr].boneId] = undoStack[undoPtr].originalTransform;
+			originalTransform = retargetFile.SourceRetargetTransforms[undoStack[undoPtr].boneId] = undoStack[undoPtr].originalTransform;
 			undoPtr--;
 			UpdateCombinedRetargetTransform();
 		}
@@ -694,7 +694,7 @@ public:
 		if (sourceModel && undoPtr < undoStack.Count() - 1)
 		{
 			undoPtr++;
-			retargetFile.SourceRetargetTransforms[undoStack[undoPtr].boneId] = undoStack[undoPtr].newTransform;
+			originalTransform = retargetFile.SourceRetargetTransforms[undoStack[undoPtr].boneId] = undoStack[undoPtr].newTransform;
 			UpdateCombinedRetargetTransform();
 		}
 	}
