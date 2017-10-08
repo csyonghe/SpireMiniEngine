@@ -1694,48 +1694,5 @@ namespace GraphicsUI
 	{
 		return new MultiLineTextBoxImpl(parent);
 	}
-	bool IsManipulationHandleForMode(ManipulationHandleType handleType, ManipulationMode mode)
-	{
-		switch (mode)
-		{
-		case ManipulationMode::Translation:
-			switch (handleType)
-			{
-			case ManipulationHandleType::TranslationX:
-			case ManipulationHandleType::TranslationY:
-			case ManipulationHandleType::TranslationZ:
-			case ManipulationHandleType::TranslationXY:
-			case ManipulationHandleType::TranslationYZ:
-			case ManipulationHandleType::TranslationXZ:
-				return true;
-			default:
-				return false;
-			}
-		case ManipulationMode::Rotation:
-			switch (handleType)
-			{
-			case ManipulationHandleType::RotationX:
-			case ManipulationHandleType::RotationY:
-			case ManipulationHandleType::RotationZ:
-			case ManipulationHandleType::AxisX:
-			case ManipulationHandleType::AxisY:
-			case ManipulationHandleType::AxisZ:
-				return true;
-			default:
-				return false;
-			}
-		case ManipulationMode::Scale:
-			switch (handleType)
-			{
-			case ManipulationHandleType::ScaleX:
-			case ManipulationHandleType::ScaleY:
-			case ManipulationHandleType::ScaleZ:
-			case ManipulationHandleType::ScaleXYZ:
-				return true;
-			default:
-				return false;
-			}
-		}
-		return false;
-	}
+
 }

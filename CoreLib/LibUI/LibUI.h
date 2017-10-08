@@ -1498,8 +1498,8 @@ namespace GraphicsUI
 	};
 	enum class ManipulationHandleType
 	{
-		None = -1, RotationX, RotationY, RotationZ, AxisX, AxisY, AxisZ, TranslationX, TranslationY, TranslationZ, TranslationXY, TranslationXZ, TranslationYZ,
-		ScaleX, ScaleY, ScaleZ, ScaleXYZ
+		None = -1, RotationX, RotationY, RotationZ, AxisX, AxisY, AxisZ, TranslationAxisCore, TranslationX, TranslationY, TranslationZ, TranslationXY, TranslationXZ, TranslationYZ,
+		ScaleXYZ, ScaleAxisCore, ScaleXY, ScaleYZ, ScaleXZ, ScaleX, ScaleY, ScaleZ, Last
 	};
 	bool IsRotationHandle(ManipulationHandleType t);
 	bool IsTranslationHandle(ManipulationHandleType t);
@@ -1524,6 +1524,7 @@ namespace GraphicsUI
 		ManipulationHandleType Type;
 		CoreLib::List<TriangleFace> UIFaces;
 		VectorMath::Vec3 VirtualPlaneAxesW[2];
+		VectorMath::Vec2 Binormal;
 		VectorMath::Vec4 VirtualPlane;
 		VectorMath::Vec2 LabelPosition;
 		Color GetNormalColor();
@@ -1546,7 +1547,6 @@ namespace GraphicsUI
 		ManipulationMode mode;
 		Label * label;
 		VectorMath::Vec3 viewDir;
-		bool lockViewDir = false;
 		CoreLib::List<TriangleFace> rotXFullFaces, rotYFullFaces, rotZFullFaces, rotDiscFaces, tangentLineFaces, coreCircleFaces;
 		ManipulationHandleType highlightHandle = ManipulationHandleType::None;
 		ManipulationHandleType activeHandle = ManipulationHandleType::None;
@@ -1568,13 +1568,14 @@ namespace GraphicsUI
 		VectorMath::Vec3 ScreenCoordToVirtualPlanePoint(VectorMath::Vec2 p);
 		const char * GetManipulationAxisNames(ManipulationHandleType handle);
 		void UpdateLabel(float angle);
+		void UpdateShape();
 	protected:
 		virtual Control * FindControlAtPosition(int x, int y);
 	public:
 		TransformManipulator(Container * owner);
 		CoreLib::Event<UI_Base *, ManipulationEventArgs> OnApplyManipulation;
 		CoreLib::Event<UI_Base *, ManipulationEventArgs> OnPreviewManipulation;
-		float ScreenSpaceRadius = 100.0f;
+		float ScreenSpaceRadius;
 		virtual void Draw(int absX, int absY);
 		void SetTarget(ManipulationMode manipulationMode, const ManipulatorSceneView & view, const VectorMath::Matrix4& viewTransform,
 			const VectorMath::Vec3 & camPos, const VectorMath::Vec3 & pos);
@@ -1583,6 +1584,7 @@ namespace GraphicsUI
 		virtual bool DoMouseDown(int X, int Y, SHIFTSTATE Shift);
 		virtual bool DoMouseUp(int X, int Y, SHIFTSTATE Shift);
 		virtual bool DoMouseLeave();
+		virtual void DoDpiChanged() override;
 	};
 }
 #endif

@@ -292,6 +292,10 @@ namespace GraphicsUI
 	{
 		return (int)(em * Global::DeviceLineHeight);
 	}
+	float emToPixelf(float em)
+	{
+		return em * Global::DeviceLineHeight;
+	}
 
 	ColorTable CreateDefaultColorTable()
 	{
@@ -7546,6 +7550,47 @@ namespace GraphicsUI
 		return false;
 	}
 
+
+
+	float Sign(float x)
+	{
+		return x > 0.0f ? 1.0f : -1.0f;
+	}
+	Vec4 InitBBox()
+	{
+		return Vec4::Create(1e30f, 1e30f, -1e30f, -1e30f);
+	}
+	Vec4 UnionBBox(Vec4 b0, Vec4 b1)
+	{
+		return Vec4::Create(Math::Min(b0.x, b1.x), Math::Min(b0.y, b1.y), Math::Max(b0.z, b1.z), Math::Max(b0.w, b1.w));
+	}
+	Vec4 GetBBox(CoreLib::List<TriangleFace> & faces)
+	{
+		Vec4 rs;
+		rs.x = 1e9f;
+		rs.y = 1e9f;
+		rs.z = -1e9f;
+		rs.w = -1e9f;
+		for (auto & f : faces)
+		{
+			rs.x = Math::Min(rs.x, f.vertex0.x);
+			rs.x = Math::Min(rs.x, f.vertex1.x);
+			rs.x = Math::Min(rs.x, f.vertex2.x);
+			rs.z = Math::Max(rs.z, f.vertex0.x);
+			rs.z = Math::Max(rs.z, f.vertex1.x);
+			rs.z = Math::Max(rs.z, f.vertex2.x);
+
+			rs.y = Math::Min(rs.y, f.vertex0.y);
+			rs.y = Math::Min(rs.y, f.vertex1.y);
+			rs.y = Math::Min(rs.y, f.vertex2.y);
+			rs.w = Math::Max(rs.w, f.vertex0.y);
+			rs.w = Math::Max(rs.w, f.vertex1.y);
+			rs.w = Math::Max(rs.w, f.vertex2.y);
+		}
+		return rs;
+	}
+
+
 	void TriangleFace::SetPoints(VectorMath::Vec2 v0, VectorMath::Vec2 v1, VectorMath::Vec2 v2)
 	{
 		vertex0 = v0;
@@ -7689,10 +7734,13 @@ namespace GraphicsUI
 		case ManipulationHandleType::ScaleZ:
 			return "Z";
 		case ManipulationHandleType::TranslationXY:
+		case ManipulationHandleType::ScaleXY:
 			return "XY";
 		case ManipulationHandleType::TranslationYZ:
+		case ManipulationHandleType::ScaleYZ:
 			return "YZ";
 		case ManipulationHandleType::TranslationXZ:
+		case ManipulationHandleType::ScaleXZ:
 			return "XZ";
 		case ManipulationHandleType::ScaleXYZ:
 			return "XYZ";
@@ -7711,8 +7759,9 @@ namespace GraphicsUI
 	}
 	bool IsScaleHandle(ManipulationHandleType t)
 	{
-		return t == ManipulationHandleType::ScaleX || t == ManipulationHandleType::ScaleX || t == ManipulationHandleType::ScaleZ ||
-			t == ManipulationHandleType::ScaleXYZ;
+		return t == ManipulationHandleType::ScaleX || t == ManipulationHandleType::ScaleY || t == ManipulationHandleType::ScaleZ ||
+			t == ManipulationHandleType::ScaleXYZ || t == ManipulationHandleType::ScaleXY || t == ManipulationHandleType::ScaleYZ || 
+			t == ManipulationHandleType::ScaleXZ;
 	}
 
 	VectorMath::Vec3 TransformManipulator::ScreenCoordToVirtualPlanePoint(VectorMath::Vec2 p)
@@ -7738,8 +7787,78 @@ namespace GraphicsUI
 	void TransformManipulator::UpdateLabel(float value)
 	{
 		StringBuilder sb;
-		sb << GetManipulationAxisNames(activeHandle) << ": " << String(value, "%.1f");
+		sb << GetManipulationAxisNames(activeHandle) << ": ";
+		if (IsRotationHandle(activeHandle))
+			sb << String(value, "%.1f");
+		else
+			sb << String(value, "%.2f");
 		label->SetText(sb.ProduceString());
+	}
+
+	void TransformManipulator::UpdateShape()
+	{
+		rotXFullFaces.Clear();
+		rotYFullFaces.Clear();
+		rotZFullFaces.Clear();
+		coreCircleFaces.Clear();
+		auto v = (pos - camPos).Normalize();
+		sphereCenter = v * 50.0f + camPos;
+		auto sphereCenterZ = viewTransform.TransformHomogeneous(sphereCenter).z;
+		auto worldHeightAtC = tan(view.FOV / 360.0f * Math::Pi) * abs(sphereCenterZ) * 2.0f;
+		worldRadius = ScreenSpaceRadius / view.ViewportH * worldHeightAtC;
+		if (activeHandle == ManipulationHandleType::None)
+			viewDir = -v;
+		Vec4 handleBounds = Vec4::Create(1e9f, 1e9f, -1e9f, -1e9f);
+		for (int i = 0; i < handles.Count(); i++)
+		{
+			if (IsManipulationHandleForMode(handles[i].Type, mode))
+			{
+				handles[i].UpdateShape(viewportTransform, viewProjTransform, viewDir, sphereCenter, worldRadius, pos);
+				auto handleBBox = GetBBox(handles[i].UIFaces);
+				handleBounds.x = Math::Min(handleBounds.x, handleBBox.x);
+				handleBounds.y = Math::Min(handleBounds.y, handleBBox.y);
+				handleBounds.z = Math::Max(handleBounds.z, handleBBox.z);
+				handleBounds.w = Math::Max(handleBounds.w, handleBBox.w);
+			}
+		}
+		if (mode == ManipulationMode::Rotation)
+		{
+			ArcDisc(rotXFullFaces, viewportTransform, viewProjTransform, sphereCenter, yAxisW, zAxisW, worldRadius * 0.75f, worldRadius, 0.0f, Math::Pi * 2.0f);
+			auto bbox = GetBBox(rotXFullFaces);
+			GetManipulationHandle(ManipulationHandleType::RotationX).LabelPosition = Vec2::Create(bbox.x + (bbox.z - bbox.x) * 0.5f, bbox.y);
+
+			ArcDisc(rotYFullFaces, viewportTransform, viewProjTransform, sphereCenter, zAxisW, xAxisW, worldRadius * 0.75f, worldRadius, 0.0f, Math::Pi * 2.0f);
+			bbox = GetBBox(rotYFullFaces);
+			GetManipulationHandle(ManipulationHandleType::RotationY).LabelPosition = Vec2::Create(bbox.x + (bbox.z - bbox.x) * 0.5f, bbox.y);
+
+			ArcDisc(rotZFullFaces, viewportTransform, viewProjTransform, sphereCenter, xAxisW, yAxisW, worldRadius * 0.75f, worldRadius, 0.0f, Math::Pi * 2.0f);
+			bbox = GetBBox(rotZFullFaces);
+			GetManipulationHandle(ManipulationHandleType::RotationZ).LabelPosition = Vec2::Create(bbox.x + (bbox.z - bbox.x) * 0.5f, bbox.y);
+		}
+		else if (mode == ManipulationMode::Scale)
+		{
+			Vec4 scaleBBox = InitBBox();
+			for (int i = 0; i < 3; i++)
+			{
+				auto ht = (int)ManipulationHandleType::ScaleXY + i;
+				auto bbox = GetBBox(handles[ht].UIFaces);
+				scaleBBox = UnionBBox(scaleBBox, bbox);
+			}
+			for (auto & handle : handles)
+			{
+				if (IsManipulationHandleForMode(handle.Type, mode))
+				{
+					handle.LabelPosition = Vec2::Create(scaleBBox.x + (scaleBBox.z - scaleBBox.x) * 0.5f, scaleBBox.y);
+				}
+			}
+		}
+		Left = 0;
+		Top = 0;
+		auto offset = GetRelativePos(GetEntry());
+		Left = (int)(handleBounds.x - (float)offset.x);
+		Top = (int)(handleBounds.y - (float)offset.y);
+		Width = (int)(handleBounds.z - handleBounds.x);
+		Height = (int)(handleBounds.w - handleBounds.y);
 	}
 
 	Control * TransformManipulator::FindControlAtPosition(int x, int y)
@@ -7755,10 +7874,11 @@ namespace GraphicsUI
 		xAxisW = Vec3::Create(1.0f, 0.0f, 0.0f);
 		yAxisW = Vec3::Create(0.0f, 1.0f, 0.0f);
 		zAxisW = Vec3::Create(0.0f, 0.0f, 1.0f);
-		handles.SetSize((int)ManipulationHandleType::ScaleXYZ + 1);
+		handles.SetSize((int)ManipulationHandleType::Last);
 		for (int i = 0; i < handles.Count(); i++)
 			handles[i].Type = (ManipulationHandleType)i;
 		viewDir = Vec3::Create(1.0f, 1.0f, 1.0f);
+		ScreenSpaceRadius = emToPixelf(5.0f);
 	}
 
 	void TransformManipulator::Draw(int /*absX*/, int /*absY*/)
@@ -7792,13 +7912,6 @@ namespace GraphicsUI
 			
 			graphics.SolidBrushColor = tangentLineColor;
 			drawFaces(tangentLineFaces);
-			graphics.SolidBrushColor = Global::Colors.EditableAreaBackColor;
-			float x0 = GetManipulationHandle(activeHandle).LabelPosition.x - label->GetWidth() * 0.5f;
-			float y0 = GetManipulationHandle(activeHandle).LabelPosition.y - label->GetHeight() - emToPixel(1.5f);
-			graphics.FillRectangle(x0 - emToPixel(0.5f), y0 - emToPixel(0.5f),
-				x0 + label->GetWidth() + emToPixel(0.5f), y0 + label->GetHeight() + emToPixel(0.5f));
-			label->Draw((int)x0, (int)y0);
-
 			graphics.SolidBrushColor = Color(255, 0, 0, axisAlpha);
 			drawFaces(GetManipulationHandle(ManipulationHandleType::AxisX).UIFaces);
 			graphics.SolidBrushColor = Color(0, 255, 0, axisAlpha);
@@ -7821,8 +7934,15 @@ namespace GraphicsUI
 				}
 			}
 		}
-		graphics.SolidBrushColor = Color(0x60, 0x7D, 0x8B, 255);
-		drawFaces(coreCircleFaces);
+		if (IsRotationHandle(activeHandle) || IsScaleHandle(activeHandle))
+		{
+			graphics.SolidBrushColor = Global::Colors.EditableAreaBackColor;
+			float x0 = GetManipulationHandle(activeHandle).LabelPosition.x - label->GetWidth() * 0.5f;
+			float y0 = GetManipulationHandle(activeHandle).LabelPosition.y - label->GetHeight() - emToPixel(1.5f);
+			graphics.FillRectangle(x0 - emToPixel(0.5f), y0 - emToPixel(0.5f),
+				x0 + label->GetWidth() + emToPixel(0.5f), y0 + label->GetHeight() + emToPixel(0.5f));
+			label->Draw((int)x0, (int)y0);
+		}
 	}
 
 	void AddAxis(CoreLib::List<TriangleFace> & faces, const VectorMath::Matrix4 & viewportTransform,
@@ -7896,44 +8016,54 @@ namespace GraphicsUI
 		addFace(v3, v2, v1);
 	}
 
-	float Sign(float x)
+	void AddScaleTrapezoid(CoreLib::List<TriangleFace> & faces, const VectorMath::Matrix4 & viewportTransform,
+		const VectorMath::Matrix4 & projTransform, const VectorMath::Vec3 & c, const VectorMath::Vec3 & x, const VectorMath::Vec3 & y, float l0, float size)
 	{
-		return x > 0.0f ? 1.0f : -1.0f;
+		auto transform = [&](Vec3 v)
+		{
+			auto t = projTransform.TransformHomogeneous(v);
+			auto t1 = viewportTransform.Transform(Vec4::Create(t, 1.0f));
+			return Vec2::Create(t1.x, t1.y);
+		};
+		auto addFace = [&](Vec2 v0, Vec2 v1, Vec2 v2)
+		{
+			TriangleFace f;
+			f.SetPoints(v0, v1, v2);
+			faces.Add(f);
+		};
+		float l1 = l0 + size;
+		Vec2 v0 = transform(c + x * l0);
+		Vec2 v1 = transform(c + x * l1);
+		Vec2 v2 = transform(c + y * l1);
+		Vec2 v3 = transform(c + y * l0);
+		addFace(v0, v1, v2);
+		addFace(v2, v3, v0);
 	}
 
-	Vec4 GetBBox(CoreLib::List<TriangleFace> & faces)
+	void AddScaleTriangle(CoreLib::List<TriangleFace> & faces, const VectorMath::Matrix4 & viewportTransform,
+		const VectorMath::Matrix4 & projTransform, const VectorMath::Vec3 & c, const VectorMath::Vec3 & x, const VectorMath::Vec3 & y, const VectorMath::Vec3 & z, float l0)
 	{
-		Vec4 rs;
-		rs.x = 1e9f;
-		rs.y = 1e9f;
-		rs.z = -1e9f;
-		rs.w = -1e9f;
-		for (auto & f : faces)
+		auto transform = [&](Vec3 v)
 		{
-			rs.x = Math::Min(rs.x, f.vertex0.x);
-			rs.x = Math::Min(rs.x, f.vertex1.x);
-			rs.x = Math::Min(rs.x, f.vertex2.x);
-			rs.z = Math::Max(rs.z, f.vertex0.x);
-			rs.z = Math::Max(rs.z, f.vertex1.x);
-			rs.z = Math::Max(rs.z, f.vertex2.x);
-
-			rs.y = Math::Min(rs.y, f.vertex0.y);
-			rs.y = Math::Min(rs.y, f.vertex1.y);
-			rs.y = Math::Min(rs.y, f.vertex2.y);
-			rs.w = Math::Max(rs.w, f.vertex0.y);
-			rs.w = Math::Max(rs.w, f.vertex1.y);
-			rs.w = Math::Max(rs.w, f.vertex2.y);
-		}
-		return rs;
+			auto t = projTransform.TransformHomogeneous(v);
+			auto t1 = viewportTransform.Transform(Vec4::Create(t, 1.0f));
+			return Vec2::Create(t1.x, t1.y);
+		};
+		auto addFace = [&](Vec2 v0, Vec2 v1, Vec2 v2)
+		{
+			TriangleFace f;
+			f.SetPoints(v0, v1, v2);
+			faces.Add(f);
+		};
+		Vec2 v0 = transform(c + x * l0);
+		Vec2 v1 = transform(c + y * l0);
+		Vec2 v2 = transform(c + z * l0);
+		addFace(v0, v1, v2);
 	}
 
 	void TransformManipulator::SetTarget(ManipulationMode maniMode, const ManipulatorSceneView & pView, const VectorMath::Matrix4& pViewTransform, const VectorMath::Vec3 & pCamPos, const VectorMath::Vec3 & pPos)
 	{
 		mode = maniMode;
-		rotXFullFaces.Clear();
-		rotYFullFaces.Clear();
-		rotZFullFaces.Clear();
-		coreCircleFaces.Clear();
 		this->view = pView;
 		this->viewTransform = pViewTransform;
 		this->camPos = pCamPos;
@@ -7949,49 +8079,7 @@ namespace GraphicsUI
 		Matrix4::Multiply(viewProjTransform, projTransform, viewTransform);
 		viewProjTransform.Inverse(invViewProjTransform);
 
-		auto v = (pos - camPos).Normalize();
-		sphereCenter = v * 50.0f + camPos;
-		auto sphereCenterZ = viewTransform.TransformHomogeneous(sphereCenter).z;
-		auto worldHeightAtC = tan(view.FOV / 360.0f * Math::Pi) * abs(sphereCenterZ) * 2.0f;
-		worldRadius = ScreenSpaceRadius / view.ViewportH * worldHeightAtC;
-		if (!lockViewDir)
-			viewDir = -v;
-		Vec4 handleBounds = Vec4::Create(1e9f, 1e9f, -1e9f, -1e9f);
-		for (int i = 0; i < handles.Count(); i++)
-		{
-			if (IsManipulationHandleForMode(handles[i].Type, mode))
-			{
-				handles[i].UpdateShape(viewportTransform, viewProjTransform, viewDir, sphereCenter, worldRadius, pos);
-				auto handleBBox = GetBBox(handles[i].UIFaces);
-				handleBounds.x = Math::Min(handleBounds.x, handleBBox.x);
-				handleBounds.y = Math::Min(handleBounds.y, handleBBox.y);
-				handleBounds.z = Math::Max(handleBounds.z, handleBBox.z);
-				handleBounds.w = Math::Max(handleBounds.w, handleBBox.w);
-			}
-		}
-
-		ArcDisc(rotXFullFaces, viewportTransform, viewProjTransform, sphereCenter, yAxisW, zAxisW, worldRadius * 0.75f, worldRadius, 0.0f, Math::Pi * 2.0f);
-		auto bbox = GetBBox(rotXFullFaces);
-		GetManipulationHandle(ManipulationHandleType::RotationX).LabelPosition = Vec2::Create(bbox.x + (bbox.z - bbox.x) * 0.5f, bbox.y);
-
-		ArcDisc(rotYFullFaces, viewportTransform, viewProjTransform, sphereCenter, zAxisW, xAxisW, worldRadius * 0.75f, worldRadius, 0.0f, Math::Pi * 2.0f);
-		bbox = GetBBox(rotYFullFaces);
-		GetManipulationHandle(ManipulationHandleType::RotationY).LabelPosition = Vec2::Create(bbox.x + (bbox.z - bbox.x) * 0.5f, bbox.y);
-
-		ArcDisc(rotZFullFaces, viewportTransform, viewProjTransform, sphereCenter, xAxisW, yAxisW, worldRadius * 0.75f, worldRadius, 0.0f, Math::Pi * 2.0f);
-		bbox = GetBBox(rotZFullFaces);
-		GetManipulationHandle(ManipulationHandleType::RotationZ).LabelPosition = Vec2::Create(bbox.x + (bbox.z - bbox.x) * 0.5f, bbox.y);
-
-		ArcDisc(rotZFullFaces, viewportTransform, viewProjTransform, sphereCenter, xAxisW, yAxisW, worldRadius * 0.75f, worldRadius, 0.0f, Math::Pi * 2.0f);
-
-		AddCircle(coreCircleFaces, viewportTransform, viewProjTransform, sphereCenter, (float)emToPixel(0.5f));
-		Left = 0;
-		Top = 0;
-		auto offset = GetRelativePos(GetEntry());
-		Left = (int)(handleBounds.x - (float)offset.x);
-		Top = (int)(handleBounds.y - (float)offset.y);
-		Width = (int)(handleBounds.z - handleBounds.x);
-		Height = (int)(handleBounds.w - handleBounds.y);
+		UpdateShape();
 	}
 
 	bool TransformManipulator::IsPointInContent(int x, int y)
@@ -8045,9 +8133,8 @@ namespace GraphicsUI
 					rotDiscFaces.Clear();
 					Global::MouseCaptureControl = this;
 				}
-				else if (IsTranslationHandle(handle.Type))
+				else if (IsTranslationHandle(handle.Type) || IsScaleHandle(handle.Type))
 				{
-					lockViewDir = true;
 					Global::MouseCaptureControl = this;
 				}
 				UpdateLabel(0.0f);
@@ -8109,11 +8196,40 @@ namespace GraphicsUI
 			e.TranslationOffset = offset;
 			OnPreviewManipulation(this, e);
 		}
+		else if (IsScaleHandle(activeHandle))
+		{
+			auto offset = p - mouseDownScreenSpace;
+			auto dot = Vec2::Dot(GetManipulationHandle(activeHandle).Binormal, offset) * 0.05f;
+			Vec3 mask = Vec3::Create(1.0f, 1.0f, 1.0f);
+			if (activeHandle == ManipulationHandleType::ScaleX)
+				mask = Vec3::Create(1.0f, 0.0f, 0.0f);
+			else if (activeHandle == ManipulationHandleType::ScaleY)
+				mask = Vec3::Create(0.0f, 1.0f, 0.0f);
+			else if (activeHandle == ManipulationHandleType::ScaleZ)
+				mask = Vec3::Create(0.0f, 0.0f, 1.0f);
+			else if (activeHandle == ManipulationHandleType::ScaleXY)
+				mask = Vec3::Create(1.0f, 1.0f, 0.0f);
+			else if (activeHandle == ManipulationHandleType::ScaleYZ)
+				mask = Vec3::Create(0.0f, 1.0f, 1.0f);
+			else if (activeHandle == ManipulationHandleType::ScaleXZ)
+				mask = Vec3::Create(1.0f, 0.0f, 1.0f);
+			float factor = pow(1.1f, dot);
+			UpdateLabel(factor);
+			ManipulationEventArgs e;
+			e.Handle = activeHandle;
+			e.Scale = mask * factor;
+			for (int i = 0; i < 3; i++)
+				if (e.Scale[i] < 1e-5f)
+					e.Scale[i] = 1.0f;
+			OnPreviewManipulation(this, e);
+		}
 		else
 		{
 			highlightHandle = ManipulationHandleType::None;
 			for (auto & handle : handles)
 			{
+				if (!IsManipulationHandleForMode(handle.Type, mode))
+					continue;
 				if (handle.HitTest(p))
 				{
 					highlightHandle = handle.Type;
@@ -8132,7 +8248,6 @@ namespace GraphicsUI
 		highlightHandle = ManipulationHandleType::None;
 		Global::MouseCaptureControl = nullptr;
 		auto p = Vec2::Create((float)absX, (float)absY);
-		lockViewDir = false;
 		if (IsRotationHandle(activeHandle))
 		{
 			auto newMouseWorldPos = ScreenCoordToVirtualPlanePoint(p);
@@ -8171,6 +8286,33 @@ namespace GraphicsUI
 			activeHandle = ManipulationHandleType::None;
 			return true;
 		}
+		else if (IsScaleHandle(activeHandle))
+		{
+			auto offset = p - mouseDownScreenSpace;
+			auto dot = Vec2::Dot(GetManipulationHandle(activeHandle).Binormal, offset) * 0.05f;
+			Vec3 mask = Vec3::Create(1.0f, 1.0f, 1.0f);
+			if (activeHandle == ManipulationHandleType::ScaleX)
+				mask = Vec3::Create(1.0f, 0.0f, 0.0f);
+			else if (activeHandle == ManipulationHandleType::ScaleY)
+				mask = Vec3::Create(0.0f, 1.0f, 0.0f);
+			else if (activeHandle == ManipulationHandleType::ScaleZ)
+				mask = Vec3::Create(0.0f, 0.0f, 1.0f);
+			else if (activeHandle == ManipulationHandleType::ScaleXY)
+				mask = Vec3::Create(1.0f, 1.0f, 0.0f);
+			else if (activeHandle == ManipulationHandleType::ScaleYZ)
+				mask = Vec3::Create(0.0f, 1.0f, 1.0f);
+			else if (activeHandle == ManipulationHandleType::ScaleXZ)
+				mask = Vec3::Create(1.0f, 0.0f, 1.0f);
+			ManipulationEventArgs e;
+			e.Handle = activeHandle;
+			e.Scale = mask * pow(1.1f, dot);
+			for (int i = 0; i < 3; i++)
+				if (e.Scale[i] < 1e-5f)
+					e.Scale[i] = 1.0f;
+			OnApplyManipulation(this, e);
+			activeHandle = ManipulationHandleType::None;
+			return true;
+		}
 		return false;
 	}
 
@@ -8178,6 +8320,12 @@ namespace GraphicsUI
 	{
 		highlightHandle = ManipulationHandleType::None;
 		return true;
+	}
+
+	void TransformManipulator::DoDpiChanged()
+	{
+		ScreenSpaceRadius *= GetEntry()->GetDpiScale();
+		UpdateShape();
 	}
 
 	Color ManipulationHandle::GetNormalColor()
@@ -8204,13 +8352,20 @@ namespace GraphicsUI
 			return Color(0x21, 0x96, 0xF3, 225);
 		case ManipulationHandleType::RotationZ:
 			return Color(0x21, 0x96, 0xF3, 160);
-
 		case ManipulationHandleType::TranslationXY:
-			return Color(0x21, 0x96, 0xF3, 80);
+		case ManipulationHandleType::ScaleXY:
+			return Color(0x21, 0x96, 0xF3, 100);
 		case ManipulationHandleType::TranslationYZ:
-			return Color(0xF4, 0x43, 0x36, 80);
+		case ManipulationHandleType::ScaleYZ:
+			return Color(0xF4, 0x43, 0x36, 100);
 		case ManipulationHandleType::TranslationXZ:
-			return Color(0x4C, 0xAF, 0x50, 80);
+		case ManipulationHandleType::ScaleXZ:
+			return Color(0x4C, 0xAF, 0x50, 100);
+		case ManipulationHandleType::ScaleXYZ:
+			return Color(0xFB, 0xC0, 0x2D, 180);
+		case ManipulationHandleType::TranslationAxisCore:
+		case ManipulationHandleType::ScaleAxisCore:
+			return Color(0x60, 0x7D, 0x8B, 255);
 		}
 		return Color();
 	}
@@ -8224,7 +8379,9 @@ namespace GraphicsUI
 	{
 		if (Type == ManipulationHandleType::AxisX ||
 			Type == ManipulationHandleType::AxisY ||
-			Type == ManipulationHandleType::AxisZ)
+			Type == ManipulationHandleType::AxisZ ||
+			Type == ManipulationHandleType::TranslationAxisCore ||
+			Type == ManipulationHandleType::ScaleAxisCore)
 			return false;
 		for (auto & f : UIFaces)
 			if (f.HitTest(v))
@@ -8238,6 +8395,16 @@ namespace GraphicsUI
 		auto xAxisW = Vec3::Create(1.0f, 0.0f, 0.0f);
 		auto yAxisW = Vec3::Create(0.0f, 1.0f, 0.0f);
 		auto zAxisW = Vec3::Create(0.0f, 0.0f, 1.0f);
+
+		auto vp = viewProjTransform.TransformHomogeneous(wHandleCenter);
+		auto sp = viewportTransform.Transform(Vec4::Create(vp, 1.0f));
+		auto transformNormal = [&](Vec3 v)
+		{
+			auto s = viewProjTransform.TransformHomogeneous(wHandleCenter + v);
+			auto s1 = viewportTransform.Transform(Vec4::Create(s, 1.0f));
+			return Vec2::Create(s1.x - sp.x, s1.y - sp.y).Normalize();
+		};
+
 		UIFaces.Clear();
 		Vec3 planeNormal = xAxisW;
 		auto selectPlaneNormal = [&](Vec3 a0, Vec3 a1)
@@ -8327,29 +8494,35 @@ namespace GraphicsUI
 		}
 		break;
 		case ManipulationHandleType::TranslationX:
+		case ManipulationHandleType::ScaleX:
 		{
 			Vec2 vmin, vmax;
 			vmin.x = vmin.y = 1e9f;
 			vmax.x = vmax.y = -1e9f;
 			planeNormal = selectPlaneNormal(yAxisW, zAxisW);
+			Binormal = transformNormal(xAxisW * Sign(dir.x));
 			AddAxis(UIFaces, viewportTransform, viewProjTransform, wHandleCenter, xAxisW * Sign(dir.x), wSize * 1.1f, (float)emToPixel(0.3f), (float)emToPixel(1.5f), vmin, vmax);
 		}
 		break;
 		case ManipulationHandleType::TranslationY:
+		case ManipulationHandleType::ScaleY:
 		{
 			Vec2 vmin, vmax;
 			vmin.x = vmin.y = 1e9f;
 			vmax.x = vmax.y = -1e9f;
 			planeNormal = selectPlaneNormal(zAxisW, xAxisW);
+			Binormal = transformNormal(yAxisW * Sign(dir.y));
 			AddAxis(UIFaces, viewportTransform, viewProjTransform, wHandleCenter, yAxisW * Sign(dir.y), wSize * 1.1f, (float)emToPixel(0.3f), (float)emToPixel(1.5f), vmin, vmax);
 		}
-		break;
+			break;
 		case ManipulationHandleType::TranslationZ:
+		case ManipulationHandleType::ScaleZ:
 		{
 			Vec2 vmin, vmax;
 			vmin.x = vmin.y = 1e9f;
 			vmax.x = vmax.y = -1e9f;
 			planeNormal = selectPlaneNormal(xAxisW, yAxisW);
+			Binormal = transformNormal(zAxisW * Sign(dir.z));
 			AddAxis(UIFaces, viewportTransform, viewProjTransform, wHandleCenter, zAxisW * Sign(dir.z), wSize * 1.1f, (float)emToPixel(0.3f), (float)emToPixel(1.5f), vmin, vmax);
 		}
 		break;
@@ -8371,11 +8544,94 @@ namespace GraphicsUI
 			AddSquare(UIFaces, viewportTransform, viewProjTransform, wHandleCenter, xAxisW * Sign(dir.x), zAxisW * Sign(dir.z), wSize * 0.5f);
 		}
 		break;
+
+		case ManipulationHandleType::ScaleXY:
+		{
+			planeNormal = zAxisW;
+			Binormal = transformNormal((xAxisW * Sign(dir.x) + yAxisW * Sign(dir.y)));
+			AddScaleTrapezoid(UIFaces, viewportTransform, viewProjTransform, wHandleCenter, xAxisW * Sign(dir.x), yAxisW * Sign(dir.y), wSize * 0.5f, wSize * 0.25f);
+		}
+		break;
+		case ManipulationHandleType::ScaleYZ:
+		{
+			planeNormal = xAxisW;
+			Binormal = transformNormal(yAxisW * Sign(dir.y) + zAxisW * Sign(dir.z));
+			AddScaleTrapezoid(UIFaces, viewportTransform, viewProjTransform, wHandleCenter, yAxisW * Sign(dir.y), zAxisW * Sign(dir.z), wSize * 0.5f, wSize * 0.25f);
+		}
+		break;
+		case ManipulationHandleType::ScaleXZ:
+		{
+			planeNormal = yAxisW;
+			Binormal = transformNormal(xAxisW * Sign(dir.x) + zAxisW * Sign(dir.z));
+			AddScaleTrapezoid(UIFaces, viewportTransform, viewProjTransform, wHandleCenter, xAxisW * Sign(dir.x), zAxisW * Sign(dir.z), wSize * 0.5f, wSize * 0.25f);
+		}
+		break;
+		case ManipulationHandleType::ScaleXYZ:
+		{
+			planeNormal = (xAxisW * Sign(dir.x) + yAxisW * Sign(dir.y) + zAxisW * Sign(dir.z)).Normalize();
+			Binormal = Vec2::Create(0.0f, -1.0f);
+			AddScaleTriangle(UIFaces, viewportTransform, viewProjTransform, wHandleCenter, xAxisW * Sign(dir.x), yAxisW * Sign(dir.y), zAxisW * Sign(dir.z), wSize * 0.5f);
+		}
+		break;
+		case ManipulationHandleType::TranslationAxisCore:
+		case ManipulationHandleType::ScaleAxisCore:
+		{
+			AddCircle(UIFaces, viewportTransform, viewProjTransform, wHandleCenter, (float)emToPixel(0.5f));
+		}
+		break;
 		}
 		VirtualPlane.w = -Vec3::Dot(planeNormal, worldObjPos);
 		VirtualPlane.x = planeNormal.x;
 		VirtualPlane.y = planeNormal.y;
 		VirtualPlane.z = planeNormal.z;
 	}
-
+	bool IsManipulationHandleForMode(ManipulationHandleType handleType, ManipulationMode mode)
+	{
+		switch (mode)
+		{
+		case ManipulationMode::Translation:
+			switch (handleType)
+			{
+			case ManipulationHandleType::TranslationX:
+			case ManipulationHandleType::TranslationY:
+			case ManipulationHandleType::TranslationZ:
+			case ManipulationHandleType::TranslationXY:
+			case ManipulationHandleType::TranslationYZ:
+			case ManipulationHandleType::TranslationXZ:
+			case ManipulationHandleType::TranslationAxisCore:
+				return true;
+			default:
+				return false;
+			}
+		case ManipulationMode::Rotation:
+			switch (handleType)
+			{
+			case ManipulationHandleType::RotationX:
+			case ManipulationHandleType::RotationY:
+			case ManipulationHandleType::RotationZ:
+			case ManipulationHandleType::AxisX:
+			case ManipulationHandleType::AxisY:
+			case ManipulationHandleType::AxisZ:
+				return true;
+			default:
+				return false;
+			}
+		case ManipulationMode::Scale:
+			switch (handleType)
+			{
+			case ManipulationHandleType::ScaleX:
+			case ManipulationHandleType::ScaleY:
+			case ManipulationHandleType::ScaleZ:
+			case ManipulationHandleType::ScaleXY:
+			case ManipulationHandleType::ScaleYZ:
+			case ManipulationHandleType::ScaleXZ:
+			case ManipulationHandleType::ScaleXYZ:
+			case ManipulationHandleType::ScaleAxisCore:
+				return true;
+			default:
+				return false;
+			}
+		}
+		return false;
+	}
 }

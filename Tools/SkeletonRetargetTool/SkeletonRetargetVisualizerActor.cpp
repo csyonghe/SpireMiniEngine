@@ -34,6 +34,7 @@ private:
 	RefPtr<Skeleton> targetSkeleton;
 	Material sourceSkeletonMaterial, targetSkeletonMaterial, sourceMeshMaterial,
 		xAxisMaterial, yAxisMaterial, zAxisMaterial;
+	ManipulationMode manipulationMode = ManipulationMode::Translation;
 	GraphicsUI::Label * lblFrame, * lblMappingMode;
 	GraphicsUI::Form * infoForm;
 	GraphicsUI::MultiLineTextBox * infoFormTextBox;
@@ -126,7 +127,7 @@ public:
 		}
 		else if (targetSkeletonSelected)
 		{
-			manipulator->SetTarget(ManipulationMode::Translation, view, level->CurrentCamera->GetLocalTransform(), level->CurrentCamera->GetPosition(), 
+			manipulator->SetTarget(manipulationMode, view, level->CurrentCamera->GetLocalTransform(), level->CurrentCamera->GetPosition(),
 				Vec3::Create(targetSkeletonTransform.values[12], targetSkeletonTransform.values[13], targetSkeletonTransform.values[14]));
 			manipulator->Visible = true;
 		}
@@ -238,7 +239,7 @@ public:
 		if (dlg.ShowOpen())
 		{
 			Engine::Instance()->GetRenderer()->Wait();
-
+			Matrix4::Translation(targetSkeletonTransform, 200.0f, 0.0f, 0.0f);
 			targetSkeleton = new Skeleton();
 			targetSkeleton->LoadFromFile(dlg.FileName);
 			targetSkeletonMesh.FromSkeleton(targetSkeleton.Ptr(), 6.0f);
@@ -318,6 +319,10 @@ public:
 			highlightModelInstance.Drawables = List<RefPtr<Drawable>>();
 			retargetFile.SourceSkeletonName = sourceModel->GetSkeleton()->Name;
 			retargetFile.SetBoneCount(sourceModel->GetSkeleton()->Bones.Count()); 
+			targetSkeleton = nullptr;
+			targetSkeletonModel = nullptr;
+			targetSkeletonPhysInstance = nullptr;
+			targetSkeletonDrawable = nullptr;
 			curPose.Transforms.Clear();
 			lstBones->Clear();
 			auto sourceSkeleton = sourceModel->GetSkeleton();
@@ -582,6 +587,14 @@ public:
 		sb << "}\n";
 		
 	}
+	void mnTranslationTransformMode_Clicked(UI_Base * sender)
+	{
+		manipulationMode = ManipulationMode::Translation;
+	}
+	void mnScaleTransformMode_Clicked(UI_Base * sender)
+	{
+		manipulationMode = ManipulationMode::Scale;
+	}
 	void mnMappingMode_Clicked(UI_Base * sender)
 	{
 		ToggleMappingMode(!mappingMode);
@@ -703,6 +716,12 @@ public:
 			targetSkeletonTransform.values[13] = oldTargetSkeletonTransform.values[13] + e.TranslationOffset.y;
 			targetSkeletonTransform.values[14] = oldTargetSkeletonTransform.values[14] + e.TranslationOffset.z;
 		}
+		else if (IsScaleHandle(e.Handle))
+		{
+			targetSkeletonTransform.values[0] = oldTargetSkeletonTransform.values[0] * e.Scale.x;
+			targetSkeletonTransform.values[5] = oldTargetSkeletonTransform.values[5] * e.Scale.y;
+			targetSkeletonTransform.values[10] = oldTargetSkeletonTransform.values[10] * e.Scale.z;
+		}
 		else if (IsRotationHandle(e.Handle))
 		{
 			Vec3 axis;
@@ -808,6 +827,11 @@ public:
 		mnPlayAnimation->OnClick.Bind(this, &SkeletonRetargetVisualizerActor::mnPlayAnim_Clicked);
 		auto mnMappingMode = new GraphicsUI::MenuItem(mnView, "Mapping Mode", "M");
 		mnMappingMode->OnClick.Bind(this, &SkeletonRetargetVisualizerActor::mnMappingMode_Clicked);
+		auto mnTargetSkeletonTransformMode = new GraphicsUI::MenuItem(mnView, "Target Skeleton Transform Mode");
+		auto mnTranslationTransformMode = new GraphicsUI::MenuItem(mnTargetSkeletonTransformMode, "Translate");
+		mnTranslationTransformMode->OnClick.Bind(this, &SkeletonRetargetVisualizerActor::mnTranslationTransformMode_Clicked);
+		auto mnScaleTransformMode = new GraphicsUI::MenuItem(mnTargetSkeletonTransformMode, "Scale");
+		mnScaleTransformMode->OnClick.Bind(this, &SkeletonRetargetVisualizerActor::mnScaleTransformMode_Clicked);
 
 		auto pnl = new GraphicsUI::Container(uiEntry);
 		pnl->BackColor = GraphicsUI::Color(0, 0, 0, 200);
