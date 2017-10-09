@@ -442,6 +442,11 @@ namespace GameEngine
 		actorClassRegistry[name] = actorCreator;
 	}
 
+	bool Engine::IsRegisteredActorClass(const CoreLib::String & name)
+	{
+		return actorClassRegistry.ContainsKey(name);
+	}
+
 	void Engine::LoadLevel(const CoreLib::String & fileName)
 	{
 		if (level)

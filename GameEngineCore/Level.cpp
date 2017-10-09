@@ -16,6 +16,15 @@ namespace GameEngine
 	void Level::LoadFromText(CoreLib::String text)
 	{
 		Text::TokenReader parser(text);
+		auto errorRecover = [&]() 
+		{
+			while (!parser.IsEnd())
+			{
+				if (Engine::Instance()->IsRegisteredActorClass(parser.NextToken().Content))
+					break;
+				parser.ReadToken();
+			}
+		};
 		while (!parser.IsEnd())
 		{
 			auto pos = parser.NextToken().Position;
@@ -23,18 +32,28 @@ namespace GameEngine
 			if (!actor)
 			{
 				Print("error: ignoring object at line %d.\n", pos.Line);
+				errorRecover();
 			}
 			else
 			{
 				try
 				{
-					RegisterActor(actor.Ptr());
-					if (actor->GetEngineType() == EngineActorType::Camera)
-						CurrentCamera = actor.As<CameraActor>();
+					if (Actors.ContainsKey(actor->Name.GetValue()))
+					{
+						Print("error: an actor named '%S' already exists, ignoring second actor.\n", actor->Name.GetValue().ToWString());
+						errorRecover();
+					}
+					else
+					{
+						RegisterActor(actor.Ptr());
+						if (actor->GetEngineType() == EngineActorType::Camera)
+							CurrentCamera = actor.As<CameraActor>();
+					}
 				}
-				catch (Exception)
+				catch (Exception e)
 				{
-					Print("error: an actor named '%S' already exists, ignoring second actor.\n", actor->Name.ToWString());
+					Print("OnLoad() error: an actor named '%S' failed to load, message: '%S'.\n", actor->Name.GetValue().ToWString(), e.Message.ToWString());
+					errorRecover();
 				}
 			}
 		}
@@ -47,14 +66,14 @@ namespace GameEngine
 	}
 	void Level::RegisterActor(Actor * actor)
 	{
-		Actors.Add(actor->Name, actor);
+		Actors.Add(actor->Name.GetValue(), actor);
 		actor->OnLoad();
 		actor->RegisterUI(Engine::Instance()->GetUiEntry());
 	}
 	void Level::UnregisterActor(Actor*actor)
 	{
 		actor->OnUnload();
-        auto actorName = actor->Name;
+        auto actorName = actor->Name.GetValue();
 		Actors[actorName] = nullptr;
 		Actors.Remove(actorName);
 	}

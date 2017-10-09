@@ -7,35 +7,11 @@ namespace GameEngine
 
 	void FreeRoamCameraControllerActor::FindTargetCamera()
 	{
-		auto actor = level->FindActor(targetCameraName);
+		auto actor = level->FindActor(*TargetCameraName);
 		if (actor && actor->GetEngineType() == EngineActorType::Camera)
 			targetCamera = (CameraActor*)actor;
 	}
 
-	bool FreeRoamCameraControllerActor::ParseField(CoreLib::Text::TokenReader & parser, bool & isInvalid)
-	{
-		if (Actor::ParseField(parser, isInvalid))
-			return true;
-		if (parser.LookAhead("TargetCamera"))
-		{
-			parser.ReadToken();
-			targetCameraName = parser.ReadStringLiteral();
-			return true;
-		}
-		else if (parser.LookAhead("Speed"))
-		{
-			parser.ReadToken();
-			cameraSpeed = (float)parser.ReadDouble();
-			return true;
-		}
-		else if (parser.LookAhead("TurnPrecision"))
-		{
-			parser.ReadToken();
-			turnPrecision = (float)parser.ReadDouble();
-			return true;
-		}
-		return false;
-	}
 	void FreeRoamCameraControllerActor::OnLoad()
 	{
 		Actor::OnLoad();
@@ -69,7 +45,7 @@ namespace GameEngine
 		{
 			Vec3 moveDir = -Vec3::Create(targetCamera->GetLocalTransform().values[2], targetCamera->GetLocalTransform().values[6], targetCamera->GetLocalTransform().values[10]);
 			float dTime = Engine::Instance()->GetTimeDelta(EngineThread::GameLogic);
-			targetCamera->SetPosition(targetCamera->GetPosition() + moveDir * (input.AxisValue * dTime * cameraSpeed));
+			targetCamera->SetPosition(targetCamera->GetPosition() + moveDir * (input.AxisValue * dTime * *Speed));
 			return true;
 		}
 		return false;
@@ -81,7 +57,7 @@ namespace GameEngine
 		{
 			Vec3 moveDir = Vec3::Create(targetCamera->GetLocalTransform().values[0], targetCamera->GetLocalTransform().values[4], targetCamera->GetLocalTransform().values[8]);
 			float dTime = Engine::Instance()->GetTimeDelta(EngineThread::GameLogic);
-			targetCamera->SetPosition(targetCamera->GetPosition() + moveDir * (input.AxisValue * dTime * cameraSpeed));
+			targetCamera->SetPosition(targetCamera->GetPosition() + moveDir * (input.AxisValue * dTime * *Speed));
 			return true;
 		}
 		return false;
@@ -93,7 +69,7 @@ namespace GameEngine
 		{
 			Vec3 moveDir = Vec3::Create(targetCamera->GetLocalTransform().values[1], targetCamera->GetLocalTransform().values[5], targetCamera->GetLocalTransform().values[9]);
 			float dTime = Engine::Instance()->GetTimeDelta(EngineThread::GameLogic);
-			targetCamera->SetPosition(targetCamera->GetPosition() + moveDir * (input.AxisValue * dTime * cameraSpeed));
+			targetCamera->SetPosition(targetCamera->GetPosition() + moveDir * (input.AxisValue * dTime * *Speed));
 			return true;
 		}
 		return false;
@@ -104,7 +80,7 @@ namespace GameEngine
 		if (targetCamera)
 		{
 			float dTime = Engine::Instance()->GetTimeDelta(EngineThread::GameLogic);
-			targetCamera->SetYaw(targetCamera->GetYaw() + input.AxisValue * dTime * turnPrecision);
+			targetCamera->SetYaw(targetCamera->GetYaw() + input.AxisValue * dTime * *TurnPrecision);
 			return true;
 		}
 		return false;
@@ -115,7 +91,7 @@ namespace GameEngine
 		if (targetCamera)
 		{
 			float dTime = Engine::Instance()->GetTimeDelta(EngineThread::GameLogic);
-			targetCamera->SetPitch(targetCamera->GetPitch() - input.AxisValue * dTime * turnPrecision);
+			targetCamera->SetPitch(targetCamera->GetPitch() - input.AxisValue * dTime * *TurnPrecision);
 			return true;
 		}
 		return false;

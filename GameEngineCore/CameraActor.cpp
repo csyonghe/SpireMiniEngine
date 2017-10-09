@@ -27,129 +27,83 @@ namespace GameEngine
 
 	void CameraActor::SetPosition(const VectorMath::Vec3 & value)
 	{
-		view.Position = value;
-		UpdatePosition(localTransform, value);
-		view.Transform = localTransform;
+		CurrentView->Position = value;
+		UpdatePosition(*LocalTransform, value);
+		CurrentView->Transform = *LocalTransform;
 	}
 
 	void CameraActor::SetYaw(float value)
 	{
-		view.Yaw = value;
-		TransformFromCamera(localTransform, view.Yaw, view.Pitch, view.Roll, view.Position);
-		view.Transform = localTransform;
+		CurrentView->Yaw = value;
+		TransformFromCamera(*LocalTransform, CurrentView->Yaw, CurrentView->Pitch, CurrentView->Roll, CurrentView->Position);
+		CurrentView->Transform = *LocalTransform;
 	}
 	void CameraActor::SetPitch(float value)
 	{
-		view.Pitch = value;
-		TransformFromCamera(localTransform, view.Yaw, view.Pitch, view.Roll, view.Position);
-		view.Transform = localTransform;
+		CurrentView->Pitch = value;
+		TransformFromCamera(*LocalTransform, CurrentView->Yaw, CurrentView->Pitch, CurrentView->Roll, CurrentView->Position);
+		CurrentView->Transform = *LocalTransform;
 	}
 	void CameraActor::SetRoll(float value)
 	{
-		view.Roll = value;
-		TransformFromCamera(localTransform, view.Yaw, view.Pitch, view.Roll, view.Position);
-		view.Transform = localTransform;
+		CurrentView->Roll = value;
+		TransformFromCamera(*LocalTransform, CurrentView->Yaw, CurrentView->Pitch, CurrentView->Roll, CurrentView->Position);
+		CurrentView->Transform = *LocalTransform;
 
 	}
 	void CameraActor::SetOrientation(float pYaw, float pPitch, float pRoll)
 	{
-		view.Yaw = pYaw;
-		view.Pitch = pPitch;
-		view.Roll = pRoll;
-		TransformFromCamera(localTransform, view.Yaw, view.Pitch, view.Roll, view.Position);
-		view.Transform = localTransform;
+		CurrentView->Yaw = pYaw;
+		CurrentView->Pitch = pPitch;
+		CurrentView->Roll = pRoll;
+		TransformFromCamera(*LocalTransform, CurrentView->Yaw, CurrentView->Pitch, CurrentView->Roll, CurrentView->Position);
+		CurrentView->Transform = *LocalTransform;
 	}
 
 	Ray CameraActor::GetRayFromViewCoordinates(float x, float y, float aspect)
 	{
 		Vec3 camDir, camUp;
-		camDir.x = -localTransform.m[0][2];
-		camDir.y = -localTransform.m[1][2];
-		camDir.z = -localTransform.m[2][2];
-		camUp.x = localTransform.m[0][1];
-		camUp.y = localTransform.m[1][1];
-		camUp.z = localTransform.m[2][1];
+		camDir.x = -LocalTransform->m[0][2];
+		camDir.y = -LocalTransform->m[1][2];
+		camDir.z = -LocalTransform->m[2][2];
+		camUp.x = LocalTransform->m[0][1];
+		camUp.y = LocalTransform->m[1][1];
+		camUp.z = LocalTransform->m[2][1];
 		auto right = Vec3::Cross(camDir, camUp).Normalize();
 		float zNear = 1.0f;
-		auto nearCenter = view.Position + camDir * zNear;
-		auto tanFOV = tan(view.FOV / 180.0f * (Math::Pi * 0.5f));
+		auto nearCenter = CurrentView->Position + camDir * zNear;
+		auto tanFOV = tan(CurrentView->FOV / 180.0f * (Math::Pi * 0.5f));
 		auto nearUpScale = tanFOV * zNear;
 		auto nearRightScale = nearUpScale * aspect;
 		auto tarPos = nearCenter + right * nearRightScale * (x * 2.0f - 1.0f) + camUp * nearUpScale * (1.0f - y * 2.0f);
 		Ray r;
-		r.Origin = view.Position;
+		r.Origin = CurrentView->Position;
 		r.Dir = tarPos - r.Origin;
 		r.Dir = r.Dir.Normalize();
 		return r;
 	}
 	
-	void CameraActor::SetCollisionRadius(float value)
-	{
-		collisionRadius = value;
-	}
 	CoreLib::Graphics::ViewFrustum CameraActor::GetFrustum(float aspect)
 	{
 		CoreLib::Graphics::ViewFrustum result;
-		result.FOV = view.FOV;
+		result.FOV = CurrentView->FOV;
 		result.Aspect = aspect;
-		result.CamDir.x = -localTransform.m[0][2];
-		result.CamDir.y = -localTransform.m[1][2];
-		result.CamDir.z = -localTransform.m[2][2];
-		result.CamUp.x = localTransform.m[0][1];
-		result.CamUp.y = localTransform.m[1][1];
-		result.CamUp.z = localTransform.m[2][1];
-		result.CamPos = view.Position;
-		result.zMin = view.ZNear;
-		result.zMax = view.ZFar;
+		result.CamDir.x = -LocalTransform->m[0][2];
+		result.CamDir.y = -LocalTransform->m[1][2];
+		result.CamDir.z = -LocalTransform->m[2][2];
+		result.CamUp.x = LocalTransform->m[0][1];
+		result.CamUp.y = LocalTransform->m[1][1];
+		result.CamUp.z = LocalTransform->m[2][1];
+		result.CamPos = CurrentView->Position;
+		result.zMin = CurrentView->ZNear;
+		result.zMax = CurrentView->ZFar;
 		return result;
 	}
-	bool CameraActor::ParseField(CoreLib::Text::TokenReader & parser, bool & isInvalid)
+
+	void CameraActor::OnLoad()
 	{
-		if (Actor::ParseField(parser, isInvalid))
-			return true;
-		if (parser.LookAhead("position"))
-		{
-			parser.ReadToken();
-			view.Position = ParseVec3(parser);
-			TransformFromCamera(localTransform, view.Yaw, view.Pitch, view.Roll, view.Position);
-			view.Transform = localTransform;
-			return true;
-		}
-		if (parser.LookAhead("orientation"))
-		{
-			parser.ReadToken();
-			auto orientation = ParseVec3(parser);
-			view.Yaw = orientation.x;
-			view.Pitch = orientation.y;
-			view.Roll = orientation.z;
-			TransformFromCamera(localTransform, view.Yaw, view.Pitch, view.Roll, view.Position);
-			view.Transform = localTransform;
-			return true;
-		}
-		if (parser.LookAhead("znear"))
-		{
-			parser.ReadToken();
-			view.ZNear = (float)parser.ReadDouble();
-			return true;
-		}
-		if (parser.LookAhead("zfar"))
-		{
-			parser.ReadToken();
-			view.ZFar = (float)parser.ReadDouble();
-			return true;
-		}
-		if (parser.LookAhead("fov"))
-		{
-			parser.ReadToken();
-			view.FOV = (float)parser.ReadDouble();
-			return true;
-		}
-		if (parser.LookAhead("radius"))
-		{
-			parser.ReadToken();
-			collisionRadius = (float)parser.ReadDouble();
-			return true;
-		}
-		return false;
+		TransformFromCamera(*LocalTransform, CurrentView->Yaw, CurrentView->Pitch, CurrentView->Roll, CurrentView->Position);
+		CurrentView->Transform = *LocalTransform;
 	}
+	
 }

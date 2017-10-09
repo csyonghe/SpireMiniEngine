@@ -8,6 +8,8 @@ namespace GameEngine
 {
 	class ToneMappingActor : public Actor
 	{
+	private:
+		CoreLib::String lookupTextureFileName = "";
 	public:
 		ToneMappingParameters Parameters;
 		CoreLib::RefPtr<Texture3D> lookupTexture;
@@ -25,8 +27,8 @@ namespace GameEngine
 		}
 	protected:
 		void LoadColorLookupTexture(CoreLib::String fileName);
-		virtual bool ParseField(CoreLib::Text::TokenReader & parser, bool &isInvalid) override;
-
+		virtual bool ParseField(CoreLib::String fieldName, CoreLib::Text::TokenReader & parser) override;
+		virtual void SerializeFields(CoreLib::StringBuilder & sb) override;
 	};
 }
 

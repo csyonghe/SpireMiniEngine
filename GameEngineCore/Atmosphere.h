@@ -2,6 +2,8 @@
 #define GAME_ENGINE_ATMOSPHERE_H
 
 #include "CoreLib/VectorMath.h"
+#include "CoreLib/Basic.h"
+#include "CoreLib/Tokenizer.h"
 
 namespace GameEngine
 {
@@ -15,8 +17,10 @@ namespace GameEngine
 		}
 		bool operator == (const AtmosphereParameters & other) const
 		{
-			return const_cast<Vec3&>(SunDir) == other.SunDir && AtmosphericFogScaleFactor == other.AtmosphericFogScaleFactor;
+			return const_cast<VectorMath::Vec3&>(SunDir) == other.SunDir && AtmosphericFogScaleFactor == other.AtmosphericFogScaleFactor;
 		}
+		void Parse(CoreLib::Text::TokenReader & parser);
+		void Serialize(CoreLib::StringBuilder & sb);
 	};
 }
 

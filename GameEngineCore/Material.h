@@ -23,6 +23,7 @@ namespace GameEngine
 		CoreLib::List<DynamicVariable*> PatternVariables, GeometryVariables;
 		void SetVariable(CoreLib::String name, DynamicVariable value);
 		void Parse(CoreLib::Text::TokenReader & parser);
+		void Serialize(CoreLib::StringBuilder & sb);
 		void LoadFromFile(const CoreLib::String & fullFileName);
 		Material();
 		template<typename WriteTextureFunc, typename WriteFunc, typename AlignFunc>

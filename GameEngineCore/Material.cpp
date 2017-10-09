@@ -49,6 +49,18 @@ namespace GameEngine
 		parser.Read("}");
 	}
 
+	void Material::Serialize(CoreLib::StringBuilder & sb)
+	{
+		sb << "material\n{\n";
+		sb << "shader " << CoreLib::Text::EscapeStringLiteral(ShaderFile) << "\n";
+		for (auto & var : Variables)
+		{
+			sb << "var " << var.Key << " = ";
+			var.Value.Serialize(sb);
+		}
+		sb << "}\n";
+	}
+
 	void Material::LoadFromFile(const CoreLib::String & fullFileName)
 	{
 		CoreLib::Text::TokenReader parser(CoreLib::IO::File::ReadAllText(fullFileName));

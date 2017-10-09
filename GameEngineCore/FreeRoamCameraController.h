@@ -9,14 +9,13 @@ namespace GameEngine
 	class CameraActor;
 	class FreeRoamCameraControllerActor : public Actor
 	{
+	public:
+		PROPERTY_DEF(float, Speed, 700.0f);
+		PROPERTY_DEF(float, TurnPrecision, CoreLib::Math::Pi / 4.0f);
+		PROPERTY(CoreLib::String, TargetCameraName);
 	private:
-		float cameraSpeed = 700.0f;
-		float turnPrecision = CoreLib::Math::Pi / 4.0f;
-		CoreLib::String targetCameraName;
 		CameraActor * targetCamera = nullptr;
 		void FindTargetCamera();
-	public:
-		virtual bool ParseField(CoreLib::Text::TokenReader & parser, bool & isInvalid) override;
 	public:
 		virtual void OnLoad() override;
 		virtual void OnUnload() override;

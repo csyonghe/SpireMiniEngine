@@ -5,29 +5,28 @@
 #include "CoreLib/VectorMath.h"
 #include "Actor.h"
 #include "Physics.h"
+#include "View.h"
 
 namespace GameEngine
 {
 	class CameraActor : public Actor
 	{
-	private:
-		View view;
-		float collisionRadius = 50.0f;
-	protected:
-		virtual bool ParseField(CoreLib::Text::TokenReader & parser, bool & isInvalid) override;
+	public:
+		PROPERTY(View, CurrentView);
+		PROPERTY_DEF(float, CollisionRadius, 50.0f);
 	public:
 		CameraActor()
 		{
-			view.Position.SetZero();
+			CurrentView->Position.SetZero();
 		}
 		VectorMath::Vec3 GetPosition()
 		{
-			return view.Position;
+			return CurrentView->Position;
 		}
 		void SetPosition(const VectorMath::Vec3 & value);
-		float GetYaw() { return view.Yaw; }
-		float GetPitch() { return view.Pitch; }
-		float GetRoll() { return view.Roll; }
+		float GetYaw() { return CurrentView->Yaw; }
+		float GetPitch() { return CurrentView->Pitch; }
+		float GetRoll() { return CurrentView->Roll; }
 		void SetYaw(float value);
 		void SetPitch(float value);
 		void SetRoll(float value);
@@ -35,10 +34,8 @@ namespace GameEngine
 		Ray GetRayFromViewCoordinates(float x, float y, float aspect); // coordinate range from 0.0 to 1.0
 		View GetView()
 		{
-			return view;
+			return *CurrentView;
 		}
-		float GetCollisionRadius() { return collisionRadius; }
-		void SetCollisionRadius(float value);
 		CoreLib::Graphics::ViewFrustum GetFrustum(float aspect);
 		virtual void Tick() override { }
 		virtual EngineActorType GetEngineType() override
@@ -49,6 +46,7 @@ namespace GameEngine
 		{
 			return "Camera";
 		}
+		virtual void OnLoad() override;
 	};
 }
 

@@ -7,6 +7,7 @@
 #include "AnimationSynthesizer.h"
 #include "Material.h"
 #include "CoreLib/Graphics/BBox.h"
+#include "Property.h"
 
 namespace GraphicsUI
 {
@@ -30,27 +31,23 @@ namespace GameEngine
 		VectorMath::Vec3 CameraPos, CameraDir;
 	};
 
-	class Actor : public CoreLib::RefObject
+	class Actor : public PropertyContainer
 	{
 	protected:
 		Level * level = nullptr;
-		VectorMath::Matrix4 localTransform;
-		int ParseInt(CoreLib::Text::TokenReader & parser);
-		bool ParseBool(CoreLib::Text::TokenReader & parser);
-		VectorMath::Vec3 ParseVec3(CoreLib::Text::TokenReader & parser);
-		VectorMath::Vec4 ParseVec4(CoreLib::Text::TokenReader & parser);
-		VectorMath::Matrix4 ParseMatrix4(CoreLib::Text::TokenReader & parser);
-		void Serialize(CoreLib::StringBuilder & sb, const VectorMath::Vec3 & v);
-		void Serialize(CoreLib::StringBuilder & sb, const VectorMath::Vec4 & v);
-		void Serialize(CoreLib::StringBuilder & sb, const VectorMath::Matrix4 & v);
-
-		virtual bool ParseField(CoreLib::Text::TokenReader & parser, bool &isInvalid);
-		virtual void SerializeFields(CoreLib::StringBuilder & sb);
 	public:
-		CoreLib::String Name;
+		PROPERTY(    CoreLib::String,   Name);
+		PROPERTY(               bool,   CastShadow);
+		PROPERTY(VectorMath::Matrix4,   LocalTransform);
+	protected:
+		virtual bool ParseField(CoreLib::String, CoreLib::Text::TokenReader &)
+		{
+			return false;
+		}
+		virtual void SerializeFields(CoreLib::StringBuilder &) {}
+	public:
 		CoreLib::Graphics::BBox Bounds;
 		CoreLib::List<CoreLib::RefPtr<Actor>> SubComponents;
-		bool CastShadow = true;
 		virtual void Tick() { }
 		virtual EngineActorType GetEngineType() = 0;
 		virtual void OnLoad() {};
@@ -62,17 +59,19 @@ namespace GameEngine
 		virtual CoreLib::String GetTypeName() { return "Actor"; }
 		VectorMath::Matrix4 GetLocalTransform()
 		{
-			return localTransform;
+			return LocalTransform.GetValue();
 		}
 		virtual void SetLocalTransform(const VectorMath::Matrix4 & val)
 		{
-			localTransform = val;
+			LocalTransform.SetValue(val);
 		}
 		virtual VectorMath::Vec3 GetPosition();
 		Actor()
 		{
 			Bounds.Init();
-			VectorMath::Matrix4::CreateIdentityMatrix(localTransform);
+			VectorMath::Matrix4 identity;
+			VectorMath::Matrix4::CreateIdentityMatrix(identity);
+			LocalTransform.SetValue(identity);
 		}
 		virtual ~Actor() override;
 	};

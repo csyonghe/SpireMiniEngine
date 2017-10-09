@@ -3,20 +3,17 @@
 
 namespace GameEngine
 {
-    bool AnimationVisualizationActor::ParseField(CoreLib::Text::TokenReader & parser, bool & isInvalid)
+    bool AnimationVisualizationActor::ParseField(CoreLib::String fieldName, CoreLib::Text::TokenReader & parser)
     {
-        if (Actor::ParseField(parser, isInvalid))
+        if (Actor::ParseField(fieldName, parser))
             return true;
-        if (parser.LookAhead("mesh"))
+        if (fieldName == "mesh")
         {
-            parser.ReadToken();
             MeshName = parser.ReadStringLiteral();
             Mesh = level->LoadMesh(MeshName);
-            if (!Mesh)
-                isInvalid = false;
             return true;
         }
-        if (parser.LookAhead("material"))
+        if (fieldName == "material")
         {
             if (parser.NextToken(1).Content == "{")
             {
@@ -28,18 +25,14 @@ namespace GameEngine
                 parser.ReadToken();
                 auto materialName = parser.ReadStringLiteral();
                 MaterialInstance = level->LoadMaterial(materialName);
-                if (!MaterialInstance)
-                    isInvalid = true;
             }
             return true;
         }
-        if (parser.LookAhead("Skeleton"))
+        if (fieldName == "Skeleton")
         {
             parser.ReadToken();
             SkeletonName = parser.ReadStringLiteral();
             Skeleton = level->LoadSkeleton(SkeletonName);
-            if (!Skeleton)
-                isInvalid = true;
             return true;
         }
         return false;
@@ -55,7 +48,7 @@ namespace GameEngine
     {
         if (!drawable)
             drawable = params.rendererService->CreateSkeletalDrawable(Mesh, 0, Skeleton, MaterialInstance);
-        drawable->UpdateTransformUniform(localTransform, nextPose);
+        drawable->UpdateTransformUniform(*LocalTransform, nextPose);
         params.sink->AddDrawable(drawable.Ptr());
     }
 

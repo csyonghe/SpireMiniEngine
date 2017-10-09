@@ -5,19 +5,19 @@
 
 namespace GameEngine
 {
-	bool StaticMeshActor::ParseField(CoreLib::Text::TokenReader & parser, bool & isInvalid)
+	bool StaticMeshActor::ParseField(CoreLib::String fieldName, CoreLib::Text::TokenReader & parser)
 	{
-		if (Actor::ParseField(parser, isInvalid))
+		if (Actor::ParseField(fieldName, parser))
 			return true;
-		if (parser.LookAhead("model"))
+		if (fieldName == "model")
 		{
-			parser.ReadWord();
-			Model = level->LoadModel(parser.ReadStringLiteral());
-			Bounds = Model->GetBounds();
+			modelFileName = parser.ReadStringLiteral();
+			model = level->LoadModel(modelFileName);
+			Bounds = model->GetBounds();
+			return true;
 		}
-		if (parser.LookAhead("mesh"))
+		if (fieldName == "mesh")
 		{
-			parser.ReadToken();
 			if (parser.LookAhead("{"))
 			{
 				static int meshCounter = 0;
@@ -43,44 +43,56 @@ namespace GameEngine
 				MeshName = parser.ReadStringLiteral();
 				Mesh = level->LoadMesh(MeshName);
 			}
-			if (!Mesh)
-			{
-				isInvalid = true;
-			}
-			else
+			if (Mesh)
 				Bounds = Mesh->Bounds;
 			return true;
 		}
-		if (parser.LookAhead("material"))
+		else if (fieldName == "material")
 		{
-			if (parser.NextToken(1).Content == "{")
+			if (parser.NextToken(0).Content == "{")
 			{
+				parser.Back(1);
 				MaterialInstance = level->CreateNewMaterial();
 				MaterialInstance->Parse(parser);
-				MaterialInstance->Name = Name;
+				MaterialInstance->Name = *Name;
+				useInlineMaterial = true;
 			}
 			else
 			{
-				parser.ReadToken();
-				auto materialName = parser.ReadStringLiteral();
-				MaterialInstance = level->LoadMaterial(materialName);
-				if (!MaterialInstance)
-					isInvalid = true;
+				materialFileName = parser.ReadStringLiteral();
+				MaterialInstance = level->LoadMaterial(materialFileName);
 			}
 			return true;
 		}
 		return false;
 	}
 
+	void StaticMeshActor::SerializeFields(CoreLib::StringBuilder & sb)
+	{
+		if (modelFileName.Length())
+		{
+			sb << "model " << CoreLib::Text::EscapeStringLiteral(modelFileName) << "\n";
+		}
+		else
+		{
+			if (MeshName.Length())
+				sb << "mesh " << CoreLib::Text::EscapeStringLiteral(MeshName) << "\n";
+			if (useInlineMaterial)
+				MaterialInstance->Serialize(sb);
+			else
+				sb << "material " << CoreLib::Text::EscapeStringLiteral(materialFileName) << "\n";
+		}
+	}
+
 	void StaticMeshActor::OnLoad()
 	{
-		if (!Model)
+		if (!model && Mesh && MaterialInstance)
 		{
-			Model = new GameEngine::Model(Mesh, MaterialInstance);
+			model = new GameEngine::Model(Mesh, MaterialInstance);
 		}
-		SetLocalTransform(localTransform); // update bbox
+		SetLocalTransform(*LocalTransform); // update bbox
 		// update physics scene
-		physInstance = Model->CreatePhysicsInstance(level->GetPhysicsScene(), this, nullptr);
+		physInstance = model->CreatePhysicsInstance(level->GetPhysicsScene(), this, nullptr);
 	}
 
 	void StaticMeshActor::OnUnload()
@@ -96,13 +108,13 @@ namespace GameEngine
 			d->Bounds = Bounds;
 			params.sink->AddDrawable(d);
 		};
-		if (Model)
+		if (model)
 		{
 			if (modelInstance.IsEmpty())
-				modelInstance = Model->GetDrawableInstance(params);
+				modelInstance = model->GetDrawableInstance(params);
 			if (localTransformChanged)
 			{
-				modelInstance.UpdateTransformUniform(localTransform);
+				modelInstance.UpdateTransformUniform(*LocalTransform);
 				localTransformChanged = false;
 			}
 			for (auto &d : modelInstance.Drawables)
@@ -114,7 +126,7 @@ namespace GameEngine
 	{
 		Actor::SetLocalTransform(val);
 		localTransformChanged = true;
-		CoreLib::Graphics::TransformBBox(Bounds, localTransform, Mesh->Bounds);
+		CoreLib::Graphics::TransformBBox(Bounds, *LocalTransform, Mesh->Bounds);
 		if (physInstance)
 			physInstance->SetTransform(val);
 	}

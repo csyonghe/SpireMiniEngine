@@ -218,11 +218,12 @@ namespace GameEngine
 				{
 					useAtmosphere = true;
 					auto atmosphere = dynamic_cast<AtmosphereActor*>(actor.Value.Ptr());
-					if (!(lastAtmosphereParams == atmosphere->Parameters))
+					if (!(lastAtmosphereParams == atmosphere->Parameters.GetValue()))
 					{
-						atmosphere->Parameters.SunDir = atmosphere->Parameters.SunDir.Normalize();
-						atmospherePass->SetParameters(&atmosphere->Parameters, sizeof(atmosphere->Parameters));
-						lastAtmosphereParams = atmosphere->Parameters;
+						atmosphere->Parameters->SunDir = atmosphere->Parameters->SunDir.Normalize();
+						auto atmosParams = atmosphere->Parameters.GetValue();
+						atmospherePass->SetParameters(&atmosParams, sizeof(atmosphere->Parameters.GetValue()));
+						lastAtmosphereParams = atmosphere->Parameters.GetValue();
 					}
 				}
 				else if (toneMapping && actorType == EngineActorType::ToneMapping)

@@ -9,7 +9,7 @@ namespace GameEngine
 	class AtmosphereActor : public Actor
 	{
 	public:
-		AtmosphereParameters Parameters;
+		PROPERTY(AtmosphereParameters, Parameters);
 		virtual CoreLib::String GetTypeName() override
 		{
 			return "Atmosphere";
@@ -22,9 +22,7 @@ namespace GameEngine
 		{
 			return EngineActorType::Atmosphere;
 		}
-	protected:
-		virtual bool ParseField(CoreLib::Text::TokenReader & parser, bool &isInvalid) override;
-
+		virtual void OnLoad() override;
 	};
 }
 

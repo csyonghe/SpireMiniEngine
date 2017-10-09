@@ -17,7 +17,7 @@ namespace GameEngine
 		Vec3 Tangent;
 		Vec2 UV;
 	};
-	void TerrainActor::BuildMesh(int w, int h, float cellSpace, float heightScale, CoreLib::ArrayView<unsigned short> heightField)
+	void TerrainActor::BuildMesh(int w, int h, float pCellSpace, float pHeightScale, CoreLib::ArrayView<unsigned short> heightField)
 	{
 		terrainMesh.Bounds.Init();
 
@@ -25,11 +25,11 @@ namespace GameEngine
 
 		for (int i = 0; i < h; i++)
 		{
-			float z = (i - (h >> 1)) * cellSpace;
+			float z = (i - (h >> 1)) * pCellSpace;
 			for (int j = 0; j < w; j++)
 			{
-				float x = (j - (w >> 1)) * cellSpace;
-				float y = (float)(heightField[i*w + j] - 32768) * heightScale;
+				float x = (j - (w >> 1)) * pCellSpace;
+				float y = (float)(heightField[i*w + j] - 32768) * pHeightScale;
 				VertexData vert;
 				vert.Position = Vec3::Create(x, y, z);
 				vert.UV = Vec2::Create((float)(j) / (float)(w-1), (float)i / (float)(h-1));
@@ -101,21 +101,25 @@ namespace GameEngine
 			terrainMesh.SetVertexUV(i, 0, vertices[i].UV);
 		}
 	}
-	bool TerrainActor::ParseField(CoreLib::Text::TokenReader & parser, bool & isInvalid)
+	void TerrainActor::SerializeFields(CoreLib::StringBuilder & sb)
 	{
-		if (Actor::ParseField(parser, isInvalid))
+		sb << "height " << width << " " << height << " " << cellSpace << " " << heightScale << " " << CoreLib::Text::EscapeStringLiteral(heightmapFileName) << "\n";
+		sb << "material " << CoreLib::Text::EscapeStringLiteral(materialFileName) << "\n";
+	}
+	bool TerrainActor::ParseField(CoreLib::String fieldName, CoreLib::Text::TokenReader & parser)
+	{
+		if (Actor::ParseField(fieldName, parser))
 			return true;
-		if (parser.LookAhead("height"))
+		if (fieldName == "height")
 		{
-			parser.ReadToken();
-			int width = parser.ReadInt();
-			int height = parser.ReadInt();
-			float cellSpace = parser.ReadFloat();
-			float heightScale = parser.ReadFloat();
-			auto fileName = parser.ReadStringLiteral();
+			width = parser.ReadInt();
+			height = parser.ReadInt();
+			cellSpace = parser.ReadFloat();
+			heightScale = parser.ReadFloat();
+			heightmapFileName = parser.ReadStringLiteral();
 			List<unsigned short> heightField;
 			heightField.SetSize(width * height);
-			auto heightFileName = Engine::Instance()->FindFile(fileName, ResourceType::Landscape);
+			auto heightFileName = Engine::Instance()->FindFile(heightmapFileName, ResourceType::Landscape);
 			if (heightFileName.Length())
 			{
 				CoreLib::IO::BinaryReader binReader(new CoreLib::IO::FileStream(heightFileName));
@@ -124,34 +128,25 @@ namespace GameEngine
 			}
 			else
 			{
-				Print("landscape file not found: '%S'.\n", fileName.ToWString());
-				isInvalid = true;
+				Print("landscape file not found: '%S'.\n", heightmapFileName.ToWString());
+				return false;
 			}
 			return true;
 		}
 		if (parser.LookAhead("material"))
 		{
-			if (parser.NextToken(1).Content == "{")
-			{
-				MaterialInstance = level->CreateNewMaterial();
-				MaterialInstance->Parse(parser);
-				MaterialInstance->Name = Name;
-			}
-			else
-			{
-				parser.ReadToken();
-				auto materialName = parser.ReadStringLiteral();
-				MaterialInstance = level->LoadMaterial(materialName);
-				if (!MaterialInstance)
-					isInvalid = true;
-			}
+			parser.ReadToken();
+			materialFileName = parser.ReadStringLiteral();
+			MaterialInstance = level->LoadMaterial(materialFileName);
+			if (!MaterialInstance)
+				return false;
 			return true;
 		}
 		return false;
 	}
 	void TerrainActor::OnLoad()
 	{
-		SetLocalTransform(localTransform);
+		SetLocalTransform(*LocalTransform);
 	}
 	void TerrainActor::GetDrawables(const GetDrawablesParameter & params)
 	{
@@ -159,7 +154,7 @@ namespace GameEngine
 			drawable = params.rendererService->CreateStaticDrawable(&terrainMesh, 0, MaterialInstance);
 		if (localTransformChanged)
 		{
-			drawable->UpdateTransformUniform(localTransform);
+			drawable->UpdateTransformUniform(*LocalTransform);
 			localTransformChanged = false;
 		}
 		drawable->Bounds = Bounds;
@@ -170,6 +165,6 @@ namespace GameEngine
 	{
 		Actor::SetLocalTransform(val);
 		localTransformChanged = true;
-		CoreLib::Graphics::TransformBBox(Bounds, localTransform, terrainMesh.Bounds);
+		CoreLib::Graphics::TransformBBox(Bounds, *LocalTransform, terrainMesh.Bounds);
 	}
 }

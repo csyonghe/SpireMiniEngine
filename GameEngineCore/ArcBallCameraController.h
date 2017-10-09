@@ -22,23 +22,16 @@ namespace GameEngine
 		{
 			center.SetZero();
 		}
+		void Serialize(CoreLib::StringBuilder & sb);
+		void Parse(CoreLib::Text::TokenReader & parser);
 		void GetCoordinates(VectorMath::Vec3 & camPos, VectorMath::Vec3 & up, VectorMath::Vec3 & right, VectorMath::Vec3 & dir);
 	};
 	class ArcBallCameraControllerActor : public Actor
 	{
 	private:
-		ArcBallParams currentArcBall, lastArcBall;
+		ArcBallParams lastArcBall;
 		int lastX = 0, lastY = 0;
-		
-		float turnPrecision = CoreLib::Math::Pi / 1000.0f;
-		float translatePrecision = 0.001f;
-		float zoomScale = 1.1f;
-		float minDist = 10.0f;
-		float maxDist = 10000.0f;
-		bool needAlt = true;
 		MouseState state = MouseState::None;
-
-		CoreLib::String targetCameraName;
 		CameraActor * targetCamera = nullptr;
 		void FindTargetCamera();
 		void UpdateCamera();
@@ -47,7 +40,14 @@ namespace GameEngine
 		void MouseUp(GraphicsUI::UI_Base * sender, GraphicsUI::UIMouseEventArgs & e);
 		void MouseWheel(GraphicsUI::UI_Base * sender, GraphicsUI::UIMouseEventArgs & e);
 	public:
-		virtual bool ParseField(CoreLib::Text::TokenReader & parser, bool & isInvalid) override;
+		PROPERTY(ArcBallParams, CurrentArcBall);
+		PROPERTY_DEF(float, TurnPrecision, CoreLib::Math::Pi / 1000.0f);
+		PROPERTY_DEF(float, TranslatePrecision, 0.001f);
+		PROPERTY_DEF(float, ZoomScale, 1.1f);
+		PROPERTY_DEF(float, MinDist, 10.0f);
+		PROPERTY_DEF(float, MaxDist, 10000.0f);
+		PROPERTY_DEF(bool, NeedAlt, true);
+		PROPERTY(CoreLib::String, TargetCameraName);
 	public:
 		virtual void OnLoad() override;
 		virtual EngineActorType GetEngineType() override;

@@ -10,8 +10,8 @@ namespace GameEngine
 	private:
 		int envMapId = -1;
 	public:
-		float Radius = 1000.0f;
-		VectorMath::Vec3 TintColor = VectorMath::Vec3::Create(1.0f);
+		PROPERTY_DEF(float, Radius, 1000.0f);
+		PROPERTY_DEF(VectorMath::Vec3, TintColor, VectorMath::Vec3::Create(1.0f));
 		int GetEnvMapId()
 		{
 			return envMapId;
@@ -21,7 +21,6 @@ namespace GameEngine
 			return EngineActorType::EnvMap;
 		}
 		virtual void OnLoad() override;
-		virtual bool ParseField(CoreLib::Text::TokenReader & parser, bool &isInvalid) override;
 
 		virtual CoreLib::String GetTypeName() override
 		{

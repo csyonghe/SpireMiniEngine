@@ -3,6 +3,8 @@
 
 #include "CoreLib/VectorMath.h"
 #include "CoreLib/Graphics/ViewFrustum.h"
+#include "CoreLib/Basic.h"
+#include "CoreLib/Tokenizer.h"
 
 namespace GameEngine
 {
@@ -38,6 +40,8 @@ namespace GameEngine
 			result.zMax = ZFar;
 			return result;
 		}
+		void Serialize(CoreLib::StringBuilder & sb);
+		void Parse(CoreLib::Text::TokenReader & parser);
 	};
 }
 

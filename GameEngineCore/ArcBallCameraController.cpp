@@ -7,7 +7,7 @@ namespace GameEngine
 
 	void ArcBallCameraControllerActor::FindTargetCamera()
 	{
-		auto actor = level->FindActor(targetCameraName);
+		auto actor = level->FindActor(TargetCameraName.GetValue());
 		if (actor && actor->GetEngineType() == EngineActorType::Camera)
 			targetCamera = (CameraActor*)actor;
 	}
@@ -17,7 +17,7 @@ namespace GameEngine
 		if (targetCamera)
 		{
 			Vec3 camPos, up, right, dir;
-			currentArcBall.GetCoordinates(camPos, up, right, dir);
+			CurrentArcBall.GetValue().GetCoordinates(camPos, up, right, dir);
 			targetCamera->SetPosition(camPos);
 			float rotX = asinf(-dir.y);
 			float rotY = -atan2f(-dir.x, -dir.z);
@@ -27,8 +27,8 @@ namespace GameEngine
 
 	void ArcBallCameraControllerActor::MouseDown(GraphicsUI::UI_Base * /*sender*/, GraphicsUI::UIMouseEventArgs & e)
 	{
-		lastArcBall = currentArcBall;
-		auto altMask = needAlt ? GraphicsUI::SS_ALT : 0;
+		lastArcBall = CurrentArcBall.GetValue();
+		auto altMask = NeedAlt.GetValue() ? GraphicsUI::SS_ALT : 0;
 		auto leftAltMask = (altMask | GraphicsUI::SS_BUTTONLEFT);
 		auto rightAltMask = (altMask | GraphicsUI::SS_BUTTONRIGHT);
 		lastX = e.X;
@@ -54,16 +54,16 @@ namespace GameEngine
 			int deltaY = e.Y - lastY;
 			if (state == MouseState::Rotate)
 			{
-				currentArcBall.alpha = lastArcBall.alpha + deltaX * this->turnPrecision;
-				currentArcBall.beta = lastArcBall.beta + deltaY * this->turnPrecision;
-                currentArcBall.beta = Math::Clamp(currentArcBall.beta, -Math::Pi*0.5f + 1e-4f, Math::Pi*0.5f - 1e-4f);
+				CurrentArcBall->alpha = lastArcBall.alpha + deltaX * this->TurnPrecision.GetValue();
+				CurrentArcBall->beta = lastArcBall.beta + deltaY * this->TurnPrecision.GetValue();
+                CurrentArcBall->beta = Math::Clamp(CurrentArcBall->beta, -Math::Pi*0.5f + 1e-4f, Math::Pi*0.5f - 1e-4f);
 			}
 			else if (state == MouseState::Translate)
 			{
 				Vec3 camPos, up, right, dir;
-				currentArcBall.GetCoordinates(camPos, up, right, dir);
-				currentArcBall.center = lastArcBall.center + up * translatePrecision * currentArcBall.radius * (float)deltaY
-					- right * translatePrecision * currentArcBall.radius * (float)deltaX;
+				CurrentArcBall->GetCoordinates(camPos, up, right, dir);
+				CurrentArcBall->center = lastArcBall.center + up * TranslatePrecision.GetValue() * CurrentArcBall->radius * (float)deltaY
+					- right * TranslatePrecision.GetValue() * CurrentArcBall->radius * (float)deltaX;
 			}
 			UpdateCamera();
 		}
@@ -78,85 +78,12 @@ namespace GameEngine
 	void ArcBallCameraControllerActor::MouseWheel(GraphicsUI::UI_Base * /*sender*/, GraphicsUI::UIMouseEventArgs & e)
 	{
 		if (e.Delta < 0)
-			currentArcBall.radius *= zoomScale;
+			CurrentArcBall->radius *= ZoomScale.GetValue();
 		else
-			currentArcBall.radius /= zoomScale;
-		currentArcBall.radius = Math::Clamp(currentArcBall.radius, minDist, maxDist);
+			CurrentArcBall->radius /= ZoomScale.GetValue();
+		CurrentArcBall->radius = Math::Clamp(CurrentArcBall->radius, MinDist.GetValue(), MaxDist.GetValue());
 		FindTargetCamera();
 		UpdateCamera();
-	}
-
-	bool ArcBallCameraControllerActor::ParseField(CoreLib::Text::TokenReader & parser, bool & isInvalid)
-	{
-		if (Actor::ParseField(parser, isInvalid))
-			return true;
-		if (parser.LookAhead("TargetCamera"))
-		{
-			parser.ReadToken();
-			targetCameraName = parser.ReadStringLiteral();
-			return true;
-		}
-		else if (parser.LookAhead("TurnPrecision"))
-		{
-			parser.ReadToken();
-			turnPrecision = (float)parser.ReadDouble();
-			return true;
-		}
-		else if (parser.LookAhead("TranslatePrecision"))
-		{
-			parser.ReadToken();
-			translatePrecision = (float)parser.ReadDouble();
-			return true;
-		}
-		else if (parser.LookAhead("MinDist"))
-		{
-			parser.ReadToken();
-			minDist = (float)parser.ReadDouble();
-			return true;
-		}
-		else if (parser.LookAhead("MaxDist"))
-		{
-			parser.ReadToken();
-			maxDist = (float)parser.ReadDouble();
-			return true;
-		}
-		else if (parser.LookAhead("ZoomScale"))
-		{
-			parser.ReadToken();
-			zoomScale = (float)parser.ReadDouble();
-			return true;
-		}
-        else if (parser.LookAhead("Center"))
-        {
-            parser.ReadToken();
-            currentArcBall.center = ParseVec3(parser);
-			return true;
-        }
-        else if (parser.LookAhead("Radius"))
-        {
-            parser.ReadToken();
-            currentArcBall.radius = parser.ReadFloat();
-			return true;
-        }
-        else if (parser.LookAhead("Alpha"))
-        {
-            parser.ReadToken();
-            currentArcBall.alpha = parser.ReadFloat();
-			return true;
-        }
-        else if (parser.LookAhead("Beta"))
-        {
-            parser.ReadToken();
-            currentArcBall.beta = parser.ReadFloat();
-			return true;
-        }
-		else if (parser.LookAhead("NeedAlt"))
-		{
-			parser.ReadToken();
-			needAlt = ParseBool(parser);
-			return true;
-		}
-		return false;
 	}
 
 	void ArcBallCameraControllerActor::OnLoad()
@@ -179,24 +106,44 @@ namespace GameEngine
 
 	void ArcBallCameraControllerActor::SetCenter(VectorMath::Vec3 p)
 	{
-		currentArcBall.center = p;
+		CurrentArcBall->center = p;
 		FindTargetCamera();
 		UpdateCamera();
 	}
 
 	bool ArcBallCameraControllerActor::DumpCamera(const CoreLib::String & /*axisName*/, ActionInput /*input*/)
 	{
-		//FindTargetCamera();
-		//if (targetCamera)
-		//{
-		//	Print("orientation [%.3f %.3f %.3f]\nposition [%.2f %.2f %.2f]\n", targetCamera->GetYaw(), targetCamera->GetPitch(), targetCamera->GetRoll(),
-		//		targetCamera->GetPosition().x, targetCamera->GetPosition().y, targetCamera->GetPosition().z);
-		//}
-		Print("center [%.3f, %.3f, %.3f]\n", currentArcBall.center.x, currentArcBall.center.y, currentArcBall.center.z);
-		Print("radius %.3f\n", currentArcBall.radius);
-		Print("alpha %.3f\n", currentArcBall.alpha);
-		Print("beta %.3f\n", currentArcBall.beta);
+		Print("center [%.3f, %.3f, %.3f]\n", CurrentArcBall->center.x, CurrentArcBall->center.y, CurrentArcBall->center.z);
+		Print("radius %.3f\n", CurrentArcBall->radius);
+		Print("alpha %.3f\n", CurrentArcBall->alpha);
+		Print("beta %.3f\n", CurrentArcBall->beta);
 		return true;
+	}
+	void ArcBallParams::Serialize(CoreLib::StringBuilder & sb)
+	{
+		sb << "{\n";
+		sb << "center [" << center.x << " " << center.y << " " << center.z << "]\n";
+		sb << "radius " << radius << "\n";
+		sb << "alpha " << alpha << "\n";
+		sb << "beta " << beta << "\n";
+		sb << "}";
+	}
+	void ArcBallParams::Parse(CoreLib::Text::TokenReader & parser)
+	{
+		parser.Read("{");
+		while (!parser.IsEnd() && !parser.LookAhead("}"))
+		{
+			auto word = parser.ReadWord().ToLower();
+			if (word == "center")
+				center = ParseVec3(parser);
+			else if (word == "radius")
+				radius = parser.ReadFloat();
+			else if (word == "alpha")
+				alpha = parser.ReadFloat();
+			else if (word == "beta")
+				beta = parser.ReadFloat();
+		}
+		parser.Read("}");
 	}
 	void ArcBallParams::GetCoordinates(VectorMath::Vec3 & camPos, VectorMath::Vec3 & up, VectorMath::Vec3 & right, VectorMath::Vec3 & dir)
 	{

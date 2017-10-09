@@ -19,23 +19,27 @@ namespace GameEngine
 			Parameters.lookupTexture = lookupTexture.Ptr();
 		}
 	}
-	bool ToneMappingActor::ParseField(CoreLib::Text::TokenReader & parser, bool & isInvalid)
+	bool ToneMappingActor::ParseField(CoreLib::String fieldName, CoreLib::Text::TokenReader & parser)
 	{
-		if (Actor::ParseField(parser, isInvalid))
+		if (Actor::ParseField(fieldName, parser))
 			return true;
-		if (parser.LookAhead("Exposure"))
+		if (fieldName  == "Exposure")
 		{
-			parser.ReadToken();
 			Parameters.Exposure = parser.ReadFloat();
 			return true;
 		}
-		else if (parser.LookAhead("ColorLookup"))
+		else if (fieldName == "ColorLookup")
 		{
-			parser.ReadToken();
-			auto fileName = parser.ReadStringLiteral();
-			LoadColorLookupTexture(fileName);
+			lookupTextureFileName = parser.ReadStringLiteral();
+			LoadColorLookupTexture(lookupTextureFileName);
 			return true;
 		}
 		return false;
+	}
+	void ToneMappingActor::SerializeFields(CoreLib::StringBuilder & sb)
+	{
+		sb << "Exposure " << Parameters.Exposure << "\n";
+		if (lookupTextureFileName.Length())
+			sb << "ColorLookup " << CoreLib::Text::EscapeStringLiteral(lookupTextureFileName) << "\n";
 	}
 }

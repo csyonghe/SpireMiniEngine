@@ -196,8 +196,11 @@ namespace GameEngine
 	}
 	void ModelPhysicsInstance::RemoveFromScene()
 	{
-		for (auto obj : objects)
-			scene->RemoveObject(obj);
+		if (scene)
+		{
+			for (auto obj : objects)
+				scene->RemoveObject(obj);
+		}
 		objects.Clear();
 	}
 }

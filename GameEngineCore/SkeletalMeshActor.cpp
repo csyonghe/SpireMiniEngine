@@ -4,39 +4,6 @@
 
 namespace GameEngine
 {
-	bool SkeletalMeshActor::ParseField(CoreLib::Text::TokenReader & parser, bool &isInvalid)
-	{
-		if (Actor::ParseField(parser, isInvalid))
-			return true;
-		if (parser.LookAhead("model"))
-		{
-			parser.ReadToken();
-			ModelFileName = parser.ReadStringLiteral();
-			model = level->LoadModel(ModelFileName);
-			if (!model)
-				isInvalid = true;
-			else
-				Bounds = model->GetBounds();
-			return true;
-		}
-		if (parser.LookAhead("RetargetFile"))
-		{
-			parser.ReadToken();
-			RetargetFileName = parser.ReadStringLiteral();
-			retargetFile = level->LoadRetargetFile(RetargetFileName);
-		}
-		if (parser.LookAhead("SimpleAnimation"))
-		{
-			parser.ReadToken();
-			SimpleAnimationName = parser.ReadStringLiteral();
-			SimpleAnimation = level->LoadSkeletalAnimation(SimpleAnimationName);
-			if (!SimpleAnimation)
-				isInvalid = true;
-			return true;
-		}
-		return false;
-	}
-
 	void SkeletalMeshActor::UpdateBounds()
 	{
 		if (physInstance)
@@ -54,7 +21,7 @@ namespace GameEngine
 			Animation->GetPose(nextPose, time);
 		if (physInstance)
 		{
-			physInstance->SetTransform(localTransform, nextPose, retargetFile);
+			physInstance->SetTransform(*LocalTransform, nextPose, retargetFile);
 		}
 		UpdateBounds();
 	}
@@ -63,7 +30,7 @@ namespace GameEngine
 	{
 		if (modelInstance.IsEmpty())
 			modelInstance = model->GetDrawableInstance(params);
-		modelInstance.UpdateTransformUniform(localTransform, nextPose, retargetFile);
+		modelInstance.UpdateTransformUniform(*LocalTransform, nextPose, retargetFile);
 		
 		auto insertDrawable = [&](Drawable * d)
 		{
@@ -77,8 +44,13 @@ namespace GameEngine
 
 	void SkeletalMeshActor::OnLoad()
 	{
-		if (this->SimpleAnimation && model)
-			Animation = new SimpleAnimationSynthesizer(model->GetSkeleton(), this->SimpleAnimation);
+		model = level->LoadModel(*ModelFileName);
+		if (RetargetFileName.GetValue().Length())
+			retargetFile = level->LoadRetargetFile(*RetargetFileName);
+		simpleAnimation = level->LoadSkeletalAnimation(*AnimationFileName);
+
+		if (this->simpleAnimation && model)
+			Animation = new SimpleAnimationSynthesizer(model->GetSkeleton(), this->simpleAnimation);
 		physInstance = model->CreatePhysicsInstance(level->GetPhysicsScene(), this, nullptr);
 		Tick();
 	}
@@ -92,6 +64,6 @@ namespace GameEngine
 	{
 		Actor::SetLocalTransform(val);
 		if (physInstance)
-			physInstance->SetTransform(localTransform, nextPose, retargetFile);
+			physInstance->SetTransform(*LocalTransform, nextPose, retargetFile);
 	}
 }

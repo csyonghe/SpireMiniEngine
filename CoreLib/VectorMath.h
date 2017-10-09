@@ -596,6 +596,12 @@ namespace VectorMath
 					rs.m[i][j] = dot;
 				}
 		}
+		Matrix3() {}
+		Matrix3(float v)
+		{
+			for (int i = 0; i < 9; i++)
+				values[i] = v;
+		}
 	};
 
 	enum class ClipSpaceType

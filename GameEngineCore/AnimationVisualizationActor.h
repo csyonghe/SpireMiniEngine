@@ -17,7 +17,7 @@ namespace GameEngine
         int frameId = 0;
 
     protected:
-        virtual bool ParseField(CoreLib::Text::TokenReader & parser, bool &isInvalid) override;
+        virtual bool ParseField(CoreLib::String fieldName, CoreLib::Text::TokenReader & parser) override;
     
     public:
         Mesh * Mesh = nullptr;
@@ -47,7 +47,7 @@ namespace GameEngine
         virtual void RegisterUI(GraphicsUI::UIEntry * entry) override
         {
             uiForm = new GraphicsUI::Form(entry);
-            uiForm->SetText(String("Playback Control - ") + Name);
+            uiForm->SetText(String("Playback Control - ") + Name.GetValue());
             uiForm->Posit(EM(10.0f), EM(1.0f), EM(20.0f), EM(6.0f));
 
             auto label = new GraphicsUI::Label(uiForm);

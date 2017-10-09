@@ -1,25 +1,28 @@
 Camera
 {
     name "FreeCam"
-    position [0.0 120.0 220.0]
-    orientation [0.0 0.1 0.0] // yaw, pitch, roll
-    znear 10.0
-    zfar 50000.0
-    fov 60.0
+    CurrentView
+    {
+        position [0.0 120.0 220.0]
+        orientation [0.0 0.1 0.0] // yaw, pitch, roll
+        znear 10.0
+        zfar 50000.0
+        fov 60.0
+    }
 }
 
 
 FreeRoamCameraController
 {
     name "CamControl"
-    TargetCamera "FreeCam"
+    TargetCameraName "FreeCam"
     Speed 100.0
 }
 /*
 ArcBallCameraController
 {
     name "arcballControl"
-    TargetCamera "FreeCam"
+    TargetCameraName "FreeCam"
 }
 */
 ToneMapping
@@ -31,14 +34,18 @@ ToneMapping
 
 Atmosphere
 {
-    SunDir [-0.5 0.8 0.4]
-    AtmosphericFogScaleFactor 0.5 
+    name "atmosphere"
+    Parameters
+    {
+        SunDir [-0.5 0.8 0.4]
+        AtmosphericFogScaleFactor 0.5 
+    }
 }
 
 DirectionalLight
 {
     name "sunlight"
-    transform [1 0 0 0   0 1 0 0    0 0 1 0    0 5000 0 1]
+    LocalTransform [1 0 0 0   0 1 0 0    0 0 1 0    0 5000 0 1]
     Direction [-0.5 0.8 0.4]
     Color [2.5 2.5 2.5]
     EnableCascadedShadows true
@@ -50,7 +57,7 @@ DirectionalLight
 PointLight
 {
     name "plight0"
-    transform [1 0 0 0   0 1 0 0    0 0 1 0    -250 200 -1200 1]
+    LocalTransform [1 0 0 0   0 1 0 0    0 0 1 0    -250 200 -1200 1]
     Direction [1.0 1.0 1.0]
     Color [2 4 5]
     EnableShadows false
@@ -63,7 +70,7 @@ PointLight
 PointLight
 {
     name "plight1"
-    transform [1 0 0 0   0 1 0 0    0 0 1 0    400 400 400 1]
+    LocalTransform [1 0 0 0   0 1 0 0    0 0 1 0    400 400 400 1]
     Direction [-1.0 -1.0 -1.0]
     Color [5 4 2]
     Radius 2500
@@ -83,7 +90,7 @@ StaticMesh
     {
         shader "Reflective.shader"        
     }
-    transform [1.0 0.0 0.0 0.0
+    LocalTransform [1.0 0.0 0.0 0.0
                0.0 1.0 0.0 0.0
                0.0 0.0 1.0 0.0
                10.0 100.0 -500.0 1.0] 
@@ -103,7 +110,7 @@ StaticMesh
         var leatherSpecularMap = texture["T_Leather_S.TGA"]
         var leatherMap = texture["T_Leather_D.TGA"]
     }
-    transform [0.0 0.0 -1.0 0.0
+    LocalTransform [0.0 0.0 -1.0 0.0
                0.0 1.0 0.0 0.0
                1.0 0.0 0.0 0.0
                1200.0 0.0 -150.0 1.0]
@@ -122,7 +129,7 @@ StaticMesh
         var displacementMap = texture["pebbles_height.TGA"]
         var uvScale = float[100.0]
     }
-    transform [100.0 0.0 0.0 0.0
+    LocalTransform [100.0 0.0 0.0 0.0
                0.0 100.0 0.0 0.0
                0.0 0.0 100.0 0.0
                0.0 0.0 0.0 1.0]
@@ -131,9 +138,9 @@ StaticMesh
 SkeletalMesh
 {
     name "hero"
-    model "hero.model"
-    SimpleAnimation "hero/Run_Fwd.anim"
-    transform [1.0 0.0 0.0 0.0
+    modelFileName "hero.model"
+    AnimationFileName "hero/Run_Fwd.anim"
+    LocalTransform [1.0 0.0 0.0 0.0
                0.0 1.0 0.0 0.0
                0.0 0.0 1.0 0.0
                0.0 0.0 0.0 1.0]

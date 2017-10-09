@@ -8,13 +8,14 @@ namespace GameEngine
 	class DirectionalLightActor : public LightActor
 	{
 	public:
-		bool EnableCascadedShadows = false;
-		float ShadowDistance = 40000.0f;
-		int NumShadowCascades = 1;
-		float TransitionFactor = 0.8f;
-		VectorMath::Vec3 Direction = Vec3::Create(0.0f, 1.0f, 0.0f);
-		VectorMath::Vec3 Color = Vec3::Create(1.0f, 1.0f, 1.0f);
-		float Ambient = 0.2f;
+		PROPERTY_DEF(bool, EnableCascadedShadows, false);
+		PROPERTY_DEF(float, ShadowDistance, 40000.0f);
+		PROPERTY_DEF(int, NumShadowCascades, 1);
+		PROPERTY_DEF(float, TransitionFactor, 0.8f);
+		PROPERTY_DEF(VectorMath::Vec3, Direction, Vec3::Create(0.0f, 1.0f, 0.0f));
+		PROPERTY_DEF(VectorMath::Vec3, Color, Vec3::Create(1.0f, 1.0f, 1.0f));
+		PROPERTY_DEF(float, Ambient, 0.2f);
+	public:
 		virtual CoreLib::String GetTypeName() override
 		{
 			return "DirectionalLight";
@@ -23,9 +24,7 @@ namespace GameEngine
 		{
 			lightType = LightType::Directional;
 		}
-	protected:
-		virtual bool ParseField(CoreLib::Text::TokenReader & parser, bool &isInvalid) override;
-
+		virtual void OnLoad() override;
 	};
 }
 

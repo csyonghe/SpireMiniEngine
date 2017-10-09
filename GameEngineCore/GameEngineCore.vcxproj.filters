@@ -69,12 +69,6 @@
     <ClCompile Include="StandardRenderProcedure.cpp">
       <Filter>Renderer</Filter>
     </ClCompile>
-    <ClCompile Include="AtmosphereActor.cpp">
-      <Filter>Actors</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectionalLightActor.cpp">
-      <Filter>Actors</Filter>
-    </ClCompile>
     <ClCompile Include="DeviceMemory.cpp">
       <Filter>Renderer</Filter>
     </ClCompile>
@@ -131,7 +125,6 @@
     <ClCompile Include="LightingData.cpp">
       <Filter>Renderer</Filter>
     </ClCompile>
-    <ClCompile Include="PointLightActor.cpp" />
     <ClCompile Include="EnvMapActor.cpp">
       <Filter>Actors</Filter>
     </ClCompile>
@@ -141,6 +134,22 @@
     </ClCompile>
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="Physics.cpp" />
+    <ClCompile Include="View.cpp" />
+    <ClCompile Include="Property.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
+    <ClCompile Include="Atmosphere.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
+    <ClCompile Include="AtmosphereActor.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
+    <ClCompile Include="PointLightActor.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectionalLightActor.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
@@ -300,6 +309,9 @@
     </ClInclude>
     <ClInclude Include="Model.h" />
     <ClInclude Include="Physics.h" />
+    <ClInclude Include="Property.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Spire">

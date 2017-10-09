@@ -23,28 +23,34 @@ const char * levelSrc = R"(
 Camera
 {
 	name "FreeCam"
-	orientation[-0.044 0.000 0.000]
-	position[18.77 108.36 280.13]
-	znear 5.0
-	zfar 8000.0
-	fov 60.0
+	CurrentView
+	{
+		orientation[-0.044 0.000 0.000]
+		position[18.77 108.36 280.13]
+		znear 5.0
+		zfar 8000.0
+		fov 60.0
+	}
 }
 
 ArcBallCameraController
 {
 	name "CamControl"
-	TargetCamera "FreeCam"
-	Radius 500.00
-	Center[0.0 50.0 0.0]
-	Alpha 1.57
-	Beta 0.439
+	TargetCameraName "FreeCam"
+	CurrentArcBall
+	{
+		Radius 500.00
+		Center[0.0 50.0 0.0]
+		Alpha 1.57
+		Beta 0.439
+	}
 	NeedAlt true
 }
 
 DirectionalLight
 {
 	name "sunlight"
-	transform[1 0 0 0   0 1 0 0    0 0 1 0    2000 3000 0 1]
+	LocalTransform[1 0 0 0   0 1 0 0    0 0 1 0    2000 3000 0 1]
 	Direction[0.8 0.7 0.3]
 	Color[3.1 3.1 3.1]
 	EnableCascadedShadows false
@@ -56,8 +62,8 @@ DirectionalLight
 EnvMap
 {
 	name "envMap"
-	transform[1 0 0 0   0 1 0 0    0 0 1 0    0 5000 0 1]
-    Radius 2000000.0
+	LocalTransform[1 0 0 0   0 1 0 0    0 0 1 0    0 5000 0 1]
+	Radius 2000000.0
 	TintColor [0.7 0.7 0.7]
 }
 
@@ -66,12 +72,17 @@ ToneMapping
 	name "tonemapping"
 	Exposure 0.7
 }
+
 Atmosphere
 {
 	name "atmosphere"
-	AtmosphericFogScaleFactor 0.01
-	SunDir[0.8 0.7 0.3]
+	Parameters
+	{
+		AtmosphericFogScaleFactor 0.01
+		SunDir[0.8 0.7 0.3]
+	}
 }
+
 SkeletonRetargetVisualizer
 {}
 )";

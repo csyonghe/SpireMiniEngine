@@ -162,6 +162,7 @@
     <ClCompile Include="AnimationVisualizationActor.cpp" />
     <ClCompile Include="ArcBallCameraController.cpp" />
     <ClCompile Include="AsyncCommandBuffer.cpp" />
+    <ClCompile Include="Atmosphere.cpp" />
     <ClCompile Include="AtmosphereActor.cpp" />
     <ClCompile Include="AtmospherePostRenderPass.cpp" />
     <ClCompile Include="CameraActor.cpp" />
@@ -194,6 +195,7 @@
     <ClCompile Include="PipelineContext.cpp" />
     <ClCompile Include="PointLightActor.cpp" />
     <ClCompile Include="PostRenderPass.cpp" />
+    <ClCompile Include="Property.cpp" />
     <ClCompile Include="RenderContext.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="RenderPass.cpp" />
@@ -212,6 +214,7 @@
     <ClCompile Include="TextureTool\LibSquish.cpp" />
     <ClCompile Include="ToneMappingActor.cpp" />
     <ClCompile Include="UISystem_Windows.cpp" />
+    <ClCompile Include="View.cpp" />
     <ClCompile Include="ViewResource.cpp" />
     <ClCompile Include="VulkanAPI\vkel.c" />
     <ClCompile Include="VulkanAPI\VulkanHardwareRenderer.cpp" />
@@ -265,6 +268,7 @@
     <ClInclude Include="PipelineContext.h" />
     <ClInclude Include="PointLightActor.h" />
     <ClInclude Include="PostRenderPass.h" />
+    <ClInclude Include="Property.h" />
     <ClInclude Include="RenderContext.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="RendererService.h" />

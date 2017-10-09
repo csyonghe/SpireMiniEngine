@@ -63,5 +63,30 @@ namespace GameEngine
 		return var;
 	}
 
+	void DynamicVariable::Serialize(CoreLib::StringBuilder & sb)
+	{
+		switch (VarType)
+		{
+		case DynamicVariableType::Int:
+			sb << "int[" << (int)FloatValue << "]";
+			break;
+		case DynamicVariableType::Float:
+			sb << "float[" << (int)FloatValue << "]";
+			break;
+		case DynamicVariableType::Vec2:
+			sb << "vec2[" << Vec2Value.x << " " << Vec2Value.y << "]";
+			break;
+		case DynamicVariableType::Vec3:
+			sb << "vec3[" << Vec3Value.x << " " << Vec3Value.y << " " << Vec3Value.z << "]";
+			break;
+		case DynamicVariableType::Vec4:
+			sb << "vec4[" << Vec4Value.x << " " << Vec4Value.y << " " << Vec4Value.z << " " << Vec4Value.w << "]";
+			break;
+		case DynamicVariableType::Texture:
+			sb << "texture[" << CoreLib::Text::EscapeStringLiteral(StringValue) << "]";
+			break;
+		}
+	}
+
 }
 

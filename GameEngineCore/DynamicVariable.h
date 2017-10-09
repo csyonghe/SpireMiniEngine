@@ -27,6 +27,7 @@ namespace GameEngine
 		};
 		CoreLib::String StringValue;
 		static DynamicVariable Parse(CoreLib::Text::TokenReader & parser);
+		void Serialize(CoreLib::StringBuilder & sb);
 		DynamicVariable() = default;
 		DynamicVariable(float val)
 		{

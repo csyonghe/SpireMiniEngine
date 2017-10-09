@@ -18,14 +18,16 @@ namespace GameEngine
 		float startTime = 0.0f;
 		Model * model = nullptr;
 		RetargetFile * retargetFile = nullptr;
+		SkeletalAnimation * simpleAnimation = nullptr;
 	protected:
-		virtual bool ParseField(CoreLib::Text::TokenReader & parser, bool &isInvalid) override;
 		void UpdateBounds();
 	public:
+		PROPERTY(CoreLib::String, ModelFileName);
+		PROPERTY(CoreLib::String, RetargetFileName);
+		PROPERTY(CoreLib::String, AnimationFileName);
+	public:
 		CoreLib::RefPtr<AnimationSynthesizer> Animation;
-		SkeletalAnimation * SimpleAnimation = nullptr;
 
-		CoreLib::String ModelFileName, RetargetFileName, SimpleAnimationName;
 		virtual void Tick() override;
 		Model * GetModel()
 		{

@@ -69,7 +69,7 @@ public:
 		slider->SetValue(0, 2000, 1000, 50);
 		slider->OnChanged.Bind([=](UI_Base*)
 		{
-			localTransform.values[12] = (slider->GetPosition() - 1000) * 0.2f;
+			LocalTransform->values[12] = (slider->GetPosition() - 1000) * 0.2f;
 		});
         auto container = new GraphicsUI::ScrollPanel(uiForm);
         container->Posit(10, EM(5.0), EM(40.0f), EM(35.0f));
@@ -130,7 +130,7 @@ public:
 		}
 		if (boxDrawable)
 		{
-			boxDrawable->UpdateTransformUniform(localTransform);
+			boxDrawable->UpdateTransformUniform(*LocalTransform);
 			param.sink->AddDrawable(boxDrawable.Ptr());
 		}
 	}

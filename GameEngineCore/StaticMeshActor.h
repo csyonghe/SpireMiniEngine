@@ -11,17 +11,22 @@ namespace GameEngine
 
 	class StaticMeshActor : public Actor
 	{
+	private:
+		bool useInlineMaterial = false;
+		CoreLib::String inlineMeshSpec;
+		CoreLib::String materialFileName;
+		CoreLib::String modelFileName;
 	protected:
+		CoreLib::RefPtr<Model> model = nullptr;
 		CoreLib::RefPtr<Drawable> drawable;
 		CoreLib::RefPtr<ModelPhysicsInstance> physInstance;
 		ModelDrawableInstance modelInstance;
 		bool localTransformChanged = true;
-	protected:
-		virtual bool ParseField(CoreLib::Text::TokenReader & parser, bool & isInvalid) override;
+		virtual bool ParseField(CoreLib::String fieldName, CoreLib::Text::TokenReader & parser) override;
+		virtual void SerializeFields(CoreLib::StringBuilder & sb);
 	public:
 		CoreLib::String MeshName;
 		Mesh * Mesh = nullptr;
-		CoreLib::RefPtr<Model> Model = nullptr;
 		Material * MaterialInstance;
 		
 		virtual void OnLoad() override;
