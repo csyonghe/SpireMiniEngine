@@ -41,7 +41,8 @@ namespace GameEngine
 			else
 			{
 				MeshName = parser.ReadStringLiteral();
-				Mesh = level->LoadMesh(MeshName);
+				if (MeshName.Length())
+					Mesh = level->LoadMesh(MeshName);
 			}
 			if (Mesh)
 				Bounds = Mesh->Bounds;
@@ -60,7 +61,8 @@ namespace GameEngine
 			else
 			{
 				materialFileName = parser.ReadStringLiteral();
-				MaterialInstance = level->LoadMaterial(materialFileName);
+				if (materialFileName.Length())
+					MaterialInstance = level->LoadMaterial(materialFileName);
 			}
 			return true;
 		}

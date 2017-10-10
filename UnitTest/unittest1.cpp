@@ -72,6 +72,9 @@ namespace UnitTest
 
 			auto text = sb.ProduceString();
 
+			int size0 = sizeof(vals);
+			int size1 = sizeof(p);
+
 			GenericProperty<List<VectorMath::Vec3>> p1;
 			p1.SetStringValue(text);
 			auto vals1 = p1.GetValue();

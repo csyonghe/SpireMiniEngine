@@ -57,6 +57,7 @@ namespace GameEngine
 		{
 			sb << "var " << var.Key << " = ";
 			var.Value.Serialize(sb);
+			sb << "\n";
 		}
 		sb << "}\n";
 	}
