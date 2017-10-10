@@ -138,12 +138,6 @@
     <ClCompile Include="Property.cpp">
       <Filter>Actors</Filter>
     </ClCompile>
-    <ClCompile Include="Atmosphere.cpp">
-      <Filter>Actors</Filter>
-    </ClCompile>
-    <ClCompile Include="AtmosphereActor.cpp">
-      <Filter>Actors</Filter>
-    </ClCompile>
     <ClCompile Include="PointLightActor.cpp">
       <Filter>Actors</Filter>
     </ClCompile>

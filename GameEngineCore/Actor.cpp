@@ -14,18 +14,17 @@ namespace GameEngine
 		{
 			auto propertyNameToken = parser.ReadToken();
 			auto propertyName = propertyNameToken.Content.ToLower();
-			Property * prop = nullptr;
 			auto errorRecover = [&]()
 			{
 				while (!parser.IsEnd() && !parser.LookAhead("}"))
 				{
-					if (!properties.ContainsKey(parser.NextToken().Content.ToLower()))
+					if (!FindProperty(parser.NextToken().Content.ToLower().Buffer()))
 						parser.ReadToken();
 					else
 						break;
 				}
 			};
-			if (properties.TryGetValue(propertyName, prop))
+			if (auto prop = FindProperty(propertyName.Buffer()))
 			{
 				try
 				{
@@ -62,10 +61,11 @@ namespace GameEngine
 	void Actor::SerializeToText(CoreLib::StringBuilder & sb)
 	{
 		sb << GetTypeName() << "\n{\n";
-		for (auto & prop : properties)
+		auto propList = GetPropertyList();
+		for (auto & prop : propList)
 		{
-			sb << prop.Key << " ";
-			prop.Value->Serialize(sb);
+			sb << prop->GetName() << " ";
+			prop->Serialize(sb);
 			sb << "\n";
 		}
 		SerializeFields(sb);

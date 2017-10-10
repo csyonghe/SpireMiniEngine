@@ -9,7 +9,8 @@ namespace GameEngine
 	class AtmosphereActor : public Actor
 	{
 	public:
-		PROPERTY(AtmosphereParameters, Parameters);
+		PROPERTY(VectorMath::Vec3, SunDir);
+		PROPERTY_DEF(float, AtmosphericFogScaleFactor, 0.5f);
 		virtual CoreLib::String GetTypeName() override
 		{
 			return "Atmosphere";
@@ -22,7 +23,13 @@ namespace GameEngine
 		{
 			return EngineActorType::Atmosphere;
 		}
-		virtual void OnLoad() override;
+		AtmosphereParameters GetParameters()
+		{
+			AtmosphereParameters rs;
+			rs.AtmosphericFogScaleFactor = AtmosphericFogScaleFactor.GetValue();
+			rs.SunDir = SunDir.GetValue();
+			return rs;
+		}
 	};
 }
 

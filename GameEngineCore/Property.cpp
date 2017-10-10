@@ -1,8 +1,10 @@
 #include "Property.h"
-
+#include <typeinfo>
 namespace GameEngine
 {
 	using namespace VectorMath;
+
+	CoreLib::EnumerableDictionary<const char *, PropertyTable> PropertyContainer::propertyTables;
 
 	bool ParseBool(CoreLib::Text::TokenReader & parser)
 	{
@@ -161,5 +163,67 @@ namespace GameEngine
 		sb << "]";
 	}
 
+
+	void PropertyContainer::FreeRegistry()
+	{
+		propertyTables = CoreLib::EnumerableDictionary<const char *, PropertyTable>();
+	}
+
+	void PropertyContainer::RegisterProperty(Property * prop)
+	{
+		auto table = GetPropertyTable();
+		if (!table->isComplete)
+		{
+			String propName = String(prop->GetName).ToLower();
+			if (table->entries.ContainsKey(propName))
+			{
+				table->isComplete = true;
+				return;
+			}
+			table->entries[propName] = (int)(((unsigned char *)prop) - ((unsigned char *)this));
+		}
+	}
+
+	PropertyTable* PropertyContainer::GetPropertyTable()
+	{
+		if (propertyTable)
+			return propertyTable;
+		auto className = typeid(*this).name();
+		if (auto table = propertyTables.TryGetValue(className))
+			propertyTable = table;
+		else
+		{
+			propertyTables[className] = PropertyTable();
+			propertyTable = &propertyTables[className].GetValue();
+		}
+		return propertyTable;
+	}
+
+	Property * PropertyContainer::GetProperty(int offset)
+	{
+		return (Property*)(((unsigned char *)this) + offset);
+	}
+
+	Property * PropertyContainer::FindProperty(const char * name)
+	{
+		auto table = GetPropertyTable();
+		int offset = -1;
+		if (table->entries.TryGetValue(name, offset))
+		{
+			return GetProperty(offset);
+		}
+		return nullptr;
+	}
+
+	CoreLib::List<Property*> PropertyContainer::GetPropertyList()
+	{
+		CoreLib::List<Property*> rs;
+		auto table = GetPropertyTable();
+		for (auto & entry : table->entries)
+		{
+			rs.Add(GetProperty(entry.Value));
+		}
+		return rs;
+	}
 
 }

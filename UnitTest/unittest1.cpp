@@ -104,6 +104,32 @@ namespace UnitTest
 				Assert::AreEqual(vals[i].Buffer(), vals1[i].Buffer());
 		}
 
+		TEST_METHOD(MetaStrTest)
+		{
+			struct Container : public PropertyContainer
+			{
+			public:
+				PROPERTY(CoreLib::List<String>, strList);
+				PROPERTY(int, intProp);
+				PROPERTY_ATTRIB(float, floatProp, "COLOR");
+			};
+			Container c;
+			auto propName = c.strList.GetName();
+			auto propTypeName = c.strList.GetTypeName();
+			Assert::AreEqual(propTypeName, "CoreLib::List<String>");
+			Assert::AreEqual(propName, "strList");
+
+			auto propAttribName = c.floatProp.GetAttribute();
+			Assert::AreEqual(propAttribName, "COLOR");
+
+			auto list = c.GetPropertyList();
+			Assert::AreEqual(list.Count(), 3);
+			Assert::AreEqual(list[0]->GetName(), "strList");
+			Assert::AreEqual(list[1]->GetName(), "intProp");
+			Assert::AreEqual(list[2]->GetName(), "floatProp");
+
+		}
+
 		TEST_METHOD(CustomSerialize)
 		{
 			struct CustomType

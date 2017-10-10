@@ -162,8 +162,6 @@
     <ClCompile Include="AnimationVisualizationActor.cpp" />
     <ClCompile Include="ArcBallCameraController.cpp" />
     <ClCompile Include="AsyncCommandBuffer.cpp" />
-    <ClCompile Include="Atmosphere.cpp" />
-    <ClCompile Include="AtmosphereActor.cpp" />
     <ClCompile Include="AtmospherePostRenderPass.cpp" />
     <ClCompile Include="CameraActor.cpp" />
     <ClCompile Include="CatmullSpline.cpp" />

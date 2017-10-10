@@ -12,30 +12,27 @@ namespace GameEngine
 	class CameraActor : public Actor
 	{
 	public:
-		PROPERTY(View, CurrentView);
-		PROPERTY_DEF(float, CollisionRadius, 50.0f);
+		PROPERTY_DEF(VectorMath::Vec3, Orientation, VectorMath::Vec3::Create(0.0f));
+		PROPERTY(VectorMath::Vec3, Position);
+		PROPERTY_DEF(float, ZNear, 40.0f);
+		PROPERTY_DEF(float, ZFar, 400000.0f);
+		PROPERTY_DEF(float, FOV, 75.0f);
+		PROPERTY_DEF(float, Radius, 50.0f);
 	public:
-		CameraActor()
-		{
-			CurrentView->Position.SetZero();
-		}
 		VectorMath::Vec3 GetPosition()
 		{
-			return CurrentView->Position;
+			return Position.GetValue();
 		}
 		void SetPosition(const VectorMath::Vec3 & value);
-		float GetYaw() { return CurrentView->Yaw; }
-		float GetPitch() { return CurrentView->Pitch; }
-		float GetRoll() { return CurrentView->Roll; }
+		float GetYaw() { return Orientation->x; }
+		float GetPitch() { return Orientation->y; }
+		float GetRoll() { return Orientation->z; }
 		void SetYaw(float value);
 		void SetPitch(float value);
 		void SetRoll(float value);
 		void SetOrientation(float pYaw, float pPitch, float pRoll);
 		Ray GetRayFromViewCoordinates(float x, float y, float aspect); // coordinate range from 0.0 to 1.0
-		View GetView()
-		{
-			return *CurrentView;
-		}
+		View GetView();
 		CoreLib::Graphics::ViewFrustum GetFrustum(float aspect);
 		virtual void Tick() override { }
 		virtual EngineActorType GetEngineType() override

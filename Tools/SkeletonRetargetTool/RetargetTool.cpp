@@ -23,27 +23,22 @@ const char * levelSrc = R"(
 Camera
 {
 	name "FreeCam"
-	CurrentView
-	{
-		orientation[-0.044 0.000 0.000]
-		position[18.77 108.36 280.13]
-		znear 5.0
-		zfar 8000.0
-		fov 60.0
-	}
+	orientation[-0.044 0.000 0.000]
+	position[18.77 108.36 280.13]
+	znear 5.0
+	zfar 8000.0
+	fov 60.0
 }
 
 ArcBallCameraController
 {
 	name "CamControl"
 	TargetCameraName "FreeCam"
-	CurrentArcBall
-	{
-		Radius 500.00
-		Center[0.0 50.0 0.0]
-		Alpha 1.57
-		Beta 0.439
-	}
+
+	Radius 500.00
+	Center[0.0 50.0 0.0]
+	Alpha 1.57
+	Beta 0.439
 	NeedAlt true
 }
 
@@ -76,11 +71,8 @@ ToneMapping
 Atmosphere
 {
 	name "atmosphere"
-	Parameters
-	{
-		AtmosphericFogScaleFactor 0.01
-		SunDir[0.8 0.7 0.3]
-	}
+	AtmosphericFogScaleFactor 0.01
+	SunDir[0.8 0.7 0.3]
 }
 
 SkeletonRetargetVisualizer

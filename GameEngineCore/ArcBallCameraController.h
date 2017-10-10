@@ -22,14 +22,13 @@ namespace GameEngine
 		{
 			center.SetZero();
 		}
-		void Serialize(CoreLib::StringBuilder & sb);
-		void Parse(CoreLib::Text::TokenReader & parser);
 		void GetCoordinates(VectorMath::Vec3 & camPos, VectorMath::Vec3 & up, VectorMath::Vec3 & right, VectorMath::Vec3 & dir);
 	};
 	class ArcBallCameraControllerActor : public Actor
 	{
 	private:
 		ArcBallParams lastArcBall;
+		ArcBallParams GetCurrentArcBall();
 		int lastX = 0, lastY = 0;
 		MouseState state = MouseState::None;
 		CameraActor * targetCamera = nullptr;
@@ -40,7 +39,10 @@ namespace GameEngine
 		void MouseUp(GraphicsUI::UI_Base * sender, GraphicsUI::UIMouseEventArgs & e);
 		void MouseWheel(GraphicsUI::UI_Base * sender, GraphicsUI::UIMouseEventArgs & e);
 	public:
-		PROPERTY(ArcBallParams, CurrentArcBall);
+		PROPERTY_DEF(VectorMath::Vec3, Center, VectorMath::Vec3::Create(0.0f));
+		PROPERTY_DEF(float, Radius, 800.0f);
+		PROPERTY_DEF(float, Alpha, Math::Pi * 0.5f);
+		PROPERTY_DEF(float, Beta, 0.0f);
 		PROPERTY_DEF(float, TurnPrecision, CoreLib::Math::Pi / 1000.0f);
 		PROPERTY_DEF(float, TranslatePrecision, 0.001f);
 		PROPERTY_DEF(float, ZoomScale, 1.1f);

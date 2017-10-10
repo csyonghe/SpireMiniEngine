@@ -19,8 +19,6 @@ namespace GameEngine
 		{
 			return const_cast<VectorMath::Vec3&>(SunDir) == other.SunDir && AtmosphericFogScaleFactor == other.AtmosphericFogScaleFactor;
 		}
-		void Parse(CoreLib::Text::TokenReader & parser);
-		void Serialize(CoreLib::StringBuilder & sb);
 	};
 }
 

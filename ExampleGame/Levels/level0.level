@@ -1,14 +1,11 @@
 Camera
 {
     name "FreeCam"
-    CurrentView
-    {
-        position [0.0 120.0 220.0]
-        orientation [0.0 0.1 0.0] // yaw, pitch, roll
-        znear 10.0
-        zfar 50000.0
-        fov 60.0
-    }
+    position [0.0 120.0 220.0]
+    orientation [0.0 0.1 0.0] // yaw, pitch, roll
+    znear 10.0
+    zfar 50000.0
+    fov 60.0
 }
 
 
@@ -35,11 +32,8 @@ ToneMapping
 Atmosphere
 {
     name "atmosphere"
-    Parameters
-    {
-        SunDir [-0.5 0.8 0.4]
-        AtmosphericFogScaleFactor 0.5 
-    }
+    SunDir [-0.5 0.8 0.4]
+    AtmosphericFogScaleFactor 0.5 
 }
 
 DirectionalLight

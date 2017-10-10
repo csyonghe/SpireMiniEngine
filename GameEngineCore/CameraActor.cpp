@@ -27,37 +27,30 @@ namespace GameEngine
 
 	void CameraActor::SetPosition(const VectorMath::Vec3 & value)
 	{
-		CurrentView->Position = value;
+		Position = value;
 		UpdatePosition(*LocalTransform, value);
-		CurrentView->Transform = *LocalTransform;
 	}
 
 	void CameraActor::SetYaw(float value)
 	{
-		CurrentView->Yaw = value;
-		TransformFromCamera(*LocalTransform, CurrentView->Yaw, CurrentView->Pitch, CurrentView->Roll, CurrentView->Position);
-		CurrentView->Transform = *LocalTransform;
+		Orientation->x = value;
+		TransformFromCamera(*LocalTransform, Orientation->x, Orientation->y, Orientation->z, Position.GetValue());
 	}
 	void CameraActor::SetPitch(float value)
 	{
-		CurrentView->Pitch = value;
-		TransformFromCamera(*LocalTransform, CurrentView->Yaw, CurrentView->Pitch, CurrentView->Roll, CurrentView->Position);
-		CurrentView->Transform = *LocalTransform;
+		Orientation->y = value;
+		TransformFromCamera(*LocalTransform, Orientation->x, Orientation->y, Orientation->z, Position.GetValue());
 	}
 	void CameraActor::SetRoll(float value)
 	{
-		CurrentView->Roll = value;
-		TransformFromCamera(*LocalTransform, CurrentView->Yaw, CurrentView->Pitch, CurrentView->Roll, CurrentView->Position);
-		CurrentView->Transform = *LocalTransform;
+		Orientation->z = value;
+		TransformFromCamera(*LocalTransform, Orientation->x, Orientation->y, Orientation->z, Position.GetValue());
 
 	}
 	void CameraActor::SetOrientation(float pYaw, float pPitch, float pRoll)
 	{
-		CurrentView->Yaw = pYaw;
-		CurrentView->Pitch = pPitch;
-		CurrentView->Roll = pRoll;
-		TransformFromCamera(*LocalTransform, CurrentView->Yaw, CurrentView->Pitch, CurrentView->Roll, CurrentView->Position);
-		CurrentView->Transform = *LocalTransform;
+		Orientation = Vec3::Create(pYaw, pPitch, pRoll);
+		TransformFromCamera(*LocalTransform, pYaw, pPitch, pRoll, Position.GetValue());
 	}
 
 	Ray CameraActor::GetRayFromViewCoordinates(float x, float y, float aspect)
@@ -71,22 +64,38 @@ namespace GameEngine
 		camUp.z = LocalTransform->m[2][1];
 		auto right = Vec3::Cross(camDir, camUp).Normalize();
 		float zNear = 1.0f;
-		auto nearCenter = CurrentView->Position + camDir * zNear;
-		auto tanFOV = tan(CurrentView->FOV / 180.0f * (Math::Pi * 0.5f));
+		auto nearCenter = Position.GetValue() + camDir * zNear;
+		auto tanFOV = tan(FOV.GetValue() / 180.0f * (Math::Pi * 0.5f));
 		auto nearUpScale = tanFOV * zNear;
 		auto nearRightScale = nearUpScale * aspect;
 		auto tarPos = nearCenter + right * nearRightScale * (x * 2.0f - 1.0f) + camUp * nearUpScale * (1.0f - y * 2.0f);
 		Ray r;
-		r.Origin = CurrentView->Position;
+		r.Origin = Position.GetValue();
 		r.Dir = tarPos - r.Origin;
 		r.Dir = r.Dir.Normalize();
 		return r;
+	}
+
+	// coordinate range from 0.0 to 1.0
+
+	View CameraActor::GetView()
+	{
+		View rs;
+		rs.FOV = FOV.GetValue();
+		rs.Yaw = Orientation->x;
+		rs.Pitch = Orientation->y;
+		rs.Roll = Orientation->z;
+		rs.Position = Position.GetValue();
+		rs.ZFar = ZFar.GetValue();
+		rs.ZNear = ZNear.GetValue();
+		rs.Transform = LocalTransform.GetValue();
+		return rs;
 	}
 	
 	CoreLib::Graphics::ViewFrustum CameraActor::GetFrustum(float aspect)
 	{
 		CoreLib::Graphics::ViewFrustum result;
-		result.FOV = CurrentView->FOV;
+		result.FOV = FOV.GetValue();
 		result.Aspect = aspect;
 		result.CamDir.x = -LocalTransform->m[0][2];
 		result.CamDir.y = -LocalTransform->m[1][2];
@@ -94,16 +103,15 @@ namespace GameEngine
 		result.CamUp.x = LocalTransform->m[0][1];
 		result.CamUp.y = LocalTransform->m[1][1];
 		result.CamUp.z = LocalTransform->m[2][1];
-		result.CamPos = CurrentView->Position;
-		result.zMin = CurrentView->ZNear;
-		result.zMax = CurrentView->ZFar;
+		result.CamPos = Position.GetValue();
+		result.zMin = ZNear.GetValue();
+		result.zMax = ZFar.GetValue();
 		return result;
 	}
 
 	void CameraActor::OnLoad()
 	{
-		TransformFromCamera(*LocalTransform, CurrentView->Yaw, CurrentView->Pitch, CurrentView->Roll, CurrentView->Position);
-		CurrentView->Transform = *LocalTransform;
+		TransformFromCamera(*LocalTransform, Orientation->x, Orientation->y, Orientation->z, Position.GetValue());
 	}
 	
 }

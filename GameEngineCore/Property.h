@@ -10,20 +10,30 @@
 namespace GameEngine
 {
 	class Property;
-
+	struct PropertyTable
+	{
+		CoreLib::EnumerableDictionary<CoreLib::String, int> entries;
+		bool isComplete = false;
+	};
 	class PropertyContainer : public CoreLib::RefObject
 	{
 		friend class Property;
 	protected:
-		CoreLib::EnumerableDictionary<CoreLib::String, Property*> properties;
+		static CoreLib::EnumerableDictionary<const char *, PropertyTable> propertyTables;
+		PropertyTable * propertyTable = nullptr;
 	public:
-
+		static void FreeRegistry();
+		void RegisterProperty(Property* prop);
+		PropertyTable * GetPropertyTable();
+		Property * GetProperty(int offset);
+		Property * FindProperty(const char * name);
+		CoreLib::List<Property*> GetPropertyList();
 	};
 
 	class Property : public CoreLib::RefObject
 	{
 	private:
-		CoreLib::String typeName, name, attrib;
+		const char * metaStr;
 	public:
 		virtual void ParseValue(CoreLib::Text::TokenReader & parser) = 0;
 		virtual void Serialize(CoreLib::StringBuilder & sb) = 0;
@@ -41,24 +51,38 @@ namespace GameEngine
 			ParseValue(parser);
 			OnChanged();
 		}
-		const CoreLib::String & GetTypeName()
+		const char * GetTypeName()
 		{
-			return typeName;
+			int i = 0;
+			int c = 0;
+			while (c != 1)
+			{
+				if (metaStr[i] == '\0')
+					c++;
+				i++;
+			}
+			return metaStr + i;
 		}
-		const CoreLib::String & GetName()
+		const char * GetName()
 		{
-			return name;
+			return metaStr;
 		}
-		const CoreLib::String & GetAttribute()
+		const char * GetAttribute()
 		{
-			return attrib;
+			int i = 0;
+			int c = 0;
+			while (c != 2)
+			{
+				if (metaStr[i] == '\0')
+					c++;
+				i++;
+			}
+			return metaStr + i;
 		}
-		Property(PropertyContainer * container, const char * type, const char * pName, const char * pAttrib)
+		Property(PropertyContainer * container, const char * pmetaStr)
 		{
-			typeName = type;
-			name = pName;
-			attrib = pAttrib;
-			container->properties.Add(name.ToLower(), this);
+			metaStr = pmetaStr;
+			container->RegisterProperty(this);
 		}
 		Property()
 		{}
@@ -80,9 +104,10 @@ namespace GameEngine
 	void Serialize(CoreLib::StringBuilder & sb, const VectorMath::Matrix4 & v);
 	void Serialize(CoreLib::StringBuilder & sb, bool v);
 
-#define PROPERTY_ATTRIB(type, name, attrib) GameEngine::GenericProperty<type> name = GameEngine::GenericProperty<type>(this, #type, #name, attrib);
-#define PROPERTY(type, name) GameEngine::GenericProperty<type> name = GameEngine::GenericProperty<type>(this, #type, #name, "", type());
-#define PROPERTY_DEF(type, name, value) GameEngine::GenericProperty<type> name = GameEngine::GenericProperty<type>(this, #type, #name, "", value);
+#define PROPERTY_ATTRIB(type, name, attrib) GameEngine::GenericProperty<type> name = GameEngine::GenericProperty<type>(this, #name "\0" #type "\0" attrib, type());
+#define PROPERTY_DEF_ATTRIB(type, name, value, attrib) GameEngine::GenericProperty<type> name = GameEngine::GenericProperty<type>(this, #name "\0" #type "\0" attrib, value);
+#define PROPERTY(type, name) GameEngine::GenericProperty<type> name = GameEngine::GenericProperty<type>(this,  #name "\0" #type "\0\0", type());
+#define PROPERTY_DEF(type, name, value) GameEngine::GenericProperty<type> name = GameEngine::GenericProperty<type>(this,  #name "\0" #type "\0\0", value);
 #define PUBLIC_METHODS(type) \
 	type GetValue()\
 	{\
@@ -119,8 +144,8 @@ namespace GameEngine
 		T value;
 	public:
 		GenericPropertyHelper() = default;
-		GenericPropertyHelper(PropertyContainer * container, const char * typeName, const char * pname, const char * pattrib, T def)
-			: Property(container, typeName, pname, pattrib), value(def)
+		GenericPropertyHelper(PropertyContainer * container, const char * pmetaStr, T def)
+			: Property(container, pmetaStr), value(def)
 		{
 		}
 		virtual void Serialize(CoreLib::StringBuilder & sb) override
@@ -167,8 +192,8 @@ namespace GameEngine
 		T value;
 	public:
 		GenericPropertyHelper() = default;
-		GenericPropertyHelper(PropertyContainer * container, const char * typeName, const char * pname, const char * pattrib, T def)
-			: Property(container, typeName, pname, pattrib), value(def)
+		GenericPropertyHelper(PropertyContainer * container, const char * pmetaStr, T def)
+			: Property(container, pmetaStr), value(def)
 		{
 		}
 		virtual void Serialize(CoreLib::StringBuilder & sb) override
@@ -211,8 +236,8 @@ namespace GameEngine
 		CoreLib::List<T> value;
 	public:
 		GenericPropertyHelper() = default;
-		GenericPropertyHelper(PropertyContainer * container, const char * typeName, const char * pname, const char * pattrib, T def)
-			: Property(container, typeName, pname, pattrib), value(def)
+		GenericPropertyHelper(PropertyContainer * container, const char * pmetaStr, CoreLib::List<T> def)
+			: Property(container, pmetaStr), value(def)
 		{
 		}
 		virtual void Serialize(CoreLib::StringBuilder & sb) override
@@ -252,8 +277,8 @@ namespace GameEngine
 		type value; \
 	public: \
 		GenericPropertyHelper() = default;\
-		GenericPropertyHelper(PropertyContainer * container, const char * typeName, const char * pname, const char * pattrib, type def)\
-			: Property(container, typeName, pname, pattrib), value(def)\
+		GenericPropertyHelper(PropertyContainer * container, const char * pmetaStr, type def)\
+			: Property(container, pmetaStr), value(def)\
 		{ }\
 		virtual void Serialize(CoreLib::StringBuilder & sb) override \
 		{ \
@@ -278,8 +303,8 @@ namespace GameEngine
 		bool value = false;
 	public: 
 		GenericPropertyHelper() = default; 
-			GenericPropertyHelper(PropertyContainer * container, const char * typeName, const char * pname, const char * pattrib, bool def)
-			: Property(container, typeName, pname, pattrib), value(def)
+			GenericPropertyHelper(PropertyContainer * container, const char * pmetaStr, bool def)
+			: Property(container, pmetaStr), value(def)
 		{ }
 		virtual void Serialize(CoreLib::StringBuilder & sb) override 
 		{ 
@@ -301,8 +326,8 @@ namespace GameEngine
 		VectorMath::type value = defaultVal;\
 	public:\
 		GenericPropertyHelper() = default;\
-		GenericPropertyHelper(PropertyContainer * container, const char * typeName, const char * pname, const char * pattrib, VectorMath::type def)\
-			: Property(container, typeName, pname, pattrib), value(def)\
+		GenericPropertyHelper(PropertyContainer * container, const char * pmetaStr, VectorMath::type def)\
+			: Property(container, pmetaStr), value(def)\
 		{ }\
 		virtual void Serialize(CoreLib::StringBuilder & sb) override\
 		{\
