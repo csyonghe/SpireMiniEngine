@@ -3780,7 +3780,7 @@ namespace VK
 			);
 		}
 
-		virtual void Blit(GameEngine::Texture2D* dstImage, GameEngine::Texture2D* srcImage, TextureLayout srcLayout) override
+		virtual void Blit(GameEngine::Texture2D* dstImage, GameEngine::Texture2D* srcImage, TextureLayout srcLayout, VectorMath::Vec2i dstOffset) override
 		{
 #if _DEBUG
 			if (inRenderPass == true)
@@ -3884,7 +3884,7 @@ namespace VK
 			srcOffsets[1] = vk::Offset3D(dynamic_cast<VK::Texture2D*>(srcImage)->width, dynamic_cast<VK::Texture2D*>(srcImage)->height, 1);
 
 			std::array<vk::Offset3D, 2> dstOffsets;
-			dstOffsets[0] = vk::Offset3D(0, 0, 0);
+			dstOffsets[0] = vk::Offset3D(dstOffset.x, dstOffset.y, 0);
 			dstOffsets[1] = vk::Offset3D(dynamic_cast<VK::Texture2D*>(dstImage)->width, dynamic_cast<VK::Texture2D*>(dstImage)->height, 1);
 
 			vk::ImageBlit blitRegions = vk::ImageBlit()
@@ -4668,7 +4668,7 @@ namespace VK
 		{
 			RendererState::Device().waitIdle();
 		}
-		virtual void Blit(GameEngine::Texture2D* dstImage, GameEngine::Texture2D* srcImage) override
+		virtual void Blit(GameEngine::Texture2D* dstImage, GameEngine::Texture2D* srcImage, VectorMath::Vec2i dstOffset) override
 		{
 			vk::CommandBuffer transferCommandBuffer = RendererState::GetTempTransferCommandBuffer();
 
@@ -4754,7 +4754,7 @@ namespace VK
 			srcOffsets[1] = vk::Offset3D(dynamic_cast<VK::Texture2D*>(srcImage)->width, dynamic_cast<VK::Texture2D*>(srcImage)->height, 1);
 
 			std::array<vk::Offset3D, 2> dstOffsets;
-			dstOffsets[0] = vk::Offset3D(0, 0, 0);
+			dstOffsets[0] = vk::Offset3D(dstOffset.x, dstOffset.y, 0);
 			dstOffsets[1] = vk::Offset3D(dynamic_cast<VK::Texture2D*>(dstImage)->width, dynamic_cast<VK::Texture2D*>(dstImage)->height, 1);
 
 			vk::ImageBlit blitRegions = vk::ImageBlit()

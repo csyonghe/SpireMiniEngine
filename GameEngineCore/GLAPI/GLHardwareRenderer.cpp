@@ -1937,6 +1937,7 @@ namespace GLL
 	{
 		GameEngine::Texture2D* dst;
 		GameEngine::Texture2D* src;
+		VectorMath::Vec2i dstOffset;
 	};
 	struct AttachmentData
 	{
@@ -2101,12 +2102,13 @@ namespace GLL
 		virtual void TransferLayout(ArrayView<GameEngine::Texture*> /*textures*/, TextureLayoutTransfer /*transferDirection*/) override
 		{
 		}
-		virtual void Blit(GameEngine::Texture2D* dstImage, GameEngine::Texture2D* srcImage, TextureLayout /*srcLayout*/) override
+		virtual void Blit(GameEngine::Texture2D* dstImage, GameEngine::Texture2D* srcImage, TextureLayout /*srcLayout*/, VectorMath::Vec2i destOffset) override
 		{
 			CommandData data;
 			data.command = Command::Blit;
 			data.blit.dst = dstImage;
 			data.blit.src = srcImage;
+			data.blit.dstOffset = destOffset;
 			buffer.Add(data);
 		}
 		void ClearAttachmentsImpl(ArrayView<TextureUsage> attachments)
@@ -2398,7 +2400,7 @@ namespace GLL
 						glDispatchCompute(command.compute.x, command.compute.y, command.compute.z);
 						break;
 					case Command::Blit:
-						Blit(command.blit.dst, command.blit.src);
+						Blit(command.blit.dst, command.blit.src, command.blit.dstOffset);
 						break;
 					case Command::MemBarrier:
 						glMemoryBarrier(command.memBarrier.bits);
@@ -2632,7 +2634,7 @@ namespace GLL
 						glDrawElementsInstanced((GLenum)primType, command.draw.count, GL_UNSIGNED_INT, (void*)(CoreLib::PtrInt)(command.draw.first * 4 + currentIndexBufferOffset), command.draw.instances);
 						break;
 					case Command::Blit:
-						Blit(command.blit.dst, command.blit.src);
+						Blit(command.blit.dst, command.blit.src, command.blit.dstOffset);
 						SetWriteFrameBuffer(srcFrameBuffer);
 						setupFrameBuffer();
 						break;
@@ -2658,7 +2660,7 @@ namespace GLL
 			srcFrameBuffer.SetDepthStencilRenderTarget(Texture2D());
 		}
 
-		void Blit(GameEngine::Texture2D* dstImage, GameEngine::Texture2D* srcImage)
+		void Blit(GameEngine::Texture2D* dstImage, GameEngine::Texture2D* srcImage, VectorMath::Vec2i dstOffset)
 		{
 			switch (reinterpret_cast<GLL::Texture2D*>(srcImage)->format)
 			{
@@ -2682,7 +2684,7 @@ namespace GLL
 			// Blit from src to dst
 			SetReadFrameBuffer(srcFrameBuffer);
 			SetWriteFrameBuffer(dstFrameBuffer);
-			CopyFrameBuffer(0, 0, width, height, 0, 0, width, height, true, false, false);
+			CopyFrameBuffer(0, 0, width, height, dstOffset.x, dstOffset.y, width, height, true, false, false);
 
 			switch (reinterpret_cast<GLL::Texture2D*>(srcImage)->format)
 			{

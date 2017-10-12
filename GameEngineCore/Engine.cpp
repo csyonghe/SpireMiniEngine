@@ -85,7 +85,7 @@ namespace GameEngine
             {
                 auto entry = sysWindow.Value->uiEntry.Ptr();
                 auto uiCommands = entry->DrawUI();
-                uiSystemInterface->TransferDrawCommands(sysWindow.Value, renderer->GetRenderedImage(), uiCommands);
+                uiSystemInterface->TransferDrawCommands(sysWindow.Value, renderer->GetRenderedImage(), currentViewport, uiCommands);
             }
 			renderer->GetHardwareRenderer()->TransferBarrier(DynamicBufferLengthMultiplier);
 			for (auto sysWindow : uiSystemInterface->windowContexts)
@@ -280,7 +280,7 @@ namespace GameEngine
             Texture2D * backgroundImage = nullptr;
             if (mainWindow == sysWindow.Key)
                 backgroundImage = renderer->GetRenderedImage();
-            uiSystemInterface->TransferDrawCommands(sysWindow.Value, backgroundImage, uiCommands);
+            uiSystemInterface->TransferDrawCommands(sysWindow.Value, backgroundImage, currentViewport, uiCommands);
         }
 
         inDataTransfer = false;

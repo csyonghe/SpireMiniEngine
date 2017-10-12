@@ -209,7 +209,7 @@ namespace GameEngine
 		}
         GraphicsUI::IFont * LoadFont(UIWindowContext * ctx, const Font & f);
         GraphicsUI::IImage * CreateImageObject(const CoreLib::Imaging::Bitmap & bmp);
-		void TransferDrawCommands(UIWindowContext * ctx, Texture2D* baseTexture, CoreLib::List<GraphicsUI::DrawCommand> & commands);
+		void TransferDrawCommands(UIWindowContext * ctx, Texture2D* baseTexture, WindowBounds viewport, CoreLib::List<GraphicsUI::DrawCommand> & commands);
 		void ExecuteDrawCommands(UIWindowContext * ctx, Fence* fence);
 		int HandleSystemMessage(SystemWindow* window, UINT message, WPARAM &wParam, LPARAM &lParam);
         FrameBuffer * CreateFrameBuffer(Texture2D * texture);

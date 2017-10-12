@@ -59,6 +59,7 @@ namespace GameEngine
 		float fixedFrameDuration = 1.0f / 30.0f;
 		unsigned int frameCounter = 0;
 		bool inDataTransfer = false;
+		WindowBounds currentViewport;
 		GraphicsSettings graphicsSettings;
 		CoreLib::String levelToLoad;
 		CoreLib::List<CoreLib::List<RefPtr<Fence>>> fencePool;

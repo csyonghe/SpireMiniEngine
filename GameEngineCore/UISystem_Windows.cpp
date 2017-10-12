@@ -771,7 +771,7 @@ namespace GameEngine
 			indexStream.Clear();
 			primCounter = 0;
 		}
-		void EndUIDrawing(UIWindowContext * wndCtx, Texture2D * baseTexture)
+		void EndUIDrawing(UIWindowContext * wndCtx, Texture2D * baseTexture, WindowBounds viewport)
 		{
 			frameId = frameId % DynamicBufferLengthMultiplier;
 			int indexCount = indexStream.Count();
@@ -786,7 +786,7 @@ namespace GameEngine
 			
 			auto cmdBuf = wndCtx->blitCmdBuffer->BeginRecording();
 			if (baseTexture)
-				cmdBuf->Blit(wndCtx->uiOverlayTexture.Ptr(), baseTexture, TextureLayout::Sample);
+				cmdBuf->Blit(wndCtx->uiOverlayTexture.Ptr(), baseTexture, TextureLayout::Sample, VectorMath::Vec2i::Create(viewport.x, viewport.y));
 			cmdBuf->EndRecording();
 
 			cmdBuf = wndCtx->cmdBuffer->BeginRecording(wndCtx->frameBuffer.Ptr());
@@ -1146,7 +1146,7 @@ namespace GameEngine
 		}
 	}
     
-	void UIWindowsSystemInterface::TransferDrawCommands(UIWindowContext * ctx, Texture2D* baseTexture, CoreLib::List<DrawCommand>& commands)
+	void UIWindowsSystemInterface::TransferDrawCommands(UIWindowContext * ctx, Texture2D* baseTexture, WindowBounds viewport, CoreLib::List<DrawCommand>& commands)
 	{
         const int MaxEllipseEdges = 32;
 		uiRenderer->BeginUIDrawing();
@@ -1254,7 +1254,7 @@ namespace GameEngine
 			}
 			ptr++;
 		}
-		uiRenderer->EndUIDrawing(ctx, baseTexture);
+		uiRenderer->EndUIDrawing(ctx, baseTexture, viewport);
 	}
 
 	void UIWindowsSystemInterface::ExecuteDrawCommands(UIWindowContext * ctx, GameEngine::Fence* fence)

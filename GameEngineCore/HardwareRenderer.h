@@ -807,7 +807,7 @@ namespace GameEngine
 		virtual void DrawIndexedInstanced(int numInstances, int firstIndex, int indexCount) = 0;
 		virtual void DispatchCompute(int groupCountX, int groupCountY, int groupCountZ) = 0;
 		virtual void TransferLayout(CoreLib::ArrayView<Texture*> attachments, TextureLayoutTransfer transferDirection) = 0;
-		virtual void Blit(Texture2D* dstImage, Texture2D* srcImage, TextureLayout srcLayout) = 0;
+		virtual void Blit(Texture2D* dstImage, Texture2D* srcImage, TextureLayout srcLayout, VectorMath::Vec2i destOffset) = 0;
 		virtual void ClearAttachments(FrameBuffer * frameBuffer) = 0;
 		virtual void MemoryAccessBarrier(MemoryBarrierType barrierType) = 0;
 	};
@@ -820,6 +820,12 @@ namespace GameEngine
         virtual void GetSize(int & width, int & height) = 0;
     };
 
+	struct WindowBounds
+	{
+		int x, y;
+		int width, height;
+	};
+
 	class HardwareRenderer : public CoreLib::RefObject
 	{
 	protected:
@@ -829,7 +835,7 @@ namespace GameEngine
 		virtual void ExecuteRenderPass(FrameBuffer* frameBuffer, CoreLib::ArrayView<CommandBuffer*> commands, Fence* fence) = 0;
 		virtual void ExecuteNonRenderCommandBuffers(CoreLib::ArrayView<CommandBuffer*> commands) = 0;
 		virtual void Present(WindowSurface * surface, Texture2D* srcImage) = 0;
-		virtual void Blit(Texture2D* dstImage, Texture2D* srcImage) = 0;
+		virtual void Blit(Texture2D* dstImage, Texture2D* srcImage, VectorMath::Vec2i destOffset) = 0;
 		virtual void Wait() = 0;
 		virtual void SetMaxTempBufferVersions(int versionCount) = 0;
 		virtual void ResetTempBufferVersion(int version) = 0;
