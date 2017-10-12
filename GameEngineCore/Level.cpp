@@ -8,6 +8,49 @@ namespace GameEngine
 	using namespace CoreLib;
 	using namespace CoreLib::IO;
 
+	String IndentText(String src)
+	{
+		StringBuilder  sb;
+		int indent = 0;
+		bool beginTrim = true;
+		for (int c = 0; c < src.Length(); c++)
+		{
+			auto ch = src[c];
+			if (ch == '\n')
+			{
+				sb << "\n";
+
+				beginTrim = true;
+			}
+			else
+			{
+				if (beginTrim)
+				{
+					while (c < src.Length() - 1 && (src[c] == '\t' || src[c] == '\n' || src[c] == '\r' || src[c] == ' '))
+					{
+						c++;
+						ch = src[c];
+					}
+					for (int i = 0; i < indent - 1; i++)
+						sb << '\t';
+					if (ch != '}' && indent > 0)
+						sb << '\t';
+					beginTrim = false;
+				}
+
+				if (ch == L'{')
+					indent++;
+				else if (ch == L'}')
+					indent--;
+				if (indent < 0)
+					indent = 0;
+
+				sb << ch;
+			}
+		}
+		return sb.ProduceString();
+	}
+
 	Level::Level(const CoreLib::String & fileName)
 	{
 		LoadFromText(File::ReadAllText(fileName));
@@ -58,6 +101,13 @@ namespace GameEngine
 			}
 		}
 		Print("Num materials: %d\n", Materials.Count());
+	}
+	void Level::SaveToFile(CoreLib::String fileName)
+	{
+		StringBuilder sb;
+		for (auto & actor : Actors)
+			actor.Value->SerializeToText(sb);
+		File::WriteAllText(fileName, IndentText(sb.ProduceString()));
 	}
 	Level::~Level()
 	{

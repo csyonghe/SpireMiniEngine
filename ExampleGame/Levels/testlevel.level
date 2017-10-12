@@ -1,0 +1,129 @@
+Camera
+{
+	Name "FreeCam"
+	CastShadow true
+	LocalTransform [ 0.51084501 0.39978027 -0.76106054 0 0 0.88529086 0.4650377 0 0.85967284 -0.23756219 0.45224643 0 -4.3180008 -87.373367 -310.30093 1 ]
+	Orientation [ 1.0346289 0.48367721 0 ]
+	Position [ -199.02182 221.65248 123.28795 ]
+	ZNear 10
+	ZFar 50000
+	FOV 60
+	Radius 50
+}
+FreeRoamCameraController
+{
+	Name "CamControl"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 ]
+	Speed 100
+	TurnPrecision 0.78539819
+	TargetCameraName "FreeCam"
+}
+ToneMapping
+{
+	Name "tonemap"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 ]
+	Exposure 0.4
+}
+Atmosphere
+{
+	Name "atmosphere"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 ]
+	SunDir [ -0.48795006 0.78072011 0.39036006 ]
+	AtmosphericFogScaleFactor 0.5
+}
+DirectionalLight
+{
+	Name "sunlight"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 0 5000 0 1 ]
+	EnableCascadedShadows true
+	ShadowDistance 1500
+	NumShadowCascades 4
+	TransitionFactor 0.80000001
+	Direction [ -0.48795006 0.78072011 0.39036006 ]
+	Color [ 2.5 2.5 2.5 ]
+	Ambient 0.2
+}
+PointLight
+{
+	Name "plight0"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 -250 200 -1200 1 ]
+	EnableShadows false
+	Radius 2000
+	DecayDistance90Percent 1200
+	IsSpotLight false
+	Direction [ 0.57735032 0.57735032 0.57735032 ]
+	Color [ 2 4 5 ]
+	SpotLightStartAngle 30
+	SpotLightEndAngle 40
+}
+PointLight
+{
+	Name "plight1"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 400 400 400 1 ]
+	EnableShadows true
+	Radius 2500
+	DecayDistance90Percent 2400
+	IsSpotLight true
+	Direction [ -0.57735032 -0.57735032 -0.57735032 ]
+	Color [ 5 4 2 ]
+	SpotLightStartAngle 30
+	SpotLightEndAngle 40
+}
+StaticMesh
+{
+	Name "sphere"
+	CastShadow false
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 10 100 -500 1 ]
+	mesh "sphere.mesh"
+	material
+	{
+		shader "Reflective.shader"
+	}
+}
+StaticMesh
+{
+	Name "couch"
+	CastShadow true
+	LocalTransform [ 0 0 -1 0 0 1 0 0 1 0 0 0 1200 0 -150 1 ]
+	mesh "SM_Couch.mesh"
+	material
+	{
+		shader "SM_Couch.shader"
+		var maskMap = texture["T_Couch_Mask.TGA"]
+		var leatherNormalMap = texture["T_Leather_N.TGA"]
+		var baseNormalMap = texture["T_Couch_N.TGA"]
+		var aoMap = texture["T_Couch_AO.TGA"]
+		var leatherSpecularMap = texture["T_Leather_S.TGA"]
+		var leatherMap = texture["T_Leather_D.TGA"]
+	}
+}
+StaticMesh
+{
+	Name "floor"
+	CastShadow true
+	LocalTransform [ 100 0 0 0 0 100 0 0 0 0 100 0 0 0 0 1 ]
+	mesh "plane.mesh"
+	material
+	{
+		shader "ParallaxGround.shader"
+		var albedoMap = texture["pebbles_diffuse.TGA"]
+		var normalMap = texture["pebbles_normal.TGA"]
+		var displacementMap = texture["pebbles_height.TGA"]
+		var uvScale = float[100]
+	}
+}
+SkeletalMesh
+{
+	Name "hero"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 ]
+	ModelFileName "hero.model"
+	RetargetFileName ""
+	AnimationFileName "hero/Run_Fwd.anim"
+}

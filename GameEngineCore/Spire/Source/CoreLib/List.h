@@ -91,7 +91,6 @@ namespace CoreLib
 			}
 		private:
 			static const int InitialSize = 16;
-			TAllocator allocator;
 		private:
 			T * buffer;
 			int _count;
@@ -208,9 +207,6 @@ namespace CoreLib
 				int tmpCount = this->_count;
 				this->_count = other._count;
 				other._count = tmpCount;
-				TAllocator tmpAlloc = _Move(this->allocator);
-				this->allocator = _Move(other.allocator);
-				other.allocator = _Move(tmpAlloc);
 			}
 
 			T* ReleaseBuffer()

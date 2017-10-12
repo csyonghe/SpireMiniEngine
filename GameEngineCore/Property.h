@@ -14,6 +14,7 @@ namespace GameEngine
 	{
 		CoreLib::EnumerableDictionary<CoreLib::String, int> entries;
 		bool isComplete = false;
+		const char * className = nullptr;
 	};
 	class PropertyContainer : public CoreLib::RefObject
 	{
@@ -30,7 +31,7 @@ namespace GameEngine
 		CoreLib::List<Property*> GetPropertyList();
 	};
 
-	class Property : public CoreLib::RefObject
+	class Property
 	{
 	private:
 		const char * metaStr;

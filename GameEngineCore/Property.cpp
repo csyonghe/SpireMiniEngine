@@ -172,31 +172,50 @@ namespace GameEngine
 	void PropertyContainer::RegisterProperty(Property * prop)
 	{
 		auto table = GetPropertyTable();
-		if (!table->isComplete)
+		if (table->isComplete)
+			return;
+		String propName = String(prop->GetName()).ToLower();
+		if (table->entries.ContainsKey(propName))
 		{
-			String propName = String(prop->GetName).ToLower();
-			if (table->entries.ContainsKey(propName))
-			{
-				table->isComplete = true;
-				return;
-			}
-			table->entries[propName] = (int)(((unsigned char *)prop) - ((unsigned char *)this));
+			table->isComplete = true;
+			return;
 		}
+		table->entries[propName] = (int)(((unsigned char *)prop) - ((unsigned char *)this));
 	}
 
 	PropertyTable* PropertyContainer::GetPropertyTable()
 	{
+		auto fetchTable = [this]()
+		{
+			auto className = typeid(*this).name();
+			if (auto table = propertyTables.TryGetValue(className))
+				return table;
+			else
+			{
+				PropertyTable pt;
+				pt.className = className;
+				propertyTables[className] = pt;
+				return &propertyTables[className].GetValue();
+			}
+		};
 		if (propertyTable)
-			return propertyTable;
-		auto className = typeid(*this).name();
-		if (auto table = propertyTables.TryGetValue(className))
-			propertyTable = table;
+		{
+			if (propertyTable->className == typeid(*this).name())
+				return propertyTable;
+			else
+			{
+				auto newTable = fetchTable();
+				if (!newTable->isComplete)
+					newTable->entries = propertyTable->entries;
+				propertyTable = newTable;
+				return propertyTable;
+			}
+		}
 		else
 		{
-			propertyTables[className] = PropertyTable();
-			propertyTable = &propertyTables[className].GetValue();
+			propertyTable = fetchTable();
+			return propertyTable;
 		}
-		return propertyTable;
 	}
 
 	Property * PropertyContainer::GetProperty(int offset)
@@ -208,7 +227,18 @@ namespace GameEngine
 	{
 		auto table = GetPropertyTable();
 		int offset = -1;
-		if (table->entries.TryGetValue(name, offset))
+		char lowerCaseName[255];
+		int i = 0;
+		while (i < 255)
+		{
+			lowerCaseName[i] = name[i];
+			if (lowerCaseName[i] >= 'A' && lowerCaseName[i] <= 'Z')
+				lowerCaseName[i] = lowerCaseName[i] - 'A' + 'a';
+			if (name[i] == 0)
+				break;
+			i++;
+		}
+		if (table->entries.TryGetValue(lowerCaseName, offset))
 		{
 			return GetProperty(offset);
 		}

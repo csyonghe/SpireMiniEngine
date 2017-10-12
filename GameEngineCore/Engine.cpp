@@ -385,6 +385,23 @@ namespace GameEngine
 				Print("Error: %s\n", e.Message.Buffer());
 			}
 		}
+		else if (parser.LookAhead("savelevel"))
+		{
+			try
+			{
+				parser.ReadToken();
+				auto fileName = parser.ReadStringLiteral();
+				level->SaveToFile(fileName);
+			}
+			catch (const IOException &)
+			{
+				Print("IO failure.\n");
+			}
+			catch (Exception & e)
+			{
+				Print("Error: %s\n", e.Message.Buffer());
+			}
+		}
 		else
 		{
 			try
@@ -594,6 +611,7 @@ namespace GameEngine
 	{
 		delete instance;
 		instance = nullptr;
+		PropertyContainer::FreeRegistry();
 	}
 	void Engine::SaveImage(Texture2D * image, String fileName)
 	{

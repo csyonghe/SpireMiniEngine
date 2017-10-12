@@ -27,6 +27,7 @@ namespace GameEngine
 		CoreLib::EnumerableDictionary<CoreLib::String, RefPtr<Actor>> Actors;
 		CoreLib::RefPtr<CameraActor> CurrentCamera;
 		void LoadFromText(CoreLib::String text);
+		void SaveToFile(CoreLib::String fileName);
 		Level(const CoreLib::String & fileName);
 		Level() = default;
 		~Level();

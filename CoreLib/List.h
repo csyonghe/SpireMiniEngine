@@ -90,7 +90,6 @@ namespace CoreLib
 			}
 		private:
 			static const int InitialSize = 16;
-			TAllocator allocator;
 		private:
 			T * buffer;
 			int _count;
