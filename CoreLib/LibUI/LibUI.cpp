@@ -7805,6 +7805,12 @@ namespace GraphicsUI
 		auto v = (pos - camPos).Normalize();
 		sphereCenter = v * 50.0f + camPos;
 		auto sphereCenterZ = viewTransform.TransformHomogeneous(sphereCenter).z;
+		if (sphereCenterZ > 0.0f)
+		{
+			disableDraw = true;
+			return;
+		}
+		disableDraw = false;
 		auto worldHeightAtC = tan(view.FOV / 360.0f * Math::Pi) * abs(sphereCenterZ) * 2.0f;
 		worldRadius = ScreenSpaceRadius / view.ViewportH * worldHeightAtC;
 		if (activeHandle == ManipulationHandleType::None)
@@ -7884,6 +7890,8 @@ namespace GraphicsUI
 
 	void TransformManipulator::Draw(int /*absX*/, int /*absY*/)
 	{
+		if (disableDraw)
+			return;
 		auto & graphics = GetEntry()->DrawCommands;
 		auto drawFaces = [&](List<TriangleFace> & faces)
 		{
@@ -8101,7 +8109,11 @@ namespace GraphicsUI
 
 	bool TransformManipulator::DoMouseDown(int X, int Y, SHIFTSTATE Shift)
 	{
+		if (disableDraw)
+			return false;
 		if ((Shift & (SS_CONTROL|SS_ALT|SS_SHIFT)) != 0)
+			return false;
+		if (!(Shift & SS_BUTTONLEFT))
 			return false;
 		int absX, absY;
 		this->LocalPosToAbsolutePos(X, Y, absX, absY);
@@ -8412,7 +8424,7 @@ namespace GraphicsUI
 		{
 			float d0 = abs(Vec3::Dot(a0, dir));
 			float d1 = abs(Vec3::Dot(a1, dir));
-			if (d0 < d1)
+			if (d0 > d1)
 				return a0;
 			else
 				return a1;

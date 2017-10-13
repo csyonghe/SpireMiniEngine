@@ -16,10 +16,21 @@ namespace GameEngine
 	private:
 		RefPtr<CameraActor> editorCam;
 		RefPtr<FreeRoamCameraControllerActor> editorCamController;
-		Level * level;
+		ManipulationMode manipulationMode = ManipulationMode::Translation;
+		Matrix4 oldLocalTransform;
+		TransformManipulator* manipulator;
+		MenuItem* manipulationMenuItems[3];
+		Level * level = nullptr;
 		Vec2i mouseDownScreenSpacePos;
 		Vec2i lastMouseScreenSpacePos;
+		Actor * selectedActor = nullptr;
 		RefPtr<CoreLib::WinForm::FileDialog> dlgOpen, dlgSave;
+		void SelectActor(Actor * actor)
+		{
+			selectedActor = actor;
+			if (actor)
+				oldLocalTransform = actor->GetLocalTransform();
+		}
 		void InitUI()
 		{
 			dlgOpen = new CoreLib::WinForm::FileDialog(Engine::Instance()->GetMainWindow());
@@ -62,6 +73,19 @@ namespace GameEngine
 			auto mnRedo = new MenuItem(mnEdit, "&Redo", "Ctrl+Y");
 			mnRedo->OnClick.Bind(this, &LevelEditorImpl::mnRedo_Clicked);
 
+			new MenuItem(mnEdit);
+
+			manipulationMenuItems[0] = new MenuItem(mnEdit, "&Translate", "Ctrl+1");
+			manipulationMenuItems[0]->OnClick.Bind(this, &LevelEditorImpl::mnManipulationTranslation_Clicked);
+			manipulationMenuItems[1] = new MenuItem(mnEdit, "&Rotation", "Ctrl+2");
+			manipulationMenuItems[1]->OnClick.Bind(this, &LevelEditorImpl::mnManipulationRotation_Clicked);
+			manipulationMenuItems[2] = new MenuItem(mnEdit, "&Scale", "Ctrl+3");
+			manipulationMenuItems[2]->OnClick.Bind(this, &LevelEditorImpl::mnManipulationScale_Clicked);
+
+			manipulator = new TransformManipulator(entry);
+			manipulator->OnPreviewManipulation.Bind(this, &LevelEditorImpl::PreviewManipulation);
+			manipulator->OnApplyManipulation.Bind(this, &LevelEditorImpl::ApplyManipulation);
+
 		}
 
 		void InitEditorActors()
@@ -73,6 +97,67 @@ namespace GameEngine
 			editorCam->OnLoad();
 			editorCamController->OnLoad();
 		}
+		Matrix4 GetManipulationTransform(ManipulationEventArgs e, Matrix4 existingTransform)
+		{
+			Matrix4 rs;
+			Matrix4::CreateIdentityMatrix(rs);
+			if (IsTranslationHandle(e.Handle))
+			{
+				Matrix4::Translation(rs, e.TranslationOffset.x, e.TranslationOffset.y, e.TranslationOffset.z);
+				Matrix4::Multiply(rs, rs, existingTransform);
+			}
+			else if (IsRotationHandle(e.Handle))
+			{
+				switch (e.Handle)
+				{
+				case ManipulationHandleType::RotationX:
+					Matrix4::RotationX(rs, e.RotationAngle);
+					break;
+				case ManipulationHandleType::RotationY:
+					Matrix4::RotationY(rs, e.RotationAngle);
+					break;
+				case ManipulationHandleType::RotationZ:
+					Matrix4::RotationZ(rs, e.RotationAngle);
+					break;
+				}
+				Vec3 translation = Vec3::Create(existingTransform.values[12], existingTransform.values[13], existingTransform.values[14]);
+				existingTransform.values[12] = 0.0f;
+				existingTransform.values[13] = 0.0f;
+				existingTransform.values[14] = 0.0f;
+				Matrix4::Multiply(rs, rs, existingTransform);
+				rs.values[12] = translation.x;
+				rs.values[13] = translation.y;
+				rs.values[14] = translation.z;
+			}
+			else
+			{
+				Matrix4::Scale(rs, e.Scale.x, e.Scale.y, e.Scale.z);
+				Vec3 translation = Vec3::Create(existingTransform.values[12], existingTransform.values[13], existingTransform.values[14]);
+				existingTransform.values[12] = 0.0f;
+				existingTransform.values[13] = 0.0f;
+				existingTransform.values[14] = 0.0f;
+				Matrix4::Multiply(rs, rs, existingTransform);
+				rs.values[12] = translation.x;
+				rs.values[13] = translation.y;
+				rs.values[14] = translation.z;
+			}
+			return rs;
+		}
+		void PreviewManipulation(UI_Base *, ManipulationEventArgs e)
+		{
+			if (!selectedActor)
+				return;
+			auto transform = GetManipulationTransform(e, oldLocalTransform);
+			selectedActor->SetLocalTransform(transform);
+		}
+		void ApplyManipulation(UI_Base *, ManipulationEventArgs e)
+		{
+			if (selectedActor)
+			{
+				PreviewManipulation(nullptr, e);
+				oldLocalTransform = selectedActor->GetLocalTransform();
+			}
+		}
 	public:
 		virtual void Tick() override
 		{
@@ -81,6 +166,18 @@ namespace GameEngine
 				return;
 			level->CurrentCamera = editorCam;
 
+			if (selectedActor)
+			{
+				ManipulatorSceneView view;
+				view.FOV = editorCam->FOV;
+				auto viewport = Engine::Instance()->GetCurrentViewport();
+				view.ViewportX = (float)viewport.x;
+				view.ViewportY = (float)viewport.y;
+				view.ViewportH = (float)viewport.height;
+				view.ViewportW = (float)viewport.width;
+				manipulator->SetTarget(manipulationMode, view, editorCam->GetLocalTransform(), editorCam->Position,
+					selectedActor->GetPosition());
+			}
 		}
 		virtual void OnLoad() override
 		{
@@ -124,6 +221,35 @@ namespace GameEngine
 		void UIEntry_MouseDown(UI_Base *, UIMouseEventArgs & e)
 		{
 			mouseDownScreenSpacePos = Vec2i::Create(e.X, e.Y);
+			level = Engine::Instance()->GetLevel();
+			if (level)
+			{
+				Ray ray = Engine::Instance()->GetRayFromMousePosition(e.X, e.Y);
+				auto traceRs = level->GetPhysicsScene().RayTraceFirst(ray);
+				if (traceRs.Object)
+				{
+					SelectActor(traceRs.Object->ParentActor);
+				}
+			}
+		}
+		void SwitchManipulationMode(ManipulationMode mode)
+		{
+			for (int i = 0; i < 3; i++)
+				manipulationMenuItems[i]->Checked = false;
+			manipulationMode = mode;
+			manipulationMenuItems[(int)mode]->Checked = true;
+		}
+		void mnManipulationTranslation_Clicked(UI_Base *)
+		{
+			SwitchManipulationMode(ManipulationMode::Translation);
+		}
+		void mnManipulationRotation_Clicked(UI_Base *)
+		{
+			SwitchManipulationMode(ManipulationMode::Rotation);
+		}
+		void mnManipulationScale_Clicked(UI_Base *)
+		{
+			SwitchManipulationMode(ManipulationMode::Scale);
 		}
 		void UIEntry_MouseMove(UI_Base *, UIMouseEventArgs & e)
 		{
@@ -148,8 +274,32 @@ namespace GameEngine
 				return;
 		}
 
-		bool DispatchShortcuts(UIKeyEventArgs & /*e*/)
+		bool DispatchShortcuts(UIKeyEventArgs & e)
 		{
+			if (e.Shift == SS_CONTROL)
+			{
+				if (CheckKey(e.Key, '1'))
+					mnManipulationTranslation_Clicked(nullptr);
+				else if (CheckKey(e.Key, '2'))
+					mnManipulationRotation_Clicked(nullptr);
+				else if (CheckKey(e.Key, '3'))
+					mnManipulationScale_Clicked(nullptr);
+				else if (CheckKey(e.Key, 'N'))
+					mnNew_Clicked(nullptr);
+				else if (CheckKey(e.Key, 'O'))
+					mnOpen_Clicked(nullptr);
+				else if (CheckKey(e.Key, 'S'))
+					mnSave_Clicked(nullptr);
+				else if (CheckKey(e.Key, 'Z'))
+					mnUndo_Clicked(nullptr);
+				else if (CheckKey(e.Key, 'Y'))
+					mnRedo_Clicked(nullptr);
+			}
+			else if (e.Shift == (SS_CONTROL | SS_SHIFT))
+			{
+				if (CheckKey(e.Key, 'S'))
+					mnSaveAs_Clicked(nullptr);
+			}
 			return false;
 		}
 	};

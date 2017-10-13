@@ -1559,7 +1559,7 @@ namespace GraphicsUI
 		VectorMath::Matrix4 viewTransform, projTransform, viewProjTransform, invViewProjTransform, viewportTransform;
 		VectorMath::Vec3 camPos, pos, sphereCenter;
 		VectorMath::Vec2 screenSpaceTangent;
-
+		bool disableDraw = false;
 		ManipulationHandle & GetManipulationHandle(ManipulationHandleType type)
 		{
 			return handles[(int)type];

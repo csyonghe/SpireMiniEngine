@@ -95,6 +95,7 @@ namespace GameEngine
 		SetLocalTransform(*LocalTransform); // update bbox
 		// update physics scene
 		physInstance = model->CreatePhysicsInstance(level->GetPhysicsScene(), this, nullptr);
+		physInstance->SetTransform(*LocalTransform);
 	}
 
 	void StaticMeshActor::OnUnload()
