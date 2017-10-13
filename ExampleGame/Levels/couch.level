@@ -1,114 +1,87 @@
 Camera
 {
-    name "FreeCam"
-    orientation [0.640 0.365 0.000]
-    position [-160.01 119.70 222.91]
-    znear 10.0
-    zfar 50000.0
-    fov 40.0
+	Name "FreeCam"
+	CastShadow true
+	LocalTransform [ 0.80209577 0.2131685 -0.55785447 0 0 0.93412375 0.3569493 0 0.59719545 -0.28630751 0.74925673 0 -4.7774963 -13.884712 -299.00592 1 ]
+	Orientation [ 0.63999999 0.36500001 0 ]
+	Position [ -160.00999 119.7 222.91 ]
+	ZNear 10
+	ZFar 50000
+	FOV 40
+	Radius 50
 }
-
 FreeRoamCameraController
 {
-    name "CamControl"
-    TargetCamera "FreeCam"
-    Speed 100.0
+	Name "CamControl"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 ]
+	InputChannel 0
+	Speed 100
+	TurnPrecision 0.78539819
+	TargetCameraName "FreeCam"
 }
-/*
-ArcBallCameraController
-{
-    name "arcballControl"
-    TargetCamera "FreeCam"
-}
-*/
-
-/*
-Atmosphere
-{
-    SunDir [0.5 0.4 0.4]
-    AtmosphericFogScaleFactor 0.5 
-}
-
 DirectionalLight
 {
-    name "sunlight"
-    transform [1 0 0 0   0 1 0 0    0 0 1 0    0 5000 0 1]
-    Direction [0.5 0.4 0.4]
-    Color [5.5 5.5 5.5]
-    EnableCascadedShadows true
-    NumShadowCascades 4
-    ShadowDistance 1500
-    TransitionFactor 0.8 
+	Name "ambient"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 0 5000 0 1 ]
+	EnableCascadedShadows false
+	ShadowDistance 1500
+	NumShadowCascades 4
+	TransitionFactor 0.80000001
+	Direction [ -0.66226619 0.52981299 -0.52981299 ]
+	Color [ 0.5 0.5 0.5 ]
+	Ambient 0.2
 }
-*/
-DirectionalLight
-{
-    name "ambient"
-    transform [1 0 0 0   0 1 0 0    0 0 1 0    0 5000 0 1]
-    Direction [-0.5 0.4 -0.4]
-    Color [0.5 0.5 0.5]
-    EnableCascadedShadows false
-    NumShadowCascades 4
-    ShadowDistance 1500
-    TransitionFactor 0.8 
-}
-
-
 EnvMap
 {
-    name "envmap0"
-    transform [1 0 0 0   0 1 0 0    0 0 1 0    0 500 0 1]  
-    Radius 20000
-    TintColor [0 0 0]   
+	Name "envmap0"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 0 500 0 1 ]
+	Radius 20000
+	TintColor [ 0 0 0 ]
 }
-
 PointLight
 {
-    name "plight1"
-    transform [1 0 0 0   0 1 0 0    0 0 1 0    200 200 200 1]
-    Direction [-1.0 -1.0 -1.0]
-    Color [5 4.4 3.5]
-    Radius 2500
-    EnableShadows true
-    DecayDistance90Percent 2400
-    IsSpotLight true
-    SpotLightStartAngle 30
-    SpotLightEndAngle 40
+	Name "plight1"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 200 200 200 1 ]
+	EnableShadows true
+	Radius 2500
+	DecayDistance90Percent 2400
+	IsSpotLight true
+	Direction [ -0.57735032 -0.57735032 -0.57735032 ]
+	Color [ 5 4.4000001 3.5 ]
+	SpotLightStartAngle 30
+	SpotLightEndAngle 40
 }
-
 StaticMesh
 {
-    name "couch"
-    mesh "SM_Couch.mesh"
-    material
-    {
-        shader "SM_Couch.shader"
-        var maskMap = texture["T_Couch_Mask.TGA"]
-        var leatherNormalMap = texture["T_Leather_N.TGA"]
-        var baseNormalMap = texture["T_Couch_N.TGA"]
-        var aoMap = texture["T_Couch_AO.TGA"]
-        var leatherSpecularMap = texture["T_Leather_S.TGA"]
-        var leatherMap = texture["T_Leather_D.TGA"]
-    }
-    transform [0.0 0.0 -1.0 0.0
-               0.0 1.0 0.0 0.0
-               1.0 0.0 0.0 0.0
-               0.0 0.0 0.0 1.0]
+	Name "couch"
+	CastShadow true
+	LocalTransform [ 0 0 -1 0 0 1 0 0 1 0 0 0 0 0 0 1 ]
+	mesh "SM_Couch.mesh"
+	material
+	{
+		shader "SM_Couch.shader"
+		var maskMap = texture["T_Couch_Mask.TGA"]
+		var leatherNormalMap = texture["T_Leather_N.TGA"]
+		var baseNormalMap = texture["T_Couch_N.TGA"]
+		var aoMap = texture["T_Couch_AO.TGA"]
+		var leatherSpecularMap = texture["T_Leather_S.TGA"]
+		var leatherMap = texture["T_Leather_D.TGA"]
+	}
 }
-
 StaticMesh
 {
-    name "floor"
-    mesh "plane.mesh"
-    material
-    {
-        shader "CheckerBoard.shader"
-
-        var albedoMap = texture["checkerBoard.texture"]
-        var uvScale = float[100.0]
-    }
-    transform [100.0 0.0 0.0 0.0
-               0.0 100.0 0.0 0.0
-               0.0 0.0 100.0 0.0
-               0.0 0.0 0.0 1.0]
+	Name "floor"
+	CastShadow true
+	LocalTransform [ 100 0 0 0 0 100 0 0 0 0 100 0 0 0 0 1 ]
+	mesh "plane.mesh"
+	material
+	{
+		shader "CheckerBoard.shader"
+		var albedoMap = texture["checkerBoard.texture"]
+		var uvScale = float[100]
+	}
 }

@@ -54,7 +54,7 @@ namespace GameEngine
 	Level::Level(const CoreLib::String & fileName)
 	{
 		LoadFromText(File::ReadAllText(fileName));
-		
+		FileName = fileName;
 	}
 	void Level::LoadFromText(CoreLib::String text)
 	{
@@ -108,6 +108,7 @@ namespace GameEngine
 		for (auto & actor : Actors)
 			actor.Value->SerializeToText(sb);
 		File::WriteAllText(fileName, IndentText(sb.ProduceString()));
+		FileName = fileName;
 	}
 	Level::~Level()
 	{

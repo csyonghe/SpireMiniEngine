@@ -24,8 +24,10 @@ namespace CoreLib
 		public:
 #ifdef _WIN32
 			static const char PathDelimiter = '\\';
+			static const char AltPathDelimiter = '/';
 #else
 			static const char PathDelimiter = '/';
+			static const char AltPathDelimiter = '/';
 #endif
 			static String TruncateExt(const String & path);
 			static String ReplaceExt(const String & path, const char * newExt);

@@ -10,6 +10,7 @@ namespace GameEngine
 	class FreeRoamCameraControllerActor : public Actor
 	{
 	public:
+		PROPERTY_DEF(int, InputChannel, 0);
 		PROPERTY_DEF(float, Speed, 700.0f);
 		PROPERTY_DEF(float, TurnPrecision, CoreLib::Math::Pi / 4.0f);
 		PROPERTY(CoreLib::String, TargetCameraName);
@@ -31,7 +32,10 @@ namespace GameEngine
 		bool TurnRight(const CoreLib::String & axisName, ActionInput scale);
 		bool TurnUp(const CoreLib::String & axisName, ActionInput scale);
 		bool DumpCamera(const CoreLib::String & axisName, ActionInput scale);
-
+		void SetTargetCamera(CameraActor * targetCam)
+		{
+			targetCamera = targetCam;
+		}
 	};
 }
 

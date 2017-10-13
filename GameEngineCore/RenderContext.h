@@ -158,7 +158,18 @@ namespace GameEngine
 		void Reset();
 	};
 
-	class RendererSharedResource
+	class RendererResource
+	{
+	protected:
+		CoreLib::EnumerableDictionary<unsigned int, CoreLib::RefPtr<DescriptorSetLayout>> descLayouts;
+	public:
+		SpireCompilationContext * spireContext = nullptr;
+		CoreLib::RefPtr<HardwareRenderer> hardwareRenderer;
+		void CreateModuleInstance(ModuleInstance & mInst, SpireModule * shaderModule, DeviceMemory * uniformMemory, int uniformBufferSize = 0);
+		virtual void Destroy();
+	};
+
+	class RendererSharedResource : public RendererResource
 	{
 	private:
 		RenderAPI api;
@@ -167,15 +178,12 @@ namespace GameEngine
 		int envMapAllocPtr = 0;
 	public:
 		RenderStat renderStats;
-		CoreLib::RefPtr<HardwareRenderer> hardwareRenderer;
 		CoreLib::RefPtr<TextureSampler> textureSampler, nearestSampler, linearSampler, linearClampedSampler, envMapSampler, shadowSampler;
 		CoreLib::RefPtr<Texture3D> defaultColorLookupTexture;
-		CoreLib::EnumerableDictionary<SpireModuleStruct*, CoreLib::RefPtr<DescriptorSetLayout>> descLayouts;
-		SpireCompilationContext * spireContext = nullptr;
+		SpireCompilationEnvironment * sharedSpireEnvironment = nullptr;
 		SpireDiagnosticSink * spireSink = nullptr;
 		ShadowMapResource shadowMapResources;
 		SpireShader * LoadSpireShader(const char * key, const char * source);
-		void CreateModuleInstance(ModuleInstance & mInst, SpireModule * shaderModule, DeviceMemory * uniformMemory, int uniformBufferSize = 0);
 	public:
 		CoreLib::RefPtr<TextureCubeArray> envMapArray;
 
@@ -199,14 +207,16 @@ namespace GameEngine
 			envMapAllocPtr = 0;
 		}
 		void Init(HardwareRenderer * phwRenderer);
-		void Destroy();
+		virtual void Destroy() override;
 	};
 
-	class SceneResource
+	class SceneResource : public RendererResource
 	{
 	private:
 		RendererSharedResource * rendererResource;
 		SpireCompilationContext * spireContext = nullptr;
+		SpireCompilationEnvironment * sharedSpireEnv = nullptr;
+		SpireCompilationEnvironment * spireEnv = nullptr;
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<DrawableMesh>> meshes;
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<Texture2D>> textures;
 		void CreateMaterialModuleInstance(ModuleInstance & mInst, Material* material, const char * moduleName, bool isPatternModule);
@@ -221,11 +231,10 @@ namespace GameEngine
 		void RegisterMaterial(Material * material);
 		
 	public:
-		SceneResource(RendererSharedResource * resource, SpireCompilationContext * spireCtx);
+		SceneResource(RendererSharedResource * resource);
 		~SceneResource()
 		{
-			Clear();
-			spPopContext(spireContext);
+			spReleaseEnvironment(spireEnv);
 		}
 		void Clear();
 	};

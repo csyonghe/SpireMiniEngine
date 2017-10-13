@@ -18,8 +18,11 @@ namespace GameEngine
 	struct ActionInput
 	{
 		float AxisValue = 0.0f;
+		int Channel = 0;
 		CoreLib::ArrayView<CoreLib::String> Arguments;
 	};
+
+	const int EditorChannelId = 65536;
 	
 	typedef CoreLib::Func<bool, const CoreLib::String &, ActionInput> ActionInputHandlerFunc;
 	typedef CoreLib::Func<bool, const CoreLib::String &, MouseInput> ActorMouseInputHandlerFunc;
@@ -45,8 +48,8 @@ namespace GameEngine
 		void UnbindActionHandler(const CoreLib::String & axisName, ActionInputHandlerFunc handlerFunc);
 		void BindMouseInputHandler(ActorMouseInputHandlerFunc handlerFunc);
 		void UnbindMouseInputHandler(ActorMouseInputHandlerFunc handlerFunc);
-		void DispatchInput();
-		void DispatchAction(CoreLib::String actionName, CoreLib::ArrayView<CoreLib::String> args, float actionValue);
+		void DispatchInput(int channel);
+		void DispatchAction(CoreLib::String actionName, CoreLib::ArrayView<CoreLib::String> args, float actionValue, int channel);
 	};
 }
 

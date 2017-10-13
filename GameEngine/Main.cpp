@@ -98,14 +98,17 @@ int wWinMain(
 			args.Height = h;
 
 			RegisterTestUserActor();
-
+			if (parser.OptionExists("-editor"))
+			{
+				args.Editor = CreateLevelEditor();
+			}
 			Engine::Init(args);
 
 			if (parser.OptionExists("-pipelinecache"))
 			{
 				Engine::Instance()->GetGraphicsSettings().UsePipelineCache = ((int)StringToInt(parser.GetOptionValue("-pipelinecache")) == 1);
 			}
-
+			
 			if (appParams.EnableVideoCapture)
 			{
 				Engine::Instance()->SetTimingMode(GameEngine::TimingMode::Fixed);

@@ -12,6 +12,7 @@
 #include "GraphicsSettings.h"
 #include "DrawCallStatForm.h"
 #include "SystemWindow.h"
+#include "LevelEditor.h"
 #include "OS.h"
 
 namespace GameEngine
@@ -36,6 +37,7 @@ namespace GameEngine
 		bool RecompileShaders = false;
 		CoreLib::String GameDirectory, EngineDirectory, StartupLevelName;
         AppLaunchParameters LaunchParams;
+		CoreLib::RefPtr<LevelEditor> Editor;
 	};
 	enum class EngineThread
 	{
@@ -48,6 +50,10 @@ namespace GameEngine
 	enum class TimingMode
 	{
 		Natural, Fixed
+	};
+	enum class EngineMode
+	{
+		Normal, Editor
 	};
 
 	class Engine
@@ -73,15 +79,16 @@ namespace GameEngine
 		CoreLib::RefPtr<Level> level;
 		CoreLib::RefPtr<Renderer> renderer;
 		CoreLib::RefPtr<InputDispatcher> inputDispatcher;
-		
+		CoreLib::RefPtr<LevelEditor> levelEditor;
         CoreLib::RefPtr<SystemWindow> mainWindow;
-
+		EngineMode engineMode = EngineMode::Normal;
 		CoreLib::Array<RenderStat, 16> renderStats;
 		GraphicsUI::CommandForm * uiCommandForm = nullptr;
 		DrawCallStatForm * drawCallStatForm = nullptr;
 		CoreLib::RefPtr<UIWindowsSystemInterface> uiSystemInterface;
         void MainLoop(CoreLib::Object *, CoreLib::WinForm::EventArgs);
 		bool OnToggleConsoleAction(const CoreLib::String & actionName, ActionInput input);
+		void Resize();
 		Engine() {};
 		void InternalInit(const EngineInitArguments & args);
 		~Engine();
@@ -143,15 +150,28 @@ namespace GameEngine
 		Level* NewLevel();
 		CoreLib::RefPtr<Actor> ParseActor(GameEngine::Level * level, CoreLib::Text::TokenReader & parser);
 	public:
+		WindowBounds GetCurrentViewport()
+		{
+			return currentViewport;
+		}
 		Ray GetRayFromMousePosition(int x, int y);
 	public:
 		CoreLib::String FindFile(const CoreLib::String & fileName, ResourceType type);
 		CoreLib::String GetDirectory(bool useEngineDir, ResourceType type);
 	public:
 		void Tick();
-		void Resize(int w, int h);
 		void EnableInput(bool value);
 		void OnCommand(CoreLib::String command);
+		void UseEditor(LevelEditor * editor);
+		LevelEditor * GetEditor()
+		{
+			return levelEditor.Ptr();
+		}
+		EngineMode GetEngineMode()
+		{
+			return engineMode;
+		}
+		void SetEngineMode(EngineMode newMode);
         SystemWindow * CreateSystemWindow(int log2BufferSize = 20);
 		int HandleWindowsMessage(SystemWindow * window, UINT message, WPARAM &wparam, LPARAM &lparam);
 	public:

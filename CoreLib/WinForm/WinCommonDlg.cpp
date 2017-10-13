@@ -1,5 +1,6 @@
 #include "WinCommonDlg.h"
 #include "../LibIO.h"
+#include "../LibMath.h"
 
 using namespace CoreLib::IO;
 

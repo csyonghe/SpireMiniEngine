@@ -9,9 +9,14 @@ namespace GameEngine
 	{
 	private:
 		const char * shaderSrc = R"(
-			template shader ShadowPass(passParams:ForwardBasePassParams, geometryModule:IMaterialGeometry, materialModule:IMaterialPattern, animationModule) targets StandardPipeline
+			template shader ShadowPass(
+                passParams:ForwardBasePassParams, 
+                geometryModule:IMaterialGeometry, 
+                materialModule:IMaterialPattern, 
+                animationModule, 
+                vertexAttribModule) targets StandardPipeline
 			{
-				public using VertexAttributes;
+				public using vertexAttribModule;
 				public using passParams;
 				public using animationModule;
 				public using TangentSpaceTransform;

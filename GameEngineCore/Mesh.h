@@ -5,6 +5,7 @@
 #include "CoreLib/VectorMath.h"
 #include "CoreLib/Graphics/BBox.h"
 #include "CoreLib/LibIO.h"
+#include "Spire/Spire.h"
 #include <assert.h>
 
 namespace GameEngine
@@ -46,7 +47,7 @@ namespace GameEngine
 			key.fields.hasSkinning = pHasSkinning ? 1 : 0;
 			vertSize = CalcVertexSize();
 		}
-		CoreLib::String GetShaderDefinition();
+		SpireModule * GetSpireModule(SpireCompilationEnvironment * spireEnv);
 		int GetVertexSize()
 		{
 			return vertSize;

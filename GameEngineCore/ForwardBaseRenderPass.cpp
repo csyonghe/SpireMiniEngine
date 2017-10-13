@@ -17,9 +17,10 @@ namespace GameEngine
                                         lightingModule, 
                                         geometryModule : IMaterialGeometry, 
                                         materialModule : IMaterialPattern, 
-                                        animationModule) targets StandardPipeline
+                                        animationModule,
+                                        vertexAttribModule) targets StandardPipeline
 			{
-				public using VertexAttributes;
+				public using vertexAttribModule;
 				public using passParams;
 				public using animationModule;
 				public using TangentSpaceTransform;

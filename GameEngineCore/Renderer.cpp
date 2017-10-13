@@ -58,7 +58,7 @@ namespace GameEngine
 			void CreateTransformModuleInstance(ModuleInstance & rs, const char * name, int uniformBufferSize)
 			{
 				auto sceneResources = renderer->sceneRes.Ptr();
-				renderer->sharedRes.CreateModuleInstance(rs, spFindModule(renderer->sharedRes.spireContext, name), &sceneResources->transformMemory, uniformBufferSize);
+				renderer->sharedRes.CreateModuleInstance(rs, spEnvFindModule(renderer->sharedRes.sharedSpireEnvironment, name), &sceneResources->transformMemory, uniformBufferSize);
 			}
 
 			virtual CoreLib::RefPtr<Drawable> CreateStaticDrawable(Mesh * mesh, int elementId, Material * material, bool cacheMesh) override
@@ -92,6 +92,7 @@ namespace GameEngine
 		RefPtr<ViewResource> mainView;
 		RefPtr<RendererServiceImpl> renderService;
 		RefPtr<IRenderProcedure> renderProcedure;
+		EnumerableDictionary<int, int> worldRenderPassIds;
 		List<RefPtr<WorldRenderPass>> worldRenderPasses;
 		List<RefPtr<PostRenderPass>> postRenderPasses;
 		HardwareRenderer * hardwareRenderer = nullptr;
@@ -143,7 +144,7 @@ namespace GameEngine
 			uniformBufferAlignment = hardwareRenderer->UniformBufferAlignment();
 			storageBufferAlignment = hardwareRenderer->StorageBufferAlignment();
 			
-			sceneRes = new SceneResource(&sharedRes, sharedRes.spireContext);
+			sceneRes = new SceneResource(&sharedRes);
 			renderService = new RendererServiceImpl(this);
 			hardwareRenderer->Wait();
 		}
@@ -164,23 +165,15 @@ namespace GameEngine
 			hardwareRenderer->Wait();
 		}
 
-		virtual int RegisterWorldRenderPass(WorldRenderPass * renderPass) override
+		virtual int RegisterWorldRenderPass(SpireShader * renderPass) override
 		{
-			if (worldRenderPasses.Count() >= MaxWorldRenderPasses)
-				throw InvalidOperationException("Number of registered world render passes exceeds engine limit.");
-			renderPass->Init(&sharedRes);
-			worldRenderPasses.Add(renderPass);
-			renderPass->SetId(worldRenderPasses.Count() - 1);
-			return worldRenderPasses.Count() - 1;
-		}
-
-		virtual int RegisterPostRenderPass(PostRenderPass * renderPass) override
-		{
-			if (postRenderPasses.Count() >= MaxPostRenderPasses)
-				throw InvalidOperationException("Number of registered post render passes exceeds engine limit.");
-			renderPass->Init(&sharedRes);
-			postRenderPasses.Add(renderPass);
-			return postRenderPasses.Count() - 1;
+			int shaderId = spShaderGetId(renderPass);
+			int passId;
+			if (worldRenderPassIds.TryGetValue(shaderId, passId))
+				return passId;
+			int newId = worldRenderPassIds.Count();
+			worldRenderPassIds[shaderId] = newId;
+			return newId;
 		}
 
 		virtual HardwareRenderer * GetHardwareRenderer() override
@@ -194,8 +187,6 @@ namespace GameEngine
 		virtual void InitializeLevel(Level* pLevel) override
 		{
 			if (!pLevel) return;
-
-			sceneRes->Clear();
 			level = pLevel;
 			cubemapRenderView = new ViewResource(hardwareRenderer);
 			cubemapRenderView->Resize(EnvMapSize, EnvMapSize);
@@ -308,11 +299,6 @@ namespace GameEngine
 		{
 			return sceneRes.Ptr();
 		}
-		virtual void DestroyContext() override
-		{
-			sceneRes = nullptr;
-			sharedRes.ResetEnvMapAllocation();
-		}
 		virtual void Resize(int w, int h) override
 		{
 			mainView->Resize(w, h);
@@ -323,6 +309,11 @@ namespace GameEngine
 			if (renderProcedure)
 				return renderProcedure->GetOutput()->Texture.Ptr();
 			return nullptr;
+		}
+		virtual void DestroyContext() override
+		{
+			sharedRes.ResetEnvMapAllocation();
+			sceneRes->Clear();
 		}
 	};
 

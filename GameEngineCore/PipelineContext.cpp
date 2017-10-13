@@ -93,8 +93,9 @@ namespace GameEngine
 		Array<SpireModule*, 32> spireModules;
 		for (int i = 0; i < modulePtr; i++)
 			spireModules.Add(modules[i]->specializedModule);
+		spireModules.Add(vertFormat->GetSpireModule(spireEnv));
 		SpireDiagnosticSink * sink = spCreateDiagnosticSink(spireContext);
-		auto compileRs = spCompileShader(spireContext, shader, spireModules.Buffer(), spireModules.Count(), vertFormat->GetShaderDefinition().Buffer(), sink);
+		auto compileRs = spEnvCompileShader(spireEnv, shader, spireModules.Buffer(), spireModules.Count(), "", sink);
 
 		int count = spGetDiagnosticCount(sink);
 		for (int i = 0; i < count; i++)
@@ -167,7 +168,6 @@ namespace GameEngine
 		pipelineBuilder->SetBindingLayout(From(descSetLayouts).Select([](auto x) {return x.Ptr(); }).ToList().GetArrayView());
 		pipelineClass->pipeline = pipelineBuilder->ToPipeline(renderTargetLayout);
 		pipelineObjects[shaderKeyBuilder.Key] = pipelineClass;
-		Print("Pipeline created. total pipelines: %d\n", pipelineObjects.Count());
 		return pipelineClass.Ptr();
 	}
 

@@ -99,12 +99,17 @@ namespace GameEngine
 		vertSize = CalcVertexSize();
 	}
 
-	String MeshVertexFormat::GetShaderDefinition()
+	SpireModule * MeshVertexFormat::GetSpireModule(SpireCompilationEnvironment * spireEnv)
 	{
+		StringBuilder sbName;
+		sbName << "VertexAttributes_" << String((unsigned int)this->GetTypeId(), 36);
+		auto name = sbName.ToString();
+		if (auto rs = spEnvFindModule(spireEnv, name.Buffer()))
+			return rs;
 		if (shaderDef.Length() == 0)
 		{
 			StringBuilder sb;
-			sb << "module VertexAttributes\n{\n";
+			sb << "module " << name << "\n{\n";
 			sb << "public @MeshVertex vec3 vertPos;\n";
 			for (auto i = 0u; i < key.fields.numUVs; i++)
 				sb << "public @MeshVertex vec2 vertUV" << i << ";\n";
@@ -173,7 +178,8 @@ namespace GameEngine
 			sb << "}\n";
 			shaderDef = sb.ProduceString();
 		}
-		return shaderDef;
+		spEnvLoadModuleLibraryFromSource(spireEnv, shaderDef.Buffer(), name.Buffer(), nullptr);
+		return spEnvFindModule(spireEnv, name.Buffer());
 	}
 	
 	struct SkeletonMeshVertex

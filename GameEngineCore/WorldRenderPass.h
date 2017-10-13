@@ -10,7 +10,7 @@ namespace GameEngine
 	private:
 		FixedFunctionPipelineStates fixedFunctionStates;
 		SpireShader * shader = nullptr;
-
+		int renderPassId = -1;
 	protected:
 		CoreLib::List<CoreLib::RefPtr<AsyncCommandBuffer>> commandBufferPool;
 		int poolAllocPtr = 0;
@@ -21,7 +21,7 @@ namespace GameEngine
 			state.BlendMode = BlendMode::Replace;
 			state.DepthCompareFunc = CompareFunc::Less;
 		}
-		virtual void Create() override;
+		virtual void Create(Renderer * renderer) override;
 	public:
 		~WorldRenderPass();
 		void ResetInstancePool()
@@ -31,6 +31,7 @@ namespace GameEngine
 		virtual void Bind();
 		AsyncCommandBuffer * AllocCommandBuffer();
 		CoreLib::RefPtr<WorldPassRenderTask> CreateInstance(RenderOutput * output, bool clearOutput);
+		virtual int GetShaderId() override;
 	};
 }
 

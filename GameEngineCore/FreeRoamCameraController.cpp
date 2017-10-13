@@ -7,9 +7,12 @@ namespace GameEngine
 
 	void FreeRoamCameraControllerActor::FindTargetCamera()
 	{
-		auto actor = level->FindActor(*TargetCameraName);
-		if (actor && actor->GetEngineType() == EngineActorType::Camera)
-			targetCamera = (CameraActor*)actor;
+		if (level)
+		{
+			auto actor = level->FindActor(*TargetCameraName);
+			if (actor && actor->GetEngineType() == EngineActorType::Camera)
+				targetCamera = (CameraActor*)actor;
+		}
 	}
 
 	void FreeRoamCameraControllerActor::OnLoad()
@@ -40,6 +43,8 @@ namespace GameEngine
 	}
 	bool FreeRoamCameraControllerActor::MoveForward(const CoreLib::String & /*axisName*/, ActionInput input)
 	{
+		if (input.Channel != InputChannel.GetValue())
+			return false;
 		FindTargetCamera();
 		if (targetCamera)
 		{
@@ -52,6 +57,8 @@ namespace GameEngine
 	}
 	bool FreeRoamCameraControllerActor::MoveRight(const CoreLib::String & /*axisName*/, ActionInput input)
 	{
+		if (input.Channel != InputChannel.GetValue())
+			return false;
 		FindTargetCamera();
 		if (targetCamera)
 		{
@@ -64,6 +71,8 @@ namespace GameEngine
 	}
 	bool FreeRoamCameraControllerActor::MoveUp(const CoreLib::String & /*axisName*/, ActionInput input)
 	{
+		if (input.Channel != InputChannel.GetValue())
+			return false;
 		FindTargetCamera();
 		if (targetCamera)
 		{
@@ -76,6 +85,8 @@ namespace GameEngine
 	}
 	bool FreeRoamCameraControllerActor::TurnRight(const CoreLib::String & /*axisName*/, ActionInput input)
 	{
+		if (input.Channel != InputChannel.GetValue())
+			return false;
 		FindTargetCamera();
 		if (targetCamera)
 		{
@@ -87,6 +98,8 @@ namespace GameEngine
 	}
 	bool FreeRoamCameraControllerActor::TurnUp(const CoreLib::String & /*axisName*/, ActionInput input)
 	{
+		if (input.Channel != InputChannel.GetValue())
+			return false;
 		FindTargetCamera();
 		if (targetCamera)
 		{
@@ -96,8 +109,10 @@ namespace GameEngine
 		}
 		return false;
 	}
-	bool FreeRoamCameraControllerActor::DumpCamera(const CoreLib::String & /*axisName*/, ActionInput /*input*/)
+	bool FreeRoamCameraControllerActor::DumpCamera(const CoreLib::String & /*axisName*/, ActionInput input)
 	{
+		if (input.Channel != InputChannel.GetValue())
+			return false;
 		FindTargetCamera();
 		if (targetCamera)
 		{

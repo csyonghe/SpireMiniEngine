@@ -52,7 +52,7 @@ namespace GameEngine
 		virtual void UpdateRenderAttachments(RenderAttachments & attachments) = 0;
 		virtual void AcquireRenderTargets() = 0;
 		virtual CoreLib::String GetShaderFileName() = 0;
-		virtual void Create() override;
+		virtual void Create(Renderer * renderer) override;
 		void Resized();
 	public:
 		PostRenderPass(ViewResource * view);
@@ -61,6 +61,10 @@ namespace GameEngine
 		CoreLib::RefPtr<RenderTask> CreateInstance(SharedModuleInstances sharedModules);
 		virtual void SetParameters(void * data, int count) = 0;
 		void SetSource(CoreLib::ArrayView<PostPassSource> sourceTextures);
+		virtual int GetShaderId() override
+		{
+			return -1;
+		}
 	};
 }
 

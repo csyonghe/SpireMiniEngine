@@ -1985,7 +1985,17 @@ namespace GLL
 	{
 	public:
 		CoreLib::List<CommandData> buffer;
+#ifdef _DEBUG
+		CoreLib::Array<GLL::DescriptorSet*, 32> descSets;
+		GLL::Pipeline * currentPipeline = nullptr;
+#endif
 	public:
+		CommandBuffer()
+		{
+#ifdef _DEBUG
+			descSets.SetSize(descSets.GetCapacity());
+#endif
+		}
 		virtual void BeginRecording() override
 		{
 			buffer.Clear();
@@ -2027,6 +2037,9 @@ namespace GLL
 		}
 		virtual void BindPipeline(GameEngine::Pipeline* pipeline) override
 		{
+#ifdef _DEBUG
+			currentPipeline = (GLL::Pipeline*)pipeline;
+#endif
 			CommandData data;
 			data.command = Command::BindPipeline;
 			data.pipelineData.pipeline = reinterpret_cast<GLL::Pipeline*>(pipeline);
@@ -2034,6 +2047,9 @@ namespace GLL
 		}
 		virtual void BindDescriptorSet(int binding, GameEngine::DescriptorSet* descSet) override
 		{
+#ifdef _DEBUG
+			descSets[binding] = (GLL::DescriptorSet*)descSet;
+#endif
 			CommandData data;
 			data.command = Command::BindDescriptorSet;
 			data.bindDesc.descSet = reinterpret_cast<GLL::DescriptorSet*>(descSet);
@@ -2084,6 +2100,15 @@ namespace GLL
 		}
 		virtual void DrawIndexed(int firstIndex, int indexCount) override
 		{
+#ifdef _DEBUG
+			for (int i = 0; i < currentPipeline->settings.bindingLayout.Count(); i++)
+			{
+				if (!descSets[i])
+					continue;
+				if (descSets[i]->descriptors.Count() != currentPipeline->settings.bindingLayout[i].Count())
+					printf("error: descriptor binding does not match pipeline layout.\n");
+			}
+#endif
 			CommandData data;
 			data.command = Command::DrawIndexed;
 			data.draw.first = firstIndex;
@@ -2498,7 +2523,8 @@ namespace GLL
 				}
 				srcFrameBuffer.EnableRenderTargets(mask);
 			};
-
+			for (int i = 0; i < sizeof(textureBindState) / sizeof(textureBindState[0]); i++)
+				textureBindState[i] = 0xFFFFFFFF;
 			// Prepare framebuffer
 			SetWriteFrameBuffer(srcFrameBuffer);
 			setupFrameBuffer();
@@ -2680,11 +2706,13 @@ namespace GLL
 				break;
 			}
             int width, height;
-            dstImage->GetSize(width, height);
+            srcImage->GetSize(width, height);
+			int dstWidth, dstHeight;
+			dstImage->GetSize(dstWidth, dstHeight);
 			// Blit from src to dst
 			SetReadFrameBuffer(srcFrameBuffer);
 			SetWriteFrameBuffer(dstFrameBuffer);
-			CopyFrameBuffer(0, 0, width, height, dstOffset.x, dstOffset.y, width, height, true, false, false);
+			CopyFrameBuffer(0, 0, width, height, dstOffset.x, (dstHeight - dstOffset.y - height), dstOffset.x + width, dstHeight - dstOffset.y, true, false, false);
 
 			switch (reinterpret_cast<GLL::Texture2D*>(srcImage)->format)
 			{
@@ -2728,7 +2756,7 @@ namespace GLL
 			SetReadFrameBuffer(srcFB);
 			SetWriteFrameBuffer(GLL::FrameBuffer());
             int width, height;
-            surface->GetSize(width, height);
+            srcImage->GetSize(width, height);
             glViewport(0, 0, width, height);
 			CopyFrameBuffer(0, 0, width, height, 0, 0, width, height, true, false, false);
 			SwapBuffers(glsurface->hdc);

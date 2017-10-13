@@ -2112,6 +2112,7 @@ namespace GraphicsUI
 			e.X = X;
 			e.Y = Y;
 			Global::MouseCaptureControl = this;
+			SetFocusedControl(this);
 			OnMouseDown.Invoke(this, e);
 		}
 		MouseInputConsumed = false;

@@ -940,6 +940,17 @@ public:
 		}
 		return nullptr;
 	}
+	Shader * GetShader(CompilerState * state, int index)
+	{
+		int i = 0;
+		for (auto & shader : state->shaders)
+		{
+			if (i == index)
+				return shader.Value.Ptr();
+			i++;
+		}
+		return nullptr;
+	}
 	int GetShaderCount()
 	{
 		if (states.Count())
@@ -948,11 +959,11 @@ public:
 	}
 	Shader * NewShaderFromSource(CompilerState * state, const char * source, const char * fileName, SpireDiagnosticSink * sink)
 	{
-		int shaderCount = GetShaderCount();
+		int shaderCount = state->shaders.Count();
 		LoadModuleSource(state, source, fileName, sink);
-		int newShaderCount = GetShaderCount();
+		int newShaderCount = state->shaders.Count();
 		if (newShaderCount > shaderCount)
-			return GetShader(shaderCount);
+			return GetShader(state, shaderCount);
 		return nullptr;
 	}
 	Shader * NewShaderFromFile(CompilerState * state, const char * fileName, SpireDiagnosticSink * sink)
@@ -1171,7 +1182,7 @@ SpireCompilationEnvironment * spCreateEnvironment(SpireCompilationContext * ctx,
 	auto rs = new SpireCompilationEnvironment();
 	rs->context = CTX(ctx);
 	if (forkOrigin)
-		rs->state = new CompilerState(*forkOrigin->state);
+		rs->state = new CompilerState(forkOrigin->state);
 	else
 		rs->state = new CompilerState();
 	return rs;

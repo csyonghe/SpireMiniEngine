@@ -3,6 +3,7 @@
 
 #include "CoreLib/Basic.h"
 #include "OS.h"
+#include "Spire/Spire.h"
 
 namespace GameEngine
 {
@@ -16,17 +17,16 @@ namespace GameEngine
 	class ModuleInstance;
 	class Level;
 	class RenderStat;
-
 	class Renderer : public CoreLib::Object
 	{
 	public:
-		virtual int RegisterWorldRenderPass(WorldRenderPass * pass) = 0;
-		virtual int RegisterPostRenderPass(PostRenderPass * pass) = 0;
+		virtual int RegisterWorldRenderPass(SpireShader * pass) = 0;
+		//virtual int RegisterPostRenderPass(PostRenderPass * pass) = 0;
+		virtual void DestroyContext() = 0;
 		virtual void InitializeLevel(Level * level) = 0;
 		virtual void TakeSnapshot() = 0;
 		virtual RenderStat& GetStats() = 0;
 		virtual void RenderFrame() = 0;
-		virtual void DestroyContext() = 0;
 		virtual void Resize(int w, int h) = 0;
 		virtual void Wait() = 0;
 		virtual SceneResource * GetSceneResource() = 0;

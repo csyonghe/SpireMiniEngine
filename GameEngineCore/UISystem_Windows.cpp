@@ -786,7 +786,8 @@ namespace GameEngine
 			
 			auto cmdBuf = wndCtx->blitCmdBuffer->BeginRecording();
 			if (baseTexture)
-				cmdBuf->Blit(wndCtx->uiOverlayTexture.Ptr(), baseTexture, TextureLayout::Sample, VectorMath::Vec2i::Create(viewport.x, viewport.y));
+				cmdBuf->Blit(wndCtx->uiOverlayTexture.Ptr(), baseTexture, TextureLayout::Sample, 
+					VectorMath::Vec2i::Create(viewport.x, viewport.y));
 			cmdBuf->EndRecording();
 
 			cmdBuf = wndCtx->cmdBuffer->BeginRecording(wndCtx->frameBuffer.Ptr());

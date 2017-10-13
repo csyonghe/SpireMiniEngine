@@ -2,6 +2,7 @@
 #define HARDWARE_RENDERER_H
 
 #include "CoreLib/Basic.h"
+#include "CoreLib/VectorMath.h"
 
 namespace GameEngine
 {

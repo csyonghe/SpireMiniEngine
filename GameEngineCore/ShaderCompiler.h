@@ -46,6 +46,7 @@ namespace GameEngine
 
 	bool CompileShader(ShaderCompilationResult & src,
 		SpireCompilationContext * spireCtx,
+		SpireCompilationEnvironment * spireEnv,
 		int targetLang,
 		const CoreLib::String & filename);
 }

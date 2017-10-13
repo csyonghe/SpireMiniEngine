@@ -104,10 +104,11 @@ public:
 
 		ManipulatorSceneView view;
 		view.FOV = level->CurrentCamera->GetView().FOV;
-		view.ViewportX = 0.0f;
-		view.ViewportY = 0.0f;
-		view.ViewportW = (float)uiEntry->GetWidth();
-		view.ViewportH = (float)uiEntry->GetHeight();
+		auto viewport = Engine::Instance()->GetCurrentViewport();
+		view.ViewportX = (float)viewport.x;
+		view.ViewportY = (float)viewport.y;
+		view.ViewportW = (float)viewport.width;
+		view.ViewportH = (float)viewport.height;
 
 		if (sourceModel && lstBones->SelectedIndex != -1)
 		{
@@ -779,13 +780,14 @@ public:
 
 	virtual void RegisterUI(GraphicsUI::UIEntry * pUiEntry) override
 	{
+		GraphicsUI::Global::Colors.EditableAreaBackColor = Color(40, 40, 40, 255);
 		this->uiEntry = pUiEntry;
 		manipulator = new GraphicsUI::TransformManipulator(uiEntry);
 		manipulator->OnPreviewManipulation.Bind(this, &SkeletonRetargetVisualizerActor::PreviewManipulation);
 		manipulator->OnApplyManipulation.Bind(this, &SkeletonRetargetVisualizerActor::ApplyManipulation);
 
 		auto menu = new GraphicsUI::Menu(uiEntry, GraphicsUI::Menu::msMainMenu);
-		menu->BackColor = GraphicsUI::Color(0, 0, 0, 200);
+		menu->BackColor = GraphicsUI::Color(50, 50, 50, 255);
 		uiEntry->MainMenu = menu;
 		auto mnFile = new GraphicsUI::MenuItem(menu, "&File");
 		auto mnEdit = new GraphicsUI::MenuItem(menu, "&Edit");
@@ -834,7 +836,7 @@ public:
 		mnScaleTransformMode->OnClick.Bind(this, &SkeletonRetargetVisualizerActor::mnScaleTransformMode_Clicked);
 
 		auto pnl = new GraphicsUI::Container(uiEntry);
-		pnl->BackColor = GraphicsUI::Color(0, 0, 0, 200);
+		pnl->BackColor = GraphicsUI::Color(50, 50, 50, 255);
 		pnl->DockStyle = GraphicsUI::Control::dsLeft;
 		pnl->SetWidth(EM(12.0f));
 		pnl->Padding = EM(0.5f);

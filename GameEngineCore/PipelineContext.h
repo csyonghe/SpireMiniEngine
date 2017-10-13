@@ -123,6 +123,7 @@ namespace GameEngine
 		unsigned int lastVtxId = 0;
 		bool shaderKeyChanged = true;
 		SpireCompilationContext * spireContext = nullptr;
+		SpireCompilationEnvironment * spireEnv = nullptr;
 		ModuleInstance* modules[32];
 		SpireShader * shader = nullptr;
 		RenderTargetLayout * renderTargetLayout = nullptr;
@@ -137,11 +138,16 @@ namespace GameEngine
 		PipelineClass* CreatePipeline(MeshVertexFormat * vertFormat);
 	public:
 		PipelineContext() = default;
-		void Init(SpireCompilationContext * spireCtx, HardwareRenderer * hw, RenderStat * pRenderStats)
+		void Init(SpireCompilationContext * spireCtx, SpireCompilationEnvironment * pSpireEnv, HardwareRenderer * hw, RenderStat * pRenderStats)
 		{
 			spireContext = spireCtx;
+			spireEnv = pSpireEnv;
 			hwRenderer = hw;
 			renderStats = pRenderStats;
+		}
+		void SetSpireEnvironment(SpireCompilationEnvironment * pSpireEnv)
+		{
+			spireEnv = pSpireEnv;
 		}
 		inline RenderStat * GetRenderStat() 
 		{

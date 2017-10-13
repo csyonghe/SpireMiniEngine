@@ -182,6 +182,7 @@
     <ClCompile Include="ImageLayoutTransferTaskPool.cpp" />
     <ClCompile Include="InputDispatcher.cpp" />
     <ClCompile Include="Level.cpp" />
+    <ClCompile Include="LevelEditor.cpp" />
     <ClCompile Include="LightingData.cpp" />
     <ClCompile Include="LightProbeRenderer.cpp" />
     <ClCompile Include="Material.cpp" />
@@ -238,6 +239,7 @@
     <ClInclude Include="CatmullSpline.h" />
     <ClInclude Include="EnvMapActor.h" />
     <ClInclude Include="ImageLayoutTransferTaskPool.h" />
+    <ClInclude Include="LevelEditor.h" />
     <ClInclude Include="LightBinningPass.h" />
     <ClInclude Include="Drawable.h" />
     <ClInclude Include="EngineLimits.h" />

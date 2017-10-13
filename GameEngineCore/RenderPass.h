@@ -5,28 +5,21 @@
 
 namespace GameEngine
 {
+	class Renderer;
 	class RenderPass : public CoreLib::Object
 	{
 	protected:
-		int renderPassId = -1;
 		RendererSharedResource * sharedRes = nullptr;
 		HardwareRenderer * hwRenderer = nullptr;
 		CoreLib::RefPtr<RenderTargetLayout> renderTargetLayout;
-		virtual void Create() = 0;
+		virtual void Create(Renderer * renderer) = 0;
 	public:
-		void Init(RendererSharedResource * pSharedRes);
+		void Init(Renderer * renderer);
 		RenderTargetLayout * GetRenderTargetLayout()
 		{
 			return renderTargetLayout.Ptr();
 		}
-		void SetId(int id)
-		{
-			renderPassId = id;
-		}
-		int GetId()
-		{
-			return renderPassId;
-		}
+		virtual int GetShaderId() = 0;
 		virtual char * GetName() = 0;
 	};
 }

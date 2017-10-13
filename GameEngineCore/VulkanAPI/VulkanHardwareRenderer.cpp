@@ -177,7 +177,8 @@ namespace VK
 		vk::Instance instance;
 		vk::PhysicalDevice physicalDevice;
 		vk::Device device;
-
+		vk::DescriptorSetLayout emptyDescriptorSetLayout;
+		vk::DescriptorSet emptyDescriptorSet;
 		vk::CommandPool swapchainCommandPool;
 		vk::CommandPool transferCommandPool;
 		vk::CommandPool renderCommandPool;
@@ -407,6 +408,7 @@ namespace VK
 			State().presentQueue = State().device.getQueue(renderQueueFamilyIndex, 0);
 			State().renderQueue = State().device.getQueue(renderQueueFamilyIndex, 0);
 			State().transferQueue = State().device.getQueue(transferQueueFamilyIndex, renderQueuePriorities.Count() - 1);//TODO: Change the index if changing family
+		
 		}
 
 		static void CreateCommandPool()
@@ -464,10 +466,15 @@ namespace VK
 			CreateInstance();
 			SelectPhysicalDevice();
 			InitDevice();
+			vk::DescriptorSetLayoutCreateInfo descLayoutCreateInfo;
+			descLayoutCreateInfo.setBindingCount(0);
+			State().emptyDescriptorSetLayout = State().device.createDescriptorSetLayout(descLayoutCreateInfo);
+			State().emptyDescriptorSet = AllocateDescriptorSet(State().emptyDescriptorSetLayout).second;
 		}
 
 		static void DestroyDevice()
 		{
+			State().device.destroyDescriptorSetLayout(State().emptyDescriptorSetLayout);
 			State().device.destroy();
 		}
 
@@ -538,6 +545,11 @@ namespace VK
 		static const vk::Instance& Instance()
 		{
 			return State().instance;
+		}
+
+		static vk::DescriptorSet GetEmptyDescriptorSet()
+		{
+			return State().emptyDescriptorSet;
 		}
 
 		static const vk::PhysicalDevice& PhysicalDevice()
@@ -3555,7 +3567,10 @@ namespace VK
 		virtual void BindDescriptorSet(int binding, GameEngine::DescriptorSet* descSet) override
 		{
 			VK::DescriptorSet* internalDescriptorSet = reinterpret_cast<VK::DescriptorSet*>(descSet);
-			pendingDescSets[binding] = (internalDescriptorSet->descriptorSet);
+			if (descSet == nullptr)
+				pendingDescSets[binding] = RendererState::GetEmptyDescriptorSet();
+			else
+				pendingDescSets[binding] = (internalDescriptorSet->descriptorSet);
 			if (curPipeline)
 			{
 				//buffer.bindDescriptorSets(curPipeline->pipelineBindPoint, curPipeline->pipelineLayout, binding, internalDescriptorSet->descriptorSet, nullptr);
@@ -3879,13 +3894,28 @@ namespace VK
 				.setBaseArrayLayer(0)
 				.setLayerCount(1);
 
+			int srcWidth = dynamic_cast<VK::Texture2D*>(srcImage)->width;
+			int srcHeight = dynamic_cast<VK::Texture2D*>(srcImage)->height;
+			int destWidth = dynamic_cast<VK::Texture2D*>(dstImage)->width;
+			int destHeight = dynamic_cast<VK::Texture2D*>(dstImage)->height;
+
 			std::array<vk::Offset3D, 2> srcOffsets;
 			srcOffsets[0] = vk::Offset3D(0, 0, 0);
-			srcOffsets[1] = vk::Offset3D(dynamic_cast<VK::Texture2D*>(srcImage)->width, dynamic_cast<VK::Texture2D*>(srcImage)->height, 1);
+			srcOffsets[1] = vk::Offset3D(srcWidth, srcHeight, 1);
 
 			std::array<vk::Offset3D, 2> dstOffsets;
+			dstOffset.y = destHeight - (dstOffset.y + srcHeight);
 			dstOffsets[0] = vk::Offset3D(dstOffset.x, dstOffset.y, 0);
-			dstOffsets[1] = vk::Offset3D(dynamic_cast<VK::Texture2D*>(dstImage)->width, dynamic_cast<VK::Texture2D*>(dstImage)->height, 1);
+			dstOffsets[1] = vk::Offset3D(dstOffset.x + srcWidth, dstOffset.y + srcHeight, 1);
+			int wFix = 0, hFix = 0;
+			if (dstOffsets[1].x > destWidth)
+				wFix = destWidth - dstOffsets[1].x;
+			if (dstOffsets[1].y > destHeight)
+				hFix = destHeight - dstOffsets[1].y;
+			dstOffsets[1].x += wFix;
+			dstOffsets[1].y += hFix;
+			srcOffsets[1].x += wFix;
+			srcOffsets[1].y += hFix;
 
 			vk::ImageBlit blitRegions = vk::ImageBlit()
 				.setSrcSubresource(subresourceLayers)
@@ -4749,13 +4779,26 @@ namespace VK
 				.setBaseArrayLayer(0)
 				.setLayerCount(1);
 
+			int srcWidth, srcHeight, destWidth, destHeight;
+			dynamic_cast<VK::Texture2D*>(srcImage)->GetSize(srcWidth, srcHeight);
+			dynamic_cast<VK::Texture2D*>(dstImage)->GetSize(destWidth, destHeight);
+
 			std::array<vk::Offset3D, 2> srcOffsets;
 			srcOffsets[0] = vk::Offset3D(0, 0, 0);
-			srcOffsets[1] = vk::Offset3D(dynamic_cast<VK::Texture2D*>(srcImage)->width, dynamic_cast<VK::Texture2D*>(srcImage)->height, 1);
-
+			srcOffsets[1] = vk::Offset3D(srcWidth, srcHeight, 1);
 			std::array<vk::Offset3D, 2> dstOffsets;
+			dstOffset.y = destHeight - (dstOffset.y + srcHeight);
 			dstOffsets[0] = vk::Offset3D(dstOffset.x, dstOffset.y, 0);
-			dstOffsets[1] = vk::Offset3D(dynamic_cast<VK::Texture2D*>(dstImage)->width, dynamic_cast<VK::Texture2D*>(dstImage)->height, 1);
+			dstOffsets[1] = vk::Offset3D(dstOffset.x + srcWidth, dstOffset.y + srcHeight, 1);
+			int wFix = 0, hFix = 0;
+			if (dstOffsets[1].x > destWidth)
+				wFix = destWidth - dstOffsets[1].x;
+			if (dstOffsets[1].y > destHeight)
+				hFix = destHeight - dstOffsets[1].y;
+			dstOffsets[1].x += wFix;
+			dstOffsets[1].y += hFix;
+			srcOffsets[1].x += wFix;
+			srcOffsets[1].y += hFix;
 
 			vk::ImageBlit blitRegions = vk::ImageBlit()
 				.setSrcSubresource(subresourceLayers)

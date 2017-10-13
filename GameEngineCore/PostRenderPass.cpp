@@ -8,7 +8,7 @@ using namespace CoreLib::IO;
 
 namespace GameEngine
 {
-	void PostRenderPass::Create()
+	void PostRenderPass::Create(Renderer * /*renderer*/)
 	{
 		// Create deferred pipeline
 		VertexFormat deferredVertexFormat;
@@ -18,7 +18,7 @@ namespace GameEngine
 		pipelineBuilder->SetVertexLayout(deferredVertexFormat);
 		ShaderCompilationResult rs;
 		auto shaderFileName = GetShaderFileName();
-		if (!CompileShader(rs, sharedRes->spireContext, hwRenderer->GetSpireTarget(), shaderFileName))
+		if (!CompileShader(rs, sharedRes->spireContext, sharedRes->sharedSpireEnvironment, hwRenderer->GetSpireTarget(), shaderFileName))
 			throw HardwareRendererException("Shader compilation failure");
 
 		for (auto& compiledShader : rs.Shaders)

@@ -80,7 +80,7 @@ namespace GameEngine
 	}
 
 	bool CompileShader(ShaderCompilationResult & src,
-		SpireCompilationContext * spireCtx,
+		SpireCompilationContext * spireCtx, SpireCompilationEnvironment * spireEnv,
 		int targetLang,
 		const String & filename)
 	{
@@ -107,8 +107,9 @@ namespace GameEngine
 		SpireCompilationResult * compileResult;
 
 		shaderSrc = File::ReadAllText(actualFilename);
-		spSetShaderToCompile(spireCtx, "");
-		compileResult = spCompileShaderFromSource(spireCtx, shaderSrc.Buffer(), actualFilename.Buffer(), diagSink);
+		auto env = spCreateEnvironment(spireCtx, spireEnv);
+		auto shader = spEnvCreateShaderFromSource(env, shaderSrc.Buffer(), diagSink);
+		compileResult = spEnvCompileShader(env, shader, nullptr, 0, nullptr, diagSink);
 
 		if (spDiagnosticSinkHasAnyErrors(diagSink))
 		{
@@ -123,14 +124,14 @@ namespace GameEngine
 			}
 			spDestroyDiagnosticSink(diagSink);
 			spDestroyCompilationResult(compileResult);
-
+			spReleaseEnvironment(env);
 			return false;
 		}
 
 		GetShaderCompilationResult(src, compileResult, diagSink);
 		spDestroyDiagnosticSink(diagSink);
 		spDestroyCompilationResult(compileResult);
-
+		spReleaseEnvironment(env);
 		src.SaveToFile(cachedShaderFilename, targetLang != SPIRE_SPIRV);
 		return true;
 	}

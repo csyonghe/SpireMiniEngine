@@ -4,11 +4,11 @@
 
 namespace GameEngine
 {
-	void RenderPass::Init(RendererSharedResource * pSharedRes)
+	void RenderPass::Init(Renderer * renderer)
 	{
-		sharedRes = pSharedRes;
-		hwRenderer = pSharedRes->hardwareRenderer.Ptr();
-		Create();
+		sharedRes = renderer->GetSharedResource();
+		hwRenderer = renderer->GetHardwareRenderer();
+		Create(renderer);
 	}
 
 

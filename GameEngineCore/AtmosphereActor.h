@@ -9,8 +9,8 @@ namespace GameEngine
 	class AtmosphereActor : public Actor
 	{
 	public:
-		PROPERTY(VectorMath::Vec3, SunDir);
-		PROPERTY_DEF(float, AtmosphericFogScaleFactor, 0.5f);
+		PROPERTY_DEF(VectorMath::Vec3, SunDir, VectorMath::Vec3::Create(0.0f, 1.0f, 0.0f));
+		PROPERTY_DEF(float, AtmosphericFogScaleFactor, 0.02f);
 		virtual CoreLib::String GetTypeName() override
 		{
 			return "Atmosphere";

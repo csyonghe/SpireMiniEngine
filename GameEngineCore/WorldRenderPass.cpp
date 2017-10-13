@@ -1,6 +1,6 @@
 #include "WorldRenderPass.h"
 #include "Material.h"
-
+#include "Engine.h"
 using namespace CoreLib;
 
 namespace GameEngine
@@ -28,6 +28,11 @@ namespace GameEngine
 		return result;
 	}
 
+	int WorldRenderPass::GetShaderId()
+	{
+		return spShaderGetId(shader);
+	}
+
 	AsyncCommandBuffer * WorldRenderPass::AllocCommandBuffer()
 	{
 		if (poolAllocPtr == commandBufferPool.Count())
@@ -37,11 +42,12 @@ namespace GameEngine
 		return commandBufferPool[poolAllocPtr++].Ptr();
 	}
 
-	void WorldRenderPass::Create()
+	void WorldRenderPass::Create(Renderer * renderer)
 	{
 		renderTargetLayout = CreateRenderTargetLayout();
 		shader = sharedRes->LoadSpireShader(GetName(), GetShaderSource());
 		SetPipelineStates(fixedFunctionStates);
+		renderPassId = renderer->RegisterWorldRenderPass(shader);
 	}
 	WorldRenderPass::~WorldRenderPass()
 	{

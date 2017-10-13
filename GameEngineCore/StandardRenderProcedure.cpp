@@ -39,11 +39,11 @@ namespace GameEngine
 		RendererSharedResource * sharedRes = nullptr;
 		ViewResource * viewRes = nullptr;
 
-		WorldRenderPass * shadowRenderPass = nullptr;
-		WorldRenderPass * forwardRenderPass = nullptr;
-		PostRenderPass * atmospherePass = nullptr;
-		PostRenderPass * toneMappingFromAtmospherePass = nullptr;
-		PostRenderPass * toneMappingFromLitColorPass = nullptr;
+		RefPtr<WorldRenderPass> shadowRenderPass;
+		RefPtr<WorldRenderPass> forwardRenderPass;
+		RefPtr<PostRenderPass> atmospherePass;
+		RefPtr<PostRenderPass> toneMappingFromAtmospherePass;
+		RefPtr<PostRenderPass> toneMappingFromLitColorPass;
 
 		RenderOutput * forwardBaseOutput = nullptr;
 		RenderOutput * transparentAtmosphereOutput = nullptr;
@@ -111,10 +111,11 @@ namespace GameEngine
 			viewRes = pViewRes;
 			sharedRes = renderer->GetSharedResource();
 			shadowRenderPass = CreateShadowRenderPass();
-			renderer->RegisterWorldRenderPass(shadowRenderPass);
+			shadowRenderPass->Init(renderer);
 			
 			forwardRenderPass = CreateForwardBaseRenderPass();
-			renderer->RegisterWorldRenderPass(forwardRenderPass);
+			forwardRenderPass->Init(renderer);
+
 			forwardBaseOutput = viewRes->CreateRenderOutput(
 				forwardRenderPass->GetRenderTargetLayout(),
 				viewRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_F16),
@@ -132,14 +133,15 @@ namespace GameEngine
 				PostPassSource("depthBuffer", DepthBufferFormat),
 				PostPassSource("litAtmosphereColor", StorageFormat::RGBA_F16)
 			).GetArrayView());
-			renderer->RegisterPostRenderPass(atmospherePass);
+			atmospherePass->Init(renderer);
 
 			toneMappingFromAtmospherePass = CreateToneMappingPostRenderPass(viewRes);
 			toneMappingFromAtmospherePass->SetSource(MakeArray(
 				PostPassSource("litAtmosphereColor", StorageFormat::RGBA_F16),
 				PostPassSource("toneColor", StorageFormat::RGBA_8)
 			).GetArrayView());
-			renderer->RegisterPostRenderPass(toneMappingFromAtmospherePass);
+			toneMappingFromAtmospherePass->Init(renderer);
+
 
 			if (toneMapping)
 			{
@@ -148,11 +150,11 @@ namespace GameEngine
 					PostPassSource("litColor", StorageFormat::RGBA_F16),
 					PostPassSource("toneColor", StorageFormat::RGBA_8)
 				).GetArrayView());
-				renderer->RegisterPostRenderPass(toneMappingFromLitColorPass);
+				toneMappingFromLitColorPass->Init(renderer);
 			}
 			// initialize forwardBasePassModule and lightingModule
 			renderPassUniformMemory.Init(sharedRes->hardwareRenderer.Ptr(), BufferUsage::UniformBuffer, true, 22, sharedRes->hardwareRenderer->UniformBufferAlignment());
-			sharedRes->CreateModuleInstance(forwardBasePassParams, spFindModule(sharedRes->spireContext, "ForwardBasePassParams"), &renderPassUniformMemory);
+			sharedRes->CreateModuleInstance(forwardBasePassParams, spEnvFindModule(sharedRes->sharedSpireEnvironment, "ForwardBasePassParams"), &renderPassUniformMemory);
 			lighting.Init(*sharedRes, &renderPassUniformMemory, useEnvMap);
 			UpdateSharedResourceBinding();
 			sharedModules.View = &forwardBasePassParams;
@@ -239,7 +241,7 @@ namespace GameEngine
 				}
 			}
 			
-			lighting.GatherInfo(task, &sink, params, w, h, viewUniform, shadowRenderPass);
+			lighting.GatherInfo(task, &sink, params, w, h, viewUniform, shadowRenderPass.Ptr());
 
 			forwardBasePassParams.SetUniformData(&viewUniform, (int)sizeof(viewUniform));
 			auto cameraCullFrustum = CullFrustum(params.view.GetFrustum(aspect));

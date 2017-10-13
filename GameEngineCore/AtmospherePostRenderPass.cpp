@@ -25,9 +25,9 @@ namespace GameEngine
 		RefPtr<DescriptorSet> atmosphereDesc;
 		bool isValid = true;
 	public:
-		virtual void Create() override
+		virtual void Create(Renderer * renderer) override
 		{
-			PostRenderPass::Create();
+			PostRenderPass::Create(renderer);
 			parameterBuffer = hwRenderer->CreateBuffer(BufferUsage::UniformBuffer, sizeof(AtmosphereParameters));
 			String irradianceDataFile = Engine::Instance()->FindFile("Atmosphere/irradiance.raw", ResourceType::Material);
 			String inscatterDataFile = Engine::Instance()->FindFile("Atmosphere/inscatter.raw", ResourceType::Material);

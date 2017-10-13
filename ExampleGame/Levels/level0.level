@@ -1,141 +1,130 @@
 Camera
 {
-    name "FreeCam"
-    position [0.0 120.0 220.0]
-    orientation [0.0 0.1 0.0] // yaw, pitch, roll
-    znear 10.0
-    zfar 50000.0
-    fov 60.0
+	Name "FreeCam"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 0.99500418 0.099833421 0 0 -0.099833421 0.99500418 0 -0 -97.437149 -230.88094 1 ]
+	Orientation [ 0 0.1 0 ]
+	Position [ 0 120 220 ]
+	ZNear 10
+	ZFar 50000
+	FOV 60
+	Radius 50
 }
-
-
 FreeRoamCameraController
 {
-    name "CamControl"
-    TargetCameraName "FreeCam"
-    Speed 100.0
+	Name "CamControl"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 ]
+	InputChannel 0
+	Speed 100
+	TurnPrecision 0.78539819
+	TargetCameraName "FreeCam"
 }
-/*
-ArcBallCameraController
-{
-    name "arcballControl"
-    TargetCameraName "FreeCam"
-}
-*/
 ToneMapping
 {
-    name "tonemap"
-    Exposure 0.4    
+	Name "tonemap"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 ]
+	Exposure 0.4
 }
-
-
 Atmosphere
 {
-    name "atmosphere"
-    SunDir [-0.5 0.8 0.4]
-    AtmosphericFogScaleFactor 0.5 
+	Name "atmosphere"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 ]
+	SunDir [ -0.48795006 0.78072011 0.39036006 ]
+	AtmosphericFogScaleFactor 0.5
 }
-
 DirectionalLight
 {
-    name "sunlight"
-    LocalTransform [1 0 0 0   0 1 0 0    0 0 1 0    0 5000 0 1]
-    Direction [-0.5 0.8 0.4]
-    Color [2.5 2.5 2.5]
-    EnableCascadedShadows true
-    NumShadowCascades 4
-    ShadowDistance 1500
-    TransitionFactor 0.8 
+	Name "sunlight"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 0 5000 0 1 ]
+	EnableCascadedShadows true
+	ShadowDistance 1500
+	NumShadowCascades 4
+	TransitionFactor 0.80000001
+	Direction [ -0.48795 0.78072 0.39036 ]
+	Color [ 2.5 2.5 2.5 ]
+	Ambient 0.2
 }
-
 PointLight
 {
-    name "plight0"
-    LocalTransform [1 0 0 0   0 1 0 0    0 0 1 0    -250 200 -1200 1]
-    Direction [1.0 1.0 1.0]
-    Color [2 4 5]
-    EnableShadows false
-    DecayDistance90Percent 1200
-    IsSpotLight false
-    SpotLightStartAngle 30
-    SpotLightEndAngle 40
+	Name "plight0"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 -250 200 -1200 1 ]
+	EnableShadows false
+	Radius 2000
+	DecayDistance90Percent 1200
+	IsSpotLight false
+	Direction [ 0.57735026 0.57735026 0.57735026 ]
+	Color [ 2 4 5 ]
+	SpotLightStartAngle 30
+	SpotLightEndAngle 40
 }
-
 PointLight
 {
-    name "plight1"
-    LocalTransform [1 0 0 0   0 1 0 0    0 0 1 0    400 400 400 1]
-    Direction [-1.0 -1.0 -1.0]
-    Color [5 4 2]
-    Radius 2500
-    EnableShadows true
-    DecayDistance90Percent 2400
-    IsSpotLight true
-    SpotLightStartAngle 30
-    SpotLightEndAngle 40
+	Name "plight1"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 400 400 400 1 ]
+	EnableShadows true
+	Radius 2500
+	DecayDistance90Percent 2400
+	IsSpotLight true
+	Direction [ -0.57735026 -0.57735026 -0.57735026 ]
+	Color [ 5 4 2 ]
+	SpotLightStartAngle 30
+	SpotLightEndAngle 40
 }
-
 StaticMesh
 {
-    name "sphere"
-    mesh "sphere.mesh"
-    CastShadow false
-    material
-    {
-        shader "Reflective.shader"        
-    }
-    LocalTransform [1.0 0.0 0.0 0.0
-               0.0 1.0 0.0 0.0
-               0.0 0.0 1.0 0.0
-               10.0 100.0 -500.0 1.0] 
+	Name "sphere"
+	CastShadow false
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 10 100 -500 1 ]
+	mesh "sphere.mesh"
+	material
+	{
+		shader "Reflective.shader"
+	}
 }
-
 StaticMesh
 {
-    name "couch"
-    mesh "SM_Couch.mesh"
-    material
-    {
-        shader "SM_Couch.shader"
-        var maskMap = texture["T_Couch_Mask.TGA"]
-        var leatherNormalMap = texture["T_Leather_N.TGA"]
-        var baseNormalMap = texture["T_Couch_N.TGA"]
-        var aoMap = texture["T_Couch_AO.TGA"]
-        var leatherSpecularMap = texture["T_Leather_S.TGA"]
-        var leatherMap = texture["T_Leather_D.TGA"]
-    }
-    LocalTransform [0.0 0.0 -1.0 0.0
-               0.0 1.0 0.0 0.0
-               1.0 0.0 0.0 0.0
-               1200.0 0.0 -150.0 1.0]
+	Name "couch"
+	CastShadow true
+	LocalTransform [ 0 0 -1 0 0 1 0 0 1 0 0 0 1200 0 -150 1 ]
+	mesh "SM_Couch.mesh"
+	material
+	{
+		shader "SM_Couch.shader"
+		var maskMap = texture["T_Couch_Mask.TGA"]
+		var leatherNormalMap = texture["T_Leather_N.TGA"]
+		var baseNormalMap = texture["T_Couch_N.TGA"]
+		var aoMap = texture["T_Couch_AO.TGA"]
+		var leatherSpecularMap = texture["T_Leather_S.TGA"]
+		var leatherMap = texture["T_Leather_D.TGA"]
+	}
 }
-
 StaticMesh
 {
-    name "floor"
-    mesh "plane.mesh"
-    material
-    {
-        shader "ParallaxGround.shader"
-
-        var albedoMap = texture["pebbles_diffuse.TGA"]
-        var normalMap = texture["pebbles_normal.TGA"]
-        var displacementMap = texture["pebbles_height.TGA"]
-        var uvScale = float[100.0]
-    }
-    LocalTransform [100.0 0.0 0.0 0.0
-               0.0 100.0 0.0 0.0
-               0.0 0.0 100.0 0.0
-               0.0 0.0 0.0 1.0]
+	Name "floor"
+	CastShadow true
+	LocalTransform [ 100 0 0 0 0 100 0 0 0 0 100 0 0 0 0 1 ]
+	mesh "plane.mesh"
+	material
+	{
+		shader "ParallaxGround.shader"
+		var albedoMap = texture["pebbles_diffuse.TGA"]
+		var normalMap = texture["pebbles_normal.TGA"]
+		var displacementMap = texture["pebbles_height.TGA"]
+		var uvScale = float[100]
+	}
 }
-
 SkeletalMesh
 {
-    name "hero"
-    modelFileName "hero.model"
-    AnimationFileName "hero/Run_Fwd.anim"
-    LocalTransform [1.0 0.0 0.0 0.0
-               0.0 1.0 0.0 0.0
-               0.0 0.0 1.0 0.0
-               0.0 0.0 0.0 1.0]
+	Name "hero"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 ]
+	ModelFileName "hero.model"
+	RetargetFileName ""
+	AnimationFileName "hero/Run_Fwd.anim"
 }

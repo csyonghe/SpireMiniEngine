@@ -112,13 +112,13 @@ namespace GameEngine
 			}
 		}
 	}
-	void InputDispatcher::DispatchInput()
+	void InputDispatcher::DispatchInput(int channel)
 	{
 		for (auto & binding : keyboardActionMappings)
 		{
 			if (inputInterface->QueryKeyState(binding.Key).HasPressed)
 			{
-				DispatchAction(binding.Value.ActionName, ArrayView<String>(), binding.Value.Value);
+				DispatchAction(binding.Value.ActionName, ArrayView<String>(), binding.Value.Value, channel);
 			}
 		}
 
@@ -126,11 +126,11 @@ namespace GameEngine
 		{
 			if (inputInterface->QueryKeyState(binding.Key).IsDown)
 			{
-				DispatchAction(binding.Value.ActionName, ArrayView<String>(), binding.Value.Value);
+				DispatchAction(binding.Value.ActionName, ArrayView<String>(), binding.Value.Value, channel);
 			}
 		}
 	}
-	void InputDispatcher::DispatchAction(CoreLib::String actionName, ArrayView<String> args, float actionValue)
+	void InputDispatcher::DispatchAction(CoreLib::String actionName, ArrayView<String> args, float actionValue, int channel)
 	{
 		auto handlers = actionHandlers.TryGetValue(actionName);
 		if (handlers)
@@ -138,6 +138,7 @@ namespace GameEngine
 			ActionInput input;
 			input.AxisValue = actionValue;
 			input.Arguments = args;
+			input.Channel = channel;
 			for (auto & handler : *handlers)
 				if (handler(actionName, input))
 					break;

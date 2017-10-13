@@ -97,6 +97,35 @@ namespace GameEngine
 		}
 	}
 
+	String NormalizePath(String path)
+	{
+		List<String> dirs;
+		StringBuilder sb;
+		for (auto ch : path)
+		{
+			if (ch == Path::PathDelimiter || ch == Path::AltPathDelimiter)
+			{
+				auto d = sb.ToString();
+				if (d.Length())
+					dirs.Add(d);
+				sb.Clear();
+			}
+			else
+				sb << ch;
+		}
+		auto lastDir = sb.ToString();
+		if (lastDir.Length())
+			dirs.Add(lastDir);
+		sb.Clear();
+		for (int i = 0; i < dirs.Count(); i++)
+		{
+			sb << dirs[i];
+			if (i != dirs.Count() - 1)
+				sb << Path::PathDelimiter;
+		}
+		return sb.ProduceString();
+	}
+
 	void Engine::InternalInit(const EngineInitArguments & args)
 	{
 		try
@@ -109,8 +138,8 @@ namespace GameEngine
 			RecompileShaders = args.RecompileShaders;
             params = args.LaunchParams;
 
-			gameDir = args.GameDirectory;
-			engineDir = args.EngineDirectory;
+			gameDir = NormalizePath(args.GameDirectory);
+			engineDir = NormalizePath(args.EngineDirectory);
 			Path::CreateDir(Path::Combine(gameDir, "Cache"));
 			Path::CreateDir(Path::Combine(gameDir, "Cache/Shaders"));
 			Path::CreateDir(Path::Combine(gameDir, "Settings"));
@@ -122,6 +151,9 @@ namespace GameEngine
 			// initialize renderer
 			renderer = CreateRenderer(args.API);
 			renderer->Resize(args.Width, args.Height);
+			currentViewport.x = currentViewport.y = 0;
+			currentViewport.width = args.Width;
+			currentViewport.height = args.Height;
 			syncFences.SetSize(DynamicBufferLengthMultiplier);
 			fencePool.SetSize(DynamicBufferLengthMultiplier);
 			uiSystemInterface = new UIWindowsSystemInterface(renderer->GetHardwareRenderer());
@@ -133,7 +165,7 @@ namespace GameEngine
             mainWindow->SetText("Game Engine");
             mainWindow->OnResized.Bind([=](Object*, CoreLib::WinForm::EventArgs) 
             {
-                Engine::Instance()->Resize(mainWindow->GetClientWidth(), mainWindow->GetClientHeight()); 
+                Engine::Instance()->Resize(); 
             });
 			mainWindow->SetClientWidth(args.Width);
 			mainWindow->SetClientHeight(args.Height);
@@ -173,7 +205,7 @@ namespace GameEngine
 
 			auto configFile = Path::Combine(gameDir, "game.config");
 			levelToLoad = RemoveQuote(args.StartupLevelName);
-			if (File::Exists(configFile))
+			if (!args.Editor && File::Exists(configFile))
 			{
 				CoreLib::Text::TokenReader parser(File::ReadAllText(configFile));
 				if (parser.LookAhead("DefaultLevel"))
@@ -184,6 +216,11 @@ namespace GameEngine
 					if (args.StartupLevelName.Length() == 0)
 						levelToLoad = defaultLevelName;
 				}
+			}
+			else
+			{
+				UseEditor(args.Editor.Ptr());
+				NewLevel();
 			}
 		}
 		catch (const Exception & e)
@@ -232,8 +269,12 @@ namespace GameEngine
 		gameLogicTimeDelta = PerformanceCounter::EndSeconds(lastGameLogicTime);
 
 		if (enableInput && mainWindow->Focused() && !mainWindow->GetUIEntry()->KeyInputConsumed && frameCounter > 2)
-			inputDispatcher->DispatchInput();
-
+		{
+			if (engineMode == EngineMode::Normal)
+				inputDispatcher->DispatchInput(0);
+			else
+				inputDispatcher->DispatchInput(EditorChannelId);
+		}
 		if (!level)
 		{
 			if (levelToLoad.Length())
@@ -243,11 +284,15 @@ namespace GameEngine
 				levelToLoad = "";
 			}
 		}
-		else
+		if (level && engineMode == EngineMode::Normal)
 		{
 			level->GetPhysicsScene().Tick();
 			for (auto & actor : level->Actors)
 				actor.Value->Tick();
+		}
+		if (levelEditor)
+		{
+			levelEditor->Tick();
 		}
 		lastGameLogicTime = thisGameLogicTime;
 		auto &stats = renderer->GetStats();
@@ -329,11 +374,16 @@ namespace GameEngine
 		frameCounter++;
 	}
 
-	void Engine::Resize(int w, int h)
+	void Engine::Resize()
 	{
-		if (renderer && w > 2 && h > 2)
+		auto clientRect = mainWindow->GetUIEntry()->ClientRect();
+		if (renderer && clientRect.w > 2 && clientRect.h > 2)
 		{
-			renderer->Resize(w, h);
+			currentViewport.x = clientRect.x;
+			currentViewport.y = clientRect.y;
+			currentViewport.width = clientRect.w;
+			currentViewport.height = clientRect.h;
+			renderer->Resize(clientRect.w, clientRect.h);
 		}
 	}
 
@@ -410,7 +460,7 @@ namespace GameEngine
 				List<String> args;
 				while (!parser.IsEnd())
 					args.Add(parser.ReadToken().Content);
-				inputDispatcher->DispatchAction(word.Content, args.GetArrayView(), 1.0f);
+				inputDispatcher->DispatchAction(word.Content, args.GetArrayView(), 1.0f, engineMode==EngineMode::Normal?0:EditorChannelId);
 			}
 			catch (Exception)
 			{
@@ -419,7 +469,19 @@ namespace GameEngine
 		}
 	}
 
-    SystemWindow * Engine::CreateSystemWindow(int log2BufferSize)
+	void Engine::UseEditor(LevelEditor * editor)
+	{
+		levelEditor = editor;
+		engineMode = EngineMode::Editor;
+		levelEditor->OnLoad();
+	}
+
+	void Engine::SetEngineMode(EngineMode newMode)
+	{
+		engineMode = newMode;
+	}
+
+	SystemWindow * Engine::CreateSystemWindow(int log2BufferSize)
     {
         auto rs = new SystemWindow(uiSystemInterface.Ptr(), log2BufferSize);
         rs->GetUIEntry()->BackColor = GraphicsUI::Color(50, 50, 50);
@@ -466,9 +528,9 @@ namespace GameEngine
 
 	void Engine::LoadLevel(const CoreLib::String & fileName)
 	{
-		if (level)
-			renderer->DestroyContext();
+		renderer->Wait();
 		level = nullptr;
+		renderer->DestroyContext();
 		try
 		{
 			auto actualFileName = FindFile(fileName, ResourceType::Level);
@@ -485,9 +547,8 @@ namespace GameEngine
 
 	void Engine::LoadLevelFromText(const CoreLib::String & text)
 	{
-		if (level)
-			renderer->DestroyContext();
 		level = nullptr;
+		renderer->DestroyContext();
 		level = new GameEngine::Level();
 		level->LoadFromText(text);
 		inDataTransfer = true;
@@ -497,12 +558,13 @@ namespace GameEngine
 
 	Level * Engine::NewLevel()
 	{
-		if (level)
-			renderer->DestroyContext();
+		renderer->Wait();
 		level = nullptr;
+		renderer->DestroyContext();
 		try
 		{
 			level = new GameEngine::Level();
+			level->LoadFromText("Atmosphere{}");
 			renderer->InitializeLevel(level.Ptr());
 			inDataTransfer = false;
 		}
@@ -529,10 +591,10 @@ namespace GameEngine
 	{
 		if (level && level->CurrentCamera)
 		{
-			int w = mainWindow->GetUIEntry()->GetWidth();
-			int h = mainWindow->GetUIEntry()->GetHeight();
+			int w = currentViewport.width;
+			int h = currentViewport.height;
 			float invH = 1.0f / h;
-			return level->CurrentCamera->GetRayFromViewCoordinates(x / (float)w , y * invH, w * invH);
+			return level->CurrentCamera->GetRayFromViewCoordinates((x - currentViewport.x) / (float)w , (y - currentViewport.y) * invH, w * invH);
 		}
 		Ray rs;
 		rs.Origin.SetZero();
@@ -542,6 +604,8 @@ namespace GameEngine
 
 	CoreLib::String Engine::FindFile(const CoreLib::String & fileName, ResourceType type)
 	{
+		if (File::Exists(fileName))
+			return fileName;
 		auto localFile = Path::Combine(GetDirectory(false, type), fileName);
 		if (File::Exists(localFile))
 			return localFile;
