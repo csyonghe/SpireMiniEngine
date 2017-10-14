@@ -17,7 +17,7 @@ namespace GameEngine
 	public:
 		VectorMath::Vec3 center;
 		float radius = 800.0f;
-		float alpha = Math::Pi * 0.5f, beta = 0.0f;
+		float alpha = CoreLib::Math::Pi * 0.5f, beta = 0.0f;
 		ArcBallParams()
 		{
 			center.SetZero();
@@ -41,7 +41,7 @@ namespace GameEngine
 	public:
 		PROPERTY_DEF(VectorMath::Vec3, Center, VectorMath::Vec3::Create(0.0f));
 		PROPERTY_DEF(float, Radius, 800.0f);
-		PROPERTY_DEF(float, Alpha, Math::Pi * 0.5f);
+		PROPERTY_DEF(float, Alpha, CoreLib::Math::Pi * 0.5f);
 		PROPERTY_DEF(float, Beta, 0.0f);
 		PROPERTY_DEF(float, TurnPrecision, CoreLib::Math::Pi / 1000.0f);
 		PROPERTY_DEF(float, TranslatePrecision, 0.001f);

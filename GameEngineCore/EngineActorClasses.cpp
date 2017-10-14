@@ -15,6 +15,7 @@
 namespace GameEngine
 {
 #define REGISTER_ACTOR_CLASS(name) engine->RegisterActorClass(#name, []() {return new name##Actor(); });
+
 	void RegisterEngineActorClasses(Engine * engine)
 	{
 		REGISTER_ACTOR_CLASS(StaticMesh);

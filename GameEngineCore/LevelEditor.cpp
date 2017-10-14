@@ -11,6 +11,10 @@ using namespace VectorMath;
 
 namespace GameEngine
 {
+	enum class MouseMode
+	{
+		None, ChangeView
+	};
 	class LevelEditorImpl : public LevelEditor
 	{
 	private:
@@ -20,6 +24,7 @@ namespace GameEngine
 		Matrix4 oldLocalTransform;
 		TransformManipulator* manipulator;
 		MenuItem* manipulationMenuItems[3];
+		MouseMode mouseMode = MouseMode::None;
 		Level * level = nullptr;
 		Vec2i mouseDownScreenSpacePos;
 		Vec2i lastMouseScreenSpacePos;
@@ -175,9 +180,12 @@ namespace GameEngine
 				view.ViewportY = (float)viewport.y;
 				view.ViewportH = (float)viewport.height;
 				view.ViewportW = (float)viewport.width;
+				manipulator->Visible = true;
 				manipulator->SetTarget(manipulationMode, view, editorCam->GetLocalTransform(), editorCam->Position,
 					selectedActor->GetPosition());
 			}
+			else
+				manipulator->Visible = false;
 		}
 		virtual void OnLoad() override
 		{
@@ -187,6 +195,7 @@ namespace GameEngine
 
 		void mnNew_Clicked(UI_Base *)
 		{
+			SelectActor(nullptr);
 			level = Engine::Instance()->NewLevel();
 		}
 		void mnOpen_Clicked(UI_Base *)
@@ -220,17 +229,25 @@ namespace GameEngine
 		}
 		void UIEntry_MouseDown(UI_Base *, UIMouseEventArgs & e)
 		{
-			mouseDownScreenSpacePos = Vec2i::Create(e.X, e.Y);
+			lastMouseScreenSpacePos = mouseDownScreenSpacePos = Vec2i::Create(e.X, e.Y);
 			level = Engine::Instance()->GetLevel();
-			if (level)
+			if (e.Shift == SS_BUTTONLEFT || e.Shift == SS_BUTTONRIGHT)
 			{
-				Ray ray = Engine::Instance()->GetRayFromMousePosition(e.X, e.Y);
-				auto traceRs = level->GetPhysicsScene().RayTraceFirst(ray);
-				if (traceRs.Object)
+				if (level)
 				{
-					SelectActor(traceRs.Object->ParentActor);
+					Ray ray = Engine::Instance()->GetRayFromMousePosition(e.X, e.Y);
+					auto traceRs = level->GetPhysicsScene().RayTraceFirst(ray);
+					if (traceRs.Object)
+						SelectActor(traceRs.Object->ParentActor);
+					else
+						SelectActor(nullptr);
 				}
 			}
+			else if (e.Shift == SS_BUTTONMIDDLE)
+			{
+				mouseMode = MouseMode::ChangeView;
+			}
+			
 		}
 		void SwitchManipulationMode(ManipulationMode mode)
 		{
@@ -253,11 +270,19 @@ namespace GameEngine
 		}
 		void UIEntry_MouseMove(UI_Base *, UIMouseEventArgs & e)
 		{
-
-			lastMouseScreenSpacePos = Vec2i::Create(e.X, e.Y);
+			auto curMouseScreenSpacePos = Vec2i::Create(e.X, e.Y);
+			if (mouseMode == MouseMode::ChangeView)
+			{
+				float dx = (float)(curMouseScreenSpacePos.x - lastMouseScreenSpacePos.x);
+				float dy = (float)(curMouseScreenSpacePos.y - lastMouseScreenSpacePos.y);
+				editorCam->SetPitch(editorCam->GetPitch() + dy * 0.005f);
+				editorCam->SetYaw(editorCam->GetYaw() + dx * 0.005f);
+			}
+			lastMouseScreenSpacePos = curMouseScreenSpacePos;
 		}
 		void UIEntry_MouseUp(UI_Base *, UIMouseEventArgs & e)
 		{
+			mouseMode = MouseMode::None;
 			lastMouseScreenSpacePos = Vec2i::Create(e.X, e.Y);
 		}
 		bool CheckKey(unsigned short key, char val)

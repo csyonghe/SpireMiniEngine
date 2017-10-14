@@ -4,6 +4,7 @@
 #include "Actor.h"
 #include "RendererService.h"
 #include "Model.h"
+#include "AnimationSynthesizer.h"
 
 namespace GameEngine
 {

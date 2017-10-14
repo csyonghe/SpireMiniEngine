@@ -3,9 +3,6 @@
 
 #include "CoreLib/Basic.h"
 #include "CoreLib/Tokenizer.h"
-#include "Mesh.h"
-#include "AnimationSynthesizer.h"
-#include "Material.h"
 #include "CoreLib/Graphics/BBox.h"
 #include "Property.h"
 
@@ -30,6 +27,8 @@ namespace GameEngine
 		DrawableSink * sink;
 		VectorMath::Vec3 CameraPos, CameraDir;
 	};
+
+	class Level;
 
 	class Actor : public PropertyContainer
 	{

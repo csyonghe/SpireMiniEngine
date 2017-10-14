@@ -18,7 +18,6 @@ namespace GameEngine
 	void FreeRoamCameraControllerActor::OnLoad()
 	{
 		Actor::OnLoad();
-
 		Engine::Instance()->GetInputDispatcher()->BindActionHandler("MoveForward", ActionInputHandlerFunc(this, &FreeRoamCameraControllerActor::MoveForward));
 		Engine::Instance()->GetInputDispatcher()->BindActionHandler("MoveRight", ActionInputHandlerFunc(this, &FreeRoamCameraControllerActor::MoveRight));
 		Engine::Instance()->GetInputDispatcher()->BindActionHandler("MoveUp", ActionInputHandlerFunc(this, &FreeRoamCameraControllerActor::MoveUp));
