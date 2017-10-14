@@ -202,6 +202,7 @@ namespace GameEngine
 		{
 			if (dlgOpen->ShowOpen())
 			{
+				SelectActor(nullptr);
 				Engine::Instance()->LoadLevel(dlgOpen->FileName);
 			}
 		}
