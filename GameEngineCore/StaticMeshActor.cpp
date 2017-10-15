@@ -9,13 +9,6 @@ namespace GameEngine
 	{
 		if (Actor::ParseField(fieldName, parser))
 			return true;
-		if (fieldName == "model")
-		{
-			modelFileName = parser.ReadStringLiteral();
-			model = level->LoadModel(modelFileName);
-			Bounds = model->GetBounds();
-			return true;
-		}
 		if (fieldName == "mesh")
 		{
 			if (parser.LookAhead("{"))
@@ -40,9 +33,7 @@ namespace GameEngine
 			}
 			else
 			{
-				MeshName = parser.ReadStringLiteral();
-				if (MeshName.Length())
-					Mesh = level->LoadMesh(MeshName);
+				MeshFile = parser.ReadStringLiteral();
 			}
 			if (Mesh)
 				Bounds = Mesh->Bounds;
@@ -60,9 +51,7 @@ namespace GameEngine
 			}
 			else
 			{
-				materialFileName = parser.ReadStringLiteral();
-				if (materialFileName.Length())
-					MaterialInstance = level->LoadMaterial(materialFileName);
+				MaterialFile = parser.ReadStringLiteral();
 			}
 			return true;
 		}
@@ -71,23 +60,23 @@ namespace GameEngine
 
 	void StaticMeshActor::SerializeFields(CoreLib::StringBuilder & sb)
 	{
-		if (modelFileName.Length())
-		{
-			sb << "model " << CoreLib::Text::EscapeStringLiteral(modelFileName) << "\n";
-		}
-		else
-		{
-			if (MeshName.Length())
-				sb << "mesh " << CoreLib::Text::EscapeStringLiteral(MeshName) << "\n";
-			if (useInlineMaterial)
-				MaterialInstance->Serialize(sb);
-			else
-				sb << "material " << CoreLib::Text::EscapeStringLiteral(materialFileName) << "\n";
-		}
+		if (useInlineMaterial)
+			MaterialInstance->Serialize(sb);
 	}
 
 	void StaticMeshActor::OnLoad()
 	{
+		if (ModelFile.GetValue().Length())
+		{
+			model = level->LoadModel(ModelFile.GetValue());
+		}
+		else
+		{
+			if (MeshFile.GetValue().Length())
+				Mesh = level->LoadMesh(MeshFile.GetValue());
+			if (MaterialFile.GetValue().Length())
+				MaterialInstance = level->LoadMaterial(MaterialFile.GetValue());
+		}
 		if (!model && Mesh && MaterialInstance)
 		{
 			model = new GameEngine::Model(Mesh, MaterialInstance);

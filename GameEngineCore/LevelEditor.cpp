@@ -4,6 +4,7 @@
 #include "CoreLib/LibUI/LibUI.h"
 #include "Level.h"
 #include "FreeRoamCameraController.h"
+#include "PropertyEditControl.h"
 
 using namespace CoreLib;
 using namespace GraphicsUI;
@@ -29,15 +30,65 @@ namespace GameEngine
 		Vec2i mouseDownScreenSpacePos;
 		Vec2i lastMouseScreenSpacePos;
 		Actor * selectedActor = nullptr;
+		GraphicsUI::VScrollPanel * pnlProperties;
+		GraphicsUI::ListBox * lstActors = nullptr;
 		RefPtr<CoreLib::WinForm::FileDialog> dlgOpen, dlgSave;
+		const Color uiGrayText = Color(180, 180, 180, 255);
+		void UpdatePropertyPanel()
+		{
+			pnlProperties->ClearChildren();
+			if (!selectedActor)
+				return;
+			auto propertyList = selectedActor->GetPropertyList();
+			int height = 0;
+			auto lblType = new Label(pnlProperties);
+			lblType->SetText(selectedActor->GetTypeName());
+			lblType->Posit(0, 0, EM(10.0f), EM(1.0f));
+			lblType->FontColor = uiGrayText;
+			auto lblName = new Label(pnlProperties);
+			lblName->SetText("Name");
+			lblName->Posit(0, EM(1.1f), EM(10.0f), EM(1.0f));
+			auto txtName = new TextBox(pnlProperties);
+			txtName->SetText(selectedActor->Name.GetValue());
+			txtName->Posit(0, EM(2.1f), EM(10.0f), EM(1.1f));
+			height = txtName->Top + txtName->GetHeight() + EM(0.5f);
+			for (auto & prop : propertyList)
+			{
+				if (strcmp(prop->GetName(), "Name") == 0)
+					continue;
+				auto edit = new PropertyEdit(pnlProperties, prop);
+				edit->Posit(0, height, pnlProperties->GetWidth() - EM(1.2f), edit->GetHeight());
+				height += edit->GetHeight() + EM(0.2f);
+			}
+			pnlProperties->SizeChanged();
+		}
 		void SelectActor(Actor * actor)
 		{
-			selectedActor = actor;
-			if (actor)
-				oldLocalTransform = actor->GetLocalTransform();
+			if (selectedActor != actor)
+			{
+				selectedActor = actor;
+				if (actor)
+				{
+					oldLocalTransform = actor->GetLocalTransform();
+					int index = -1;
+					for (int i = 0; i < lstActors->Items.Count(); i++)
+						if (lstActors->GetTextItem(i)->GetText() == actor->Name.GetValue())
+						{
+							index = i;
+							break;
+						}
+					lstActors->SetSelectedIndex(index);
+				}
+				else
+					lstActors->SetSelectedIndex(-1);
+				UpdatePropertyPanel();
+			}
 		}
 		void InitUI()
 		{
+			Color uiBackColor = Color(45, 45, 45, 255);
+			Global::Colors.EditableAreaBackColor = Color(35, 35, 35, 255);
+
 			dlgOpen = new CoreLib::WinForm::FileDialog(Engine::Instance()->GetMainWindow());
 			dlgOpen->FileMustExist = true;
 			dlgOpen->Filter = "Level file|*.level";
@@ -91,6 +142,50 @@ namespace GameEngine
 			manipulator->OnPreviewManipulation.Bind(this, &LevelEditorImpl::PreviewManipulation);
 			manipulator->OnApplyManipulation.Bind(this, &LevelEditorImpl::ApplyManipulation);
 
+			auto pnlLeft = new Container(entry);
+			pnlLeft->Padding = EM(0.5f);
+			pnlLeft->Posit(0, 0, EM(15.0f), 100);
+			pnlLeft->DockStyle = Control::dsLeft;
+			pnlLeft->BackColor = uiBackColor;
+			auto pnlCreate = new Container(pnlLeft);
+			pnlCreate->Posit(0, 0, EM(10.0f), EM(18.0f));
+			pnlCreate->DockStyle = Control::dsTop;
+			auto lblCreate = new Label(pnlCreate);
+			lblCreate->Posit(0, 0, 100, 25);
+			lblCreate->SetText("Create");
+			lblCreate->DockStyle = Control::dsTop;
+			lblCreate->AutoHeight = false;
+			lblCreate->SetHeight(EM(1.5f));
+			auto pnlCreateActorButtons = new VScrollPanel(pnlCreate);
+			pnlCreateActorButtons->DockStyle = Control::dsFill;
+			auto actorClasses = Engine::Instance()->GetRegisteredActorClasses();
+			int i = 0;
+			for (auto & cls : actorClasses)
+			{
+				auto btnCreateActor = new Button(pnlCreateActorButtons);
+				btnCreateActor->SetText(cls);
+				btnCreateActor->Posit(0, i * EM(2.0f), EM(12.0f), EM(1.8f));
+				i++;
+			}
+
+			auto pnlActorList = new Container(pnlLeft);
+			auto lblActors = new Label(pnlActorList);
+			lblActors->Posit(0, 0, 100, 25);
+			lblActors->SetText("Actors");
+			lblActors->DockStyle = Control::dsTop;
+			lblActors->AutoHeight = false;
+			lblActors->SetHeight(EM(1.5f));
+			pnlActorList->DockStyle = Control::dsFill;
+			lstActors = new ListBox(pnlActorList);
+			lstActors->DockStyle = Control::dsFill;
+			lstActors->OnClick.Bind(this, &LevelEditorImpl::lstActors_Clicked);
+
+			pnlProperties = new VScrollPanel(entry);
+			pnlProperties->DockStyle = Control::dsRight;
+			pnlProperties->SetWidth(EM(12.0f));
+			pnlProperties->BackColor = uiBackColor;
+			pnlProperties->Padding = EM(0.5f);
+			LevelChanged();
 		}
 
 		void InitEditorActors()
@@ -192,11 +287,27 @@ namespace GameEngine
 			InitUI();
 			InitEditorActors();
 		}
-
+		void SelectActor(String name)
+		{
+			if (level)
+				SelectActor(level->FindActor(name));
+		}
+		void lstActors_Clicked(UI_Base *)
+		{
+			if (lstActors->SelectedIndex != -1)
+			{
+				auto name = lstActors->GetTextItem(lstActors->SelectedIndex)->GetText();
+				if (!selectedActor || name != selectedActor->Name.GetValue())
+				{
+					SelectActor(name);
+				}
+			}
+		}
 		void mnNew_Clicked(UI_Base *)
 		{
 			SelectActor(nullptr);
 			level = Engine::Instance()->NewLevel();
+			LevelChanged();
 		}
 		void mnOpen_Clicked(UI_Base *)
 		{
@@ -204,6 +315,7 @@ namespace GameEngine
 			{
 				SelectActor(nullptr);
 				Engine::Instance()->LoadLevel(dlgOpen->FileName);
+				LevelChanged();
 			}
 		}
 		void mnSave_Clicked(UI_Base *)
@@ -220,6 +332,17 @@ namespace GameEngine
 			if (level && dlgSave->ShowSave())
 			{
 				level->SaveToFile(dlgSave->FileName);
+			}
+		}
+		void LevelChanged()
+		{
+			level = Engine::Instance()->GetLevel();
+			lstActors->Clear();
+			SelectActor(nullptr);
+			if (level)
+			{
+				for (auto & actor : level->Actors)
+					lstActors->AddTextItem(actor.Key);
 			}
 		}
 		void mnUndo_Clicked(UI_Base *)
@@ -320,11 +443,13 @@ namespace GameEngine
 					mnUndo_Clicked(nullptr);
 				else if (CheckKey(e.Key, 'Y'))
 					mnRedo_Clicked(nullptr);
+				return true;
 			}
 			else if (e.Shift == (SS_CONTROL | SS_SHIFT))
 			{
 				if (CheckKey(e.Key, 'S'))
 					mnSaveAs_Clicked(nullptr);
+				return true;
 			}
 			return false;
 		}

@@ -39,12 +39,11 @@ DirectionalLight
 {
 	Name "sunlight"
 	CastShadow true
-	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 0 5000 0 1 ]
+	LocalTransform [ 0.78072011 0.48795006 -0 0 -0.19047621 0.30476195 -0.84761918 0 -0.48795006 0.78072011 0.39036006 0 0 5000 0 1 ]
 	EnableCascadedShadows true
 	ShadowDistance 1500
 	NumShadowCascades 4
 	TransitionFactor 0.80000001
-	Direction [ -0.48795006 0.78072011 0.39036006 ]
 	Color [ 2.5 2.5 2.5 ]
 	Ambient 0.2
 }
@@ -52,12 +51,11 @@ PointLight
 {
 	Name "plight0"
 	CastShadow true
-	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 -250 200 -1200 1 ]
+	LocalTransform [ 0 0.57735026 -0.57735026 0 -0.66666663 0.33333331 0.33333331 0 0.57735026 0.57735026 0.57735026 0 -250 200 -1200 1 ]
 	EnableShadows false
 	Radius 2000
 	DecayDistance90Percent 1200
 	IsSpotLight false
-	Direction [ 0.57735026 0.57735026 0.57735026 ]
 	Color [ 2 4 5 ]
 	SpotLightStartAngle 30
 	SpotLightEndAngle 40
@@ -66,12 +64,11 @@ PointLight
 {
 	Name "plight1"
 	CastShadow true
-	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 400 400 400 1 ]
+	LocalTransform [ 0 -0.57735026 0.57735026 0 -0.66666663 0.33333331 0.33333331 0 -0.57735026 -0.57735026 -0.57735026 0 400 400 400 1 ]
 	EnableShadows true
 	Radius 2500
 	DecayDistance90Percent 2400
 	IsSpotLight true
-	Direction [ -0.57735026 -0.57735026 -0.57735026 ]
 	Color [ 5 4 2 ]
 	SpotLightStartAngle 30
 	SpotLightEndAngle 40
@@ -80,8 +77,10 @@ StaticMesh
 {
 	Name "sphere"
 	CastShadow false
-	LocalTransform [ 2.1848423 0 0 0 0 2.1848423 0 0 0 0 2.1848423 0 191.45639 234.45151 -197.83914 1 ]
-	mesh "sphere.mesh"
+	LocalTransform [ 0.16350789 0 0 0 0 0.16350789 0 0 0 0 0.16350789 0 -202.66414 69.384186 6.6609573 1 ]
+	MeshFile "sphere.mesh"
+	MaterialFile ""
+	ModelFile ""
 	material
 	{
 		shader "Reflective.shader"
@@ -91,8 +90,10 @@ StaticMesh
 {
 	Name "couch"
 	CastShadow true
-	LocalTransform [ 0.48612505 0.05640563 -0.91636848 0 -0.03586711 1.0372728 0.04482054 0 0.91740191 0.010664727 0.48732981 0 -104.85043 17.212372 -58.553772 1 ]
-	mesh "SM_Couch.mesh"
+	LocalTransform [ 0.34003639 0.039454799 -0.64098448 0 -0.025088448 0.72555506 0.03135122 0 0.64170736 0.0074597988 0.34087908 0 -216.06735 21.056564 -46.759888 1 ]
+	MeshFile "SM_Couch.mesh"
+	MaterialFile ""
+	ModelFile ""
 	material
 	{
 		shader "SM_Couch.shader"
@@ -108,8 +109,10 @@ StaticMesh
 {
 	Name "floor"
 	CastShadow true
-	LocalTransform [ 100 0 0 0 0 100 0 0 0 0 100 0 0 0 0 1 ]
-	mesh "plane.mesh"
+	LocalTransform [ 105.3819 0 0 0 0 105.3819 0 0 0 0 105.3819 0 25.300285 0 0 1 ]
+	MeshFile "plane.mesh"
+	MaterialFile ""
+	ModelFile ""
 	material
 	{
 		shader "ParallaxGround.shader"
@@ -123,7 +126,7 @@ SkeletalMesh
 {
 	Name "hero"
 	CastShadow true
-	LocalTransform [ 0.76943177 0 0 0 0 0.76943177 0 0 0 0 0.76943177 0 -4.3716068 0 65.257782 1 ]
+	LocalTransform [ 0.69284827 0 0 0 0 0.69284827 0 0 0 0 0.69284827 0 -4.3716068 0 65.257782 1 ]
 	ModelFileName "hero.model"
 	RetargetFileName ""
 	AnimationFileName "hero/Run_Fwd.anim"

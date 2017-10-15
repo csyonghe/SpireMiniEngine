@@ -103,7 +103,7 @@ namespace GameEngine
 					GpuLightData lightData;
 					lightData.lightType = GpuLightType_Directional;
 					lightData.color = dirLight->Color.GetValue();
-					lightData.direction = PackDirection(dirLight->Direction.GetValue());
+					lightData.direction = PackDirection(dirLight->GetDirection());
 					auto localTransform = dirLight->GetLocalTransform();
 					lightData.position = Vec3::Create(localTransform.values[12], localTransform.values[13], localTransform.values[14]);
 					lightData.radius = 0.0f;
@@ -115,7 +115,7 @@ namespace GameEngine
 						uniformData.sunLightEnabled = true;
 						sunlight = dirLight;
 						uniformData.lightColor = lightData.color;
-						uniformData.lightDir = dirLight->Direction.GetValue();
+						uniformData.lightDir = dirLight->GetDirection();
 						
 					}
 					else
@@ -129,7 +129,7 @@ namespace GameEngine
 					GpuLightData lightData;
 					lightData.lightType = pointLight->IsSpotLight ? GpuLightType_Spot: GpuLightType_Point;
 					lightData.color = pointLight->Color.GetValue();
-					lightData.direction = PackDirection(pointLight->Direction.GetValue());
+					lightData.direction = PackDirection(pointLight->GetDirection());
 					auto localTransform = pointLight->GetLocalTransform();
 					lightData.position = Vec3::Create(localTransform.values[12], localTransform.values[13], localTransform.values[14]);
 					lightData.radius = pointLight->Radius.GetValue();
@@ -188,11 +188,11 @@ namespace GameEngine
 				auto dirLightLocalTrans = sunlight->GetLocalTransform();
 				Vec3 dirLightPos = Vec3::Create(dirLightLocalTrans.values[12], dirLightLocalTrans.values[13], dirLightLocalTrans.values[14]);
 				float zmax = sunlight->ShadowDistance.GetValue();
-
+				Vec3 lightDir = sunlight->GetDirection();
 				for (int i = 0; i < sunlight->NumShadowCascades.GetValue(); i++)
 				{
 					StandardViewUniforms shadowMapView;
-					Vec3 viewZ = sunlight->Direction.GetValue();
+					Vec3 viewZ = lightDir;
 					Vec3 viewX, viewY;
 					GetOrthoVec(viewX, viewZ);
 					viewY = Vec3::Cross(viewZ, viewX);
@@ -225,25 +225,25 @@ namespace GameEngine
 
 					Vec3 levelBoundMax = levelBounds.Max;
 					Vec3 levelBoundMin = levelBounds.Min;
-					if (sunlight->Direction.GetValue().x > 0)
+					if (lightDir.x > 0)
 					{
 						levelBoundMax.x = levelBounds.Min.x;
 						levelBoundMin.x = levelBounds.Max.x;
 					}
-					if (sunlight->Direction.GetValue().y > 0)
+					if (lightDir.y > 0)
 					{
 						levelBoundMax.y = levelBounds.Min.y;
 						levelBoundMin.y = levelBounds.Max.y;
 					}
-					if (sunlight->Direction.GetValue().z > 0)
+					if (lightDir.z > 0)
 					{
 						levelBoundMax.z = levelBounds.Min.z;
 						levelBoundMin.z = levelBounds.Max.z;
 					}
 					Matrix4 projMatrix;
 					Matrix4::CreateOrthoMatrix(projMatrix, transformedCorner.x, transformedCorner.x + viewSize,
-						transformedCorner.y + viewSize, transformedCorner.y, -Vec3::Dot(sunlight->Direction.GetValue(), levelBoundMin),
-						-Vec3::Dot(sunlight->Direction.GetValue(), levelBoundMax), ClipSpaceType::ZeroToOne);
+						transformedCorner.y + viewSize, transformedCorner.y, -Vec3::Dot(lightDir, levelBoundMin),
+						-Vec3::Dot(lightDir, levelBoundMax), ClipSpaceType::ZeroToOne);
 
 					Matrix4::Multiply(shadowMapView.ViewProjectionTransform, projMatrix, shadowMapView.ViewTransform);
 

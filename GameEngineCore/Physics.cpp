@@ -101,7 +101,7 @@ namespace GameEngine
 					objDir *= 1.0f / distScale;
 					// perform object space ray casting
 					auto hit = obj->GetModel()->TraceRay(objOrigin, objDir, 0.0f, 1e30f);
-					hit.Position = obj->GetModelTransform().TransformHomogeneous(curHitPoint.Position);
+					hit.Position = obj->GetModelTransform().TransformHomogeneous(hit.Position);
 					hit.Distance = (ray.Origin - hit.Position).Length();
 
 					if (hit.Distance < curHitPoint.Distance && hit.FaceId != -1)

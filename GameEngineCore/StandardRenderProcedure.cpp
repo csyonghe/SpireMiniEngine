@@ -191,6 +191,7 @@ namespace GameEngine
 			viewUniform.CameraPos = params.view.Position;
 			viewUniform.ViewTransform = params.view.Transform;
 			getDrawableParam.CameraDir = params.view.GetDirection();
+			getDrawableParam.IsEditorMode = params.isEditorMode;
 			Matrix4 mainProjMatrix;
 			Matrix4::CreatePerspectiveMatrixFromViewAngle(mainProjMatrix,
 				params.view.FOV, w / (float)h,

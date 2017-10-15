@@ -15,6 +15,7 @@ namespace GameEngine
 		View view;
 		Level * level;
 		RendererService * rendererService;
+		bool isEditorMode = false;
 	};
 
 	struct FrameRenderTask

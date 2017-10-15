@@ -108,6 +108,7 @@ namespace GameEngine
 			params.renderStats = &sharedRes.renderStats;
 			params.level = level;
 			params.renderer = this;
+			params.isEditorMode = Engine::Instance()->GetEngineMode() == EngineMode::Editor;
 			auto curCam = level->CurrentCamera.Ptr();
 			if (curCam)
 				params.view = curCam->GetView();

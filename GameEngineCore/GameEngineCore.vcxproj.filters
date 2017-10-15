@@ -121,7 +121,6 @@
       <Filter>Actors</Filter>
     </ClCompile>
     <ClCompile Include="SystemWindow.cpp" />
-    <ClCompile Include="AnimationVisualizationActor.cpp" />
     <ClCompile Include="LightingData.cpp">
       <Filter>Renderer</Filter>
     </ClCompile>
@@ -144,7 +143,13 @@
     <ClCompile Include="DirectionalLightActor.cpp">
       <Filter>Actors</Filter>
     </ClCompile>
-    <ClCompile Include="LevelEditor.cpp" />
+    <ClCompile Include="LightActor.cpp" />
+    <ClCompile Include="LevelEditor.cpp">
+      <Filter>Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="AnimationVisualizationActor.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
@@ -284,7 +289,6 @@
       <Filter>Actors</Filter>
     </ClInclude>
     <ClInclude Include="SystemWindow.h" />
-    <ClInclude Include="AnimationVisualizationActor.h" />
     <ClInclude Include="RenderProcedure.h" />
     <ClInclude Include="LightBinningPass.h">
       <Filter>Renderer\ComputePasses</Filter>
@@ -307,7 +311,15 @@
     <ClInclude Include="Property.h">
       <Filter>Actors</Filter>
     </ClInclude>
-    <ClInclude Include="LevelEditor.h" />
+    <ClInclude Include="LevelEditor.h">
+      <Filter>Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="AnimationVisualizationActor.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="PropertyEditControl.h">
+      <Filter>Editor</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Spire">
@@ -345,6 +357,9 @@
     </Filter>
     <Filter Include="Shaders">
       <UniqueIdentifier>{d5ba9b7e-8244-4b5b-afcc-6fea450e3b94}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Editor">
+      <UniqueIdentifier>{6ed8f88e-2daf-4a91-9f35-1fd1f5f141c1}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

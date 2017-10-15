@@ -14,8 +14,6 @@ namespace GameEngine
 	private:
 		bool useInlineMaterial = false;
 		CoreLib::String inlineMeshSpec;
-		CoreLib::String materialFileName;
-		CoreLib::String modelFileName;
 	protected:
 		CoreLib::RefPtr<Model> model = nullptr;
 		CoreLib::RefPtr<Drawable> drawable;
@@ -25,7 +23,9 @@ namespace GameEngine
 		virtual bool ParseField(CoreLib::String fieldName, CoreLib::Text::TokenReader & parser) override;
 		virtual void SerializeFields(CoreLib::StringBuilder & sb);
 	public:
-		CoreLib::String MeshName;
+		PROPERTY(CoreLib::String, MeshFile);
+		PROPERTY(CoreLib::String, MaterialFile);
+		PROPERTY(CoreLib::String, ModelFile);
 		Mesh * Mesh = nullptr;
 		Material * MaterialInstance;
 		

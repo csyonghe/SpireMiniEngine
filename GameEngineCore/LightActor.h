@@ -13,12 +13,12 @@ namespace GameEngine
 	{
 	public:
 		LightType lightType;
-
+		VectorMath::Vec3 GetDirection();
 		virtual EngineActorType GetEngineType() override
 		{
 			return EngineActorType::Light;
 		}
-
+		virtual bool ParseField(CoreLib::String, CoreLib::Text::TokenReader &) override;
 	};
 }
 

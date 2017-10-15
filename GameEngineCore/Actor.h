@@ -26,6 +26,7 @@ namespace GameEngine
 		RendererService * rendererService;
 		DrawableSink * sink;
 		VectorMath::Vec3 CameraPos, CameraDir;
+		bool IsEditorMode = false;
 	};
 
 	class Level;
@@ -39,10 +40,7 @@ namespace GameEngine
 		PROPERTY_DEF(           bool,   CastShadow, true);
 		PROPERTY(VectorMath::Matrix4,   LocalTransform);
 	protected:
-		virtual bool ParseField(CoreLib::String, CoreLib::Text::TokenReader &)
-		{
-			return false;
-		}
+		virtual bool ParseField(CoreLib::String, CoreLib::Text::TokenReader &);
 		virtual void SerializeFields(CoreLib::StringBuilder &) {}
 	public:
 		CoreLib::Graphics::BBox Bounds;

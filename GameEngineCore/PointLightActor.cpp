@@ -2,9 +2,5 @@
 
 namespace GameEngine
 {
-	void PointLightActor::OnLoad()
-	{
-		Direction = Direction.GetValue().Normalize();
-	}
 
 }

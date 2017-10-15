@@ -199,7 +199,7 @@ namespace GameEngine
 		params.view.ZFar = 40000.0f;
 		params.view.ZNear = 20.0f;
 		params.view.Position = position;
-		
+		params.isEditorMode = Engine::Instance()->GetEngineMode() == EngineMode::Editor;
 		auto sharedRes = renderer->GetSharedResource();
 		RefPtr<PipelineBuilder> pb = hw->CreatePipelineBuilder();
 		VertexFormat quadVert;

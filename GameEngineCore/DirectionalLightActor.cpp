@@ -2,8 +2,4 @@
 
 namespace GameEngine
 {
-	void DirectionalLightActor::OnLoad()
-	{
-		Direction = Direction.GetValue().Normalize();
-	}
 }

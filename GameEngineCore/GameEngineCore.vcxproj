@@ -183,6 +183,7 @@
     <ClCompile Include="InputDispatcher.cpp" />
     <ClCompile Include="Level.cpp" />
     <ClCompile Include="LevelEditor.cpp" />
+    <ClCompile Include="LightActor.cpp" />
     <ClCompile Include="LightingData.cpp" />
     <ClCompile Include="LightProbeRenderer.cpp" />
     <ClCompile Include="Material.cpp" />
@@ -269,6 +270,7 @@
     <ClInclude Include="PointLightActor.h" />
     <ClInclude Include="PostRenderPass.h" />
     <ClInclude Include="Property.h" />
+    <ClInclude Include="PropertyEditControl.h" />
     <ClInclude Include="RenderContext.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="RendererService.h" />

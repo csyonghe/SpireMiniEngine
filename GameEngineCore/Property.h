@@ -39,7 +39,6 @@ namespace GameEngine
 		virtual void ParseValue(CoreLib::Text::TokenReader & parser) = 0;
 		virtual void Serialize(CoreLib::StringBuilder & sb) = 0;
 	public:
-		CoreLib::Event<> OnChanged;
 		CoreLib::String GetStringValue()
 		{
 			CoreLib::StringBuilder sb;
@@ -50,7 +49,6 @@ namespace GameEngine
 		{
 			CoreLib::Text::TokenReader parser(text);
 			ParseValue(parser);
-			OnChanged();
 		}
 		const char * GetTypeName()
 		{
@@ -110,6 +108,7 @@ namespace GameEngine
 #define PROPERTY(type, name) GameEngine::GenericProperty<type> name = GameEngine::GenericProperty<type>(this,  #name "\0" #type "\0\0", type());
 #define PROPERTY_DEF(type, name, value) GameEngine::GenericProperty<type> name = GameEngine::GenericProperty<type>(this,  #name "\0" #type "\0\0", value);
 #define PUBLIC_METHODS(type) \
+    CoreLib::Event<type&> OnChanging; \
 	type GetValue()\
 	{\
 		return value;\
@@ -128,13 +127,14 @@ namespace GameEngine
 	}\
 	void SetValue(type val)\
 	{\
-		value = CoreLib::_Move(val);\
-		OnChanged();\
+		OnChanging(val);\
+		value = val;\
 	}\
 	type & operator = (const type & other)\
 	{\
-		value = other;\
-		OnChanged();\
+        auto newValue = other; \
+		OnChanging(newValue); \
+		value = newValue;\
 		return value;\
 	}
 
@@ -155,7 +155,10 @@ namespace GameEngine
 		}
 		virtual void ParseValue(CoreLib::Text::TokenReader & parser) override
 		{
-			value.Parse(parser);
+			T newValue;
+			newValue.Parse(parser);
+			OnChanging(newValue);
+			value = newValue;
 		}
 	public:
 		PUBLIC_METHODS(T)
@@ -212,7 +215,8 @@ namespace GameEngine
 		}
 		virtual void ParseValue(CoreLib::Text::TokenReader & parser) override
 		{
-			unsigned char * ptr = (unsigned char *)&value;
+			T newValue;
+			unsigned char * ptr = (unsigned char *)&newValue;
 			parser.Read("[");
 			auto strVal = parser.ReadStringLiteral();
 			for (int i = 0; i < strVal.Length() - 1; i += 2)
@@ -225,6 +229,8 @@ namespace GameEngine
 				ptr++;
 			}
 			parser.Read("]");
+			OnChanging(newValue);
+			value = newValue;
 		}
 	public:
 		PUBLIC_METHODS(T)
@@ -255,16 +261,18 @@ namespace GameEngine
 		}
 		virtual void ParseValue(CoreLib::Text::TokenReader & parser) override
 		{
-			unsigned char * ptr = (unsigned char *)&value;
+			CoreLib::List<T> newValue;
 			parser.Read("List");
 			parser.Read("{");
 			while (!parser.LookAhead("}") && !parser.IsEnd())
 			{
 				GenericProperty<T> p;
 				p.ParseValue(parser);
-				value.Add(p.GetValue());
+				newValue.Add(p.GetValue());
 			}
 			parser.Read("}");
+			OnChanging(newValue);
+			value = _Move(newValue);
 		}
 	public:
 		PUBLIC_METHODS(CoreLib::List<T>)
@@ -287,7 +295,9 @@ namespace GameEngine
 		} \
 		virtual void ParseValue(CoreLib::Text::TokenReader & parser) override\
 		{\
-			value = (type)parser.readerFunc();\
+			type newValue = (type)parser.readerFunc();\
+			OnChanging(newValue); \
+            value = newValue;\
 		}\
 		PUBLIC_METHODS(type)\
 	};
@@ -313,7 +323,9 @@ namespace GameEngine
 		} 
 		virtual void ParseValue(CoreLib::Text::TokenReader & parser) override
 		{
-			value = ParseBool(parser);
+			bool newValue = ParseBool(parser);
+			OnChanging(newValue);
+			value = newValue;
 		}
 	public:
 		PUBLIC_METHODS(bool)
@@ -339,10 +351,13 @@ namespace GameEngine
 		}\
 		virtual void ParseValue(CoreLib::Text::TokenReader & parser) override\
 		{\
+			VectorMath::type newValue; \
 			auto word = parser.Read("[");\
-			for (int i = 0; i < sizeof(value) / sizeof(float); i++)\
-				values(value, i) = parser.ReadFloat();\
+			for (int i = 0; i < sizeof(newValue) / sizeof(float); i++)\
+				values(newValue, i) = parser.ReadFloat();\
 			parser.Read("]");\
+			OnChanging(newValue);\
+            value = newValue;\
 		}\
 		PUBLIC_METHODS(VectorMath::type)\
 	};
@@ -356,11 +371,11 @@ namespace GameEngine
 	{
 		return v.values[i];
 	}
-	VECTOR_PROPERTY(Vec2, VectorMath::Vec2::Create(0.0f), GetVectorValue);
-	VECTOR_PROPERTY(Vec3, VectorMath::Vec3::Create(0.0f), GetVectorValue);
-	VECTOR_PROPERTY(Vec4, VectorMath::Vec4::Create(0.0f), GetVectorValue);
-	VECTOR_PROPERTY(Matrix3, VectorMath::Matrix3(0.0f), GetMatrixValue);
-	VECTOR_PROPERTY(Matrix4, VectorMath::Matrix4(0.0f), GetMatrixValue);
+	VECTOR_PROPERTY(Vec2, VectorMath::Vec2::Create(0.0f), GetVectorValue)
+	VECTOR_PROPERTY(Vec3, VectorMath::Vec3::Create(0.0f), GetVectorValue)
+	VECTOR_PROPERTY(Vec4, VectorMath::Vec4::Create(0.0f), GetVectorValue)
+	VECTOR_PROPERTY(Matrix3, VectorMath::Matrix3(0.0f), GetMatrixValue)
+	VECTOR_PROPERTY(Matrix4, VectorMath::Matrix4(0.0f), GetMatrixValue)
 }
 
 #endif

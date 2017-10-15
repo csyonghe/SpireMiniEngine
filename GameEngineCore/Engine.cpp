@@ -219,8 +219,14 @@ namespace GameEngine
 			}
 			else
 			{
+				if (levelToLoad.Length())
+				{
+					LoadLevel(levelToLoad);
+					levelToLoad = "";
+				}
+				else
+					NewLevel();
 				UseEditor(args.Editor.Ptr());
-				NewLevel();
 			}
 		}
 		catch (const Exception & e)
@@ -526,6 +532,14 @@ namespace GameEngine
 		return actorClassRegistry.ContainsKey(name);
 	}
 
+	CoreLib::List<CoreLib::String> Engine::GetRegisteredActorClasses()
+	{
+		CoreLib::List<CoreLib::String> rs;
+		for (auto & kv : this->actorClassRegistry)
+			rs.Add(kv.Key);
+		return rs;
+	}
+
 	void Engine::LoadLevel(const CoreLib::String & fileName)
 	{
 		renderer->Wait();
@@ -564,7 +578,7 @@ namespace GameEngine
 		try
 		{
 			level = new GameEngine::Level();
-			level->LoadFromText("Atmosphere{}");
+			level->LoadFromText("Atmosphere{name \"atmosphere\"} Camera{name \"Camera0\"} FreeRoamCameraController{name \"cameraController\" TargetCameraName \"Camera0\"}");
 			renderer->InitializeLevel(level.Ptr());
 			inDataTransfer = false;
 		}

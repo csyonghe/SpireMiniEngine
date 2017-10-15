@@ -5,6 +5,16 @@ namespace GameEngine
 {
 	using namespace VectorMath;
 
+	bool Actor::ParseField(CoreLib::String name, CoreLib::Text::TokenReader & parser)
+	{
+		if (name == "transform")
+		{
+			LocalTransform = ParseMatrix4(parser);
+			return true;
+		}
+		return false;
+	}
+
 	void Actor::Parse(Level * plevel, CoreLib::Text::TokenReader & parser, bool & isInvalid)
 	{
 		level = plevel;
