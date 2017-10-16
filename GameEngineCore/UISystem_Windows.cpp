@@ -786,8 +786,10 @@ namespace GameEngine
 			
 			auto cmdBuf = wndCtx->blitCmdBuffer->BeginRecording();
 			if (baseTexture)
-				cmdBuf->Blit(wndCtx->uiOverlayTexture.Ptr(), baseTexture, TextureLayout::Sample, 
+				cmdBuf->Blit(wndCtx->uiOverlayTexture.Ptr(), baseTexture, TextureLayout::Sample,
 					VectorMath::Vec2i::Create(viewport.x, viewport.y));
+			else
+				cmdBuf->TransferLayout(MakeArrayView(dynamic_cast<Texture*>(wndCtx->uiOverlayTexture.Ptr())), TextureLayoutTransfer::UndefinedToRenderAttachment);
 			cmdBuf->EndRecording();
 
 			cmdBuf = wndCtx->cmdBuffer->BeginRecording(wndCtx->frameBuffer.Ptr());

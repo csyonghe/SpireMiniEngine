@@ -64,6 +64,68 @@ namespace GameEngine
 			MaterialInstance->Serialize(sb);
 	}
 
+	void StaticMeshActor::MeshFile_Changing(CoreLib::String & newMeshFile)
+	{
+		ModelFile.WriteValue("");
+		if (newMeshFile.Length())
+			Mesh = level->LoadMesh(newMeshFile);
+		if (!Mesh)
+		{
+			Mesh = level->LoadErrorMesh();
+			newMeshFile = "";
+		}
+		model = nullptr;
+		ModelChanged();
+	}
+
+	void StaticMeshActor::MaterialFile_Changing(CoreLib::String & newMaterialFile)
+	{
+		if (newMaterialFile.Length())
+			MaterialInstance = level->LoadMaterial(newMaterialFile);
+		if (!MaterialInstance)
+		{
+			MaterialInstance = level->LoadMaterial("Error.material");
+			newMaterialFile = "Error.material";
+		}
+		model = nullptr;
+		ModelChanged();
+	}
+
+	void StaticMeshActor::ModelFile_Changing(CoreLib::String & newModelFile)
+	{
+		MeshFile.WriteValue("");
+		MaterialFile.WriteValue("");
+		if (newModelFile.Length())
+		{
+			model = level->LoadModel(newModelFile);
+		}
+		if (!model)
+			newModelFile = "";
+		ModelChanged();
+	}
+
+	void StaticMeshActor::LocalTransform_Changing(VectorMath::Matrix4 & value)
+	{
+		localTransformChanged = true;
+		if (model)
+			CoreLib::Graphics::TransformBBox(Bounds, value, model->GetBounds());
+		if (physInstance)
+			physInstance->SetTransform(value);
+	}
+	
+	void StaticMeshActor::ModelChanged()
+	{
+		if (!model && Mesh && MaterialInstance)
+		{
+			model = new GameEngine::Model(Mesh, MaterialInstance);
+		}
+		SetLocalTransform(*LocalTransform); // update bbox
+		// update physics scene
+		physInstance = model->CreatePhysicsInstance(level->GetPhysicsScene(), this, nullptr);
+		physInstance->SetTransform(*LocalTransform);
+		modelInstance.Drawables.Clear();
+	}
+
 	void StaticMeshActor::OnLoad()
 	{
 		if (ModelFile.GetValue().Length())
@@ -74,17 +136,20 @@ namespace GameEngine
 		{
 			if (MeshFile.GetValue().Length())
 				Mesh = level->LoadMesh(MeshFile.GetValue());
+			if (!Mesh)
+				Mesh = level->LoadErrorMesh();
 			if (MaterialFile.GetValue().Length())
 				MaterialInstance = level->LoadMaterial(MaterialFile.GetValue());
+			if (!MaterialInstance)
+				MaterialInstance = level->LoadMaterial("Error.material");
 		}
-		if (!model && Mesh && MaterialInstance)
-		{
-			model = new GameEngine::Model(Mesh, MaterialInstance);
-		}
-		SetLocalTransform(*LocalTransform); // update bbox
-		// update physics scene
-		physInstance = model->CreatePhysicsInstance(level->GetPhysicsScene(), this, nullptr);
-		physInstance->SetTransform(*LocalTransform);
+		
+		LocalTransform.OnChanging.Bind(this, &StaticMeshActor::LocalTransform_Changing);
+		ModelChanged();
+
+		MeshFile.OnChanging.Bind(this, &StaticMeshActor::MeshFile_Changing);
+		ModelFile.OnChanging.Bind(this, &StaticMeshActor::ModelFile_Changing);
+		MaterialFile.OnChanging.Bind(this, &StaticMeshActor::MaterialFile_Changing);
 	}
 
 	void StaticMeshActor::OnUnload()
@@ -102,8 +167,10 @@ namespace GameEngine
 		};
 		if (model)
 		{
+			GetDrawablesParameter newParams = params;
+			newParams.UseSkeleton = false;
 			if (modelInstance.IsEmpty())
-				modelInstance = model->GetDrawableInstance(params);
+				modelInstance = model->GetDrawableInstance(newParams);
 			if (localTransformChanged)
 			{
 				modelInstance.UpdateTransformUniform(*LocalTransform);
@@ -112,15 +179,6 @@ namespace GameEngine
 			for (auto &d : modelInstance.Drawables)
 				insertDrawable(d.Ptr());
 		}
-	}
-
-	void StaticMeshActor::SetLocalTransform(const VectorMath::Matrix4 & val)
-	{
-		Actor::SetLocalTransform(val);
-		localTransformChanged = true;
-		CoreLib::Graphics::TransformBBox(Bounds, *LocalTransform, Mesh->Bounds);
-		if (physInstance)
-			physInstance->SetTransform(val);
 	}
 
 }

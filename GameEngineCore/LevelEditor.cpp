@@ -30,13 +30,16 @@ namespace GameEngine
 		Vec2i mouseDownScreenSpacePos;
 		Vec2i lastMouseScreenSpacePos;
 		Actor * selectedActor = nullptr;
+		List<PropertyEdit*> propertyEdits;
 		GraphicsUI::VScrollPanel * pnlProperties;
 		GraphicsUI::ListBox * lstActors = nullptr;
+		GraphicsUI::TextBox * txtName = nullptr;
 		RefPtr<CoreLib::WinForm::FileDialog> dlgOpen, dlgSave;
 		const Color uiGrayText = Color(180, 180, 180, 255);
 		void UpdatePropertyPanel()
 		{
 			pnlProperties->ClearChildren();
+			propertyEdits.Clear();
 			if (!selectedActor)
 				return;
 			auto propertyList = selectedActor->GetPropertyList();
@@ -48,19 +51,37 @@ namespace GameEngine
 			auto lblName = new Label(pnlProperties);
 			lblName->SetText("Name");
 			lblName->Posit(0, EM(1.1f), EM(10.0f), EM(1.0f));
-			auto txtName = new TextBox(pnlProperties);
+			txtName = new TextBox(pnlProperties);
 			txtName->SetText(selectedActor->Name.GetValue());
 			txtName->Posit(0, EM(2.1f), EM(10.0f), EM(1.1f));
+			txtName->OnKeyPress.Bind(this, &LevelEditorImpl::txtName_KeyPressed);
 			height = txtName->Top + txtName->GetHeight() + EM(0.5f);
 			for (auto & prop : propertyList)
 			{
 				if (strcmp(prop->GetName(), "Name") == 0)
 					continue;
-				auto edit = new PropertyEdit(pnlProperties, prop);
+				auto edit = CreatePropertyEdit(pnlProperties, prop, Engine::Instance()->GetMainWindow());
+				propertyEdits.Add(edit);
+				edit->OnPropertyChanged.Bind(this, &LevelEditorImpl::propertyEdit_Changed);
 				edit->Posit(0, height, pnlProperties->GetWidth() - EM(1.2f), edit->GetHeight());
 				height += edit->GetHeight() + EM(0.2f);
 			}
 			pnlProperties->SizeChanged();
+		}
+		void propertyEdit_Changed(Property *)
+		{
+			for (auto & edit : propertyEdits)
+				edit->Update();
+		}
+		void DeleteActor(Actor * actor)
+		{
+			if (!actor)
+				return;
+			if (actor == selectedActor)
+				SelectActor(nullptr);
+			Engine::Instance()->GetRenderer()->Wait();
+			level->UnregisterActor(actor);
+			UpdateActorList();
 		}
 		void SelectActor(Actor * actor)
 		{
@@ -82,6 +103,33 @@ namespace GameEngine
 				else
 					lstActors->SetSelectedIndex(-1);
 				UpdatePropertyPanel();
+			}
+		}
+		void CreateActor(String className)
+		{
+			if (level)
+			{
+				Engine::Instance()->GetRenderer()->Wait();
+				auto actor = Engine::Instance()->CreateActor(className);
+				actor->SetLevel(level);
+				int i = 0;
+				String name;
+				do
+				{
+					name = className + String(i);
+					i++;
+				} while (level->FindActor(name));
+				actor->Name = name;
+				level->RegisterActor(actor);
+				lstActors->AddTextItem(name);
+				Matrix4 trans;
+				auto pos = editorCam->GetPosition();
+				auto dir = editorCam->GetView().GetDirection();
+				auto offset = pos + dir * (editorCam->Radius.GetValue() + 100.0f);
+				Matrix4::Translation(trans, offset.x, offset.y, offset.z);
+				actor->LocalTransform = trans;
+				SelectActor(actor);
+
 			}
 		}
 		void InitUI()
@@ -138,6 +186,10 @@ namespace GameEngine
 			manipulationMenuItems[2] = new MenuItem(mnEdit, "&Scale", "Ctrl+3");
 			manipulationMenuItems[2]->OnClick.Bind(this, &LevelEditorImpl::mnManipulationScale_Clicked);
 
+			new MenuItem(mnEdit);
+			auto mnDelete = new MenuItem(mnEdit, "&Delete", "Del");
+			mnDelete->OnClick.Bind(this, &LevelEditorImpl::mnDelete_Clicked);
+
 			manipulator = new TransformManipulator(entry);
 			manipulator->OnPreviewManipulation.Bind(this, &LevelEditorImpl::PreviewManipulation);
 			manipulator->OnApplyManipulation.Bind(this, &LevelEditorImpl::ApplyManipulation);
@@ -165,6 +217,7 @@ namespace GameEngine
 				auto btnCreateActor = new Button(pnlCreateActorButtons);
 				btnCreateActor->SetText(cls);
 				btnCreateActor->Posit(0, i * EM(2.0f), EM(12.0f), EM(1.8f));
+				btnCreateActor->OnClick.Bind(this, &LevelEditorImpl::btnCreateActor_Clicked);
 				i++;
 			}
 
@@ -258,6 +311,50 @@ namespace GameEngine
 				oldLocalTransform = selectedActor->GetLocalTransform();
 			}
 		}
+		void btnCreateActor_Clicked(UI_Base * ctrl)
+		{
+			Button* btn = reinterpret_cast<Button*>(ctrl);
+			CreateActor(btn->GetText());
+		}
+		void mnDelete_Clicked(UI_Base *)
+		{
+			DeleteActor(selectedActor);
+		}
+		void RenameActor(Actor * actor, String newName)
+		{
+			if (actor)
+			{
+				auto oldName = actor->Name.GetValue();
+				if (newName != actor->Name.GetValue())
+				{
+					if (level->FindActor(newName) == nullptr)
+					{
+						actor->Name = newName;
+						List<RefPtr<Actor>> actors;
+						for (auto & kv : level->Actors)
+							actors.Add(kv.Value);
+						level->Actors = EnumerableDictionary<String, RefPtr<Actor>>();
+						for (auto & obj : actors)
+							level->Actors.Add(obj->Name.GetValue(), obj);
+					}
+				}
+				auto lstItem = lstActors->GetTextItem(lstActors->SelectedIndex);
+				if (!lstItem || lstItem->GetText() != oldName)
+				{
+					lstItem = nullptr;
+					for (int i = 0; i < lstActors->Items.Count(); i++)
+					{
+						if (lstActors->GetTextItem(i)->GetText() == oldName)
+						{
+							lstItem = lstActors->GetTextItem(i);
+							break;
+						}
+					}
+				}
+				if (lstItem)
+					lstItem->SetText(newName);
+			}
+		}
 	public:
 		virtual void Tick() override
 		{
@@ -291,6 +388,15 @@ namespace GameEngine
 		{
 			if (level)
 				SelectActor(level->FindActor(name));
+		}
+		void txtName_KeyPressed(UI_Base*, UIKeyEventArgs & e)
+		{
+			if (e.Key == VK_RETURN)
+			{
+				RenameActor(selectedActor, txtName->GetText());
+				if (selectedActor)
+					txtName->SetText(selectedActor->Name.GetValue());
+			}
 		}
 		void lstActors_Clicked(UI_Base *)
 		{
@@ -334,16 +440,20 @@ namespace GameEngine
 				level->SaveToFile(dlgSave->FileName);
 			}
 		}
-		void LevelChanged()
+		void UpdateActorList()
 		{
-			level = Engine::Instance()->GetLevel();
 			lstActors->Clear();
-			SelectActor(nullptr);
 			if (level)
 			{
 				for (auto & actor : level->Actors)
 					lstActors->AddTextItem(actor.Key);
 			}
+		}
+		void LevelChanged()
+		{
+			level = Engine::Instance()->GetLevel();
+			SelectActor(nullptr);
+			UpdateActorList();
 		}
 		void mnUndo_Clicked(UI_Base *)
 		{
@@ -449,6 +559,11 @@ namespace GameEngine
 			{
 				if (CheckKey(e.Key, 'S'))
 					mnSaveAs_Clicked(nullptr);
+				return true;
+			}
+			else if (e.Key == VK_DELETE)
+			{
+				DeleteActor(selectedActor);
 				return true;
 			}
 			return false;

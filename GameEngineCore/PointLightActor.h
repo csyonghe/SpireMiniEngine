@@ -8,6 +8,8 @@ namespace GameEngine
 {
 	class PointLightActor : public LightActor
 	{
+	protected:
+		virtual Mesh CreateGizmoMesh() override;
 	public:
 		PROPERTY_DEF(bool, EnableShadows, false);
 		PROPERTY_DEF(float, Radius, 2000.0f);

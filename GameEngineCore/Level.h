@@ -16,6 +16,7 @@ namespace GameEngine
 	{
 	private:
 		PhysicsScene physicsScene;
+		CoreLib::RefPtr<Model> errorModel;
 	public:
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<Material>> Materials;
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<Model>> Models;
@@ -34,10 +35,13 @@ namespace GameEngine
 		~Level();
 		Mesh * LoadMesh(CoreLib::String fileName);
 		Mesh * LoadMesh(CoreLib::String name, Mesh m);
+		Mesh * LoadErrorMesh();
 		Model * LoadModel(CoreLib::String fileName);
+		Model * LoadErrorModel();
 		Skeleton * LoadSkeleton(const CoreLib::String & fileName);
 		RetargetFile * LoadRetargetFile(const CoreLib::String & fileName);
 		Material * LoadMaterial(const CoreLib::String & fileName);
+		Material * LoadErrorMaterial();
 		Material * CreateNewMaterial();
 		SkeletalAnimation * LoadSkeletalAnimation(const CoreLib::String & fileName);
 		Actor * FindActor(const CoreLib::String & name);

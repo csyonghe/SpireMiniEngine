@@ -1,4 +1,5 @@
 #include "Skeleton.h"
+#include "CoreLib/LibMath.h"
 
 namespace GameEngine
 {
@@ -181,6 +182,9 @@ namespace GameEngine
 		reader.Read(SourceRetargetTransforms.Buffer(), SourceRetargetTransforms.Count());
 		ModelBoneIdToAnimationBoneId.SetSize(retargetTransformCount);
 		reader.Read(ModelBoneIdToAnimationBoneId.Buffer(), ModelBoneIdToAnimationBoneId.Count());
+		MaxAnimationBoneId = 0;
+		for (auto & id : ModelBoneIdToAnimationBoneId)
+			MaxAnimationBoneId = CoreLib::Math::Max(MaxAnimationBoneId, id);
 		reader.ReleaseStream();
 	}
 	void RetargetFile::SaveToFile(const CoreLib::String & filename)

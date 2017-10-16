@@ -52,6 +52,7 @@ namespace GameEngine
 		PROPERTY(CoreLib::String, TargetCameraName);
 	public:
 		virtual void OnLoad() override;
+		virtual void OnUnload() override;
 		virtual EngineActorType GetEngineType() override;
 		virtual CoreLib::String GetTypeName() override
 		{

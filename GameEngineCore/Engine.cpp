@@ -85,7 +85,10 @@ namespace GameEngine
             {
                 auto entry = sysWindow.Value->uiEntry.Ptr();
                 auto uiCommands = entry->DrawUI();
-                uiSystemInterface->TransferDrawCommands(sysWindow.Value, renderer->GetRenderedImage(), currentViewport, uiCommands);
+				Texture2D * backgroundImage = nullptr;
+				if (mainWindow == sysWindow.Key)
+					backgroundImage = renderer->GetRenderedImage();
+                uiSystemInterface->TransferDrawCommands(sysWindow.Value, backgroundImage, currentViewport, uiCommands);
             }
 			renderer->GetHardwareRenderer()->TransferBarrier(DynamicBufferLengthMultiplier);
 			for (auto sysWindow : uiSystemInterface->windowContexts)
@@ -95,35 +98,6 @@ namespace GameEngine
 			}
 			renderer->Wait();
 		}
-	}
-
-	String NormalizePath(String path)
-	{
-		List<String> dirs;
-		StringBuilder sb;
-		for (auto ch : path)
-		{
-			if (ch == Path::PathDelimiter || ch == Path::AltPathDelimiter)
-			{
-				auto d = sb.ToString();
-				if (d.Length())
-					dirs.Add(d);
-				sb.Clear();
-			}
-			else
-				sb << ch;
-		}
-		auto lastDir = sb.ToString();
-		if (lastDir.Length())
-			dirs.Add(lastDir);
-		sb.Clear();
-		for (int i = 0; i < dirs.Count(); i++)
-		{
-			sb << dirs[i];
-			if (i != dirs.Count() - 1)
-				sb << Path::PathDelimiter;
-		}
-		return sb.ProduceString();
 	}
 
 	void Engine::InternalInit(const EngineInitArguments & args)
@@ -138,8 +112,8 @@ namespace GameEngine
 			RecompileShaders = args.RecompileShaders;
             params = args.LaunchParams;
 
-			gameDir = NormalizePath(args.GameDirectory);
-			engineDir = NormalizePath(args.EngineDirectory);
+			gameDir = Path::Normalize(args.GameDirectory);
+			engineDir = Path::Normalize(args.EngineDirectory);
 			Path::CreateDir(Path::Combine(gameDir, "Cache"));
 			Path::CreateDir(Path::Combine(gameDir, "Cache/Shaders"));
 			Path::CreateDir(Path::Combine(gameDir, "Settings"));
@@ -618,6 +592,8 @@ namespace GameEngine
 
 	CoreLib::String Engine::FindFile(const CoreLib::String & fileName, ResourceType type)
 	{
+		if (!fileName.Length())
+			return fileName;
 		if (File::Exists(fileName))
 			return fileName;
 		auto localFile = Path::Combine(GetDirectory(false, type), fileName);

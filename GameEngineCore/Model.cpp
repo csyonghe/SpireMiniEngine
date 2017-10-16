@@ -124,7 +124,7 @@ namespace GameEngine
 		Matrix4 identityTransform;
 		Matrix4::CreateIdentityMatrix(identityTransform);
 
-		if (skeleton.Bones.Count())
+		if (params.UseSkeleton && skeleton.Bones.Count())
 		{
 			for (int i = 0; i < mesh.ElementRanges.Count(); i++)
 				rs.Drawables.Add(params.rendererService->CreateSkeletalDrawable(&mesh, i, &skeleton, materials[i]));

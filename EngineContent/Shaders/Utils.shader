@@ -526,7 +526,7 @@ module Lighting
                 actualDecay = 1.0 / max(1.0, dist * light.decay);
                 if (lightType == 2)
                 {
-                    float ang = acos(dot(-lightDir, UnpackDir(light.direction)));
+                    float ang = acos(dot(lightDir, UnpackDir(light.direction)));
                     actualDecay *= mix(1.0, 0.0, clamp((ang-light.startAngle) / (light.endAngle-light.startAngle), 0.0, 1.0));
                 }
             }

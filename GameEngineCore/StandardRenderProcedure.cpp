@@ -206,6 +206,7 @@ namespace GameEngine
 			getDrawableParam.rendererService = params.rendererService;
 			getDrawableParam.sink = &sink;
 			
+			useAtmosphere = false;
 			sink.Clear();
 						
 			CoreLib::Graphics::BBox levelBounds;

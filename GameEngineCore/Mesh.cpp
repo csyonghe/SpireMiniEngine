@@ -431,7 +431,10 @@ namespace GameEngine
 		rs.SetVertexPosition(23, Vec3::Create(vmax.x, vmax.y, vmax.z)); rs.SetVertexUV(23, 0, Vec2::Create(1.0f, 0.0f)); rs.SetVertexTangentFrame(23, tangentFrame);
 		rs.Indices.Add(20);	rs.Indices.Add(21);	rs.Indices.Add(22);
 		rs.Indices.Add(20);	rs.Indices.Add(22);	rs.Indices.Add(23);
-
+		MeshElementRange range;
+		range.StartIndex = 0;
+		range.Count = rs.Indices.Count();
+		rs.ElementRanges.Add(range);
 		return rs;
 	}
 }

@@ -95,6 +95,7 @@ namespace GameEngine
 		CoreLib::List<VectorMath::Matrix4> RetargetedInversePose; // equals to InverseAnimationSkeletonBindPose * SourceRetargetTransform * InverseBindPose
 		CoreLib::List<VectorMath::Vec3> RetargetedBoneOffsets;
 		VectorMath::Vec3 RootTranslationScale = VectorMath::Vec3::Create(1.0f, 1.0f, 1.0f);
+		int MaxAnimationBoneId = 0;
 		void SaveToStream(CoreLib::IO::Stream * stream);
 		void LoadFromStream(CoreLib::IO::Stream * stream);
 		void SaveToFile(const CoreLib::String & filename);

@@ -130,6 +130,10 @@ namespace GameEngine
 		OnChanging(val);\
 		value = val;\
 	}\
+	void WriteValue(type val)\
+	{\
+		value = val;\
+	}\
 	type & operator = (const type & other)\
 	{\
         auto newValue = other; \

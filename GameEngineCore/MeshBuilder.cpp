@@ -30,16 +30,55 @@ namespace GameEngine
 		}
 	}
 
+	void MeshBuilder::AddVertex(MeshBuilder::Vertex vtx)
+	{
+		vtx.pos = GetCurrentTransform().TransformHomogeneous(vtx.pos);
+		auto bitangent = Vec3::Cross(vtx.tangent, vtx.normal);
+		bitangent = GetCurrentTransform().TransformNormal(bitangent);
+		vtx.tangent = GetCurrentTransform().TransformNormal(vtx.tangent);
+		vtx.normal = Vec3::Cross(bitangent, vtx.tangent).Normalize();
+		vertices.Add(vtx);
+	}
+
+	void MeshBuilder::PushRotation(VectorMath::Vec3 axis, float angle)
+	{
+		Matrix4 rot;
+		Matrix4::Rotation(rot, axis, angle);
+		Matrix4::Multiply(rot, GetCurrentTransform(), rot);
+		transformStack.Add(rot);
+	}
+
+	void MeshBuilder::PushTranslation(VectorMath::Vec3 offset)
+	{
+		Matrix4 trans;
+		Matrix4::Translation(trans, offset.x, offset.y, offset.z);
+		Matrix4::Multiply(trans, GetCurrentTransform(), trans);
+		transformStack.Add(trans);
+	}
+
+	void MeshBuilder::PushScale(VectorMath::Vec3 val)
+	{
+		Matrix4 scale;
+		Matrix4::Scale(scale, val.x, val.y, val.z);
+		Matrix4::Multiply(scale, GetCurrentTransform(), scale);
+		transformStack.Add(scale);
+	}
+
+	void MeshBuilder::PopTransform()
+	{
+		transformStack.SetSize(transformStack.Count() - 1);
+	}
+
 	void MeshBuilder::AddTriangle(Vec3 v1, Vec3 v2, Vec3 v3, bool asNewElement)
     {
         Vec3 normal = Vec3::Cross(v2 - v1, v3 - v1).Normalize();
         Vec3 tangent = (v2 - v1).Normalize();
         indices.Add(vertices.Count());
-        vertices.Add(Vertex{ v1, Vec2::Create(0.0f), normal, tangent });
+        AddVertex(Vertex{ v1, Vec2::Create(0.0f), normal, tangent });
         indices.Add(vertices.Count());
-        vertices.Add(Vertex{ v2, Vec2::Create(0.0f), normal, tangent });
+		AddVertex(Vertex{ v2, Vec2::Create(0.0f), normal, tangent });
         indices.Add(vertices.Count());
-        vertices.Add(Vertex{ v3, Vec2::Create(0.0f), normal, tangent });
+		AddVertex(Vertex{ v3, Vec2::Create(0.0f), normal, tangent });
 		UpdateElementRange(asNewElement);
     }
 
@@ -48,11 +87,11 @@ namespace GameEngine
         Vec3 normal = Vec3::Cross(v2 - v1, v3 - v1).Normalize();
         Vec3 tangent = (v2 - v1).Normalize();
         indices.Add(vertices.Count());
-        vertices.Add(Vertex{v1, uv1, normal, tangent});
+		AddVertex(Vertex{v1, uv1, normal, tangent});
         indices.Add(vertices.Count());
-        vertices.Add(Vertex{v2, uv2, normal, tangent});
+		AddVertex(Vertex{v2, uv2, normal, tangent});
         indices.Add(vertices.Count());
-        vertices.Add(Vertex{v3, uv3, normal, tangent});
+		AddVertex(Vertex{v3, uv3, normal, tangent});
 		UpdateElementRange(asNewElement);
     }
 
@@ -61,17 +100,17 @@ namespace GameEngine
         Vec3 normal = Vec3::Cross(v2 - v1, v3 - v1).Normalize();
         Vec3 tangent = (v2 - v1).Normalize();
         indices.Add(vertices.Count());
-        vertices.Add(Vertex{ v1, Vec2::Create(0.0f), normal, tangent });
+		AddVertex(Vertex{ v1, Vec2::Create(0.0f), normal, tangent });
         indices.Add(vertices.Count());
-        vertices.Add(Vertex{ v2, Vec2::Create(1.0f, 0.0f), normal, tangent });
+		AddVertex(Vertex{ v2, Vec2::Create(1.0f, 0.0f), normal, tangent });
         indices.Add(vertices.Count());
-        vertices.Add(Vertex{ v3, Vec2::Create(1.0f, 1.0f), normal, tangent });
+		AddVertex(Vertex{ v3, Vec2::Create(1.0f, 1.0f), normal, tangent });
         indices.Add(vertices.Count());
-        vertices.Add(Vertex{ v1, Vec2::Create(0.0f), normal, tangent });
+		AddVertex(Vertex{ v1, Vec2::Create(0.0f), normal, tangent });
         indices.Add(vertices.Count());
-        vertices.Add(Vertex{ v3, Vec2::Create(1.0f, 1.0f), normal, tangent });
+		AddVertex(Vertex{ v3, Vec2::Create(1.0f, 1.0f), normal, tangent });
         indices.Add(vertices.Count());
-        vertices.Add(Vertex{ v4, Vec2::Create(0.0f, 1.0f), normal, tangent });
+		AddVertex(Vertex{ v4, Vec2::Create(0.0f, 1.0f), normal, tangent });
 		UpdateElementRange(asNewElement);
     }
 
@@ -106,8 +145,8 @@ namespace GameEngine
             float y2 = s * radiusOuter;
             auto uvOuter = Vec2::Create((c + 1.0f) * 0.5f, 1.0f - (s + 1.0f) * 0.5f);
             auto uvInner = (uvOuter - Vec2::Create(0.5f))*(radiusInner / radiusOuter) + Vec2::Create(0.5f);
-            vertices.Add(Vertex{ center + tangent * x1 + binormal * y1, uvInner, normal, tangent });
-            vertices.Add(Vertex{ center + tangent * x2 + binormal * y2, uvOuter, normal, tangent });
+			AddVertex(Vertex{ center + tangent * x1 + binormal * y1, uvInner, normal, tangent });
+			AddVertex(Vertex{ center + tangent * x2 + binormal * y2, uvOuter, normal, tangent });
         }
 
         int vertCount = edges * 2;
@@ -124,6 +163,138 @@ namespace GameEngine
         }
 		UpdateElementRange(asNewElement);
     }
+
+	void MeshBuilder::AddCone(float radius, float height, int edges, bool asNewElement)
+	{
+		auto topVertex = Vec3::Create(0.0f, height, 0.0f);
+		for (int i = 0; i < edges; i++)
+		{
+			float t = i / (float)(edges);
+			float t1 = (i + 1) / (float)(edges);
+			float t2 = (i + 2) / (float)(edges);
+			float angle = Math::Pi * 2.0f * t;
+			float angle1 = Math::Pi * 2.0f * t1;
+			float angle2 = Math::Pi * 2.0f * t2;
+			auto v0 = Vec3::Create(cos(angle)*radius, 0.0f, -sin(angle)*radius);
+			auto v1 = Vec3::Create(cos(angle1)*radius, 0.0f, -sin(angle1)*radius);
+			auto v2 = Vec3::Create(cos(angle2)*radius, 0.0f, -sin(angle2)*radius);
+
+			auto tangent = (v1 - v0).Normalize();
+			auto tangent2 = (v2 - v1).Normalize();
+			Vertex v;
+			v.pos = topVertex;
+			v.normal = Vec3::Create(cos(angle), radius / height, -sin(angle)).Normalize();
+			v.tangent = tangent;
+			v.uv - Vec2::Create(0.0f);
+			indices.Add(vertices.Count());
+			AddVertex(v);
+			v.pos = v0;
+			indices.Add(vertices.Count());
+			AddVertex(v);
+			v.pos = v1;
+			v.tangent = tangent2;
+			v.normal = Vec3::Create(cos(angle1), radius / height, -sin(angle1)).Normalize();
+			indices.Add(vertices.Count());
+			AddVertex(v);
+			v.pos = Vec3::Create(0.0f);
+			v.normal = Vec3::Create(0.0f, -1.0f, 0.0f);
+			v.tangent = Vec3::Create(1.0f, 0.0f, 0.0f);
+			indices.Add(vertices.Count());
+			AddVertex(v);
+			v.pos = v1;
+			indices.Add(vertices.Count());
+			AddVertex(v);
+			v.pos = v0;
+			indices.Add(vertices.Count());
+			AddVertex(v);
+		}
+		UpdateElementRange(asNewElement);
+	}
+
+	void MeshBuilder::AddCylinder(float radius, float height, int edges, bool asNewElement)
+	{
+		auto topVertex = Vec3::Create(0.0f, height, 0.0f);
+		for (int i = 0; i < edges; i++)
+		{
+			float t = i / (float)(edges);
+			float t1 = (i + 1) / (float)(edges);
+			float t2 = (i + 2) / (float)(edges);
+
+			float angle = Math::Pi * 2.0f * t;
+			float angle1 = Math::Pi * 2.0f * t1;
+			float angle2 = Math::Pi * 2.0f * t2;
+			auto v0 = Vec3::Create(cos(angle)*radius, 0.0f, -sin(angle)*radius);
+			auto v1 = Vec3::Create(cos(angle1)*radius, 0.0f, -sin(angle1)*radius);
+			auto v2 = v1;
+			v2.y = height;
+			auto v3 = v0;
+			v3.y = height;
+			auto tangent = (v1 - v0).Normalize();
+			auto v4 = Vec3::Create(cos(angle2)*radius, 0.0f, -sin(angle2)*radius);
+			auto tangent2 = (v4 - v1).Normalize();
+			auto normal1 = Vec3::Create(cos(angle), 0.0f, -sin(angle));
+			auto normal2 = Vec3::Create(cos(angle1), 0.0f, -sin(angle1));
+			Vertex v;
+			v.pos = v0;
+			v.normal = normal1;
+			v.tangent = tangent;
+			v.uv - Vec2::Create(0.0f);
+			indices.Add(vertices.Count());
+			AddVertex(v);
+			v.pos = v1;
+			v.tangent = tangent2;
+			v.normal = normal2;
+			indices.Add(vertices.Count());
+			AddVertex(v);
+			v.pos = v2;
+			v.normal = normal2;
+			v.tangent = tangent2;
+			indices.Add(vertices.Count());
+			AddVertex(v);
+			v.pos = v0;
+			v.normal = normal1;
+			v.tangent = tangent;
+			indices.Add(vertices.Count());
+			AddVertex(v);
+
+			v.pos = v2;
+			v.normal = normal2;
+			v.tangent = tangent2;
+			indices.Add(vertices.Count());
+			AddVertex(v);
+
+			v.pos = v3;
+			v.normal = normal1;
+			v.tangent = tangent;
+			indices.Add(vertices.Count());
+			AddVertex(v);
+
+			v.pos = Vec3::Create(0.0f);
+			v.normal = Vec3::Create(0.0f, -1.0f, 0.0f);
+			v.tangent = Vec3::Create(-1.0f, 0.0f, 0.0f);
+			indices.Add(vertices.Count());
+			AddVertex(v);
+			v.pos = v1;
+			indices.Add(vertices.Count());
+			AddVertex(v);
+			v.pos = v0;
+			indices.Add(vertices.Count());
+			AddVertex(v);
+
+			v.pos = Vec3::Create(0.0f, height, 0.0f);
+			v.normal = Vec3::Create(0.0f, 1.0f, 0.0f);
+			v.tangent = Vec3::Create(1.0f, 0.0f, 0.0f);
+			indices.Add(vertices.Count());
+			AddVertex(v);
+			v.pos = v3;
+			indices.Add(vertices.Count());
+			AddVertex(v);
+			v.pos = v2;
+			indices.Add(vertices.Count());
+			AddVertex(v);
+		}
+		UpdateElementRange(asNewElement);
+	}
 
     void MeshBuilder::AddBox(Vec3 vmin, Vec3 vmax, bool asNewElement)
     {

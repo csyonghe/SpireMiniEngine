@@ -40,6 +40,10 @@ namespace CoreLib
 			static String Combine(const String & path1, const String & path2);
 			static String Combine(const String & path1, const String & path2, const String & path3);
 			static bool CreateDir(const String & path);
+			static List<String> Split(String path);
+			static String Normalize(String path);
+			static bool IsSubPathOf(String path, String parentPath);
+			static String GetRelativePath(String path, String referencePath);
 		};
 
 		class CommandLineWriter : public Object

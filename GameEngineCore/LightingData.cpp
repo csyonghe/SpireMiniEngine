@@ -267,7 +267,7 @@ namespace GameEngine
 			{
 				Vec3 lightPos = light.position;
 				StandardViewUniforms shadowMapView;
-				Vec3 viewZ = -UnpackDirection(light.direction);
+				Vec3 viewZ = UnpackDirection(light.direction);
 				Vec3 viewX, viewY;
 				GetOrthoVec(viewX, viewZ);
 				viewY = Vec3::Cross(viewZ, viewX);

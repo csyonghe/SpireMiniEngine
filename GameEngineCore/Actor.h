@@ -27,6 +27,7 @@ namespace GameEngine
 		DrawableSink * sink;
 		VectorMath::Vec3 CameraPos, CameraDir;
 		bool IsEditorMode = false;
+		bool UseSkeleton = true;
 	};
 
 	class Level;
@@ -54,6 +55,10 @@ namespace GameEngine
 		virtual void SerializeToText(CoreLib::StringBuilder & sb);
 		virtual void GetDrawables(const GetDrawablesParameter & /*params*/) {}
 		virtual CoreLib::String GetTypeName() { return "Actor"; }
+		void SetLevel(Level * plevel)
+		{
+			level = plevel;
+		}
 		VectorMath::Matrix4 GetLocalTransform()
 		{
 			return LocalTransform.GetValue();

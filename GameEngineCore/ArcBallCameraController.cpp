@@ -102,14 +102,28 @@ namespace GameEngine
 	void ArcBallCameraControllerActor::OnLoad()
 	{
 		Actor::OnLoad();
-	
-		Engine::Instance()->GetUiEntry()->OnMouseDown.Bind(this, &ArcBallCameraControllerActor::MouseDown);
-		Engine::Instance()->GetUiEntry()->OnMouseMove.Bind(this, &ArcBallCameraControllerActor::MouseMove);
-		Engine::Instance()->GetUiEntry()->OnMouseUp.Bind(this, &ArcBallCameraControllerActor::MouseUp);
-		Engine::Instance()->GetUiEntry()->OnMouseWheel.Bind(this, &ArcBallCameraControllerActor::MouseWheel);
-		Engine::Instance()->GetInputDispatcher()->BindActionHandler("dumpcam", ActionInputHandlerFunc(this, &ArcBallCameraControllerActor::DumpCamera));
+		if (Engine::Instance()->GetEngineMode() != EngineMode::Editor)
+		{
+			Engine::Instance()->GetUiEntry()->OnMouseDown.Bind(this, &ArcBallCameraControllerActor::MouseDown);
+			Engine::Instance()->GetUiEntry()->OnMouseMove.Bind(this, &ArcBallCameraControllerActor::MouseMove);
+			Engine::Instance()->GetUiEntry()->OnMouseUp.Bind(this, &ArcBallCameraControllerActor::MouseUp);
+			Engine::Instance()->GetUiEntry()->OnMouseWheel.Bind(this, &ArcBallCameraControllerActor::MouseWheel);
+			Engine::Instance()->GetInputDispatcher()->BindActionHandler("dumpcam", ActionInputHandlerFunc(this, &ArcBallCameraControllerActor::DumpCamera));
+		}
 		FindTargetCamera();
 		UpdateCamera();
+	}
+
+	void ArcBallCameraControllerActor::OnUnload()
+	{
+		if (Engine::Instance()->GetEngineMode() != EngineMode::Editor)
+		{
+			Engine::Instance()->GetUiEntry()->OnMouseDown.Unbind(this, &ArcBallCameraControllerActor::MouseDown);
+			Engine::Instance()->GetUiEntry()->OnMouseMove.Unbind(this, &ArcBallCameraControllerActor::MouseMove);
+			Engine::Instance()->GetUiEntry()->OnMouseUp.Unbind(this, &ArcBallCameraControllerActor::MouseUp);
+			Engine::Instance()->GetUiEntry()->OnMouseWheel.Unbind(this, &ArcBallCameraControllerActor::MouseWheel);
+			Engine::Instance()->GetInputDispatcher()->UnbindActionHandler("dumpcam", ActionInputHandlerFunc(this, &ArcBallCameraControllerActor::DumpCamera));
+		}
 	}
 
 	EngineActorType ArcBallCameraControllerActor::GetEngineType()

@@ -22,17 +22,21 @@ namespace GameEngine
 		bool localTransformChanged = true;
 		virtual bool ParseField(CoreLib::String fieldName, CoreLib::Text::TokenReader & parser) override;
 		virtual void SerializeFields(CoreLib::StringBuilder & sb);
+		void MeshFile_Changing(CoreLib::String & newMeshFile);
+		void MaterialFile_Changing(CoreLib::String & newMaterialFile);
+		void ModelFile_Changing(CoreLib::String & newModelFile);
+		void LocalTransform_Changing(VectorMath::Matrix4 & value);
+		void ModelChanged();
 	public:
-		PROPERTY(CoreLib::String, MeshFile);
-		PROPERTY(CoreLib::String, MaterialFile);
-		PROPERTY(CoreLib::String, ModelFile);
+		PROPERTY_ATTRIB(CoreLib::String, MeshFile, "resource(Mesh, mesh)");
+		PROPERTY_ATTRIB(CoreLib::String, MaterialFile, "resource(Material, material)");
+		PROPERTY_ATTRIB(CoreLib::String, ModelFile, "resource(Mesh, model)");
 		Mesh * Mesh = nullptr;
 		Material * MaterialInstance;
 		
 		virtual void OnLoad() override;
 		virtual void OnUnload() override;
 		virtual void GetDrawables(const GetDrawablesParameter & params) override;
-		virtual void SetLocalTransform(const VectorMath::Matrix4 & val) override;
 		virtual EngineActorType GetEngineType() override
 		{
 			return EngineActorType::Drawable;

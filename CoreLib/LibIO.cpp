@@ -114,6 +114,116 @@ namespace CoreLib
 #endif
 		}
 
+		List<String> Path::Split(String path)
+		{
+			List<String> dirs;
+			StringBuilder sb;
+			for (auto ch : path)
+			{
+				if (ch == Path::PathDelimiter || ch == Path::AltPathDelimiter)
+				{
+					auto d = sb.ToString();
+					if (d.Length())
+						dirs.Add(d);
+					sb.Clear();
+				}
+				else
+					sb << ch;
+			}
+			auto lastDir = sb.ToString();
+			if (lastDir.Length())
+				dirs.Add(lastDir);
+			return dirs;
+			
+		}
+
+		String Path::Normalize(String path)
+		{
+			List<String> dirs = Split(path);
+			StringBuilder sb;
+			for (int i = 0; i < dirs.Count(); i++)
+			{
+				sb << dirs[i];
+				if (i != dirs.Count() - 1)
+					sb << Path::PathDelimiter;
+			}
+			return sb.ProduceString();
+		}
+
+		bool Path::IsSubPathOf(String path, String parentPath)
+		{
+			if (parentPath.Length() < path.Length())
+			{
+#ifdef WIN32
+				return path.ToLower().StartsWith(parentPath.ToLower());
+#else
+				return path.StartsWith(parentPath);
+#endif
+			}
+			return false;
+		}
+		bool IsPathStringEqual(String p0, String p1)
+		{
+#ifdef WIN32
+			if (p0.Length() != p1.Length())
+				return false;
+			for (int i = 0; i < p0.Length(); i++)
+			{
+				if (p0[i] != p1[i])
+				{
+					if (p0[i] >= 'A' && p0[i] <= 'Z')
+					{
+						if (p0[i] - 'A' + 'a' != p1[i])
+							return false;
+					}
+					else if (p0[i] >= 'a' && p0[i] <= 'z')
+					{
+						if (p0[i] - 'a' + 'A' != p1[i])
+							return false;
+					}
+					else
+						return false;
+				}
+			}
+			return true;
+#else
+			return p0 == p1;
+#endif
+		}
+		String Path::GetRelativePath(String path, String referencePath)
+		{
+			auto dir1 = Split(path);
+			auto dir2 = Split(referencePath);
+			if (dir1.Count() > 0 && dir2.Count() > 0)
+			{
+				if (IsPathStringEqual(dir1[0], dir2[0]))
+				{
+					StringBuilder sb;
+					int i = 1;
+					while (i < Math::Min(dir1.Count(), dir2.Count()))
+					{
+						if (IsPathStringEqual(dir1[i], dir2[i]))
+							i++;
+						else
+							break;
+					}
+					if (i < dir2.Count())
+					{
+						for (int j = i; j < dir2.Count(); j++)
+							sb << ".." << PathDelimiter;
+					}
+					for (int j = i; j < dir1.Count(); j++)
+					{
+						sb << dir1[j];
+						if (j != dir1.Count() - 1)
+							sb << PathDelimiter;
+					}
+					return sb.ProduceString();
+				}
+			}
+			return path;
+		}
+
 		CoreLib::Basic::String File::ReadAllText(const CoreLib::Basic::String & fileName)
 		{
 			StreamReader reader(new FileStream(fileName, FileMode::Open, FileAccess::Read, FileShare::ReadWrite));

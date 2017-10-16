@@ -2,6 +2,7 @@
 #include "Level.h"
 #include "CoreLib/LibIO.h"
 #include "CoreLib/Tokenizer.h"
+#include "MeshBuilder.h"
 
 namespace GameEngine
 {
@@ -158,6 +159,16 @@ namespace GameEngine
 		}
 		return result.Ptr();
 	}
+	Mesh * Level::LoadErrorMesh()
+	{
+		MeshBuilder mb;
+		mb.PushRotation(Vec3::Create(0.0f, 0.0f, 1.0f), Math::Pi * 0.25f);
+		mb.AddBox(Vec3::Create(-100.0f, -30.0f, -30.0f), Vec3::Create(100.0f, 30.0f, 30.0f));
+		mb.PopTransform();
+		mb.PushRotation(Vec3::Create(0.0f, 0.0f, 1.0f), -Math::Pi * 0.25f);
+		mb.AddBox(Vec3::Create(-100.0f, -30.0f, -30.0f), Vec3::Create(100.0f, 30.0f, 30.0f));
+		return LoadMesh("ErrorMesh", mb.ToMesh());
+	}
 	Model * Level::LoadModel(CoreLib::String fileName)
 	{
 		RefPtr<Model> result = nullptr;
@@ -177,6 +188,13 @@ namespace GameEngine
 			}
 		}
 		return result.Ptr();
+	}
+	Model * Level::LoadErrorModel()
+	{
+		if (errorModel)
+			return errorModel.Ptr();
+		errorModel = new Model(LoadErrorMesh(), LoadErrorMaterial());
+		return errorModel.Ptr();
 	}
 	Skeleton * Level::LoadSkeleton(const CoreLib::String & fileName)
 	{
@@ -236,6 +254,10 @@ namespace GameEngine
 				return nullptr;
 		}
 		return result.Ptr();
+	}
+	Material * Level::LoadErrorMaterial()
+	{
+		return LoadMaterial("Error.material");
 	}
 	Material * Level::CreateNewMaterial()
 	{
