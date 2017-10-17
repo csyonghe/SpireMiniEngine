@@ -239,6 +239,7 @@
     <ClInclude Include="CameraActor.h" />
     <ClInclude Include="CatmullSpline.h" />
     <ClInclude Include="EnvMapActor.h" />
+    <ClInclude Include="Gizmo.h" />
     <ClInclude Include="ImageLayoutTransferTaskPool.h" />
     <ClInclude Include="LevelEditor.h" />
     <ClInclude Include="LightBinningPass.h" />

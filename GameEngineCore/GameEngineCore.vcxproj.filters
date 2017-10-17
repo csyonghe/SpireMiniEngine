@@ -320,6 +320,7 @@
     <ClInclude Include="PropertyEditControl.h">
       <Filter>Editor</Filter>
     </ClInclude>
+    <ClInclude Include="Gizmo.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Spire">
