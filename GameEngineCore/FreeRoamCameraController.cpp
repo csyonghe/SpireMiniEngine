@@ -47,7 +47,7 @@ namespace GameEngine
 		FindTargetCamera();
 		if (targetCamera)
 		{
-			Vec3 moveDir = -Vec3::Create(targetCamera->GetLocalTransform().values[2], targetCamera->GetLocalTransform().values[6], targetCamera->GetLocalTransform().values[10]);
+			Vec3 moveDir = -Vec3::Create(targetCamera->GetCameraTransform().values[2], targetCamera->GetCameraTransform().values[6], targetCamera->GetCameraTransform().values[10]);
 			float dTime = Engine::Instance()->GetTimeDelta(EngineThread::GameLogic);
 			targetCamera->SetPosition(targetCamera->GetPosition() + moveDir * (input.AxisValue * dTime * *Speed));
 			return true;
@@ -61,7 +61,7 @@ namespace GameEngine
 		FindTargetCamera();
 		if (targetCamera)
 		{
-			Vec3 moveDir = Vec3::Create(targetCamera->GetLocalTransform().values[0], targetCamera->GetLocalTransform().values[4], targetCamera->GetLocalTransform().values[8]);
+			Vec3 moveDir = Vec3::Create(targetCamera->GetCameraTransform().values[0], targetCamera->GetCameraTransform().values[4], targetCamera->GetCameraTransform().values[8]);
 			float dTime = Engine::Instance()->GetTimeDelta(EngineThread::GameLogic);
 			targetCamera->SetPosition(targetCamera->GetPosition() + moveDir * (input.AxisValue * dTime * *Speed));
 			return true;
@@ -75,7 +75,7 @@ namespace GameEngine
 		FindTargetCamera();
 		if (targetCamera)
 		{
-			Vec3 moveDir = Vec3::Create(targetCamera->GetLocalTransform().values[1], targetCamera->GetLocalTransform().values[5], targetCamera->GetLocalTransform().values[9]);
+			Vec3 moveDir = Vec3::Create(targetCamera->GetCameraTransform().values[1], targetCamera->GetCameraTransform().values[5], targetCamera->GetCameraTransform().values[9]);
 			float dTime = Engine::Instance()->GetTimeDelta(EngineThread::GameLogic);
 			targetCamera->SetPosition(targetCamera->GetPosition() + moveDir * (input.AxisValue * dTime * *Speed));
 			return true;

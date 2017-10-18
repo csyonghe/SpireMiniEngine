@@ -143,13 +143,17 @@
     <ClCompile Include="DirectionalLightActor.cpp">
       <Filter>Actors</Filter>
     </ClCompile>
-    <ClCompile Include="LightActor.cpp" />
     <ClCompile Include="LevelEditor.cpp">
       <Filter>Editor</Filter>
     </ClCompile>
     <ClCompile Include="AnimationVisualizationActor.cpp">
       <Filter>Actors</Filter>
     </ClCompile>
+    <ClCompile Include="Gizmo.cpp" />
+    <ClCompile Include="LightActor.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
+    <ClCompile Include="GizmoActor.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
@@ -321,6 +325,9 @@
       <Filter>Editor</Filter>
     </ClInclude>
     <ClInclude Include="Gizmo.h" />
+    <ClInclude Include="GizmoActor.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Spire">

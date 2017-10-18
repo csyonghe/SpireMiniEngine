@@ -7,14 +7,6 @@ using namespace CoreLib;
 
 namespace GameEngine
 {
-	void LightActor::LocalTransform_Changing(VectorMath::Matrix4 & value)
-	{
-		localTransformChanged = true;
-		if (model)
-			CoreLib::Graphics::TransformBBox(Bounds, value, model->GetBounds());
-		if (physInstance)
-			physInstance->SetTransform(value);
-	}
 	Vec3 LightActor::GetDirection()
 	{
 		auto localTransform = LocalTransform.GetValue();
@@ -47,46 +39,11 @@ namespace GameEngine
 		}
 		return false;
 	}
-	void LightActor::GetDrawables(const GetDrawablesParameter & params)
-	{
-		if (params.IsEditorMode)
-		{
-			auto insertDrawable = [&](Drawable * d)
-			{
-				d->CastShadow = false;
-				d->Bounds = Bounds;
-				params.sink->AddDrawable(d);
-			};
-			if (model)
-			{
-				GetDrawablesParameter newParams = params;
-				newParams.UseSkeleton = false;
-				if (modelInstance.IsEmpty())
-					modelInstance = model->GetDrawableInstance(newParams);
-				if (localTransformChanged)
-				{
-					modelInstance.UpdateTransformUniform(*LocalTransform);
-					localTransformChanged = false;
-				}
-				for (auto &d : modelInstance.Drawables)
-					insertDrawable(d.Ptr());
-			}
-		}
-	}
 	void LightActor::OnLoad()
 	{
-		if (Engine::Instance()->GetEditor())
-		{
-			auto gizmoMesh = level->LoadMesh(GetTypeName() + "_gizmo", CreateGizmoMesh());
-			gizmoMaterial = *(level->LoadMaterial("Gizmo.material"));
-			gizmoMaterial.SetVariable("solidColor", DynamicVariable(Vec3::Create(0.3f, 0.3f, 1.0f)));
-			model = new GameEngine::Model(gizmoMesh, &gizmoMaterial);
-			LocalTransform.OnChanging.Bind(this, &LightActor::LocalTransform_Changing);
-			SetLocalTransform(*LocalTransform);
-			physInstance = model->CreatePhysicsInstance(level->GetPhysicsScene(), this, nullptr);
-			physInstance->SetTransform(*LocalTransform);
-			modelInstance.Drawables.Clear();
-		}
+		SetGizmoCount(1);
+		SetGizmoMesh(0, CreateGizmoMesh(), GizmoStyle::Editor);
+		GizmoActor::OnLoad();
 	}
 }
 

@@ -335,6 +335,21 @@ namespace GameEngine
         // TO be implemented
     }
 
+	void MeshBuilder::AddPyramid(float width, float depth, float height, bool asNewElement)
+	{
+		auto v0 = Vec3::Create(-width * 0.5f, 0.0f, -depth *0.5f);
+		auto v1 = Vec3::Create(-width * 0.5f, 0.0f, depth *0.5f);
+		auto v2 = Vec3::Create(width * 0.5f, 0.0f, depth *0.5f);
+		auto v3 = Vec3::Create(width * 0.5f, 0.0f, -depth *0.5f);
+		auto vTop = Vec3::Create(0.0f, height, 0.0f);
+		AddQuad(v3, v2, v1, v0);
+		AddTriangle(vTop, v0, v1);
+		AddTriangle(vTop, v1, v2);
+		AddTriangle(vTop, v2, v3);
+		AddTriangle(vTop, v3, v0);
+		UpdateElementRange(asNewElement);
+	}
+
     Mesh MeshBuilder::ToMesh()
     {
         Mesh rs;

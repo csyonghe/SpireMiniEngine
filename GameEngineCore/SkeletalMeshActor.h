@@ -22,6 +22,7 @@ namespace GameEngine
 		RetargetFile * retargetFile = nullptr;
 		SkeletalAnimation * simpleAnimation = nullptr;
 		Skeleton * skeleton = nullptr;
+		float previewFrameTime;
 	protected:
 		void UpdateBounds();
 		void UpdateStates();

@@ -66,12 +66,50 @@ namespace GameEngine
 				edit->Posit(0, height, pnlProperties->GetWidth() - EM(1.2f), edit->GetHeight());
 				height += edit->GetHeight() + EM(0.2f);
 			}
+			if (selectedActor->GetEngineType() == EngineActorType::Camera)
+			{
+				auto btnCopyFromEditor = new Button(pnlProperties);
+				btnCopyFromEditor->SetText("Use Current View");
+				btnCopyFromEditor->Posit(0, height, EM(6.5f), EM(1.5f));
+				btnCopyFromEditor->OnClick.Bind(this, &LevelEditorImpl::btnCopyCameraFromEditorCamera_Clicked);
+				height += btnCopyFromEditor->GetHeight() + EM(0.2f);
+				auto btnPreview = new Button(pnlProperties);
+				btnPreview->SetText("Preview");
+				btnPreview->Posit(0, height, EM(6.5f), EM(1.5f));
+				btnPreview->OnClick.Bind(this, &LevelEditorImpl::btnPreviewCamera_Clicked);
+			}
 			pnlProperties->SizeChanged();
 		}
-		void propertyEdit_Changed(Property *)
+		void UpdatePropertyValues()
 		{
 			for (auto & edit : propertyEdits)
 				edit->Update();
+		}
+		void propertyEdit_Changed(Property *)
+		{
+			UpdatePropertyValues();
+		}
+		void btnCopyCameraFromEditorCamera_Clicked(UI_Base*)
+		{
+			if (selectedActor)
+			{
+				if (auto cam = dynamic_cast<CameraActor*>(selectedActor))
+				{
+					cam->Position = editorCam->Position.GetValue();
+					cam->Orientation = editorCam->Orientation.GetValue();
+				}
+			}
+		}
+		void btnPreviewCamera_Clicked(UI_Base*)
+		{
+			if (selectedActor)
+			{
+				if (auto cam = dynamic_cast<CameraActor*>(selectedActor))
+				{
+					editorCam->Position = cam->Position.GetValue();
+					editorCam->Orientation = cam->Orientation.GetValue();
+				}
+			}
 		}
 		void DeleteActor(Actor * actor)
 		{
@@ -309,6 +347,7 @@ namespace GameEngine
 			{
 				PreviewManipulation(nullptr, e);
 				oldLocalTransform = selectedActor->GetLocalTransform();
+				UpdatePropertyValues();
 			}
 		}
 		void btnCreateActor_Clicked(UI_Base * ctrl)
@@ -373,7 +412,7 @@ namespace GameEngine
 				view.ViewportH = (float)viewport.height;
 				view.ViewportW = (float)viewport.width;
 				manipulator->Visible = true;
-				manipulator->SetTarget(manipulationMode, view, editorCam->GetLocalTransform(), editorCam->Position,
+				manipulator->SetTarget(manipulationMode, view, editorCam->GetCameraTransform(), editorCam->Position,
 					selectedActor->GetPosition());
 			}
 			else

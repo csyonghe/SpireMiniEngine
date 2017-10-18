@@ -16,7 +16,6 @@ namespace GameEngine
 		CoreLib::String inlineMeshSpec;
 	protected:
 		CoreLib::RefPtr<Model> model = nullptr;
-		CoreLib::RefPtr<Drawable> drawable;
 		CoreLib::RefPtr<ModelPhysicsInstance> physInstance;
 		ModelDrawableInstance modelInstance;
 		bool localTransformChanged = true;

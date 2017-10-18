@@ -16,24 +16,24 @@ namespace VectorMath
 		float y = nAxis.y;
 		float z = nAxis.z;
 
-		rs.m[0][0] = 1 + t*(x*x-1);
-		rs.m[1][0] = z*s+t*x*y;
-		rs.m[2][0] = -y*s+t*x*z;
-		rs.m[3][0] = 0.0f;
-
-		rs.m[0][1] = -z*s+t*x*y;
-		rs.m[1][1] = 1+t*(y*y-1);
-		rs.m[2][1] = x*s+t*y*z;
-		rs.m[3][1] = 0.0f;
-
-		rs.m[0][2] = y*s+t*x*z;
-		rs.m[1][2] = -x*s+t*y*z;
-		rs.m[2][2] = 1+t*(z*z-1);
-		rs.m[3][2] = 0.0f;
-
+		rs.m[0][0] = c + t*x*x;
+		rs.m[0][1] = z*s + t*x*y;
+		rs.m[0][2] = -y*s + t*x*z;
 		rs.m[0][3] = 0.0f;
+
+		rs.m[1][0] = -z*s + t*x*y;
+		rs.m[1][1] = c + t*y*y;
+		rs.m[1][2] = x*s + t*y*z;
 		rs.m[1][3] = 0.0f;
+
+		rs.m[2][0] = y*s + t*x*z;
+		rs.m[2][1] = -x*s + t*y*z;
+		rs.m[2][2] = c + t*z*z;
 		rs.m[2][3] = 0.0f;
+
+		rs.m[3][0] = 0.0f;
+		rs.m[3][1] = 0.0f;
+		rs.m[3][2] = 0.0f;
 		rs.m[3][3] = 1.0f;
 	}
 	void Matrix4::Rotation(Matrix4 & rs, float yaw, float pitch, float roll)
@@ -403,40 +403,115 @@ namespace VectorMath
 			Matrix4::Multiply(roty, roty, rotx);
 			q = Quaternion::FromMatrix(roty.GetMatrix3());
 		}
+		else if (order == EulerAngleOrder::YXZ)
+		{
+			Matrix4 rotx, roty, rotz;
+			Matrix4::RotationX(rotx, x);
+			Matrix4::RotationY(roty, y);
+			Matrix4::RotationZ(rotz, z);
+			Matrix4::Multiply(rotx, rotz, rotx);
+			Matrix4::Multiply(roty, rotx, roty);
+			q = Quaternion::FromMatrix(roty.GetMatrix3());
+		}
+		else
+			throw CoreLib::Basic::NotImplementedException();
+	}
+
+	void MatrixToEulerAngle(const Matrix3 mat, float & x, float &  y, float & z, EulerAngleOrder order)
+	{
+		if (order == EulerAngleOrder::YZX)
+		{
+			if (mat.m[1][0] < 0.9999f)
+			{
+				if (mat.m[1][0] > -0.9999f)
+				{
+					z = asin(-mat.m[1][0]);
+					x = atan2(mat.m[1][2], mat.m[1][1]);
+					y = atan2(mat.m[2][0], mat.m[0][0]);
+				}
+				else
+				{
+					z = Math::Pi * 0.5f;
+					x = -atan2(-mat.m[0][2], mat.m[2][2]);
+					y = 0.0f;
+				}
+			}
+			else
+			{
+				z = -Math::Pi * 0.5f;
+				x = atan2(-mat.m[0][2], mat.m[2][2]);
+				y = 0.0f;
+			}
+		}
+		else if (order == EulerAngleOrder::YXZ)
+		{
+			if (mat.m[1][2] < 0.9999f)
+			{
+				if (mat.m[1][2] > -0.9999f)
+				{
+					x = asin(mat.m[1][2]);
+					z = atan2(-mat.m[1][0], mat.m[1][1]);
+					y = atan2(-mat.m[0][2], mat.m[2][2]);
+				}
+				else
+				{
+					x = -Math::Pi * 0.5f;
+					z = -atan2(mat.m[2][0], mat.m[0][0]);
+					y = 0.0f;
+				}
+			}
+			else
+			{
+				x = Math::Pi * 0.5f;
+				z = atan2(mat.m[2][0], mat.m[0][0]);
+				z = 0.0f;
+			}
+		}
+		else if(order == EulerAngleOrder::ZXY)
+		{
+			if (mat.m[2][1] < 0.9999f)
+			{
+				if (mat.m[2][1] > -0.9999f)
+				{
+					x = asinf(-mat.m[2][1]);
+					y = atan2f(mat.m[2][0], mat.m[2][2]);
+					z = atan2f(mat.m[0][1], mat.m[1][1]);
+				}
+				else
+				{
+					x = Math::Pi * 0.5f;
+					y = -atan2(-mat.m[1][0], mat.m[0][0]);
+					z = 0.0f;
+				}
+			}
+			else
+			{
+				x = -Math::Pi * 0.5f;
+				y = atan2(-mat.m[1][0], mat.m[0][0]);
+				z = 0.0f;
+			}
+			/*
+			x = asinf(Math::Clamp(-mat.m[2][1], -1.0f, 1.0f));
+			auto cx = cos(x);
+			if (cx < 1e-4f && cx > -1e-4f)
+			{
+				y = 0.f;
+				z = atan2f(mat.m[1][0], mat.m[0][0]);
+			}
+			else
+			{
+				y = atan2f(mat.m[2][0], mat.m[2][2]);
+				z = atan2f(mat.m[0][1], mat.m[1][1]);
+			}
+			*/
+		}
 		else
 			throw CoreLib::Basic::NotImplementedException();
 	}
 
 	void QuaternionToEulerAngle(const Quaternion & q, float & x, float &  y, float & z, EulerAngleOrder order)
 	{
-		// Note: asin [-pi/2, pi/2]
-		//       atan2f [-pi, pi]
-		if (order == EulerAngleOrder::YZX)
-		{
-			auto matrix3 = q.ToMatrix3().m;
-			x = atan2f(matrix3[1][2], matrix3[1][1]);
-			y = atan2f(matrix3[2][0], matrix3[0][0]);
-			z = asinf(-matrix3[1][0]);
-			if (cosf(z) == 0)
-			{
-				printf("Note: Needs special handling when cosz = 0. \n.");
-			}
-		}
-		else if (order == EulerAngleOrder::ZXY)
-		{
-			auto rerange = [](float x) {return x < 0 ? x - Math::Pi : x + Math::Pi; };
-			auto matrix3 = q.ToMatrix3().m;
-			x = asinf(Math::Clamp(-matrix3[2][1], -1.0f, 1.0f));
-			y = atan2f(matrix3[2][0], matrix3[2][2]);
-			z = atan2f(matrix3[0][1], matrix3[1][1]);
-			if (cosf(x) < 1e-6)
-			{
-				y = 0.f;
-				z = atan2f(matrix3[1][0], matrix3[0][0]);
-			}
-		}
-		else
-			throw CoreLib::Basic::NotImplementedException();
+		MatrixToEulerAngle(q.ToMatrix3(), x, y, z, order);
 	}
 	
 	void Quaternion::SetYawAngle(VectorMath::Quaternion & q, float yaw)

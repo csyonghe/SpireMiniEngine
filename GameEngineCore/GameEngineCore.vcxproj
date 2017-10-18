@@ -176,6 +176,8 @@
     <ClCompile Include="ForwardBaseRenderPass.cpp" />
     <ClCompile Include="FreeRoamCameraController.cpp" />
     <ClCompile Include="FrustumCulling.cpp" />
+    <ClCompile Include="Gizmo.cpp" />
+    <ClCompile Include="GizmoActor.cpp" />
     <ClCompile Include="GLAPI\GLHardwareRenderer.cpp" />
     <ClCompile Include="GraphicsSettings.cpp" />
     <ClCompile Include="HardwareInputInterface.cpp" />
@@ -240,6 +242,7 @@
     <ClInclude Include="CatmullSpline.h" />
     <ClInclude Include="EnvMapActor.h" />
     <ClInclude Include="Gizmo.h" />
+    <ClInclude Include="GizmoActor.h" />
     <ClInclude Include="ImageLayoutTransferTaskPool.h" />
     <ClInclude Include="LevelEditor.h" />
     <ClInclude Include="LightBinningPass.h" />

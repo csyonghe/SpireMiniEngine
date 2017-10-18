@@ -72,6 +72,32 @@ namespace GameEngine
 		while (!parser.IsEnd())
 		{
 			auto pos = parser.NextToken().Position;
+			if (parser.LookAhead("hidden"))
+			{
+				parser.ReadToken();
+				Text::CodePosition beginPos = parser.NextToken().Position;
+				beginPos.Pos -= parser.NextToken().Content.Length();
+				parser.ReadToken();
+				parser.Read("{");
+				Text::CodePosition endPos;
+				int braceLevel = 1;
+				while (braceLevel > 0)
+				{
+					if (parser.LookAhead("}"))
+					{
+						braceLevel--;
+						endPos = parser.ReadToken().Position;
+					}
+					else if (parser.LookAhead("{"))
+					{
+						braceLevel++;
+						parser.ReadToken();
+					}
+					else
+						parser.ReadToken();
+				}
+				HiddenSections.Add(text.SubString(beginPos.Pos, endPos.Pos + 1 - beginPos.Pos));
+			}
 			auto actor = Engine::Instance()->ParseActor(this, parser);
 			if (!actor)
 			{
@@ -108,6 +134,8 @@ namespace GameEngine
 		StringBuilder sb;
 		for (auto & actor : Actors)
 			actor.Value->SerializeToText(sb);
+		for (auto & sect : HiddenSections)
+			sb << "hidden " << sect << "\n";
 		File::WriteAllText(fileName, IndentText(sb.ProduceString()));
 		FileName = fileName;
 	}

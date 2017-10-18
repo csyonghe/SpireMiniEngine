@@ -6,18 +6,6 @@ Atmosphere
 	SunDir [ 0 1 0 ]
 	AtmosphericFogScaleFactor 0.02
 }
-Camera
-{
-	Name "Camera0"
-	CastShadow true
-	LocalTransform [ 1 0 -4.3711388e-08 0 0 1 0 0 4.3711388e-08 0 1 0 -0 -0 -800 1 ]
-	Orientation [ 4.3711388e-08 0 0 ]
-	Position [ -3.4969111e-05 0 800 ]
-	ZNear 40
-	ZFar 400000
-	FOV 75
-	Radius 50
-}
 FreeRoamCameraController
 {
 	Name "cameraController"
@@ -43,7 +31,7 @@ DirectionalLight
 {
 	Name "DirectionalLight0"
 	CastShadow true
-	LocalTransform [ 1.21 0 0 0 0 0.88482255 -0.82534194 0 0 0.82534194 0.88482255 0 328.05539 832.46222 -421.46631 1 ]
+	LocalTransform [ 1.21 0 0 0 0 0.88482255 -0.82534194 0 0 0.82534194 0.88482255 0 173.71486 952.51654 -451.92719 1 ]
 	EnableCascadedShadows true
 	ShadowDistance 40000
 	NumShadowCascades 4
@@ -59,4 +47,28 @@ StaticMesh
 	MeshFile "plane.mesh"
 	MaterialFile "Wall1.material"
 	ModelFile ""
+}
+Camera
+{
+	Name "Camera0"
+	CastShadow false
+	LocalTransform [ -0.99472678 -0.034354977 -0.096635111 0 -0.016643789 0.9838115 -0.178432 0 0.10120076 -0.17588271 -0.97919536 -0 207.58057 408.33438 -741.57019 1 ]
+	Orientation [ -3.0386074 -0.17680238 0.034906104 ]
+	Position [ 207.58058 408.33438 -741.57019 ]
+	ZNear 50
+	ZFar 400000
+	FOV 75
+	Radius 50
+}
+hidden Camera
+{
+	Name "Camera0"
+	CastShadow true
+	LocalTransform [ -0.99472678 -0.034354977 -0.096635111 0 -0.016643789 0.9838115 -0.178432 0 0.10120076 -0.17588271 -0.97919536 -0 207.58057 408.33438 -741.57019 1 ]
+	Orientation [ -3.0386074 -0.17680238 0.034906104 ]
+	Position [ 207.58058 408.33438 -741.57019 ]
+	ZNear 40
+	ZFar 400000
+	FOV 75
+	Radius 50
 }

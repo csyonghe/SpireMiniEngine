@@ -193,6 +193,8 @@ namespace GameEngine
 			}
 			else
 			{
+				if (args.Editor)
+					engineMode = EngineMode::Editor;
 				if (levelToLoad.Length())
 				{
 					LoadLevel(levelToLoad);

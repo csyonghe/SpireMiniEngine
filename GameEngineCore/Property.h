@@ -39,6 +39,7 @@ namespace GameEngine
 		virtual void ParseValue(CoreLib::Text::TokenReader & parser) = 0;
 		virtual void Serialize(CoreLib::StringBuilder & sb) = 0;
 	public:
+		CoreLib::Event<> OnChanged;
 		CoreLib::String GetStringValue()
 		{
 			CoreLib::StringBuilder sb;
@@ -129,6 +130,7 @@ namespace GameEngine
 	{\
 		OnChanging(val);\
 		value = val;\
+		OnChanged();\
 	}\
 	void WriteValue(type val)\
 	{\
@@ -139,6 +141,7 @@ namespace GameEngine
         auto newValue = other; \
 		OnChanging(newValue); \
 		value = newValue;\
+		OnChanged();\
 		return value;\
 	}
 
@@ -277,6 +280,7 @@ namespace GameEngine
 			parser.Read("}");
 			OnChanging(newValue);
 			value = _Move(newValue);
+			OnChanged();
 		}
 	public:
 		PUBLIC_METHODS(CoreLib::List<T>)
@@ -302,6 +306,7 @@ namespace GameEngine
 			type newValue = (type)parser.readerFunc();\
 			OnChanging(newValue); \
             value = newValue;\
+			OnChanged();\
 		}\
 		PUBLIC_METHODS(type)\
 	};
@@ -330,6 +335,7 @@ namespace GameEngine
 			bool newValue = ParseBool(parser);
 			OnChanging(newValue);
 			value = newValue;
+			OnChanged();
 		}
 	public:
 		PUBLIC_METHODS(bool)
@@ -362,6 +368,7 @@ namespace GameEngine
 			parser.Read("]");\
 			OnChanging(newValue);\
             value = newValue;\
+			OnChanged();\
 		}\
 		PUBLIC_METHODS(VectorMath::type)\
 	};

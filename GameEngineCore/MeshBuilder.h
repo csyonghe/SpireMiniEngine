@@ -46,7 +46,7 @@ namespace GameEngine
 		void AddCylinder(float radius, float height, int edges, bool asNewElement = false);
         void AddBox(VectorMath::Vec3 vmin, VectorMath::Vec3 vmax, bool asNewElement = false);
         void AddFrustum(VectorMath::Vec3 v1, VectorMath::Vec3 v2, float radius1, float radius2, int edges = 16, bool asNewElement = false);
-
+		void AddPyramid(float width, float depth, float height, bool asNewElement = false);
         Mesh ToMesh();
 		static Mesh TransformMesh(Mesh & input, VectorMath::Matrix4 & transform);
 	};

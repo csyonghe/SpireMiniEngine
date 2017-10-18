@@ -123,12 +123,12 @@ public:
 					bonePositions[i] = Vec3::Create(matrices[i].values[12], matrices[i].values[13], matrices[i].values[14]);
 				}
 			}
-			manipulator->SetTarget(ManipulationMode::Rotation, view, level->CurrentCamera->GetLocalTransform(), level->CurrentCamera->GetPosition(), bonePositions[lstBones->SelectedIndex]);
+			manipulator->SetTarget(ManipulationMode::Rotation, view, level->CurrentCamera->GetCameraTransform(), level->CurrentCamera->GetPosition(), bonePositions[lstBones->SelectedIndex]);
 			manipulator->Visible = true;
 		}
 		else if (targetSkeletonSelected)
 		{
-			manipulator->SetTarget(manipulationMode, view, level->CurrentCamera->GetLocalTransform(), level->CurrentCamera->GetPosition(),
+			manipulator->SetTarget(manipulationMode, view, level->CurrentCamera->GetCameraTransform(), level->CurrentCamera->GetPosition(),
 				Vec3::Create(targetSkeletonTransform.values[12], targetSkeletonTransform.values[13], targetSkeletonTransform.values[14]));
 			manipulator->Visible = true;
 		}

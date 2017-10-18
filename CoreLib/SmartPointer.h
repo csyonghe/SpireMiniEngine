@@ -454,6 +454,101 @@ namespace CoreLib
 					return false;
 			}
 		};
+
+		template<typename T>
+		class UniquePtr
+		{
+		private:
+			T * pointer = nullptr;
+		public:
+			T & operator *() const
+			{
+				return *pointer;
+			}
+			T * operator->() const
+			{
+				return pointer;
+			}
+			T * Ptr() const
+			{
+				return pointer;
+			}
+			int GetHashCode()
+			{
+				return (int)(long long)(void*)pointer;
+			}
+			bool operator == (const T * ptr) const
+			{
+				return pointer == ptr;
+			}
+			bool operator != (const T * ptr) const
+			{
+				return pointer != ptr;
+			}
+			UniquePtr()
+			{
+				pointer = 0;
+			}
+			~UniquePtr()
+			{
+				delete pointer;
+			}
+			UniquePtr(T * ptr)
+				: pointer(0)
+			{
+				this->operator=(ptr);
+			}
+			UniquePtr(const UniquePtr<T> & ptr)
+			{
+				pointer = new T(*ptr);
+			}
+			UniquePtr(UniquePtr<T> && str)
+				: pointer(0)
+			{
+				this->operator=(static_cast<UniquePtr<T>&&>(str));
+			}
+			void Unreference()
+			{
+				delete pointer;
+				pointer = nullptr;
+			}
+			UniquePtr<T>& operator=(UniquePtr<T> && str)
+			{
+				if (str.pointer != pointer)
+				{
+					Unreference();
+				}
+				pointer = str.pointer;
+				str.pointer = nullptr;
+				return *this;
+			}
+			UniquePtr<T>& operator=(const UniquePtr<T> & str)
+			{
+				if (str.pointer != pointer)
+				{
+					Unreference();
+				}
+				pointer = new T(str.pointer);
+				return *this;
+			}
+			UniquePtr<T>& operator=(T * ptr)
+			{
+				if (ptr != pointer)
+				{
+					Unreference();
+					pointer = ptr;
+				}
+				return *this;
+			}
+		public:
+			explicit operator bool() const
+			{
+				if (pointer)
+					return true;
+				else
+					return false;
+			}
+		};
 	}
 }
 

@@ -65,8 +65,9 @@ namespace GameEngine
 		UpdateStates();
 	}
 
-	void SkeletalMeshActor::PreviewFrame_Changing(float &)
+	void SkeletalMeshActor::PreviewFrame_Changing(float & newValue)
 	{
+		previewFrameTime = newValue;
 		Tick();
 	}
 
@@ -75,7 +76,7 @@ namespace GameEngine
 		auto time = Engine::Instance()->GetTime();
 		if (Engine::Instance()->GetEngineMode() == EngineMode::Editor)
 		{
-			time = PreviewFrame.GetValue();
+			time = previewFrameTime;
 		}
 		if (Animation)
 			Animation->GetPose(nextPose, time);
@@ -171,6 +172,8 @@ namespace GameEngine
 		AnimationFileName.OnChanging.Bind(this, &SkeletalMeshActor::AnimationFileName_Changing);
 		SkeletonFileName.OnChanging.Bind(this, &SkeletalMeshActor::SkeletonFileName_Changing);
 		PreviewFrame.OnChanging.Bind(this, &SkeletalMeshActor::PreviewFrame_Changing);
+
+		previewFrameTime = PreviewFrame.GetValue();
 	}
 
 	void SkeletalMeshActor::OnUnload()

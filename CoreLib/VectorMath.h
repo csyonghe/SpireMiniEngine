@@ -1806,6 +1806,15 @@ namespace VectorMath
 			rs.w = w + q.w;
 			return rs;
 		}
+		Quaternion operator - (const Quaternion & q) const
+		{
+			Quaternion rs;
+			rs.x = x - q.x;
+			rs.y = y - q.y;
+			rs.z = z - q.z;
+			rs.w = w - q.w;
+			return rs;
+		}
 		Quaternion operator * (float s) const
 		{
 			Quaternion rs;
@@ -1998,11 +2007,14 @@ namespace VectorMath
 
 	enum class EulerAngleOrder
 	{
-		XYZ, YZX, ZXY
+		// order is from right to left
+		YZX,   // RotX * RotZ * RotY
+		ZXY,   // RotY * RotX * RotZ
+		YXZ    // RotZ * RotX * RotY
 	};
 	void EulerAngleToQuaternion(VectorMath::Quaternion & q, float x, float y, float z, EulerAngleOrder order);
 	void QuaternionToEulerAngle(const VectorMath::Quaternion & q, float & x, float &  y, float & z, EulerAngleOrder order);
-	
+	void MatrixToEulerAngle(const Matrix3 mat, float & x, float &  y, float & z, EulerAngleOrder order);
 }
 
 #endif

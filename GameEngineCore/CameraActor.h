@@ -3,14 +3,18 @@
 
 #include "CoreLib/Graphics/ViewFrustum.h"
 #include "CoreLib/VectorMath.h"
-#include "Actor.h"
+#include "GizmoActor.h"
 #include "Physics.h"
 #include "View.h"
 
 namespace GameEngine
 {
-	class CameraActor : public Actor
+	class CameraActor : public GizmoActor
 	{
+	private:
+		VectorMath::Matrix4 cameraTransform;
+		void TransformUpdated();
+		void LocalTransform_Changed();
 	public:
 		PROPERTY_DEF(VectorMath::Vec3, Orientation, VectorMath::Vec3::Create(0.0f));
 		PROPERTY(VectorMath::Vec3, Position);
@@ -31,6 +35,7 @@ namespace GameEngine
 		void SetPitch(float value);
 		void SetRoll(float value);
 		void SetOrientation(float pYaw, float pPitch, float pRoll);
+		VectorMath::Matrix4 GetCameraTransform();
 		Ray GetRayFromViewCoordinates(float x, float y, float aspect); // coordinate range from 0.0 to 1.0
 		View GetView();
 		CoreLib::Graphics::ViewFrustum GetFrustum(float aspect);
