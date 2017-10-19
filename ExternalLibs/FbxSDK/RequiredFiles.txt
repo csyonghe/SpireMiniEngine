@@ -1,9 +1,0 @@
-Download Autodesk FBX SDK 2017 from:
-http://usa.autodesk.com/adsk/servlet/pc/item?siteID=123112&id=25408427
-
-Copy libfbxsdk.lib, libfbxsdk.dll into these sub directories:
-x86/debug/
-x86/release
-x64/debug/
-x64/release
-
