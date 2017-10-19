@@ -228,6 +228,10 @@ namespace GameEngine
 			auto mnDelete = new MenuItem(mnEdit, "&Delete", "Del");
 			mnDelete->OnClick.Bind(this, &LevelEditorImpl::mnDelete_Clicked);
 
+			auto mnLighting = new MenuItem(mainMenu, "&Lighting");
+			auto mnUpdateLightProbes = new MenuItem(mnLighting, "&Update Light Probes", "F12");
+			mnUpdateLightProbes->OnClick.Bind(this, &LevelEditorImpl::mnUpdateLightProbes_Clicked);
+
 			manipulator = new TransformManipulator(entry);
 			manipulator->OnPreviewManipulation.Bind(this, &LevelEditorImpl::PreviewManipulation);
 			manipulator->OnApplyManipulation.Bind(this, &LevelEditorImpl::ApplyManipulation);
@@ -541,6 +545,10 @@ namespace GameEngine
 		{
 			SwitchManipulationMode(ManipulationMode::Scale);
 		}
+		void mnUpdateLightProbes_Clicked(UI_Base*)
+		{
+			Engine::Instance()->UpdateLightProbes();
+		}
 		void UIEntry_MouseMove(UI_Base *, UIMouseEventArgs & e)
 		{
 			auto curMouseScreenSpacePos = Vec2i::Create(e.X, e.Y);
@@ -604,6 +612,15 @@ namespace GameEngine
 			{
 				DeleteActor(selectedActor);
 				return true;
+			}
+			else if (e.Key == VK_F12)
+			{
+				mnUpdateLightProbes_Clicked(nullptr);
+			}
+			else if (CheckKey(e.Key, 'Q') || CheckKey(e.Key, 'E') || CheckKey(e.Key, 'W')
+				|| CheckKey(e.Key, 'S') || CheckKey(e.Key, 'A') || CheckKey(e.Key, 'D'))
+			{
+				editorCam->SetRoll(0.0f);
 			}
 			return false;
 		}

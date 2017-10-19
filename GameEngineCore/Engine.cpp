@@ -565,6 +565,11 @@ namespace GameEngine
 		return level.Ptr();
 	}
 
+	void Engine::UpdateLightProbes()
+	{
+		renderer->UpdateLightProbes();
+	}
+
 	RefPtr<Actor> Engine::ParseActor(GameEngine::Level * pLevel, Text::TokenReader & parser)
 	{
 		RefPtr<Actor> actor = CreateActor(parser.NextToken().Content);

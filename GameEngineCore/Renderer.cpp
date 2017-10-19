@@ -100,6 +100,7 @@ namespace GameEngine
 		FrameRenderTask frameTask;
 		int uniformBufferAlignment = 256;
 		int storageBufferAlignment = 32;
+		int defaultEnvMapId = -1;
 	private:
 		void RunRenderProcedure()
 		{
@@ -184,16 +185,9 @@ namespace GameEngine
 
 		RefPtr<ViewResource> cubemapRenderView;
 		RefPtr<IRenderProcedure> cubemapRenderProc;
-
-		virtual void InitializeLevel(Level* pLevel) override
+		virtual void UpdateLightProbes() override
 		{
-			if (!pLevel) return;
-			level = pLevel;
-			cubemapRenderView = new ViewResource(hardwareRenderer);
-			cubemapRenderView->Resize(EnvMapSize, EnvMapSize);
-			cubemapRenderProc = CreateStandardRenderProcedure(false, false);
-			cubemapRenderProc->Init(this, cubemapRenderView.Ptr());
-
+			if (!level) return;
 			LightProbeRenderer lpRenderer(this, renderService.Ptr(), cubemapRenderProc.Ptr(), cubemapRenderView.Ptr());
 			int lightProbeCount = 0;
 			for (auto & actor : level->Actors)
@@ -207,9 +201,24 @@ namespace GameEngine
 				}
 			}
 			if (lightProbeCount == 0)
-				lpRenderer.RenderLightProbe(sharedRes.envMapArray.Ptr(), sharedRes.AllocEnvMap(), level, Vec3::Create(0.0f, 1000.0f, 0.0f));
+			{
+				if (defaultEnvMapId == -1)
+					defaultEnvMapId = sharedRes.AllocEnvMap();
+				lpRenderer.RenderLightProbe(sharedRes.envMapArray.Ptr(), defaultEnvMapId, level, Vec3::Create(0.0f, 1000.0f, 0.0f));
+			}
 			Wait();
 			renderProcedure->UpdateSharedResourceBinding();
+		}
+		virtual void InitializeLevel(Level* pLevel) override
+		{
+			if (!pLevel) return;
+			level = pLevel;
+			cubemapRenderView = new ViewResource(hardwareRenderer);
+			cubemapRenderView->Resize(EnvMapSize, EnvMapSize);
+			cubemapRenderProc = CreateStandardRenderProcedure(false, false);
+			cubemapRenderProc->Init(this, cubemapRenderView.Ptr());
+			defaultEnvMapId = -1;
+			UpdateLightProbes();
 			RunRenderProcedure();
 			hardwareRenderer->TransferBarrier(DynamicBufferLengthMultiplier);
 			RenderFrame();
