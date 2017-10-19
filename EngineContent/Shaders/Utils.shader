@@ -573,9 +573,9 @@ module Lighting
         
         if (lightProbeId != -1)
         {
-            vec3 specularIBL = specularColor * envMap.SampleLevel(envMapSampler, vec4(R, float(lightProbeId * 6)), 
+            vec3 specularIBL = specularColor * envMap.SampleLevel(envMapSampler, vec4(R, float(lightProbeId)), 
                                 clamp(roughness_in, 0.0, 1.0) * 6.0).xyz;
-            vec3 diffuseIBL = diffuseColor * envMap.SampleLevel(envMapSampler, vec4(lNormal, float(lightProbeId * 6)), 
+            vec3 diffuseIBL = diffuseColor * envMap.SampleLevel(envMapSampler, vec4(lNormal, float(lightProbeId)), 
                                 6.0).xyz * ambient;
             color += (specularIBL + diffuseIBL) * lpTint;
         }

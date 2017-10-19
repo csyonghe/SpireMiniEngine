@@ -2,7 +2,7 @@ Camera
 {
 	Name "FreeCam"
 	CastShadow true
-	LocalTransform [ 1 0 0 0 0 0.99500418 0.099833421 0 0 -0.099833421 0.99500418 0 -0 -97.437149 -230.88094 1 ]
+	LocalTransform [ 1 -0 0 -0 -0 0.99500418 -0.099833421 0 -0 0.099833421 0.99500418 -0 -0 120 220.00002 1 ]
 	Orientation [ 0 0.1 0 ]
 	Position [ 0 120 220 ]
 	ZNear 10
@@ -77,7 +77,7 @@ StaticMesh
 {
 	Name "sphere"
 	CastShadow false
-	LocalTransform [ 0.16350789 0 0 0 0 0.16350789 0 0 0 0 0.16350789 0 -202.66414 69.384186 6.6609573 1 ]
+	LocalTransform [ 0.21048898 0 0 0 0 0.21048898 0 0 0 0 0.21048898 0 -260.91644 69.384186 70.519066 1 ]
 	MeshFile "sphere.mesh"
 	MaterialFile ""
 	ModelFile ""
@@ -130,4 +130,22 @@ SkeletalMesh
 	ModelFileName "hero.model"
 	RetargetFileName ""
 	AnimationFileName "hero/Run_Fwd.anim"
+	SkeletonFileName ""
+	PreviewFrame 0
+}
+EnvMap
+{
+	Name "EnvMap0"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 -258.21722 68.405586 19.207863 1 ]
+	Radius 1000
+	TintColor [ 1 1 1 ]
+}
+EnvMap
+{
+	Name "EnvMap1"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 8.7019005 0 0 0 0 1 0 -235.14984 216.94113 139.966 1 ]
+	Radius 10000
+	TintColor [ 1 1 1 ]
 }

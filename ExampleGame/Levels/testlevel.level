@@ -49,7 +49,7 @@ PointLight
 	Radius 2000
 	DecayDistance90Percent 1200
 	IsSpotLight true
-	Color [ 3 2.5 2 ]
+	Color [ 3 2.7 2 ]
 	SpotLightStartAngle 0
 	SpotLightEndAngle 70
 }
@@ -62,7 +62,7 @@ DirectionalLight
 	ShadowDistance 40000
 	NumShadowCascades 4
 	TransitionFactor 0.80000001
-	Color [ 0.30000001 0.30000001 0.30000001 ]
+	Color [ 0.40000001 0.30000001 0.30000001 ]
 	Ambient 0.40000001
 }
 Atmosphere
@@ -72,6 +72,14 @@ Atmosphere
 	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 49.595882 476.87357 -629.83527 1 ]
 	SunDir [ 0.70703608 -0.01414072 -0.70703608 ]
 	AtmosphericFogScaleFactor 0.02
+}
+EnvMap
+{
+	Name "EnvMap0"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 171.61606 765.24213 126.82196 1 ]
+	Radius 10000
+	TintColor [ 0.40000001 0.30000001 0.30000001 ]
 }
 hidden Camera
 {
