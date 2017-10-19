@@ -97,6 +97,7 @@ namespace GameEngine
 						parser.ReadToken();
 				}
 				HiddenSections.Add(text.SubString(beginPos.Pos, endPos.Pos + 1 - beginPos.Pos));
+				continue;
 			}
 			auto actor = Engine::Instance()->ParseActor(this, parser);
 			if (!actor)

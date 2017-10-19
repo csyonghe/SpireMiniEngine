@@ -21,7 +21,7 @@ namespace GameEngine
 	{
 	public:
 		virtual int RegisterWorldRenderPass(SpireShader * pass) = 0;
-		//virtual int RegisterPostRenderPass(PostRenderPass * pass) = 0;
+		virtual void UpdateLightProbes() = 0;
 		virtual void DestroyContext() = 0;
 		virtual void InitializeLevel(Level * level) = 0;
 		virtual void TakeSnapshot() = 0;
