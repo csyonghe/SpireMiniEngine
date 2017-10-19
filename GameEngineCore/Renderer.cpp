@@ -206,8 +206,6 @@ namespace GameEngine
 					defaultEnvMapId = sharedRes.AllocEnvMap();
 				lpRenderer.RenderLightProbe(sharedRes.envMapArray.Ptr(), defaultEnvMapId, level, Vec3::Create(0.0f, 1000.0f, 0.0f));
 			}
-			Wait();
-			renderProcedure->UpdateSharedResourceBinding();
 		}
 		virtual void InitializeLevel(Level* pLevel) override
 		{
@@ -219,6 +217,7 @@ namespace GameEngine
 			cubemapRenderProc->Init(this, cubemapRenderView.Ptr());
 			defaultEnvMapId = -1;
 			UpdateLightProbes();
+			renderProcedure->UpdateSharedResourceBinding();
 			RunRenderProcedure();
 			hardwareRenderer->TransferBarrier(DynamicBufferLengthMultiplier);
 			RenderFrame();
