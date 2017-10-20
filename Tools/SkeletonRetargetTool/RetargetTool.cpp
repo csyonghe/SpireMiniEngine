@@ -81,7 +81,7 @@ SkeletonRetargetVisualizer
 
 void RegisterRetargetActor();
 
-int wWinMain(
+int __stdcall wWinMain(
 	HINSTANCE /*hInstance*/,
 	HINSTANCE /*hPrevInstance*/,
 	LPWSTR     /*lpCmdLine*/,

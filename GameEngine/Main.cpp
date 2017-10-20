@@ -25,9 +25,9 @@ void RegisterTestUserActor();
 #include "FrustumCulling.h"
 
 #if COMMAND
-int wmain(int /*argc*/, const wchar_t ** /*argv*/)
+int __stdcall wmain(int /*argc*/, const wchar_t ** /*argv*/)
 #elif WINDOWED
-int wWinMain(
+int __stdcall wWinMain(
 	_In_ HINSTANCE /*hInstance*/,
 	_In_ HINSTANCE /*hPrevInstance*/,
 	_In_ LPWSTR     /*lpCmdLine*/,

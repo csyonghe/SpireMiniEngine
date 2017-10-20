@@ -3494,7 +3494,7 @@ namespace VK
 			vk::CommandBufferInheritanceInfo inheritanceInfo = vk::CommandBufferInheritanceInfo()
 				.setRenderPass(vk::RenderPass())
 				.setSubpass(0)
-				.setFramebuffer(VK_NULL_HANDLE)
+				.setFramebuffer(vk::Framebuffer())
 				.setOcclusionQueryEnable(VK_TRUE)
 				.setQueryFlags(vk::QueryControlFlags())//
 				.setPipelineStatistics(vk::QueryPipelineStatisticFlags());//
