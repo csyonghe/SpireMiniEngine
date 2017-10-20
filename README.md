@@ -16,6 +16,10 @@ SpireMiniEngine is a mini game engine that uses Spire to manange shader library 
 `
 - Run.
 
+To run the engine in editor mode, add `-editor` argument when launching GameEngine.exe:
+```
+GameEngine.exe -editor -enginedir "$(SolutionDir)EngineContent" -dir "$(SolutionDir)ExampleGame"
+```
 ## Screenshot
 
 ![](https://github.com/csyonghe/SpireMiniEngineExtBinaries/raw/master/screenshot0.png)
