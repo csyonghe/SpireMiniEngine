@@ -159,12 +159,6 @@ namespace GameEngine
 
 	void StaticMeshActor::GetDrawables(const GetDrawablesParameter & params)
 	{
-		auto insertDrawable = [&](Drawable * d)
-		{
-			d->CastShadow = CastShadow;
-			d->Bounds = Bounds;
-			params.sink->AddDrawable(d);
-		};
 		if (model)
 		{
 			GetDrawablesParameter newParams = params;
@@ -176,8 +170,7 @@ namespace GameEngine
 				modelInstance.UpdateTransformUniform(*LocalTransform);
 				localTransformChanged = false;
 			}
-			for (auto &d : modelInstance.Drawables)
-				insertDrawable(d.Ptr());
+			AddDrawable(params, &modelInstance);
 		}
 	}
 

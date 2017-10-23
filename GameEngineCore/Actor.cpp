@@ -1,5 +1,6 @@
 #include "Actor.h"
 #include "Engine.h"
+#include "Model.h"
 
 namespace GameEngine
 {
@@ -14,6 +15,34 @@ namespace GameEngine
 		}
 		return false;
 	}
+
+    void Actor::AddDrawable(const GetDrawablesParameter & params, Drawable * drawable, const CoreLib::Graphics::BBox & bounds)
+    {
+        auto insertDrawable = [&](Drawable * d)
+        {
+            d->CastShadow = CastShadow;
+            d->Bounds = bounds;
+            params.sink->AddDrawable(d);
+        };
+        insertDrawable(drawable);
+    }
+
+    void Actor::AddDrawable(const GetDrawablesParameter & params, Drawable * drawable)
+    {
+        AddDrawable(params, drawable, Bounds);
+    }
+
+    void Actor::AddDrawable(const GetDrawablesParameter & params, ModelDrawableInstance * modelInstance)
+    {
+        auto insertDrawable = [&](Drawable * d)
+        {
+            d->CastShadow = CastShadow;
+            d->Bounds = Bounds;
+            params.sink->AddDrawable(d);
+        };
+        for (auto &d : modelInstance->Drawables)
+            insertDrawable(d.Ptr());
+    }
 
 	void Actor::Parse(Level * plevel, CoreLib::Text::TokenReader & parser, bool & isInvalid)
 	{
