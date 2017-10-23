@@ -9,10 +9,13 @@ namespace GameEngine
 	class ToneMappingActor : public Actor
 	{
 	private:
-		CoreLib::String lookupTextureFileName = "";
+        void ColorLUT_Changing(CoreLib::String & newFileName);
+        void Exposure_Changed();
 	public:
+        PROPERTY_DEF(float, Exposure, 0.7f);
+        PROPERTY_ATTRIB(CoreLib::String, ColorLUT, "resource(Texture, clut)");
 		ToneMappingParameters Parameters;
-		CoreLib::RefPtr<Texture3D> lookupTexture;
+		CoreLib::UniquePtr<Texture3D> lookupTexture;
 		virtual CoreLib::String GetTypeName() override
 		{
 			return "ToneMapping";
@@ -26,9 +29,9 @@ namespace GameEngine
 			return EngineActorType::ToneMapping;
 		}
 	protected:
-		void LoadColorLookupTexture(CoreLib::String fileName);
-		virtual bool ParseField(CoreLib::String fieldName, CoreLib::Text::TokenReader & parser) override;
-		virtual void SerializeFields(CoreLib::StringBuilder & sb) override;
+		bool LoadColorLookupTexture(CoreLib::String fileName);
+        virtual void OnLoad() override;
+        ~ToneMappingActor();
 	};
 }
 

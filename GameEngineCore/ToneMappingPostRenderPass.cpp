@@ -65,11 +65,14 @@ namespace GameEngine
 		{
 			buffer->SetDataAsync(0, data, count);
 			auto param = (ToneMappingParameters*)data;
-			if (param->lookupTexture && param->lookupTexture != lookupTexture)
+			if (param->lookupTexture != lookupTexture)
 			{
 				lookupTexture = param->lookupTexture;
 				descSet->BeginUpdate();
-				descSet->Update(2, lookupTexture, TextureAspect::Color);
+                if (lookupTexture)
+                    descSet->Update(2, lookupTexture, TextureAspect::Color);
+                else
+                    descSet->Update(2, sharedRes->defaultColorLookupTexture.Ptr(), TextureAspect::Color);
 				descSet->EndUpdate();
 			}
 		}
