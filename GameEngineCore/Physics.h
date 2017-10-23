@@ -20,6 +20,7 @@ namespace GameEngine
 
 	struct HitPoint
 	{
+        bool IsHit = false;
 		VectorMath::Vec3 Position;
 		unsigned int PackedNormal;
 		float Distance = 0.0f;
@@ -66,6 +67,21 @@ namespace GameEngine
 
 	class Actor;
 
+    class PhysicsChannels
+    {
+    public:
+        enum PhysicsChannelBits
+        {
+            None = 0, Visiblity = 1, Collision = 2, All = 0xFFFF
+        };
+        PhysicsChannelBits value;
+        PhysicsChannels() = default;
+        PhysicsChannels(PhysicsChannelBits val)
+            : value(val)
+        {}
+    };
+   
+
 	class PhysicsObject : public CoreLib::RefObject
 	{
 	private:
@@ -77,6 +93,7 @@ namespace GameEngine
 		void * Tag = nullptr;
 		Actor * ParentActor = nullptr;
 		int SkeletalBoneId = -1;
+        PhysicsChannels Channels = PhysicsChannels::All;
 		PhysicsObject()
 		{
 			bounds.Init();
@@ -141,7 +158,7 @@ namespace GameEngine
 		void AddObject(PhysicsObject * obj);
 		void RemoveObject(PhysicsObject * obj);
 		void Tick();
-		TraceResult RayTraceFirst(const Ray & ray, float maxDist = 1e30f);
+		TraceResult RayTraceFirst(const Ray & ray, PhysicsChannels channels = PhysicsChannels::All, float maxDist = 1e30f);
 	};
 }
 

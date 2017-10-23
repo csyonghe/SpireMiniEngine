@@ -1,0 +1,43 @@
+Camera
+{
+    name "FreeCam"
+    position [0.0 500.0 0.0]
+    orientation [0.0 1.5707 0.0] // yaw, pitch, roll
+    znear 10.0
+    zfar 50000.0
+    fov 60.0
+}
+
+FreeRoamCameraController
+{
+    name "CamControl"
+    TargetCamera "FreeCam"
+    Speed 400.0
+}
+
+DirectionalLight
+{
+    name "sunlight"
+    transform [1 0 0 0   0 1 0 0    0 0 1 0    0 5000 0 1]
+    Direction [0.8 0.2 0.4]
+    Color [1.2 1.2 1.2]
+    EnableCascadedShadows true
+    NumShadowCascades 4
+    ShadowDistance 1500
+    TransitionFactor 0.8 
+}
+
+StaticMesh
+{
+    name "floor"
+    mesh "plane.mesh"
+    /*material
+    {
+        shader "DefaultPattern.shader"
+    }*/
+     material
+    {
+        shader "Hero.shader"
+        var albedoMap = texture["Hero/Chr_FPS_D.TGA"]
+    }
+}

@@ -1,0 +1,95 @@
+FreeRoamCameraController
+{
+	Name "cameraController"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 ]
+	InputChannel 0
+	Speed 700
+	TurnPrecision 0.78539819
+	TargetCameraName "Camera0"
+}
+SkeletalMesh
+{
+	Name "SkeletalMesh0"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 184.24344 381.49066 -166.19765 1 ]
+	ModelFileName "Malcom\\malcolm.model"
+	RetargetFileName "..\\Models\\Malcom\\femaleROM_retar.retarget"
+	AnimationFileName "..\\Models\\ROM_female.anim"
+	SkeletonFileName "..\\Models\\ROM_female.skeleton"
+	PreviewFrame 12
+}
+StaticMesh
+{
+	Name "StaticMesh0"
+	CastShadow true
+	LocalTransform [ 26.282799 0 0 0 0 32.113976 0 0 0 0 32.113976 0 258.37466 371.07742 -52.027817 1 ]
+	MeshFile "plane.mesh"
+	MaterialFile "Wall1.material"
+	ModelFile ""
+}
+Camera
+{
+	Name "Camera0"
+	CastShadow false
+	LocalTransform [ -0.99999976 -0.00026256219 0.00086215098 -0 -0.00015848018 0.99294519 0.11857521 0 -0.00088720187 0.11857502 -0.99294484 0 207.58064 595.49261 -741.57043 1 ]
+	Orientation [ 3.1406991 0.11885464 0.00026442765 ]
+	Position [ 207.58064 595.49268 -741.57037 ]
+	ZNear 50
+	ZFar 400000
+	FOV 75
+	Radius 50
+}
+PointLight
+{
+	Name "PointLight0"
+	CastShadow true
+	LocalTransform [ 0.76729304 -0.11035112 -0.63173091 0 -0.22276948 0.87787515 -0.42392096 0 0.60136104 0.46600199 0.64900464 0 113.63325 970.81213 -406.91418 1 ]
+	EnableShadows true
+	Radius 2000
+	DecayDistance90Percent 1200
+	IsSpotLight true
+	Color [ 3 2.7 2 ]
+	SpotLightStartAngle 0
+	SpotLightEndAngle 70
+}
+DirectionalLight
+{
+	Name "DirectionalLight0"
+	CastShadow true
+	LocalTransform [ 0.69613779 0 0.7179082 0 0.6343084 0.4683353 -0.61507308 0 -0.33622175 0.88355082 0.3260259 0 349.89233 860.96948 -945.5683 1 ]
+	EnableCascadedShadows false
+	ShadowDistance 40000
+	NumShadowCascades 4
+	TransitionFactor 0.80000001
+	Color [ 0.40000001 0.30000001 0.30000001 ]
+	Ambient 0.40000001
+}
+Atmosphere
+{
+	Name "Atmosphere0"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 49.595882 476.87357 -629.83527 1 ]
+	SunDir [ 0.70703608 -0.01414072 -0.70703608 ]
+	AtmosphericFogScaleFactor 0.02
+}
+EnvMap
+{
+	Name "EnvMap0"
+	CastShadow true
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 171.61606 765.24213 126.82196 1 ]
+	Radius 10000
+	TintColor [ 0.40000001 0.30000001 0.30000001 ]
+}
+hidden Camera
+{
+	Name "Camera0"
+	CastShadow true
+	LocalTransform [ -0.99472678 -0.034354977 -0.096635111 0 -0.016643789 0.9838115 -0.178432 0 0.10120076 -0.17588271 -0.97919536 -0 207.58057 408.33438 -741.57019 1 ]
+	Orientation [ -3.0386074 -0.17680238 0.034906104 ]
+	Position [ 207.58058 408.33438 -741.57019 ]
+	ZNear 40
+	ZFar 400000
+	FOV 75
+	Radius 50
+}

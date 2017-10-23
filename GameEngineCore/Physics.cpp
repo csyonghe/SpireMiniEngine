@@ -23,6 +23,7 @@ namespace GameEngine
 	}
 	inline bool RayTriangleTest(HitPoint & inter, const PhysicsModel::MeshFace & face, Vec3 origin, Vec3 dir, float tmin, float tmax)
 	{
+        inter.IsHit = false;
 		const int mod3[] = { 0,1,2,0,1 };
 		int u = mod3[face.ProjectionAxis + 1];
 		int v = mod3[face.ProjectionAxis + 2];
@@ -46,7 +47,7 @@ namespace GameEngine
 		inter.Position[face.ProjectionAxis] = origin[face.ProjectionAxis] + dir[face.ProjectionAxis] * tplane;
 		inter.PackedNormal = face.PackedNormal;
 		inter.Distance = tplane;
-		
+        inter.IsHit = true;
 		return true;
 	}
 
@@ -80,13 +81,15 @@ namespace GameEngine
 	{
 	}
 
-	TraceResult PhysicsScene::RayTraceFirst(const Ray & ray, float maxDist)
+	TraceResult PhysicsScene::RayTraceFirst(const Ray & ray, PhysicsChannels channels, float maxDist)
 	{
 		TraceResult rs;
 		HitPoint curHitPoint;
 		curHitPoint.Distance = maxDist;
 		for (auto obj : objects)
 		{
+            if ((obj->Channels.value & channels.value) == 0)
+                continue;
 			float tmin = 0.0f;
 			float tmax = 0.0f;
 			if (CoreLib::Graphics::RayBBoxIntersection(obj->GetBounds(), ray.Origin, ray.Dir, tmin, tmax))
@@ -101,14 +104,17 @@ namespace GameEngine
 					objDir *= 1.0f / distScale;
 					// perform object space ray casting
 					auto hit = obj->GetModel()->TraceRay(objOrigin, objDir, 0.0f, 1e30f);
-					hit.Position = obj->GetModelTransform().TransformHomogeneous(hit.Position);
-					hit.Distance = (ray.Origin - hit.Position).Length();
+                    if (hit.IsHit)
+                    {
+                        hit.Position = obj->GetModelTransform().TransformHomogeneous(hit.Position);
+                        hit.Distance = (ray.Origin - hit.Position).Length();
 
-					if (hit.Distance < curHitPoint.Distance && hit.FaceId != -1)
-					{
-						curHitPoint = hit;
-						rs.Object = obj.Ptr();
-					}
+                        if (hit.Distance < curHitPoint.Distance && hit.FaceId != -1)
+                        {
+                            curHitPoint = hit;
+                            rs.Object = obj.Ptr();
+                        }
+                    }
 				}
 			}
 		}
