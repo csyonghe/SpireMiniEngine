@@ -1,0 +1,6 @@
+material
+{
+    shader "Gizmo.shader"
+    var solidColor = vec3[0.4 0.4 0.1]
+    var alpha = float[0.8]
+}

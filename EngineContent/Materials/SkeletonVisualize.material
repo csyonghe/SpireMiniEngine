@@ -1,0 +1,8 @@
+material
+{
+    shader "SkeletonVisualize.shader"
+    var solidColor = vec3[0.3 0.7 0.1]
+    var highlightColor = vec3[1.0 0.2 0.2]
+    var highlightId = int[-1]
+    var alpha = float[1.0]
+}

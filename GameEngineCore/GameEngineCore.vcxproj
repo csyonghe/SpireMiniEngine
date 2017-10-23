@@ -1,0 +1,323 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{F5AD4C29-6081-4283-966D-0F8FC9A48E52}</ProjectGuid>
+    <SccProjectName>SAK</SccProjectName>
+    <SccAuxPath>SAK</SccAuxPath>
+    <SccLocalPath>SAK</SccLocalPath>
+    <SccProvider>SAK</SccProvider>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>GameEngineCore</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.10586.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;GAMEENGINECORE_EXPORTS;%(PreprocessorDefinitions);NO_COMMAND_BUFFER;</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>../CoreLib/;../;../CoreLib/LibGL/</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>_DEBUG;_WINDOWS;_USRDLL;GAMEENGINECORE_EXPORTS;%(PreprocessorDefinitions);</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>../CoreLib/;../;../CoreLib/LibGL/</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+    <Lib>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;GAMEENGINECORE_EXPORTS;%(PreprocessorDefinitions);NO_COMMAND_BUFFER;</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>../CoreLib/;../;../CoreLib/LibGL/</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>NDEBUG;_WINDOWS;_USRDLL;GAMEENGINECORE_EXPORTS;%(PreprocessorDefinitions);</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>../CoreLib/;../;../CoreLib/LibGL/</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+    <Lib>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\CoreLib\LibGL\glew\glew.c" />
+    <ClCompile Include="Actor.cpp" />
+    <ClCompile Include="AnimationSynthesizer.cpp" />
+    <ClCompile Include="AnimationVisualizationActor.cpp" />
+    <ClCompile Include="ArcBallCameraController.cpp" />
+    <ClCompile Include="AsyncCommandBuffer.cpp" />
+    <ClCompile Include="AtmospherePostRenderPass.cpp" />
+    <ClCompile Include="CameraActor.cpp" />
+    <ClCompile Include="CatmullSpline.cpp" />
+    <ClCompile Include="DeviceMemory.cpp" />
+    <ClCompile Include="DirectionalLightActor.cpp" />
+    <ClCompile Include="Drawable.cpp" />
+    <ClCompile Include="DrawCallStatForm.cpp" />
+    <ClCompile Include="DynamicVariable.cpp" />
+    <ClCompile Include="Engine.cpp" />
+    <ClCompile Include="EngineActorClasses.cpp" />
+    <ClCompile Include="EnvMapActor.cpp" />
+    <ClCompile Include="ForwardBaseRenderPass.cpp" />
+    <ClCompile Include="FreeRoamCameraController.cpp" />
+    <ClCompile Include="FrustumCulling.cpp" />
+    <ClCompile Include="Gizmo.cpp" />
+    <ClCompile Include="GizmoActor.cpp" />
+    <ClCompile Include="GLAPI\GLHardwareRenderer.cpp" />
+    <ClCompile Include="GraphicsSettings.cpp" />
+    <ClCompile Include="HardwareInputInterface.cpp" />
+    <ClCompile Include="ImageLayoutTransferTaskPool.cpp" />
+    <ClCompile Include="InputDispatcher.cpp" />
+    <ClCompile Include="Level.cpp" />
+    <ClCompile Include="LevelEditor.cpp" />
+    <ClCompile Include="LightActor.cpp" />
+    <ClCompile Include="LightingData.cpp" />
+    <ClCompile Include="LightProbeRenderer.cpp" />
+    <ClCompile Include="Material.cpp" />
+    <ClCompile Include="Mesh.cpp" />
+    <ClCompile Include="MeshBuilder.cpp" />
+    <ClCompile Include="Model.cpp" />
+    <ClCompile Include="MotionGraph.cpp" />
+    <ClCompile Include="Physics.cpp" />
+    <ClCompile Include="PipelineContext.cpp" />
+    <ClCompile Include="PointLightActor.cpp" />
+    <ClCompile Include="PostRenderPass.cpp" />
+    <ClCompile Include="Property.cpp" />
+    <ClCompile Include="RenderContext.cpp" />
+    <ClCompile Include="Renderer.cpp" />
+    <ClCompile Include="RenderPass.cpp" />
+    <ClCompile Include="RenderPassRegistry.h" />
+    <ClCompile Include="ShaderCompiler.cpp" />
+    <ClCompile Include="ShadowRenderPass.cpp" />
+    <ClCompile Include="SkeletalMeshActor.cpp" />
+    <ClCompile Include="Skeleton.cpp" />
+    <ClCompile Include="SpireSource.cpp" />
+    <ClCompile Include="SSAO.cpp" />
+    <ClCompile Include="StandardRenderProcedure.cpp" />
+    <ClCompile Include="StaticMeshActor.cpp" />
+    <ClCompile Include="SystemWindow.cpp" />
+    <ClCompile Include="TerrainActor.cpp" />
+    <ClCompile Include="TextureCompressor.cpp" />
+    <ClCompile Include="TextureTool\LibSquish.cpp" />
+    <ClCompile Include="ToneMappingActor.cpp" />
+    <ClCompile Include="UISystem_Windows.cpp" />
+    <ClCompile Include="View.cpp" />
+    <ClCompile Include="ViewResource.cpp" />
+    <ClCompile Include="VulkanAPI\vkel.c" />
+    <ClCompile Include="VulkanAPI\VulkanHardwareRenderer.cpp" />
+    <ClCompile Include="WorldRenderPass.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CoreLib\CoreLib.vcxproj">
+      <Project>{cc291035-bf4a-4c63-b374-f85db4a9c712}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\CoreLib\LibGL\glew\glew.h" />
+    <ClInclude Include="..\CoreLib\LibGL\glew\glxew.h" />
+    <ClInclude Include="..\CoreLib\LibGL\glew\wglew.h" />
+    <ClInclude Include="Actor.h" />
+    <ClInclude Include="AnimationSynthesizer.h" />
+    <ClInclude Include="AnimationVisualizationActor.h" />
+    <ClInclude Include="ArcBallCameraController.h" />
+    <ClInclude Include="AsyncCommandBuffer.h" />
+    <ClInclude Include="Atmosphere.h" />
+    <ClInclude Include="AtmosphereActor.h" />
+    <ClInclude Include="CameraActor.h" />
+    <ClInclude Include="CatmullSpline.h" />
+    <ClInclude Include="EnvMapActor.h" />
+    <ClInclude Include="Gizmo.h" />
+    <ClInclude Include="GizmoActor.h" />
+    <ClInclude Include="ImageLayoutTransferTaskPool.h" />
+    <ClInclude Include="LevelEditor.h" />
+    <ClInclude Include="LightBinningPass.h" />
+    <ClInclude Include="Drawable.h" />
+    <ClInclude Include="EngineLimits.h" />
+    <ClInclude Include="DeviceMemory.h" />
+    <ClInclude Include="DirectionalLightActor.h" />
+    <ClInclude Include="DrawCallStatForm.h" />
+    <ClInclude Include="DynamicVariable.h" />
+    <ClInclude Include="Engine.h" />
+    <ClInclude Include="FreeRoamCameraController.h" />
+    <ClInclude Include="FrustumCulling.h" />
+    <ClInclude Include="GraphicsSettings.h" />
+    <ClInclude Include="HardwareInputInterface.h" />
+    <ClInclude Include="HardwareRenderer.h" />
+    <ClInclude Include="InputDispatcher.h" />
+    <ClInclude Include="Level.h" />
+    <ClInclude Include="LightActor.h" />
+    <ClInclude Include="LightingData.h" />
+    <ClInclude Include="LightProbeRenderer.h" />
+    <ClInclude Include="Material.h" />
+    <ClInclude Include="Mesh.h" />
+    <ClInclude Include="MeshBuilder.h" />
+    <ClInclude Include="Model.h" />
+    <ClInclude Include="MotionGraph.h" />
+    <ClInclude Include="OS.h" />
+    <ClInclude Include="Physics.h" />
+    <ClInclude Include="PipelineContext.h" />
+    <ClInclude Include="PointLightActor.h" />
+    <ClInclude Include="PostRenderPass.h" />
+    <ClInclude Include="Property.h" />
+    <ClInclude Include="PropertyEditControl.h" />
+    <ClInclude Include="RenderContext.h" />
+    <ClInclude Include="Renderer.h" />
+    <ClInclude Include="RendererService.h" />
+    <ClInclude Include="RenderPass.h" />
+    <ClInclude Include="RenderProcedure.h" />
+    <ClInclude Include="ShaderCompiler.h" />
+    <ClInclude Include="SkeletalMeshActor.h" />
+    <ClInclude Include="Skeleton.h" />
+    <ClInclude Include="Spire\Spire.h" />
+    <ClInclude Include="Spire\SpireAllSource.h" />
+    <ClInclude Include="SSAO.h" />
+    <ClInclude Include="StandardViewUniforms.h" />
+    <ClInclude Include="StaticMeshActor.h" />
+    <ClInclude Include="SystemWindow.h" />
+    <ClInclude Include="TerrainActor.h" />
+    <ClInclude Include="TextureCompressor.h" />
+    <ClInclude Include="TextureTool\LibSquish.h" />
+    <ClInclude Include="TextureTool\stb_dxt.h" />
+    <ClCompile Include="ToneMappingPostRenderPass.cpp">
+      <FileType>CppCode</FileType>
+    </ClCompile>
+    <ClInclude Include="ToneMapping.h" />
+    <ClInclude Include="ToneMappingActor.h" />
+    <ClInclude Include="UISystem_Windows.h" />
+    <ClInclude Include="View.h" />
+    <ClInclude Include="ViewResource.h" />
+    <ClInclude Include="VulkanAPI\vkel.h" />
+    <ClInclude Include="VulkanAPI\vulkan.hpp" />
+    <ClInclude Include="WorldRenderPass.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\EngineContent\Shaders\Atmosphere.shader" />
+    <None Include="..\EngineContent\Shaders\BoneHighlight.shader" />
+    <None Include="..\EngineContent\Shaders\Default.shader" />
+    <None Include="..\EngineContent\Shaders\DeferredLighting.shader" />
+    <None Include="..\EngineContent\Shaders\GlPipeline.shader" />
+    <None Include="..\EngineContent\Shaders\SkeletalMesh.shader" />
+    <None Include="..\EngineContent\Shaders\SkeletonVisualize.shader" />
+    <None Include="..\EngineContent\Shaders\SolidColor.shader" />
+    <None Include="..\EngineContent\Shaders\ToneMapping.shader" />
+    <None Include="..\EngineContent\Shaders\Utils.shader" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
