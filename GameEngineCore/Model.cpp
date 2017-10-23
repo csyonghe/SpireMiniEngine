@@ -150,24 +150,30 @@ namespace GameEngine
 
 	CoreLib::RefPtr<ModelPhysicsInstance> Model::CreatePhysicsInstance(PhysicsScene & physScene, Actor * actor, void * tag)
 	{
-		CoreLib::RefPtr<ModelPhysicsInstance> rs = new ModelPhysicsInstance(&physScene);
-		rs->isSkeletal = skeleton.Bones.Count() != 0;
-		rs->skeleton = &skeleton;
-		rs->objects.SetSize(physModels.Count());
-		for (int i = 0; i < physModels.Count(); i++)
-		{
-			auto obj = new PhysicsObject(physModels[i].Ptr());
-			obj->ParentActor = actor;
-			obj->Tag = tag;
-			obj->SkeletalBoneId = i;
-			Matrix4 identity;
-			Matrix4::CreateIdentityMatrix(identity);
-			obj->SetModelTransform(identity);
-			rs->objects[i] = obj;
-			physScene.AddObject(obj);
-		}
-		return rs;
+        return CreatePhysicsInstance(physScene, actor, tag, PhysicsChannels::All);
 	}
+
+    CoreLib::RefPtr<ModelPhysicsInstance> Model::CreatePhysicsInstance(PhysicsScene & physScene, Actor * actor, void * tag, PhysicsChannels channels)
+    {
+        CoreLib::RefPtr<ModelPhysicsInstance> rs = new ModelPhysicsInstance(&physScene);
+        rs->isSkeletal = skeleton.Bones.Count() != 0;
+        rs->skeleton = &skeleton;
+        rs->objects.SetSize(physModels.Count());
+        for (int i = 0; i < physModels.Count(); i++)
+        {
+            auto obj = new PhysicsObject(physModels[i].Ptr());
+            obj->ParentActor = actor;
+            obj->Tag = tag;
+            obj->SkeletalBoneId = i;
+            obj->Channels = channels;
+            Matrix4 identity;
+            Matrix4::CreateIdentityMatrix(identity);
+            obj->SetModelTransform(identity);
+            rs->objects[i] = obj;
+            physScene.AddObject(obj);
+        }
+        return rs;
+    }
 
 	void ModelDrawableInstance::UpdateTransformUniform(VectorMath::Matrix4 localTransform)
 	{
@@ -194,6 +200,11 @@ namespace GameEngine
 			objects[i]->SetModelTransform(matrices[i]);
 		}
 	}
+    void ModelPhysicsInstance::SetChannels(PhysicsChannels channels)
+    {
+        for (auto & obj : objects)
+            obj->Channels = channels;
+    }
 	void ModelPhysicsInstance::RemoveFromScene()
 	{
 		if (scene)

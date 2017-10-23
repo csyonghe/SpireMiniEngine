@@ -35,6 +35,7 @@ namespace GameEngine
 		CoreLib::List<PhysicsObject*> objects;
 		void SetTransform(VectorMath::Matrix4 localTransform);
 		void SetTransform(VectorMath::Matrix4 localTransform, Pose & pose, RetargetFile * retargetFile);
+        void SetChannels(PhysicsChannels channels);
 		void RemoveFromScene();
 		ModelPhysicsInstance(PhysicsScene * pScene)
 			: scene(pScene)
@@ -79,6 +80,8 @@ namespace GameEngine
 		}
 		ModelDrawableInstance GetDrawableInstance(const GetDrawablesParameter & params);
 		CoreLib::RefPtr<ModelPhysicsInstance> CreatePhysicsInstance(PhysicsScene & physScene, Actor * actor, void * tag);
+        CoreLib::RefPtr<ModelPhysicsInstance> CreatePhysicsInstance(PhysicsScene & physScene, Actor * actor, void * tag, PhysicsChannels channels);
+
 	};
 }
 
