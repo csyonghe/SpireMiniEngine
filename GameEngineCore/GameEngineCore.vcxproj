@@ -165,6 +165,7 @@
     <ClCompile Include="AtmospherePostRenderPass.cpp" />
     <ClCompile Include="CameraActor.cpp" />
     <ClCompile Include="CatmullSpline.cpp" />
+    <ClCompile Include="CustomDepthRenderPass.cpp" />
     <ClCompile Include="DeviceMemory.cpp" />
     <ClCompile Include="DirectionalLightActor.cpp" />
     <ClCompile Include="Drawable.cpp" />

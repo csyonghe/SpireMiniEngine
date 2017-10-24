@@ -150,7 +150,7 @@ namespace GameEngine
 		void LoadLevelFromText(const CoreLib::String & text);
 		Level* NewLevel();
 		void UpdateLightProbes();
-		CoreLib::RefPtr<Actor> ParseActor(GameEngine::Level * level, CoreLib::Text::TokenReader & parser);
+		CoreLib::ObjPtr<Actor> ParseActor(GameEngine::Level * level, CoreLib::Text::TokenReader & parser);
 	public:
 		WindowBounds GetCurrentViewport()
 		{

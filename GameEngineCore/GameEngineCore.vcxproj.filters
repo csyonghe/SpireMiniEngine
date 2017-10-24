@@ -154,6 +154,9 @@
       <Filter>Actors</Filter>
     </ClCompile>
     <ClCompile Include="GizmoActor.cpp" />
+    <ClCompile Include="CustomDepthRenderPass.cpp">
+      <Filter>Renderer\WorldPasses</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />

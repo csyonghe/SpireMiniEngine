@@ -77,6 +77,7 @@ namespace GameEngine
 		}
 		virtual ~Actor() override;
 	};
+
 }
 
 #endif

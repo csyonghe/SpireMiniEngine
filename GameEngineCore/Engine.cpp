@@ -570,9 +570,9 @@ namespace GameEngine
 		renderer->UpdateLightProbes();
 	}
 
-	RefPtr<Actor> Engine::ParseActor(GameEngine::Level * pLevel, Text::TokenReader & parser)
+    ObjPtr<Actor> Engine::ParseActor(GameEngine::Level * pLevel, Text::TokenReader & parser)
 	{
-		RefPtr<Actor> actor = CreateActor(parser.NextToken().Content);
+        ObjPtr<Actor> actor = CreateActor(parser.NextToken().Content);
 		bool isInvalid = false;
 		if (actor)
 			actor->Parse(pLevel, parser, isInvalid);

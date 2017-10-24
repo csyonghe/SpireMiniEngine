@@ -41,16 +41,19 @@ namespace GameEngine
 
 		RefPtr<WorldRenderPass> shadowRenderPass;
 		RefPtr<WorldRenderPass> forwardRenderPass;
+        RefPtr<WorldRenderPass> customDepthRenderPass;
+
 		RefPtr<PostRenderPass> atmospherePass;
 		RefPtr<PostRenderPass> toneMappingFromAtmospherePass;
 		RefPtr<PostRenderPass> toneMappingFromLitColorPass;
 
 		RenderOutput * forwardBaseOutput = nullptr;
 		RenderOutput * transparentAtmosphereOutput = nullptr;
+        RenderOutput * customDepthOutput = nullptr;
 
 		StandardViewUniforms viewUniform;
 
-		RefPtr<WorldPassRenderTask> forwardBaseInstance, transparentPassInstance;
+		RefPtr<WorldPassRenderTask> forwardBaseInstance, transparentPassInstance, customDepthPassInstance;
 
 		DeviceMemory renderPassUniformMemory;
 		SharedModuleInstances sharedModules;
@@ -75,6 +78,8 @@ namespace GameEngine
 		}
 		~StandardRenderProcedure()
 		{
+            if (customDepthOutput)
+                viewRes->DestroyRenderOutput(customDepthOutput);
 			if (forwardBaseOutput)
 				viewRes->DestroyRenderOutput(forwardBaseOutput);
 			if (transparentAtmosphereOutput)
@@ -116,6 +121,9 @@ namespace GameEngine
 			forwardRenderPass = CreateForwardBaseRenderPass();
 			forwardRenderPass->Init(renderer);
 
+            customDepthRenderPass = CreateCustomDepthRenderPass();
+            customDepthRenderPass->Init(renderer);
+
 			forwardBaseOutput = viewRes->CreateRenderOutput(
 				forwardRenderPass->GetRenderTargetLayout(),
 				viewRes->LoadSharedRenderTarget("litColor", StorageFormat::RGBA_F16),
@@ -126,6 +134,9 @@ namespace GameEngine
 				viewRes->LoadSharedRenderTarget("litAtmosphereColor", StorageFormat::RGBA_F16),
 				viewRes->LoadSharedRenderTarget("depthBuffer", DepthBufferFormat)
 			);
+            customDepthOutput = viewRes->CreateRenderOutput(
+                customDepthRenderPass->GetRenderTargetLayout(),
+                viewRes->LoadSharedRenderTarget("customDetphBuffer", DepthBufferFormat));
 			
 			atmospherePass = CreateAtmospherePostRenderPass(viewRes);
 			atmospherePass->SetSource(MakeArray(
@@ -184,6 +195,10 @@ namespace GameEngine
 			forwardRenderPass->ResetInstancePool();
 			forwardBaseOutput->GetSize(w, h);
 			forwardBaseInstance = forwardRenderPass->CreateInstance(forwardBaseOutput, true);
+
+            customDepthRenderPass->ResetInstancePool();
+            customDepthPassInstance = customDepthRenderPass->CreateInstance(customDepthOutput, true);
+
 			float aspect = w / (float)h;
 			shadowRenderPass->ResetInstancePool();
 			
@@ -248,9 +263,18 @@ namespace GameEngine
 			forwardBasePassParams.SetUniformData(&viewUniform, (int)sizeof(viewUniform));
 			auto cameraCullFrustum = CullFrustum(params.view.GetFrustum(aspect));
 			
+
+            customDepthOutput->GetFrameBuffer()->GetRenderAttachments().GetTextures(textures);
+            task.AddImageTransferTask(textures.GetArrayView(), CoreLib::ArrayView<Texture*>());
+            customDepthRenderPass->Bind();
+            sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
+            customDepthPassInstance->SetDrawContent(sharedRes->pipelineManager, reorderBuffer, GetDrawable(&sink, false, false, cameraCullFrustum, false));
+            sharedRes->pipelineManager.PopModuleInstance();
+            task.AddTask(customDepthPassInstance);
+            task.AddImageTransferTask(CoreLib::ArrayView<Texture*>(), textures.GetArrayView());
+
 			forwardBaseOutput->GetFrameBuffer()->GetRenderAttachments().GetTextures(textures);
 			task.AddImageTransferTask(textures.GetArrayView(), CoreLib::ArrayView<Texture*>());
-
 			forwardRenderPass->Bind();
 			sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
 			sharedRes->pipelineManager.PushModuleInstance(&lighting.moduleInstance);
@@ -258,7 +282,6 @@ namespace GameEngine
 			sharedRes->pipelineManager.PopModuleInstance();
 			sharedRes->pipelineManager.PopModuleInstance();
 			task.AddTask(forwardBaseInstance);
-
 			task.AddImageTransferTask(CoreLib::ArrayView<Texture*>(), textures.GetArrayView());
 
 			if (useAtmosphere)

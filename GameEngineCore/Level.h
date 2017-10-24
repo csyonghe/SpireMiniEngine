@@ -3,15 +3,16 @@
 
 #include "CoreLib/Basic.h"
 #include "Model.h"
-#include "StaticMeshActor.h"
-#include "CameraActor.h"
+#include "Actor.h"
 #include "Material.h"
-#include "MotionGraph.h"
-#include "RendererService.h"
+#include "Skeleton.h"
 #include "Physics.h"
 
 namespace GameEngine
 {
+    class Actor;
+    class CameraActor;
+
 	class Level : public CoreLib::Object
 	{
 	private:
@@ -25,9 +26,9 @@ namespace GameEngine
 		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::RefPtr<SkeletalAnimation>> Animations;
 
 		CoreLib::EnumerableDictionary<CoreLib::String, RetargetFile> RetargetFiles;
-		CoreLib::EnumerableDictionary<CoreLib::String, RefPtr<Actor>> Actors;
+		CoreLib::EnumerableDictionary<CoreLib::String, CoreLib::ObjPtr<Actor>> Actors;
 		CoreLib::List<CoreLib::String> HiddenSections;
-		CoreLib::RefPtr<CameraActor> CurrentCamera;
+        CoreLib::ObjPtr<CameraActor> CurrentCamera;
 		CoreLib::String FileName;
 		void LoadFromText(CoreLib::String text);
 		void SaveToFile(CoreLib::String fileName);

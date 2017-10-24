@@ -8,6 +8,7 @@ namespace GameEngine
 {
 	using namespace CoreLib;
 	using namespace CoreLib::IO;
+    using namespace VectorMath;
 
 	String IndentText(String src)
 	{
