@@ -228,6 +228,7 @@ namespace GameEngine
 			// initialize bounds to a small extent to prevent error
 			levelBounds.Min = Vec3::Create(-10.0f);
 			levelBounds.Max = Vec3::Create(10.0f);
+            ToneMappingParameters toneMappingParameters;
 			for (auto & actor : params.level->Actors)
 			{
 				levelBounds.Union(actor.Value->Bounds);
@@ -249,15 +250,18 @@ namespace GameEngine
 				else if (toneMapping && actorType == EngineActorType::ToneMapping)
 				{
 					auto toneMappingActor = dynamic_cast<ToneMappingActor*>(actor.Value.Ptr());
-					if (!(lastToneMappingParams == toneMappingActor->Parameters))
-					{
-						toneMappingFromAtmospherePass->SetParameters(&toneMappingActor->Parameters, sizeof(toneMappingActor->Parameters));
-						toneMappingFromLitColorPass->SetParameters(&toneMappingActor->Parameters, sizeof(toneMappingActor->Parameters));
-						lastToneMappingParams = toneMappingActor->Parameters;
-					}
+                    toneMappingParameters = toneMappingActor->Parameters;
 				}
 			}
-			
+            if (toneMapping)
+            {
+                if (!(lastToneMappingParams == toneMappingParameters))
+                {
+                    toneMappingFromAtmospherePass->SetParameters(&toneMappingParameters, sizeof(toneMappingParameters));
+                    toneMappingFromLitColorPass->SetParameters(&toneMappingParameters, sizeof(toneMappingParameters));
+                    lastToneMappingParams = toneMappingParameters;
+                }
+            }
 			lighting.GatherInfo(task, &sink, params, w, h, viewUniform, shadowRenderPass.Ptr());
 
 			forwardBasePassParams.SetUniformData(&viewUniform, (int)sizeof(viewUniform));

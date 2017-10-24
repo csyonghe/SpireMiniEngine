@@ -20,6 +20,8 @@ namespace GameEngine
 
 	class RendererService;
 	class DrawableSink;
+    class ModelDrawableInstance;
+    class Drawable;
 
 	struct GetDrawablesParameter
 	{
@@ -43,6 +45,10 @@ namespace GameEngine
 	protected:
 		virtual bool ParseField(CoreLib::String, CoreLib::Text::TokenReader &);
 		virtual void SerializeFields(CoreLib::StringBuilder &) {}
+        void AddDrawable(const GetDrawablesParameter & params, Drawable * drawable, const CoreLib::Graphics::BBox & bounds);
+        void AddDrawable(const GetDrawablesParameter & params, Drawable * drawable);
+        void AddDrawable(const GetDrawablesParameter & params, ModelDrawableInstance * drawable);
+
 	public:
 		CoreLib::Graphics::BBox Bounds;
 		CoreLib::List<CoreLib::RefPtr<Actor>> SubComponents;

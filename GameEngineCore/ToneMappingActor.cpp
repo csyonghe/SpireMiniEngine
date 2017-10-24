@@ -3,7 +3,16 @@
 #include "Engine.h"
 namespace GameEngine
 {
-	void ToneMappingActor::LoadColorLookupTexture(CoreLib::String fileName)
+    void ToneMappingActor::ColorLUT_Changing(CoreLib::String & newFileName)
+    {
+        if (!LoadColorLookupTexture(newFileName))
+            newFileName = "";
+    }
+    void ToneMappingActor::Exposure_Changed()
+    {
+        Parameters.Exposure = Exposure.GetValue();
+    }
+    bool ToneMappingActor::LoadColorLookupTexture(CoreLib::String fileName)
 	{
 		auto fullFile = Engine::Instance()->FindFile(fileName, ResourceType::Texture);
 		if (CoreLib::IO::File::Exists(fullFile))
@@ -14,32 +23,27 @@ namespace GameEngine
 			buffer.SetSize(size*size*size);
 			reader.Read(buffer.Buffer(), buffer.Count());
 			auto hw = Engine::Instance()->GetRenderer()->GetHardwareRenderer();
+            hw->Wait();
 			lookupTexture = hw->CreateTexture3D(TextureUsage::Sampled, size, size, size, 1, StorageFormat::RGBA_8);
 			lookupTexture->SetData(0, 0, 0, 0, size, size, size, DataType::Byte4, buffer.Buffer());
 			Parameters.lookupTexture = lookupTexture.Ptr();
+            return true;
 		}
+        return false;
 	}
-	bool ToneMappingActor::ParseField(CoreLib::String fieldName, CoreLib::Text::TokenReader & parser)
-	{
-		if (Actor::ParseField(fieldName, parser))
-			return true;
-		if (fieldName  == "Exposure")
-		{
-			Parameters.Exposure = parser.ReadFloat();
-			return true;
-		}
-		else if (fieldName == "ColorLookup")
-		{
-			lookupTextureFileName = parser.ReadStringLiteral();
-			LoadColorLookupTexture(lookupTextureFileName);
-			return true;
-		}
-		return false;
-	}
-	void ToneMappingActor::SerializeFields(CoreLib::StringBuilder & sb)
-	{
-		sb << "Exposure " << Parameters.Exposure << "\n";
-		if (lookupTextureFileName.Length())
-			sb << "ColorLookup " << CoreLib::Text::EscapeStringLiteral(lookupTextureFileName) << "\n";
-	}
+    void ToneMappingActor::OnLoad()
+    {
+        Actor::OnLoad();
+        Exposure.OnChanged.Bind(this, &ToneMappingActor::Exposure_Changed);
+        ColorLUT.OnChanging.Bind(this, &ToneMappingActor::ColorLUT_Changing);
+        Exposure_Changed();
+        String fileName = ColorLUT.GetValue();
+        ColorLUT_Changing(fileName);
+    }
+    ToneMappingActor::~ToneMappingActor()
+    {
+        Engine::Instance()->GetRenderer()->Wait();
+        lookupTexture = nullptr;
+        Engine::Instance()->GetRenderer()->Wait();
+    }
 }

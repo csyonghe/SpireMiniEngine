@@ -100,10 +100,14 @@ namespace GameEngine
 				HiddenSections.Add(text.SubString(beginPos.Pos, endPos.Pos + 1 - beginPos.Pos));
 				continue;
 			}
+            auto actorClass = parser.NextToken().Content;
 			auto actor = Engine::Instance()->ParseActor(this, parser);
 			if (!actor)
 			{
-				Print("error: ignoring object at line %d.\n", pos.Line);
+                if (!Engine::Instance()->IsRegisteredActorClass(actorClass))
+                    Print("Unknown actor class '%S' at line %d. Do you forget to register the actor class?\n", actorClass.ToWString(), pos.Line);
+                else
+				    Print("Error parsing object at line %d, ignoring the object.\n", pos.Line);
 				errorRecover();
 			}
 			else
@@ -112,7 +116,8 @@ namespace GameEngine
 				{
 					if (Actors.ContainsKey(actor->Name.GetValue()))
 					{
-						Print("error: an actor named '%S' already exists, ignoring second actor.\n", actor->Name.GetValue().ToWString());
+						Print("error: an actor named '%S' already exists, ignoring second definition at line %d.\n",
+                            actor->Name.GetValue().ToWString(), pos.Line);
 						errorRecover();
 					}
 					else
@@ -143,8 +148,16 @@ namespace GameEngine
 	}
 	Level::~Level()
 	{
-		for (auto & actor : From(Actors).ToList())
+		for (auto & actor : Actors)
 			UnregisterActor(actor.Value.Ptr());
+        Materials = decltype(Materials)();
+        Models = decltype(Models)();
+        Meshes = decltype(Meshes)();
+        Skeletons = decltype(Skeletons)();
+        Animations = decltype(Animations)();
+        RetargetFiles = decltype(RetargetFiles)();
+        Actors = decltype(Actors)();
+
 	}
 	void Level::RegisterActor(Actor * actor)
 	{

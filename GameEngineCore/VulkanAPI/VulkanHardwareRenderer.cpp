@@ -2974,20 +2974,30 @@ namespace VK
 
 		virtual void Update(int location, GameEngine::Texture* texture, TextureAspect aspect) override
 		{
-			VK::Texture* internalTexture = dynamic_cast<VK::Texture*>(texture);
+            if (texture)
+            {
+                VK::Texture* internalTexture = dynamic_cast<VK::Texture*>(texture);
 
-			vk::ImageView view = internalTexture->views[0];
-			if (isDepthFormat(internalTexture->format) && aspect == TextureAspect::Depth)
-				view = internalTexture->views[1];
-			if (internalTexture->format == StorageFormat::Depth24Stencil8 &&  aspect == TextureAspect::Stencil)
-				view = internalTexture->views[2];
+                vk::ImageView view = internalTexture->views[0];
+                if (isDepthFormat(internalTexture->format) && aspect == TextureAspect::Depth)
+                    view = internalTexture->views[1];
+                if (internalTexture->format == StorageFormat::Depth24Stencil8 &&  aspect == TextureAspect::Stencil)
+                    view = internalTexture->views[2];
 
-			imageInfo.Add(
-				vk::DescriptorImageInfo()
-				.setSampler(vk::Sampler())
-				.setImageView(view)
-				.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)//
-			);
+                imageInfo.Add(
+                    vk::DescriptorImageInfo()
+                    .setSampler(vk::Sampler())
+                    .setImageView(view)
+                    .setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)//
+                );
+            }
+            else
+                imageInfo.Add(
+                    vk::DescriptorImageInfo()
+                    .setSampler(vk::Sampler())
+                    .setImageView(vk::ImageView())
+                    .setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)//
+                );
 
 			writeDescriptorSets.Add(
 				vk::WriteDescriptorSet()

@@ -980,7 +980,7 @@ public:
 		if (e.Shift & SS_ALT)
 			return;
 		Ray r = Engine::Instance()->GetRayFromMousePosition(e.X, e.Y);
-		auto traceRs = level->GetPhysicsScene().RayTraceFirst(r);
+		auto traceRs = level->GetPhysicsScene().RayTraceFirst(r, PhysicsChannels::Collision);
 		targetSkeletonSelected = false;
 		if (traceRs.Object)
 		{

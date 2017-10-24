@@ -139,21 +139,13 @@ namespace GameEngine
 			{
 				drawable->CastShadow = CastShadow.GetValue();
 				TransformBBox(drawable->Bounds, *LocalTransform, level->LoadErrorModel()->GetBounds());
-				params.sink->AddDrawable(drawable.Ptr());
+				AddDrawable(params, drawable.Ptr(), drawable->Bounds);
 			}
 			return;
 		}
 		
 		modelInstance.UpdateTransformUniform(*LocalTransform, nextPose, disableRetargetFile ? nullptr : retargetFile);
-		
-		auto insertDrawable = [&](Drawable * d)
-		{
-			d->CastShadow = CastShadow.GetValue();
-			d->Bounds = Bounds;
-			params.sink->AddDrawable(d);
-		};
-		for (auto & drawable : modelInstance.Drawables)
-			insertDrawable(drawable.Ptr());
+        AddDrawable(params, &modelInstance);
 	}
 
 	void SkeletalMeshActor::OnLoad()

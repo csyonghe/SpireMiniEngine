@@ -36,7 +36,7 @@ namespace GameEngine
 			gizmoMaterial = *(level->LoadMaterial("Gizmo.material"));
 			gizmoMaterial.SetVariable("solidColor", DynamicVariable(Vec3::Create(0.3f, 0.3f, 1.0f)));
 			model = new GameEngine::Model(gizmoMesh, &gizmoMaterial);
-			physInstance = model->CreatePhysicsInstance(level->GetPhysicsScene(), ownerActor, nullptr);
+            physInstance = model->CreatePhysicsInstance(level->GetPhysicsScene(), ownerActor, nullptr, PhysicsChannels::Visiblity);
 			modelInstance.Drawables.Clear();
 			SetTransform(localTransform);
 		}
@@ -44,7 +44,7 @@ namespace GameEngine
 		{
 			localTransform = transform;
 			CoreLib::Graphics::TransformBBox(bounds, transform, model->GetBounds());
-			physInstance->SetTransform(transform);
+            physInstance->SetTransform(transform);
 			transformUpdated = true;
 		}
 		void SetColor(VectorMath::Vec4 color)
@@ -78,6 +78,11 @@ namespace GameEngine
 		void SetVisible(bool val)
 		{
 			visible = val;
+            if (visible)
+                physInstance->SetChannels(PhysicsChannels::Visiblity);
+            else
+                physInstance->SetChannels(PhysicsChannels::None);
+
 		}
 		bool GetVisible()
 		{
