@@ -3,6 +3,7 @@
 #include "Level.h"
 #include "Engine.h"
 #include "SkeletalMeshActor.h"
+#include "CameraActor.h"
 #include "EnvMapActor.h"
 #include "CoreLib/Graphics/TextureFile.h"
 #include "CoreLib/Imaging/Bitmap.h"

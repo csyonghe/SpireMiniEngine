@@ -1,5 +1,6 @@
 #include "FreeRoamCameraController.h"
 #include "Engine.h"
+#include "CameraActor.h"
 
 namespace GameEngine
 {

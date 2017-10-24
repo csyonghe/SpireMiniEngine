@@ -3,6 +3,8 @@
 #include "Engine.h"
 #include "MeshBuilder.h"
 
+using namespace VectorMath;
+
 namespace GameEngine
 {
 	bool StaticMeshActor::ParseField(CoreLib::String fieldName, CoreLib::Text::TokenReader & parser)

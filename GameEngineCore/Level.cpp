@@ -3,6 +3,7 @@
 #include "CoreLib/LibIO.h"
 #include "CoreLib/Tokenizer.h"
 #include "MeshBuilder.h"
+#include "CameraActor.h"
 
 namespace GameEngine
 {

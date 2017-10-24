@@ -5,6 +5,7 @@
 #include "Level.h"
 #include "FreeRoamCameraController.h"
 #include "PropertyEditControl.h"
+#include "CameraActor.h"
 
 using namespace CoreLib;
 using namespace GraphicsUI;
@@ -125,9 +126,12 @@ namespace GameEngine
 		{
 			if (selectedActor != actor)
 			{
+                for (auto & actor : level->Actors)
+                    actor.Value->EditorSelected = false;
 				selectedActor = actor;
 				if (actor)
 				{
+                    actor->EditorSelected = true;
 					oldLocalTransform = actor->GetLocalTransform();
 					int index = -1;
 					for (int i = 0; i < lstActors->Items.Count(); i++)

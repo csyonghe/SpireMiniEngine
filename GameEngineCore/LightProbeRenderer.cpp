@@ -1,6 +1,7 @@
 #include "LightProbeRenderer.h"
 #include "Engine.h"
 
+using namespace VectorMath;
 
 namespace GameEngine
 {

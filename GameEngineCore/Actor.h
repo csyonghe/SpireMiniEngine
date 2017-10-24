@@ -38,9 +38,12 @@ namespace GameEngine
 	{
 	protected:
 		Level * level = nullptr;
+    public:
+        bool EditorSelected = false;
 	public:
 		PROPERTY(    CoreLib::String,   Name);
 		PROPERTY_DEF(           bool,   CastShadow, true);
+        PROPERTY_DEF(           bool,   RenderCustomDepth, false);
 		PROPERTY(VectorMath::Matrix4,   LocalTransform);
 	protected:
 		virtual bool ParseField(CoreLib::String, CoreLib::Text::TokenReader &);

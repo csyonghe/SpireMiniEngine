@@ -3,6 +3,7 @@
 #include "RenderContext.h"
 #include "LibIO.h"
 #include "Engine.h"
+#include "RendererService.h"
 
 using namespace CoreLib;
 using namespace CoreLib::IO;

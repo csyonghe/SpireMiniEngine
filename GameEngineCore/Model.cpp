@@ -1,12 +1,14 @@
 #include "Model.h"
 #include "Level.h"
 #include "Engine.h"
+#include "RendererService.h"
 #include "CoreLib/LibIO.h"
 #include "CoreLib/Tokenizer.h"
 
 using namespace CoreLib;
 using namespace CoreLib::IO;
 using namespace CoreLib::Text;
+using namespace VectorMath;
 
 namespace GameEngine
 {

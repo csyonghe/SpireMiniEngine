@@ -5,6 +5,8 @@
 #include "RendererService.h"
 #include "Engine.h"
 
+using namespace VectorMath;
+
 namespace GameEngine
 {
 	class Gizmo::Impl

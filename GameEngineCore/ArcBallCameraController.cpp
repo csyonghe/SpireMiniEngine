@@ -1,5 +1,6 @@
 #include "ArcBallCameraController.h"
 #include "Engine.h"
+#include "CameraActor.h"
 
 namespace GameEngine
 {

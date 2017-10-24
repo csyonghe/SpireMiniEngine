@@ -57,8 +57,8 @@ namespace CoreLib
 		template<typename T, typename Destructor = RefPtrDefaultDestructor>
 		using RefPtr = RefPtrImpl<T, IsBaseOf<ReferenceCounted, T>::Value, Destructor>;
 
-        template<typename T>
-        using ObjPtr = CoreLib::Basic::RefPtrImpl<T, true>;
+        template<typename T, typename Destructor = RefPtrDefaultDestructor>
+        using ObjPtr = CoreLib::Basic::RefPtrImpl<T, true, RefPtrDefaultDestructor>;
 
 		template<typename T, typename Destructor>
 		class RefPtrImpl<T, 0, Destructor>

@@ -11,6 +11,8 @@
 #include "StandardViewUniforms.h"
 #include "LightingData.h"
 
+using namespace VectorMath;
+
 namespace GameEngine
 {
 	class LightUniforms
@@ -171,15 +173,21 @@ namespace GameEngine
 			sharedModules.View = &forwardBasePassParams;
 			shadowViewInstances.Reserve(1024);
 		}
+        enum class PassType
+        {
+            Shadow, CustomDepth, Main, Transparent
+        };
 
-		ArrayView<Drawable*> GetDrawable(DrawableSink * objSink, bool transparent, bool shadowCasterOnly, CullFrustum cf, bool append)
+		ArrayView<Drawable*> GetDrawable(DrawableSink * objSink, PassType pass, CullFrustum cf, bool append)
 		{
 			if (!append)
 				drawableBuffer.Clear();
-			for (auto obj : objSink->GetDrawables(transparent))
+			for (auto obj : objSink->GetDrawables(pass == PassType::Transparent))
 			{
-				if (shadowCasterOnly && !obj->CastShadow)
+				if (pass == PassType::Shadow && !obj->CastShadow)
 					continue;
+                if (pass == PassType::CustomDepth && !obj->RenderCustomDepth)
+                    continue;
 				if (cf.IsBoxInFrustum(obj->Bounds))
 					drawableBuffer.Add(obj);
 			}
@@ -272,7 +280,7 @@ namespace GameEngine
             task.AddImageTransferTask(textures.GetArrayView(), CoreLib::ArrayView<Texture*>());
             customDepthRenderPass->Bind();
             sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
-            customDepthPassInstance->SetDrawContent(sharedRes->pipelineManager, reorderBuffer, GetDrawable(&sink, false, false, cameraCullFrustum, false));
+            customDepthPassInstance->SetDrawContent(sharedRes->pipelineManager, reorderBuffer, GetDrawable(&sink, PassType::CustomDepth, cameraCullFrustum, false));
             sharedRes->pipelineManager.PopModuleInstance();
             task.AddTask(customDepthPassInstance);
             task.AddImageTransferTask(CoreLib::ArrayView<Texture*>(), textures.GetArrayView());
@@ -282,7 +290,7 @@ namespace GameEngine
 			forwardRenderPass->Bind();
 			sharedRes->pipelineManager.PushModuleInstance(&forwardBasePassParams);
 			sharedRes->pipelineManager.PushModuleInstance(&lighting.moduleInstance);
-			forwardBaseInstance->SetDrawContent(sharedRes->pipelineManager, reorderBuffer, GetDrawable(&sink, false, false, cameraCullFrustum, false));
+			forwardBaseInstance->SetDrawContent(sharedRes->pipelineManager, reorderBuffer, GetDrawable(&sink, PassType::Main, cameraCullFrustum, false));
 			sharedRes->pipelineManager.PopModuleInstance();
 			sharedRes->pipelineManager.PopModuleInstance();
 			task.AddTask(forwardBaseInstance);
@@ -297,7 +305,7 @@ namespace GameEngine
 
 			// transparency pass
 			reorderBuffer.Clear();
-			for (auto drawable : GetDrawable(&sink, true, false, cameraCullFrustum, false))
+			for (auto drawable : GetDrawable(&sink, PassType::Transparent, cameraCullFrustum, false))
 			{
 				reorderBuffer.Add(drawable);
 			}

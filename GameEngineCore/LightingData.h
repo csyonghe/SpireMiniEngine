@@ -62,7 +62,7 @@ namespace GameEngine
 		CoreLib::List<GpuLightData> lights;
 		CoreLib::List<GpuLightProbeData> lightProbes;
 		CoreLib::List<Texture*> lightProbeTextures;
-		CoreLib::List<RefPtr<Texture2D>> shadowMaps;
+		CoreLib::List<CoreLib::RefPtr<Texture2D>> shadowMaps;
 		CoreLib::RefPtr<Buffer> lightBuffer, lightProbeBuffer;
 		CoreLib::List<ModuleInstance> shadowViewInstances;
 		CoreLib::List<Drawable*> drawableBuffer, reorderBuffer;

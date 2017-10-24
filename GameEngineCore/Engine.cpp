@@ -1,5 +1,6 @@
 #include "Engine.h"
 #include "SkeletalMeshActor.h"
+#include "CameraActor.h"
 #include "FreeRoamCameraController.h"
 #include "CoreLib/LibIO.h"
 #include "CoreLib/Tokenizer.h"

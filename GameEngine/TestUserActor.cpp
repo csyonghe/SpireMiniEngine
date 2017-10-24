@@ -5,9 +5,11 @@
 #include "Level.h"
 #include "CoreLib/LibUI/LibUI.h"
 #include "SystemWindow.h"
+#include "RendererService.h"
 
 using namespace GraphicsUI;
 using namespace GameEngine;
+using namespace VectorMath;
 
 class TestUserActor : public Actor
 {

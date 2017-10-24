@@ -1,5 +1,6 @@
 #include "AnimationVisualizationActor.h"
 #include "Engine.h"
+#include "RendererService.h"
 
 namespace GameEngine
 {

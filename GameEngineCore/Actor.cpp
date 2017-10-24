@@ -18,13 +18,13 @@ namespace GameEngine
 
     void Actor::AddDrawable(const GetDrawablesParameter & params, Drawable * drawable, const CoreLib::Graphics::BBox & bounds)
     {
-        auto insertDrawable = [&](Drawable * d)
-        {
-            d->CastShadow = CastShadow;
-            d->Bounds = bounds;
-            params.sink->AddDrawable(d);
-        };
-        insertDrawable(drawable);
+        drawable->CastShadow = CastShadow;
+        drawable->Bounds = bounds;
+        if (Engine::Instance()->GetEngineMode() == EngineMode::Editor)
+            drawable->RenderCustomDepth = EditorSelected;
+        else
+            drawable->RenderCustomDepth = RenderCustomDepth;
+        params.sink->AddDrawable(drawable);
     }
 
     void Actor::AddDrawable(const GetDrawablesParameter & params, Drawable * drawable)
@@ -34,14 +34,8 @@ namespace GameEngine
 
     void Actor::AddDrawable(const GetDrawablesParameter & params, ModelDrawableInstance * modelInstance)
     {
-        auto insertDrawable = [&](Drawable * d)
-        {
-            d->CastShadow = CastShadow;
-            d->Bounds = Bounds;
-            params.sink->AddDrawable(d);
-        };
         for (auto &d : modelInstance->Drawables)
-            insertDrawable(d.Ptr());
+            AddDrawable(params, d.Ptr(), Bounds);
     }
 
 	void Actor::Parse(Level * plevel, CoreLib::Text::TokenReader & parser, bool & isInvalid)

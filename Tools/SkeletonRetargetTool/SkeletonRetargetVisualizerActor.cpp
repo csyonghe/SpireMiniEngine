@@ -7,10 +7,12 @@
 #include "CoreLib/WinForm/WinCommonDlg.h"
 #include "Engine.h"
 #include "Level.h"
+#include "RendererService.h"
 #include "CoreLib/LibUI/LibUI.h"
 #include "SystemWindow.h"
 #include "AnimationSynthesizer.h"
 #include "ArcBallCameraController.h"
+#include "CameraActor.h"
 
 using namespace GraphicsUI;
 using namespace GameEngine;
