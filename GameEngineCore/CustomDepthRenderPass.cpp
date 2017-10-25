@@ -30,7 +30,6 @@ namespace GameEngine
         virtual void SetPipelineStates(FixedFunctionPipelineStates & states) override
         {
             states.DepthCompareFunc = CompareFunc::LessEqual;
-            states.EnablePolygonOffset = false;
         }
     public:
         virtual const char * GetShaderSource() override
@@ -44,7 +43,7 @@ namespace GameEngine
         RenderTargetLayout * CreateRenderTargetLayout() override
         {
             return hwRenderer->CreateRenderTargetLayout(MakeArray(
-                AttachmentLayout(TextureUsage::DepthAttachment, DepthBufferFormat)).GetArrayView());
+                AttachmentLayout(TextureUsage::SampledDepthAttachment, DepthBufferFormat)).GetArrayView());
         }
     };
 

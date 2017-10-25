@@ -19,6 +19,7 @@ namespace GameEngine
 	DECLARE_POST_RENDER_PASS(DeferredLighting);
 	DECLARE_POST_RENDER_PASS(Atmosphere);
 	DECLARE_POST_RENDER_PASS(ToneMapping);
+    DECLARE_POST_RENDER_PASS(Outline);
 
 }
 

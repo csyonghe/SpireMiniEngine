@@ -48,6 +48,8 @@ namespace GameEngine
 		RefPtr<PostRenderPass> atmospherePass;
 		RefPtr<PostRenderPass> toneMappingFromAtmospherePass;
 		RefPtr<PostRenderPass> toneMappingFromLitColorPass;
+        RefPtr<PostRenderPass> editorOutlinePass;
+
 
 		RenderOutput * forwardBaseOutput = nullptr;
 		RenderOutput * transparentAtmosphereOutput = nullptr;
@@ -70,12 +72,12 @@ namespace GameEngine
 		ToneMappingParameters lastToneMappingParams;
 
 		bool useAtmosphere = false;
-		bool toneMapping = false;
+		bool postProcess = false;
 		bool useEnvMap = false;
 	public:
-		StandardRenderProcedure(bool pToneMapping, bool pUseEnvMap)
+		StandardRenderProcedure(bool pPostProcess, bool pUseEnvMap)
 		{
-			toneMapping = pToneMapping;
+            postProcess = pPostProcess;
 			useEnvMap = pUseEnvMap;
 		}
 		~StandardRenderProcedure()
@@ -90,9 +92,12 @@ namespace GameEngine
 		}
 		virtual RenderTarget* GetOutput() override
 		{
-			if (toneMapping)
+			if (postProcess)
 			{
-				return viewRes->LoadSharedRenderTarget("toneColor", StorageFormat::RGBA_8).Ptr();
+                if (Engine::Instance()->GetEngineMode() == EngineMode::Editor)
+                    return viewRes->LoadSharedRenderTarget("editorColor", StorageFormat::RGBA_8).Ptr();
+                else
+				    return viewRes->LoadSharedRenderTarget("toneColor", StorageFormat::RGBA_8).Ptr();
 			}
 			else
 			{
@@ -138,7 +143,7 @@ namespace GameEngine
 			);
             customDepthOutput = viewRes->CreateRenderOutput(
                 customDepthRenderPass->GetRenderTargetLayout(),
-                viewRes->LoadSharedRenderTarget("customDetphBuffer", DepthBufferFormat));
+                viewRes->LoadSharedRenderTarget("customDepthBuffer", DepthBufferFormat));
 			
 			atmospherePass = CreateAtmospherePostRenderPass(viewRes);
 			atmospherePass->SetSource(MakeArray(
@@ -148,22 +153,31 @@ namespace GameEngine
 			).GetArrayView());
 			atmospherePass->Init(renderer);
 
-			toneMappingFromAtmospherePass = CreateToneMappingPostRenderPass(viewRes);
-			toneMappingFromAtmospherePass->SetSource(MakeArray(
-				PostPassSource("litAtmosphereColor", StorageFormat::RGBA_F16),
-				PostPassSource("toneColor", StorageFormat::RGBA_8)
-			).GetArrayView());
-			toneMappingFromAtmospherePass->Init(renderer);
 
-
-			if (toneMapping)
+			if (postProcess)
 			{
+			    toneMappingFromAtmospherePass = CreateToneMappingPostRenderPass(viewRes);
+			    toneMappingFromAtmospherePass->SetSource(MakeArray(
+				    PostPassSource("litAtmosphereColor", StorageFormat::RGBA_F16),
+				    PostPassSource("toneColor", StorageFormat::RGBA_8)
+			    ).GetArrayView());
+			    toneMappingFromAtmospherePass->Init(renderer);
 				toneMappingFromLitColorPass = CreateToneMappingPostRenderPass(viewRes);
 				toneMappingFromLitColorPass->SetSource(MakeArray(
 					PostPassSource("litColor", StorageFormat::RGBA_F16),
 					PostPassSource("toneColor", StorageFormat::RGBA_8)
 				).GetArrayView());
 				toneMappingFromLitColorPass->Init(renderer);
+                if (Engine::Instance()->GetEngineMode() == EngineMode::Editor)
+                {
+                    editorOutlinePass = CreateOutlinePostRenderPass(viewRes);
+                    editorOutlinePass->SetSource(MakeArray(
+                        PostPassSource("toneColor", StorageFormat::RGBA_8),
+                        PostPassSource("customDepthBuffer", DepthBufferFormat),
+                        PostPassSource("editorColor", StorageFormat::RGBA_8)
+                    ).GetArrayView());
+                    editorOutlinePass->Init(renderer);
+                }
 			}
 			// initialize forwardBasePassModule and lightingModule
 			renderPassUniformMemory.Init(sharedRes->hardwareRenderer.Ptr(), BufferUsage::UniformBuffer, true, 22, sharedRes->hardwareRenderer->UniformBufferAlignment());
@@ -191,6 +205,16 @@ namespace GameEngine
 				if (cf.IsBoxInFrustum(obj->Bounds))
 					drawableBuffer.Add(obj);
 			}
+            if (pass == PassType::CustomDepth)
+            {
+                for (auto obj : objSink->GetDrawables(true))
+                {
+                    if (!obj->RenderCustomDepth)
+                        continue;
+                    if (cf.IsBoxInFrustum(obj->Bounds))
+                        drawableBuffer.Add(obj);
+                }
+            }
 			return drawableBuffer.GetArrayView();
 		}
 
@@ -255,13 +279,13 @@ namespace GameEngine
 						lastAtmosphereParams = newParams;
 					}
 				}
-				else if (toneMapping && actorType == EngineActorType::ToneMapping)
+				else if (postProcess && actorType == EngineActorType::ToneMapping)
 				{
 					auto toneMappingActor = dynamic_cast<ToneMappingActor*>(actor.Value.Ptr());
                     toneMappingParameters = toneMappingActor->Parameters;
 				}
 			}
-            if (toneMapping)
+            if (postProcess)
             {
                 if (!(lastToneMappingParams == toneMappingParameters))
                 {
@@ -335,7 +359,7 @@ namespace GameEngine
 				task.AddImageTransferTask(CoreLib::ArrayView<Texture*>(), textures.GetArrayView());
 			}
 
-			if (toneMapping)
+			if (postProcess)
 			{
 				if (useAtmosphere)
 				{
@@ -345,6 +369,8 @@ namespace GameEngine
 				{
 					task.AddTask(toneMappingFromLitColorPass->CreateInstance(sharedModules));
 				}
+                if (Engine::Instance()->GetEngineMode() == EngineMode::Editor)
+                    task.AddTask(editorOutlinePass->CreateInstance(sharedModules));
 			}
 		}
 	};

@@ -21,6 +21,7 @@ namespace GameEngine
 		VectorMath::Matrix4 localTransform;
 		bool transformUpdated = false;
 		bool visible = true;
+        bool drawEditorOutline = false;
 		GizmoStyle gizmoStyle = GizmoStyle::Normal;
 	public:
 		Impl()
@@ -71,6 +72,7 @@ namespace GameEngine
 				{
 					d->CastShadow = false;
 					d->Bounds = bounds;
+                    d->RenderCustomDepth = drawEditorOutline;
 					params.sink->AddDrawable(d);
 				};
 				for (auto &d : modelInstance.Drawables)
@@ -98,6 +100,10 @@ namespace GameEngine
 		{
 			return gizmoStyle;
 		}
+        void SetDrawEditorOutline(bool value)
+        {
+            drawEditorOutline = value;
+        }
 	};
 
 	Gizmo::Gizmo()
@@ -129,6 +135,11 @@ namespace GameEngine
 	{
 		impl->GetDrawables(params);
 	}
+
+    void Gizmo::SetDrawEditorOutline(bool value)
+    {
+        impl->SetDrawEditorOutline(value);
+    }
 
 	void Gizmo::SetColor(VectorMath::Vec4 color)
 	{

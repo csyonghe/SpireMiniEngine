@@ -20,8 +20,11 @@ namespace GameEngine
 
 	void GizmoActor::GetDrawables(const GetDrawablesParameter & params)
 	{
-		for (auto & gizmo : gizmos)
+        for (auto & gizmo : gizmos)
+        {
+            gizmo.SetDrawEditorOutline(EditorSelected);
 			gizmo.GetDrawables(params);
+        }
 	}
 
 	void GizmoActor::OnLoad()

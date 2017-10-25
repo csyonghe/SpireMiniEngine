@@ -53,7 +53,7 @@ namespace GameEngine
 		virtual void AcquireRenderTargets() = 0;
 		virtual CoreLib::String GetShaderFileName() = 0;
 		virtual void Create(Renderer * renderer) override;
-		void Resized();
+		virtual void Resized();
 	public:
 		PostRenderPass(ViewResource * view);
 		~PostRenderPass();

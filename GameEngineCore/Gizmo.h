@@ -33,6 +33,7 @@ namespace GameEngine
 		void SetMesh(CoreLib::String gizmoName, Level * level, Actor * ownerActor, const Mesh & mesh);
 		void SetTransform(const VectorMath::Matrix4 & transform);
 		void GetDrawables(const GetDrawablesParameter & params);
+        void SetDrawEditorOutline(bool value);
 		void SetColor(VectorMath::Vec4 color);
 		void SetVisible(bool value);
 		bool GetVisible();

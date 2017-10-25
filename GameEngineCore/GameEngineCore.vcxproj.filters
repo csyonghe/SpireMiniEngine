@@ -157,6 +157,9 @@
     <ClCompile Include="CustomDepthRenderPass.cpp">
       <Filter>Renderer\WorldPasses</Filter>
     </ClCompile>
+    <ClCompile Include="OutlinePostRenderPass.cpp">
+      <Filter>Renderer\PostProcess</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
@@ -330,6 +333,9 @@
     <ClInclude Include="Gizmo.h" />
     <ClInclude Include="GizmoActor.h">
       <Filter>Actors</Filter>
+    </ClInclude>
+    <ClInclude Include="OutlinePassParameters.h">
+      <Filter>Renderer\PostProcess</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

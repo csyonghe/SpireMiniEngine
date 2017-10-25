@@ -105,7 +105,10 @@ namespace GameEngine
 	{
 		try
 		{
-			RegisterEngineActorClasses(this);
+            if (args.Editor)
+                engineMode = EngineMode::Editor;
+		
+            RegisterEngineActorClasses(this);
 
 			startTime = lastGameLogicTime = lastRenderingTime = Diagnostics::PerformanceCounter::Start();
 			
@@ -194,8 +197,6 @@ namespace GameEngine
 			}
 			else
 			{
-				if (args.Editor)
-					engineMode = EngineMode::Editor;
 				if (levelToLoad.Length())
 				{
 					LoadLevel(levelToLoad);

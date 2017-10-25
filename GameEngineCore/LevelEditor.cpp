@@ -126,8 +126,8 @@ namespace GameEngine
 		{
 			if (selectedActor != actor)
 			{
-                for (auto & actor : level->Actors)
-                    actor.Value->EditorSelected = false;
+                for (auto & actorKV : level->Actors)
+                    actorKV.Value->EditorSelected = false;
 				selectedActor = actor;
 				if (actor)
 				{
