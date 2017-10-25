@@ -40,6 +40,8 @@ namespace GameEngine
 			gizmoMaterial.SetVariable("solidColor", DynamicVariable(Vec3::Create(0.3f, 0.3f, 1.0f)));
 			model = new GameEngine::Model(gizmoMesh, &gizmoMaterial);
             physInstance = model->CreatePhysicsInstance(level->GetPhysicsScene(), ownerActor, nullptr, PhysicsChannels::Visiblity);
+            if (modelInstance.Drawables.Count())
+                Engine::Instance()->GetRenderer()->Wait();
 			modelInstance.Drawables.Clear();
 			SetTransform(localTransform);
 		}
