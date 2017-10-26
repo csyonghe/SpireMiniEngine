@@ -47,7 +47,7 @@ DirectionalLight
 	name "sunlight"
 	LocalTransform[1 0 0 0   0 1 0 0    0 0 1 0    2000 3000 0 1]
 	Direction[0.8 0.7 0.3]
-	Color[3.1 3.1 3.1]
+	Color[2.0 1.8 1.7]
 	EnableCascadedShadows false
 	NumShadowCascades 4
 	ShadowDistance 10000
@@ -59,13 +59,19 @@ EnvMap
 	name "envMap"
 	LocalTransform[1 0 0 0   0 1 0 0    0 0 1 0    0 5000 0 1]
 	Radius 2000000.0
-	TintColor [0.7 0.7 0.7]
+	TintColor [0.5 0.4 0.3]
 }
 
 ToneMapping
 {
 	name "tonemapping"
-	Exposure 0.7
+	Exposure 0.6
+}
+
+AmbientLight
+{
+    name "ambientLight"
+    Ambient [0.4 0.3 0.3]
 }
 
 Atmosphere
@@ -76,7 +82,9 @@ Atmosphere
 }
 
 SkeletonRetargetVisualizer
-{}
+{
+    name "retargetEditor"
+}
 )";
 
 void RegisterRetargetActor();
