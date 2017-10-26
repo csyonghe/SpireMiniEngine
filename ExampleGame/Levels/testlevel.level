@@ -2,6 +2,7 @@ FreeRoamCameraController
 {
 	Name "cameraController"
 	CastShadow true
+	RenderCustomDepth false
 	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 ]
 	InputChannel 0
 	Speed 700
@@ -12,6 +13,7 @@ SkeletalMesh
 {
 	Name "SkeletalMesh0"
 	CastShadow true
+	RenderCustomDepth false
 	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 184.24344 381.49066 -166.19765 1 ]
 	ModelFileName "Malcom\\malcolm.model"
 	RetargetFileName "..\\Models\\Malcom\\femaleROM_retar.retarget"
@@ -23,15 +25,17 @@ StaticMesh
 {
 	Name "StaticMesh0"
 	CastShadow true
+	RenderCustomDepth false
 	LocalTransform [ 26.282799 0 0 0 0 32.113976 0 0 0 0 32.113976 0 258.37466 371.07742 -52.027817 1 ]
 	MeshFile "plane.mesh"
-	MaterialFile "Wall1.material"
+	MaterialFile "Wall0.material"
 	ModelFile ""
 }
 Camera
 {
 	Name "Camera0"
 	CastShadow false
+	RenderCustomDepth false
 	LocalTransform [ -0.99999976 -0.00026256219 0.00086215098 -0 -0.00015848018 0.99294519 0.11857521 0 -0.00088720187 0.11857502 -0.99294484 0 207.58064 595.49261 -741.57043 1 ]
 	Orientation [ 3.1406991 0.11885464 0.00026442765 ]
 	Position [ 207.58064 595.49268 -741.57037 ]
@@ -40,46 +44,53 @@ Camera
 	FOV 75
 	Radius 50
 }
-PointLight
-{
-	Name "PointLight0"
-	CastShadow true
-	LocalTransform [ 0.76729304 -0.11035112 -0.63173091 0 -0.22276948 0.87787515 -0.42392096 0 0.60136104 0.46600199 0.64900464 0 113.63325 970.81213 -406.91418 1 ]
-	EnableShadows true
-	Radius 2000
-	DecayDistance90Percent 1200
-	IsSpotLight true
-	Color [ 3 2.7 2 ]
-	SpotLightStartAngle 0
-	SpotLightEndAngle 70
-}
 DirectionalLight
 {
 	Name "DirectionalLight0"
 	CastShadow true
-	LocalTransform [ 0.69613779 0 0.7179082 0 0.6343084 0.4683353 -0.61507308 0 -0.33622175 0.88355082 0.3260259 0 349.89233 860.96948 -945.5683 1 ]
-	EnableCascadedShadows false
+	RenderCustomDepth false
+	LocalTransform [ 0.69613779 -0.44906318 0.56012005 0 0.6343084 0.75013864 -0.1869356 0 -0.33622175 0.48542178 0.80704439 0 349.89233 860.96948 -945.5683 1 ]
+	EnableCascadedShadows true
 	ShadowDistance 40000
 	NumShadowCascades 4
 	TransitionFactor 0.80000001
-	Color [ 0.40000001 0.30000001 0.30000001 ]
+	Color [ 2 2 2 ]
 	Ambient 0.40000001
 }
 Atmosphere
 {
 	Name "Atmosphere0"
 	CastShadow true
+	RenderCustomDepth false
 	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 49.595882 476.87357 -629.83527 1 ]
-	SunDir [ 0.70703608 -0.01414072 -0.70703608 ]
+	SunDir [ 0.70254427 0.11341559 -0.70254427 ]
 	AtmosphericFogScaleFactor 0.02
 }
 EnvMap
 {
 	Name "EnvMap0"
 	CastShadow true
+	RenderCustomDepth false
 	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 171.61606 765.24213 126.82196 1 ]
 	Radius 10000
 	TintColor [ 0.40000001 0.30000001 0.30000001 ]
+}
+AmbientLight
+{
+	Name "AmbientLight0"
+	CastShadow true
+	RenderCustomDepth false
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 135.30814 831.40686 -856.04443 1 ]
+	Ambient [ 1 1 1 ]
+}
+ToneMapping
+{
+	Name "ToneMapping0"
+	CastShadow true
+	RenderCustomDepth false
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 -326.66293 783.88239 -1156.6359 1 ]
+	Exposure 0.60000002
+	ColorLUT ""
 }
 hidden Camera
 {

@@ -422,16 +422,16 @@ vec3 UnpackDir(uint dir)
 
 module Lighting
 {
+    public param vec4 sunLightColor;
     public param vec3 sunLightDir;
     public param int sunLightEnabled;
-    public param vec3 sunLightColor;
-    public param float ambient;
     public param int shadowMapId;
     public param int numCascades;
     public param int lightCount;
     public param int lightProbeCount;
     public param mat4[8] lightMatrix;
     public param vec4[2] zPlanes;
+    public param vec4 ambient;
     public param StructuredBuffer<Light> lights;
     public param StructuredBuffer<LightProbe> lightProbes;
     public param SamplerState envMapSampler;
@@ -480,7 +480,7 @@ module Lighting
         vec3 diffuseColor = albedo - albedo * metallic_in;
         vec3 specularColor = vec3(dielectricSpecluar - dielectricSpecluar * metallic_in) + albedo * metallic_in;
         vec3 viewPos = (viewTransform * vec4(pos, 1.0)).xyz;
-        vec3 color = vec3(0.0);
+        vec3 color = diffuseColor * ambient.xyz;
         vec3 R = reflect(-view, lNormal);
 
         if (sunLightEnabled != 0)
@@ -508,7 +508,8 @@ module Lighting
             vec3 R = reflect(-view, lNormal);
             float RoL = max(0, dot(R, sunLightDir));
             float dotNL = clamp(dot(lNormal, sunLightDir), 0.01, 0.99);
-            color = sunLightColor * dotNL * (diffuseColor + fspecularColor * PhongApprox(roughness_in, RoL)) * shadow;
+            color += sunLightColor.xyz * dotNL * 
+                    (diffuseColor + fspecularColor * PhongApprox(roughness_in, RoL)) * shadow;
         }
 
         for (int i = 0; i < lightCount; i++)
@@ -550,7 +551,7 @@ module Lighting
             vec3 fspecularColor = EnvBRDFApprox(specularColor, roughness_in, NoV);
             
             float RoL = max(0, dot(R, lightDir));
-            color += light.color *  (diffuseColor * dotNL + fspecularColor * PhongApprox(roughness_in, RoL)) * (shadow * actualDecay);
+            color += light.color * (diffuseColor * dotNL + fspecularColor * PhongApprox(roughness_in, RoL)) * (shadow * actualDecay);
         }
 
         // find closest light probe
@@ -575,8 +576,8 @@ module Lighting
         {
             vec3 specularIBL = specularColor * envMap.SampleLevel(envMapSampler, vec4(R, float(lightProbeId)), 
                                 clamp(roughness_in, 0.0, 1.0) * 6.0).xyz;
-            vec3 diffuseIBL = diffuseColor * envMap.SampleLevel(envMapSampler, vec4(lNormal, float(lightProbeId)), 
-                                6.0).xyz * ambient;
+            vec3 diffuseIBL = diffuseColor * (envMap.SampleLevel(envMapSampler, vec4(lNormal, float(lightProbeId)), 
+                                6.0).xyz);
             color += (specularIBL + diffuseIBL) * lpTint;
         }
         

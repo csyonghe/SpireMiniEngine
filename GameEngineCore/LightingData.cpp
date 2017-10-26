@@ -4,6 +4,7 @@
 #include "EnvMapActor.h"
 #include "WorldRenderPass.h"
 #include "Engine.h"
+#include "AmbientLightActor.h"
 
 using namespace CoreLib;
 using namespace VectorMath;
@@ -146,6 +147,11 @@ namespace GameEngine
 					lightData.decay = 10.0f / (pointLight->DecayDistance90Percent.GetValue() * pointLight->DecayDistance90Percent.GetValue());
 					lights.Add(lightData);
 				}
+                else if (light->lightType == LightType::Ambient)
+                {
+                    auto ambientLight = (AmbientLightActor*)(light);
+                    uniformData.ambient = ambientLight->Ambient.GetValue();
+                }
 			}
 			else if (actorType == EngineActorType::EnvMap)
 			{

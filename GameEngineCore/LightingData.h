@@ -39,14 +39,15 @@ namespace GameEngine
 
 	struct LightingUniform
 	{
+        VectorMath::Vec3 lightColor; float padding0;
 		VectorMath::Vec3 lightDir; int sunLightEnabled = 0;
-		VectorMath::Vec3 lightColor;
-		float ambient = 0.2f;
 		int shadowMapId = -1;
 		int numCascades = 0;
 		int lightCount = 0, lightProbeCount = 0;
 		VectorMath::Matrix4 lightMatrix[MaxShadowCascades];
 		float zPlanes[MaxShadowCascades];
+		VectorMath::Vec3 ambient = VectorMath::Vec3::Create(0.2f);
+        float padding1;
 	};
 
 	class LightingEnvironment

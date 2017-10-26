@@ -160,6 +160,7 @@
     <ClCompile Include="OutlinePostRenderPass.cpp">
       <Filter>Renderer\PostProcess</Filter>
     </ClCompile>
+    <ClCompile Include="AmbientLightActor.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
@@ -336,6 +337,9 @@
     </ClInclude>
     <ClInclude Include="OutlinePassParameters.h">
       <Filter>Renderer\PostProcess</Filter>
+    </ClInclude>
+    <ClInclude Include="AmbientLightActor.h">
+      <Filter>Actors</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

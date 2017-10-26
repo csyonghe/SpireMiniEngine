@@ -11,6 +11,7 @@
 #include "TerrainActor.h"
 #include "ToneMappingActor.h"
 #include "EnvMapActor.h"
+#include "AmbientLightActor.h"
 
 namespace GameEngine
 {
@@ -26,6 +27,7 @@ namespace GameEngine
         REGISTER_ACTOR_CLASS(AnimationVisualization);
 		REGISTER_ACTOR_CLASS(DirectionalLight);
 		REGISTER_ACTOR_CLASS(PointLight);
+        REGISTER_ACTOR_CLASS(AmbientLight);
 		REGISTER_ACTOR_CLASS(Atmosphere);
 		REGISTER_ACTOR_CLASS(Terrain);
 		REGISTER_ACTOR_CLASS(ToneMapping);

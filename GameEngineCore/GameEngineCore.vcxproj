@@ -158,6 +158,7 @@
   <ItemGroup>
     <ClCompile Include="..\CoreLib\LibGL\glew\glew.c" />
     <ClCompile Include="Actor.cpp" />
+    <ClCompile Include="AmbientLightActor.cpp" />
     <ClCompile Include="AnimationSynthesizer.cpp" />
     <ClCompile Include="AnimationVisualizationActor.cpp" />
     <ClCompile Include="ArcBallCameraController.cpp" />
@@ -234,6 +235,7 @@
     <ClInclude Include="..\CoreLib\LibGL\glew\glxew.h" />
     <ClInclude Include="..\CoreLib\LibGL\glew\wglew.h" />
     <ClInclude Include="Actor.h" />
+    <ClInclude Include="AmbientLightActor.h" />
     <ClInclude Include="AnimationSynthesizer.h" />
     <ClInclude Include="AnimationVisualizationActor.h" />
     <ClInclude Include="ArcBallCameraController.h" />

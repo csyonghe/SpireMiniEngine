@@ -7,7 +7,7 @@ namespace GameEngine
 {
 	enum class LightType
 	{
-		Directional, Point
+		Ambient, Directional, Point
 	};
 	class LightActor : public GizmoActor
 	{
