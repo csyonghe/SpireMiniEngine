@@ -176,6 +176,7 @@
     <ClCompile Include="EngineActorClasses.cpp" />
     <ClCompile Include="EnvMapActor.cpp" />
     <ClCompile Include="ForwardBaseRenderPass.cpp" />
+    <ClCompile Include="FrameIdDisplayActor.cpp" />
     <ClCompile Include="FreeRoamCameraController.cpp" />
     <ClCompile Include="FrustumCulling.cpp" />
     <ClCompile Include="Gizmo.cpp" />
@@ -249,6 +250,7 @@
     <ClInclude Include="CameraActor.h" />
     <ClInclude Include="CatmullSpline.h" />
     <ClInclude Include="EnvMapActor.h" />
+    <ClInclude Include="FrameIdDisplayActor.h" />
     <ClInclude Include="Gizmo.h" />
     <ClInclude Include="GizmoActor.h" />
     <ClInclude Include="ImageLayoutTransferTaskPool.h" />

@@ -162,6 +162,9 @@
     </ClCompile>
     <ClCompile Include="AmbientLightActor.cpp" />
     <ClCompile Include="VideoEncoder.cpp" />
+    <ClCompile Include="FrameIdDisplayActor.cpp">
+      <Filter>Actors</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
@@ -343,6 +346,9 @@
       <Filter>Actors</Filter>
     </ClInclude>
     <ClInclude Include="VideoEncoder.h" />
+    <ClInclude Include="FrameIdDisplayActor.h">
+      <Filter>Actors</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Spire">

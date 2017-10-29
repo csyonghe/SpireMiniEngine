@@ -590,6 +590,11 @@ namespace GameEngine
 		return level.Ptr();
 	}
 
+    GraphicsUI::IFont * Engine::LoadFont(Font f)
+    {
+        return uiSystemInterface->LoadFont(mainWindow->GetUIContext(), f);
+    }
+
 	void Engine::UpdateLightProbes()
 	{
 		renderer->UpdateLightProbes();

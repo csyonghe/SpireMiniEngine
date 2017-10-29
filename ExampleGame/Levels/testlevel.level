@@ -92,15 +92,11 @@ ToneMapping
 	Exposure 0.60000002
 	ColorLUT ""
 }
-hidden Camera
+FrameIdDisplay
 {
-	Name "Camera0"
+	Name "FrameIdDisplay0"
 	CastShadow true
-	LocalTransform [ -0.99472678 -0.034354977 -0.096635111 0 -0.016643789 0.9838115 -0.178432 0 0.10120076 -0.17588271 -0.97919536 -0 207.58057 408.33438 -741.57019 1 ]
-	Orientation [ -3.0386074 -0.17680238 0.034906104 ]
-	Position [ 207.58058 408.33438 -741.57019 ]
-	ZNear 40
-	ZFar 400000
-	FOV 75
-	Radius 50
+	RenderCustomDepth false
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 410.71979 646.28271 -767.5166 1 ]
+	ShowFrameID true
 }

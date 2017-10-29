@@ -119,6 +119,10 @@ namespace GameEngine
 			else
 				return frameCounter * fixedFrameDuration;
 		}
+        int GetFrameId()
+        {
+            return frameCounter;
+        }
 		Level * GetLevel()
 		{
 			return level.Ptr();
@@ -152,6 +156,7 @@ namespace GameEngine
 		void LoadLevel(const CoreLib::String & fileName);
 		void LoadLevelFromText(const CoreLib::String & text);
 		Level* NewLevel();
+        GraphicsUI::IFont* LoadFont(Font f);
 		void UpdateLightProbes();
 		CoreLib::ObjPtr<Actor> ParseActor(GameEngine::Level * level, CoreLib::Text::TokenReader & parser);
 	public:
