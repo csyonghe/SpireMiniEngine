@@ -231,7 +231,7 @@
     <ProjectReference Include="..\CoreLib\CoreLib.vcxproj">
       <Project>{cc291035-bf4a-4c63-b374-f85db4a9c712}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\ExternalLibs\H264Encoding\H264Encoding.vcxproj">
+    <ProjectReference Include="H264Encoder\H264Encoding.vcxproj">
       <Project>{48e8df09-b1df-4218-a160-f0ec2a19708a}</Project>
     </ProjectReference>
   </ItemGroup>

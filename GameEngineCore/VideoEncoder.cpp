@@ -1,5 +1,5 @@
 #include "VideoEncoder.h"
-#include "ExternalLibs/H264Encoding/src/codec_api.h"
+#include "H264Encoder/src/codec_api.h"
 
 using namespace CoreLib;
 using namespace CoreLib::IO;

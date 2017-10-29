@@ -33,7 +33,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UnitTest", "UnitTest\UnitTe
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ExtLibs", "ExtLibs", "{5CECF065-F300-4261-A45C-F80A7D8F4658}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "H264Encoding", "ExternalLibs\H264Encoding\H264Encoding.vcxproj", "{48E8DF09-B1DF-4218-A160-F0EC2A19708A}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "H264Encoding", "GameEngineCore\H264Encoder\H264Encoding.vcxproj", "{48E8DF09-B1DF-4218-A160-F0EC2A19708A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
