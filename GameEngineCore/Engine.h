@@ -14,6 +14,7 @@
 #include "SystemWindow.h"
 #include "LevelEditor.h"
 #include "OS.h"
+#include "VideoEncoder.h"
 
 namespace GameEngine
 {
@@ -81,6 +82,8 @@ namespace GameEngine
 		CoreLib::RefPtr<InputDispatcher> inputDispatcher;
 		CoreLib::RefPtr<LevelEditor> levelEditor;
         CoreLib::RefPtr<SystemWindow> mainWindow;
+        CoreLib::RefPtr<IVideoEncoder> videoEncoder;
+        CoreLib::RefPtr<CoreLib::IO::Stream> videoEncodingStream;
 		EngineMode engineMode = EngineMode::Normal;
 		CoreLib::Array<RenderStat, 16> renderStats;
 		GraphicsUI::CommandForm * uiCommandForm = nullptr;

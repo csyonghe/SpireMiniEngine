@@ -43,9 +43,21 @@ namespace GameEngine
             if (params.EnableVideoCapture)
             {
                 auto image = instance->GetRenderResult(true);
-                Engine::SaveImage(image, CoreLib::IO::Path::Combine(params.Directory, String(frameId) + ".bmp"));
+                if (videoEncodingStream)
+                {
+                    int w, h;
+                    image->GetSize(w, h);
+                    List<unsigned char> imageBuffer;
+                    imageBuffer.SetSize(w * h * 4);
+                    image->GetData(0, imageBuffer.Buffer(), imageBuffer.Count());
+                    videoEncoder->EncodeFrame(w, h, imageBuffer.Buffer());
+                }
+                else
+                    Engine::SaveImage(image, CoreLib::IO::Path::Combine(params.Directory, String(frameId) + ".bmp"));
                 if (Engine::Instance()->GetTime() >= params.Length)
+                {
                     mainWindow->Close();
+                }
             }
             frameId++;
             if (frameId == params.RunForFrames)
@@ -109,6 +121,13 @@ namespace GameEngine
                 engineMode = EngineMode::Editor;
 		
             RegisterEngineActorClasses(this);
+
+            if (args.LaunchParams.Directory.ToLower().EndsWith("mp4"))
+            {
+                videoEncoder = CreateH264VideoEncoder();
+                videoEncodingStream = new FileStream(args.LaunchParams.Directory, FileMode::Create);
+                videoEncoder->Init(VideoEncodingOptions(args.Width, args.Height), videoEncodingStream.Ptr());
+            }
 
 			startTime = lastGameLogicTime = lastRenderingTime = Diagnostics::PerformanceCounter::Start();
 			
@@ -217,6 +236,10 @@ namespace GameEngine
 	Engine::~Engine()
 	{
 		renderer->Wait();
+        if (videoEncoder)
+            videoEncoder->Close();
+        if (videoEncodingStream)
+            videoEncodingStream->Close();
 		level = nullptr;
 		fencePool = List<List<RefPtr<Fence>>>();
         mainWindow = nullptr;

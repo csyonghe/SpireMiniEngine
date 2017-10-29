@@ -34,8 +34,8 @@ namespace CoreLib
 				}
 				else
 				{
-					mode = L"wb";
-					modeMBCS = "wb";
+					mode = L"wb+";
+					modeMBCS = "wb+";
 					this->fileAccess = FileAccess::Write;
 				}
 				break;
@@ -54,8 +54,8 @@ namespace CoreLib
 				}
 				else
 				{
-					mode = L"wb";
-					modeMBCS = "wb";
+					mode = L"wb+";
+					modeMBCS = "wb+";
 					this->fileAccess = FileAccess::Write;
 				}
 				break;

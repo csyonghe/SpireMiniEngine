@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26730.16
+VisualStudioVersion = 15.0.27004.2002
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CoreLib", "CoreLib\CoreLib.vcxproj", "{CC291035-BF4A-4C63-B374-F85DB4A9C712}"
 EndProject
@@ -30,6 +30,10 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SkeletonReshaper", "Tools\SkeletonReshaper\SkeletonReshaper.vcxproj", "{11C0D805-6E17-4B9A-8A9F-729AF6B0E56A}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UnitTest", "UnitTest\UnitTest.vcxproj", "{65D27A70-9BA2-478F-8D93-48619AD325BF}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ExtLibs", "ExtLibs", "{5CECF065-F300-4261-A45C-F80A7D8F4658}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "H264Encoding", "ExternalLibs\H264Encoding\H264Encoding.vcxproj", "{48E8DF09-B1DF-4218-A160-F0EC2A19708A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -127,6 +131,14 @@ Global
 		{65D27A70-9BA2-478F-8D93-48619AD325BF}.Release|x64.Build.0 = Release|x64
 		{65D27A70-9BA2-478F-8D93-48619AD325BF}.Release|x86.ActiveCfg = Release|Win32
 		{65D27A70-9BA2-478F-8D93-48619AD325BF}.Release|x86.Build.0 = Release|Win32
+		{48E8DF09-B1DF-4218-A160-F0EC2A19708A}.Debug|x64.ActiveCfg = Debug|x64
+		{48E8DF09-B1DF-4218-A160-F0EC2A19708A}.Debug|x64.Build.0 = Debug|x64
+		{48E8DF09-B1DF-4218-A160-F0EC2A19708A}.Debug|x86.ActiveCfg = Debug|Win32
+		{48E8DF09-B1DF-4218-A160-F0EC2A19708A}.Debug|x86.Build.0 = Debug|Win32
+		{48E8DF09-B1DF-4218-A160-F0EC2A19708A}.Release|x64.ActiveCfg = Release|x64
+		{48E8DF09-B1DF-4218-A160-F0EC2A19708A}.Release|x64.Build.0 = Release|x64
+		{48E8DF09-B1DF-4218-A160-F0EC2A19708A}.Release|x86.ActiveCfg = Release|Win32
+		{48E8DF09-B1DF-4218-A160-F0EC2A19708A}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -139,6 +151,7 @@ Global
 		{10854CB2-BE7A-479A-8DCD-08F00649CE73} = {2B999327-7CF3-4231-8141-B1ADC656C244}
 		{F461FD7C-C0E1-4E75-8563-1B7A0A5163BA} = {2B999327-7CF3-4231-8141-B1ADC656C244}
 		{11C0D805-6E17-4B9A-8A9F-729AF6B0E56A} = {2B999327-7CF3-4231-8141-B1ADC656C244}
+		{48E8DF09-B1DF-4218-A160-F0EC2A19708A} = {5CECF065-F300-4261-A45C-F80A7D8F4658}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {9CCF140A-BBBB-4014-8DC7-E2450AB99906}

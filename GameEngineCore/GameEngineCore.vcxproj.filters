@@ -161,6 +161,7 @@
       <Filter>Renderer\PostProcess</Filter>
     </ClCompile>
     <ClCompile Include="AmbientLightActor.cpp" />
+    <ClCompile Include="VideoEncoder.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
@@ -341,6 +342,7 @@
     <ClInclude Include="AmbientLightActor.h">
       <Filter>Actors</Filter>
     </ClInclude>
+    <ClInclude Include="VideoEncoder.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Spire">

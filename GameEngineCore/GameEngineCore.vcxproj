@@ -219,6 +219,7 @@
     <ClCompile Include="TextureTool\LibSquish.cpp" />
     <ClCompile Include="ToneMappingActor.cpp" />
     <ClCompile Include="UISystem_Windows.cpp" />
+    <ClCompile Include="VideoEncoder.cpp" />
     <ClCompile Include="View.cpp" />
     <ClCompile Include="ViewResource.cpp" />
     <ClCompile Include="VulkanAPI\vkel.c" />
@@ -228,6 +229,9 @@
   <ItemGroup>
     <ProjectReference Include="..\CoreLib\CoreLib.vcxproj">
       <Project>{cc291035-bf4a-4c63-b374-f85db4a9c712}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\ExternalLibs\H264Encoding\H264Encoding.vcxproj">
+      <Project>{48e8df09-b1df-4218-a160-f0ec2a19708a}</Project>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
@@ -304,6 +308,7 @@
     <ClInclude Include="ToneMapping.h" />
     <ClInclude Include="ToneMappingActor.h" />
     <ClInclude Include="UISystem_Windows.h" />
+    <ClInclude Include="VideoEncoder.h" />
     <ClInclude Include="View.h" />
     <ClInclude Include="ViewResource.h" />
     <ClInclude Include="VulkanAPI\vkel.h" />
