@@ -155,8 +155,9 @@ namespace GameEngine
 	}
 	Level::~Level()
 	{
-		for (auto & actor : Actors)
-			UnregisterActor(actor.Value.Ptr());
+        int count = Actors.Count();
+		for (int i = 0; i < count; i++)
+			UnregisterActor(Actors.First().Value.Ptr());
         Materials = decltype(Materials)();
         Models = decltype(Models)();
         Meshes = decltype(Meshes)();
@@ -164,7 +165,6 @@ namespace GameEngine
         Animations = decltype(Animations)();
         RetargetFiles = decltype(RetargetFiles)();
         Actors = decltype(Actors)();
-
 	}
 	void Level::RegisterActor(Actor * actor)
 	{

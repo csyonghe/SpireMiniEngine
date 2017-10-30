@@ -133,6 +133,7 @@ SkeletalMesh
 	SkeletonFileName ""
 	PreviewFrame 0
 }
+
 EnvMap
 {
 	Name "EnvMap0"
@@ -141,6 +142,7 @@ EnvMap
 	Radius 1000
 	TintColor [ 1 1 1 ]
 }
+
 EnvMap
 {
 	Name "EnvMap1"
