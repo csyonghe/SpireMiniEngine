@@ -549,6 +549,7 @@ namespace GameEngine
 			level = new GameEngine::Level(actualFileName);
 			inDataTransfer = true;
 			renderer->InitializeLevel(level.Ptr());
+            startTime = PerformanceCounter::Start();
 			inDataTransfer = false;
 		}
 		catch (const Exception & e)
@@ -578,7 +579,8 @@ namespace GameEngine
 			level = new GameEngine::Level();
 			level->LoadFromText("Atmosphere{name \"atmosphere\"} Camera{name \"Camera0\"} FreeRoamCameraController{name \"cameraController\" TargetCameraName \"Camera0\"}");
 			renderer->InitializeLevel(level.Ptr());
-			inDataTransfer = false;
+            startTime = PerformanceCounter::Start();
+            inDataTransfer = false;
 		}
 		catch (const Exception &)
 		{
