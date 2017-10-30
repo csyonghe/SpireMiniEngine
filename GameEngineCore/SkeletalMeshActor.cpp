@@ -84,7 +84,7 @@ namespace GameEngine
 		{
 			physInstance->SetTransform(*LocalTransform, nextPose, disableRetargetFile ? nullptr : retargetFile);
 		}
-		if (nextPose.Transforms.Count() == 0 && !errorPhysInstance)
+		if ((!model || nextPose.Transforms.Count() == 0) && !errorPhysInstance)
 		{
 			errorPhysInstance = level->LoadErrorModel()->CreatePhysicsInstance(level->GetPhysicsScene(), this, nullptr);
 		}
