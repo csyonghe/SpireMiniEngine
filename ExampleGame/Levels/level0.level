@@ -2,6 +2,7 @@ Camera
 {
 	Name "FreeCam"
 	CastShadow true
+	RenderCustomDepth false
 	LocalTransform [ 1 -0 0 -0 -0 0.99500418 -0.099833421 0 -0 0.099833421 0.99500418 -0 -0 120 220.00002 1 ]
 	Orientation [ 0 0.1 0 ]
 	Position [ 0 120 220 ]
@@ -14,6 +15,7 @@ FreeRoamCameraController
 {
 	Name "CamControl"
 	CastShadow true
+	RenderCustomDepth false
 	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 ]
 	InputChannel 0
 	Speed 100
@@ -24,13 +26,16 @@ ToneMapping
 {
 	Name "tonemap"
 	CastShadow true
+	RenderCustomDepth false
 	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 ]
-	Exposure 0.4
+	Exposure 0.40000001
+	ColorLUT ""
 }
 Atmosphere
 {
 	Name "atmosphere"
 	CastShadow true
+	RenderCustomDepth false
 	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 ]
 	SunDir [ -0.48795006 0.78072011 0.39036006 ]
 	AtmosphericFogScaleFactor 0.5
@@ -39,6 +44,7 @@ DirectionalLight
 {
 	Name "sunlight"
 	CastShadow true
+	RenderCustomDepth false
 	LocalTransform [ 0.78072011 0.38114896 0.30466494 0 -0.19047621 0.76729071 -0.47180831 0 -0.48795006 0.36610639 0.79238302 0 181.80566 369.43039 58.335815 1 ]
 	EnableCascadedShadows true
 	ShadowDistance 1500
@@ -51,6 +57,7 @@ PointLight
 {
 	Name "plight0"
 	CastShadow true
+	RenderCustomDepth false
 	LocalTransform [ 0.95103747 0.32021603 -1.0034992 0 0.1793281 1.2830402 0.57937044 0 1.2712536 -0.63082141 1.0034992 0 -27.602539 86.439819 -1200 1 ]
 	EnableShadows false
 	Radius 2000
@@ -64,6 +71,7 @@ PointLight
 {
 	Name "plight1"
 	CastShadow true
+	RenderCustomDepth false
 	LocalTransform [ -0.88323563 0.30166906 1.2051747 0 1.1766996 0.67748052 0.6927861 0 -0.48809952 1.63106 -0.76598638 0 372.58728 266.30576 400 1 ]
 	EnableShadows true
 	Radius 2500
@@ -77,6 +85,7 @@ StaticMesh
 {
 	Name "sphere"
 	CastShadow false
+	RenderCustomDepth false
 	LocalTransform [ 0.21048898 0 0 0 0 0.21048898 0 0 0 0 0.21048898 0 -260.91644 69.384186 70.519066 1 ]
 	MeshFile "sphere.mesh"
 	MaterialFile ""
@@ -90,6 +99,7 @@ StaticMesh
 {
 	Name "couch"
 	CastShadow true
+	RenderCustomDepth false
 	LocalTransform [ 0.34003639 0.039454799 -0.64098448 0 -0.025088448 0.72555506 0.03135122 0 0.64170736 0.0074597988 0.34087908 0 -216.06735 21.056564 -46.759888 1 ]
 	MeshFile "SM_Couch.mesh"
 	MaterialFile ""
@@ -109,6 +119,7 @@ StaticMesh
 {
 	Name "floor"
 	CastShadow true
+	RenderCustomDepth false
 	LocalTransform [ 105.3819 0 0 0 0 105.3819 0 0 0 0 105.3819 0 25.300285 0 0 1 ]
 	MeshFile "plane.mesh"
 	MaterialFile ""
@@ -126,6 +137,7 @@ SkeletalMesh
 {
 	Name "hero"
 	CastShadow true
+	RenderCustomDepth false
 	LocalTransform [ 0.69284827 0 0 0 0 0.69284827 0 0 0 0 0.69284827 0 -4.3716068 0 65.257782 1 ]
 	ModelFileName "hero.model"
 	RetargetFileName ""
@@ -137,6 +149,7 @@ EnvMap
 {
 	Name "EnvMap0"
 	CastShadow true
+	RenderCustomDepth false
 	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 -258.21722 68.405586 19.207863 1 ]
 	Radius 1000
 	TintColor [ 1 1 1 ]
@@ -145,7 +158,16 @@ EnvMap
 {
 	Name "EnvMap1"
 	CastShadow true
+	RenderCustomDepth false
 	LocalTransform [ 1 0 0 0 0 8.7019005 0 0 0 0 1 0 -235.14984 216.94113 139.966 1 ]
 	Radius 10000
 	TintColor [ 1 1 1 ]
+}
+FrameIdDisplay
+{
+	Name "FrameIdDisplay0"
+	CastShadow true
+	RenderCustomDepth false
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 -47.876389 153.27069 428.47485 1 ]
+	ShowFrameID true
 }

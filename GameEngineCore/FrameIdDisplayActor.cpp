@@ -36,6 +36,6 @@ namespace GameEngine
         label->SetText(Engine::Instance()->GetFrameId());
         int boxH = label->GetHeight() + emToPixel(1.0f);
         int boxW = label->GetWidth() + emToPixel(1.0f);
-        container->Posit(emToPixel(3.0f), uiEntry->ClientRect().h - boxH - emToPixel(3.0f), boxW, boxH);
+        container->Posit((uiEntry->ClientRect().w - boxW) / 2, uiEntry->ClientRect().h - boxH - emToPixel(3.0f), boxW, boxH);
     }
 }
