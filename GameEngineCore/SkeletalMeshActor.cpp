@@ -16,8 +16,6 @@ namespace GameEngine
 
 	void SkeletalMeshActor::UpdateStates()
 	{
-		if (this->simpleAnimation && model)
-			Animation = new SimpleAnimationSynthesizer(skeleton?skeleton:model->GetSkeleton(), this->simpleAnimation);
 		if (model)
 			physInstance = model->CreatePhysicsInstance(level->GetPhysicsScene(), this, nullptr);
 		Tick();
@@ -49,37 +47,8 @@ namespace GameEngine
 		UpdateStates();
 	}
 
-	void SkeletalMeshActor::AnimationFileName_Changing(CoreLib::String & newFileName)
-	{
-		simpleAnimation = level->LoadSkeletalAnimation(newFileName);
-		if (!simpleAnimation)
-			newFileName = "";
-		UpdateStates();
-	}
-
-	void SkeletalMeshActor::SkeletonFileName_Changing(CoreLib::String & newFileName)
-	{
-		skeleton = level->LoadSkeleton(newFileName);
-		if (!skeleton)
-			newFileName = "";
-		UpdateStates();
-	}
-
-	void SkeletalMeshActor::PreviewFrame_Changing(float & newValue)
-	{
-		previewFrameTime = newValue;
-		Tick();
-	}
-
 	void GameEngine::SkeletalMeshActor::Tick()
 	{
-		auto time = Engine::Instance()->GetTime();
-		if (Engine::Instance()->GetEngineMode() == EngineMode::Editor)
-		{
-			time = previewFrameTime;
-		}
-		if (Animation)
-			Animation->GetPose(nextPose, time);
 		auto isPoseCompatible = [this]()
 		{
 			if (!model)
@@ -99,7 +68,7 @@ namespace GameEngine
 			return true;
 		};
 		disableRetargetFile = false;
-		if (!Animation || !isPoseCompatible())
+		if (!isPoseCompatible())
 		{
 			nextPose.Transforms.Clear();
 			if (model)
@@ -126,11 +95,16 @@ namespace GameEngine
 		UpdateBounds();
 	}
 
-	void SkeletalMeshActor::GetDrawables(const GetDrawablesParameter & params)
+    void SkeletalMeshActor::SetPose(const Pose & p)
+    {
+        nextPose = p;
+    }
+
+    void SkeletalMeshActor::GetDrawables(const GetDrawablesParameter & params)
 	{
 		if (model && modelInstance.IsEmpty())
 			modelInstance = model->GetDrawableInstance(params);
-		if (nextPose.Transforms.Count() == 0)
+		if (!model || nextPose.Transforms.Count() == 0)
 		{
 			if (errorModelInstance.IsEmpty())
 				errorModelInstance = level->LoadErrorModel()->GetDrawableInstance(params);
@@ -153,19 +127,12 @@ namespace GameEngine
 		model = level->LoadModel(*ModelFileName);
 		if (RetargetFileName.GetValue().Length())
 			retargetFile = level->LoadRetargetFile(*RetargetFileName);
-		simpleAnimation = level->LoadSkeletalAnimation(*AnimationFileName);
-		if (SkeletonFileName.GetValue().Length())
-			skeleton = level->LoadSkeleton(*SkeletonFileName);
+		
 		LocalTransform.OnChanging.Bind(this, &SkeletalMeshActor::LocalTransform_Changing);
 		UpdateStates();
 
 		ModelFileName.OnChanging.Bind(this, &SkeletalMeshActor::ModelFileName_Changing);
 		RetargetFileName.OnChanging.Bind(this, &SkeletalMeshActor::RetargetFileName_Changing);
-		AnimationFileName.OnChanging.Bind(this, &SkeletalMeshActor::AnimationFileName_Changing);
-		SkeletonFileName.OnChanging.Bind(this, &SkeletalMeshActor::SkeletonFileName_Changing);
-		PreviewFrame.OnChanging.Bind(this, &SkeletalMeshActor::PreviewFrame_Changing);
-
-		previewFrameTime = PreviewFrame.GetValue();
 	}
 
 	void SkeletalMeshActor::OnUnload()

@@ -291,12 +291,9 @@ namespace GameEngine
 				levelToLoad = "";
 			}
 		}
-		if (level && engineMode == EngineMode::Normal)
-		{
-			level->GetPhysicsScene().Tick();
-			for (auto & actor : level->Actors)
-				actor.Value->Tick();
-		}
+		level->GetPhysicsScene().Tick();
+		for (auto & actor : level->Actors)
+			actor.Value->Tick();
 		if (levelEditor)
 		{
 			levelEditor->Tick();

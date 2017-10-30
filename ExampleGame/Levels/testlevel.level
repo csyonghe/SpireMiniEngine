@@ -9,24 +9,12 @@ FreeRoamCameraController
 	TurnPrecision 0.78539819
 	TargetCameraName "Camera0"
 }
-SkeletalMesh
-{
-	Name "SkeletalMesh0"
-	CastShadow true
-	RenderCustomDepth false
-	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 184.24344 381.49066 -166.19765 1 ]
-	ModelFileName "Malcom\\malcolm.model"
-	RetargetFileName "..\\Models\\Malcom\\femaleROM_retar.retarget"
-	AnimationFileName "..\\Models\\ROM_female.anim"
-	SkeletonFileName "..\\Models\\ROM_female.skeleton"
-	PreviewFrame 12
-}
 StaticMesh
 {
 	Name "StaticMesh0"
 	CastShadow true
 	RenderCustomDepth false
-	LocalTransform [ 26.282799 0 0 0 0 32.113976 0 0 0 0 32.113976 0 258.37466 371.07742 -52.027817 1 ]
+	LocalTransform [ 26.282799 0 0 0 0 32.113976 0 0 0 0 32.113976 0 258.37466 363.85046 -52.027817 1 ]
 	MeshFile "plane.mesh"
 	MaterialFile "Wall0.material"
 	ModelFile ""
@@ -99,4 +87,29 @@ FrameIdDisplay
 	RenderCustomDepth false
 	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 410.71979 646.28271 -767.5166 1 ]
 	ShowFrameID true
+}
+SkeletalMesh
+{
+	Name "SkeletalMesh0"
+	CastShadow true
+	RenderCustomDepth false
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 195.46361 374.52295 -197.7182 1 ]
+	ModelFileName "Malcom\\malcolm.model"
+	RetargetFileName "..\\Models\\Malcom\\femaleROM_retar.retarget"
+}
+SimpleAnimationController
+{
+	Name "SimpleAnimationController0"
+	CastShadow true
+	RenderCustomDepth false
+	LocalTransform [ 1 0 0 0 0 1 0 0 0 0 1 0 212.5614 443.13849 -296.63495 1 ]
+	Time 222.05121
+	IsPlaying true
+	TargetActors List 
+	{
+		"SkeletalMesh0"
+	}
+
+	AnimationFile "..\\Models\\ROM_female.anim"
+	SkeletonFile "..\\Models\\ROM_female.skeleton"
 }

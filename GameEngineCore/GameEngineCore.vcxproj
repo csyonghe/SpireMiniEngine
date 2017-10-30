@@ -159,6 +159,7 @@
     <ClCompile Include="..\CoreLib\LibGL\glew\glew.c" />
     <ClCompile Include="Actor.cpp" />
     <ClCompile Include="AmbientLightActor.cpp" />
+    <ClCompile Include="AnimationControllerActor.cpp" />
     <ClCompile Include="AnimationSynthesizer.cpp" />
     <ClCompile Include="AnimationVisualizationActor.cpp" />
     <ClCompile Include="ArcBallCameraController.cpp" />
@@ -208,6 +209,7 @@
     <ClCompile Include="RenderPassRegistry.h" />
     <ClCompile Include="ShaderCompiler.cpp" />
     <ClCompile Include="ShadowRenderPass.cpp" />
+    <ClCompile Include="SimpleAnimationControllerActor.cpp" />
     <ClCompile Include="SkeletalMeshActor.cpp" />
     <ClCompile Include="Skeleton.cpp" />
     <ClCompile Include="SpireSource.cpp" />
@@ -241,6 +243,7 @@
     <ClInclude Include="..\CoreLib\LibGL\glew\wglew.h" />
     <ClInclude Include="Actor.h" />
     <ClInclude Include="AmbientLightActor.h" />
+    <ClInclude Include="AnimationControllerActor.h" />
     <ClInclude Include="AnimationSynthesizer.h" />
     <ClInclude Include="AnimationVisualizationActor.h" />
     <ClInclude Include="ArcBallCameraController.h" />
@@ -292,6 +295,7 @@
     <ClInclude Include="RenderPass.h" />
     <ClInclude Include="RenderProcedure.h" />
     <ClInclude Include="ShaderCompiler.h" />
+    <ClInclude Include="SimpleAnimationControllerActor.h" />
     <ClInclude Include="SkeletalMeshActor.h" />
     <ClInclude Include="Skeleton.h" />
     <ClInclude Include="Spire\Spire.h" />

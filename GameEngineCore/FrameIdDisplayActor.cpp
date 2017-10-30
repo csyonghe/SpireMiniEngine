@@ -30,6 +30,10 @@ namespace GameEngine
         if (uiEntry)
             uiEntry->RemoveChild(container);
     }
+    void FrameIdDisplayActor::OnLoad()
+    {
+        ShowFrameID.OnChanged.Bind(this, &FrameIdDisplayActor::showFrameId_changed);
+    }
     void FrameIdDisplayActor::Tick()
     {
         label->FontColor = Color(255, 255, 255, 255);

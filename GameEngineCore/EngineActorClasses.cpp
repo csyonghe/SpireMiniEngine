@@ -13,6 +13,7 @@
 #include "EnvMapActor.h"
 #include "AmbientLightActor.h"
 #include "FrameIdDisplayActor.h"
+#include "SimpleAnimationControllerActor.h"
 
 namespace GameEngine
 {
@@ -34,5 +35,6 @@ namespace GameEngine
 		REGISTER_ACTOR_CLASS(ToneMapping);
 		REGISTER_ACTOR_CLASS(EnvMap);
         REGISTER_ACTOR_CLASS(FrameIdDisplay);
+        REGISTER_ACTOR_CLASS(SimpleAnimationController);
 	}
 }

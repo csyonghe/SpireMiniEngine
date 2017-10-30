@@ -22,6 +22,7 @@ namespace GameEngine
         PROPERTY_DEF(bool, ShowFrameID, true);
         virtual void RegisterUI(GraphicsUI::UIEntry *) override;
         virtual void OnUnload() override;
+        virtual void OnLoad() override;
         virtual void Tick() override;
         virtual CoreLib::String GetTypeName() override
         {

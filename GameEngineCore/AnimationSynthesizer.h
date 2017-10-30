@@ -11,7 +11,7 @@
 
 namespace GameEngine
 {
-	class AnimationSynthesizer : public CoreLib::Object
+	class AnimationSynthesizer : public CoreLib::RefObject
 	{	
     public:
 		virtual void GetPose(Pose & p, float time) = 0;
