@@ -43,6 +43,7 @@ namespace GameEngine
             simpleAnimation = level->LoadSkeletalAnimation(*AnimationFile);
         if (SkeletonFile.GetValue().Length())
             skeleton = level->LoadSkeleton(*SkeletonFile);
+        UpdateStates();
         AnimationFile.OnChanging.Bind(this, &SimpleAnimationControllerActor::AnimationFileName_Changing);
         SkeletonFile.OnChanging.Bind(this, &SimpleAnimationControllerActor::SkeletonFileName_Changing);
     }

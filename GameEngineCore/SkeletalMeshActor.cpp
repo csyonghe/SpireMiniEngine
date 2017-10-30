@@ -92,6 +92,8 @@ namespace GameEngine
 		{
 			errorPhysInstance = nullptr;
 		}
+        if (errorPhysInstance)
+            errorPhysInstance->SetTransform(*LocalTransform);
 		UpdateBounds();
 	}
 
@@ -109,6 +111,7 @@ namespace GameEngine
 			if (errorModelInstance.IsEmpty())
 				errorModelInstance = level->LoadErrorModel()->GetDrawableInstance(params);
 			errorModelInstance.UpdateTransformUniform(*LocalTransform);
+
 			for (auto & drawable : errorModelInstance.Drawables)
 			{
 				drawable->CastShadow = CastShadow.GetValue();
