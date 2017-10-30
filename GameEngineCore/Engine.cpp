@@ -42,6 +42,7 @@ namespace GameEngine
             instance->Tick();
             if (params.EnableVideoCapture)
             {
+                renderer->Wait();
                 auto image = instance->GetRenderResult(true);
                 if (videoEncodingStream)
                 {

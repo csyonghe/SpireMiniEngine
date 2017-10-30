@@ -44,6 +44,10 @@ namespace GameEngine
 		void AddImageTransferTask(CoreLib::ArrayView<Texture*> renderTargetTextures, CoreLib::ArrayView<Texture*> samplingTextures)
 		{
 			subTasks[frameId].Add(imageLayoutTaskPool.NewImageLayoutTransferTask(renderTargetTextures, samplingTextures));
+            for (auto tex : renderTargetTextures)
+                tex->SetCurrentLayout(TextureLayout::ColorAttachment);
+            for (auto tex : samplingTextures)
+                tex->SetCurrentLayout(TextureLayout::Sample);
 		}
 		CoreLib::List<CoreLib::RefPtr<RenderTask>> & GetTasks()
 		{

@@ -163,6 +163,40 @@ namespace VK
 		~DescriptorPoolObject();
 	};
 
+
+
+    vk::ImageLayout TranslateImageLayout(TextureLayout layout)
+    {
+        vk::ImageLayout rs;
+        switch (layout)
+        {
+        case TextureLayout::ColorAttachment:
+            rs = vk::ImageLayout::eColorAttachmentOptimal;
+            break;
+        case TextureLayout::DepthStencilAttachment:
+            rs = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+            break;
+        case TextureLayout::General:
+            rs = vk::ImageLayout::eGeneral;
+            break;
+        case TextureLayout::Present:
+            rs = vk::ImageLayout::ePresentSrcKHR;
+            break;
+        case TextureLayout::Sample:
+            rs = vk::ImageLayout::eShaderReadOnlyOptimal;
+            break;
+        case TextureLayout::TransferDst:
+            rs = vk::ImageLayout::eTransferDstOptimal;
+            break;
+        case TextureLayout::TransferSrc:
+            rs = vk::ImageLayout::eTransferSrcOptimal;
+            break;
+        default:
+            rs = vk::ImageLayout::eGeneral;
+        }
+        return rs;
+    }
+
 	/*
 	* Internal Vulkan state
 	*/
@@ -1584,8 +1618,8 @@ namespace VK
 
 			transferCommandBuffer.begin(transferBeginInfo);
 			transferCommandBuffer.pipelineBarrier(
-				vk::PipelineStageFlagBits::eTopOfPipe,
-				vk::PipelineStageFlagBits::eTopOfPipe,
+				vk::PipelineStageFlagBits::eAllCommands,
+				vk::PipelineStageFlagBits::eTransfer,
 				vk::DependencyFlags(),
 				nullptr,
 				nullptr,
@@ -1598,8 +1632,8 @@ namespace VK
 				stagingCopy
 			);
 			transferCommandBuffer.pipelineBarrier(
-				vk::PipelineStageFlagBits::eTopOfPipe,
-				vk::PipelineStageFlagBits::eTopOfPipe,
+				vk::PipelineStageFlagBits::eTransfer,
+				vk::PipelineStageFlagBits::eAllCommands,
 				vk::DependencyFlags(),
 				nullptr,
 				nullptr,
@@ -1807,7 +1841,10 @@ namespace VK
 	public:
 		Texture2D(TextureUsage usage, int width, int height, int mipLevelCount, StorageFormat format)
 			: VK::Texture(usage, width, height, 1, mipLevelCount, 1, 1, format) {};
-
+        virtual void SetCurrentLayout(TextureLayout layout) override
+        {
+            currentLayout = TranslateImageLayout(layout);
+        }
 		void GetSize(int& pwidth, int& pheight)
 		{
 			pwidth = width;
@@ -1836,7 +1873,10 @@ namespace VK
 	public:
 		Texture2DArray(TextureUsage usage, int width, int height, int mipLevels, int arrayLayers, StorageFormat newFormat)
 			: VK::Texture(usage, width, height, 1, mipLevels, arrayLayers, 1, newFormat) {};
-
+        virtual void SetCurrentLayout(TextureLayout layout) override
+        {
+            currentLayout = TranslateImageLayout(layout);
+        }
 		virtual void GetSize(int& pwidth, int& pheight, int& players) override
 		{
 			pwidth = this->width;
@@ -1873,6 +1913,10 @@ namespace VK
 		{
 			psize = size;
 		}
+        virtual void SetCurrentLayout(TextureLayout layout) override
+        {
+            currentLayout = TranslateImageLayout(layout);
+        }
 	};
 
 	class TextureCubeArray : public VK::Texture, public GameEngine::TextureCubeArray
@@ -1897,6 +1941,10 @@ namespace VK
 			psize = size;
 			pCount = count;
 		}
+        virtual void SetCurrentLayout(TextureLayout layout) override
+        {
+            currentLayout = TranslateImageLayout(layout);
+        }
 	};
 
 	class Texture3D : public VK::Texture, public GameEngine::Texture3D
@@ -1911,7 +1959,10 @@ namespace VK
 			pheight = this->height;
 			pdepth = this->depth;
 		}
-
+        virtual void SetCurrentLayout(TextureLayout layout) override
+        {
+            this->currentLayout = TranslateImageLayout(layout);
+        }
 		virtual void SetData(int mipLevel, int xOffset, int yOffset, int zOffset, int pwidth, int pheight, int pdepth, DataType inputType, void * data) override
 		{
 			VK::Texture::SetData(mipLevel, 0, xOffset, yOffset, zOffset, pwidth, pheight, pdepth, 1, inputType, data);

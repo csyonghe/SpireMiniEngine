@@ -790,7 +790,8 @@ namespace GameEngine
 					VectorMath::Vec2i::Create(viewport.x, viewport.y));
 			else
 				cmdBuf->TransferLayout(MakeArrayView(dynamic_cast<Texture*>(wndCtx->uiOverlayTexture.Ptr())), TextureLayoutTransfer::UndefinedToRenderAttachment);
-			cmdBuf->EndRecording();
+            wndCtx->uiOverlayTexture->SetCurrentLayout(TextureLayout::ColorAttachment);
+            cmdBuf->EndRecording();
 
 			cmdBuf = wndCtx->cmdBuffer->BeginRecording(wndCtx->frameBuffer.Ptr());
             if (!baseTexture)

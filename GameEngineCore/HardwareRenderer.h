@@ -407,6 +407,8 @@ namespace GameEngine
 	{
 	protected:
 		Texture() {};
+    public:
+        virtual void SetCurrentLayout(TextureLayout layout) = 0;
 	};
 
 	class Texture2D : public Texture

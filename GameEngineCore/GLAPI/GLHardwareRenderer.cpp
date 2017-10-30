@@ -601,6 +601,8 @@ namespace GLL
 		{
 			glClearTexImage(Handle, 0, format, type, &data);
 		}
+        virtual void SetCurrentLayout(TextureLayout) override
+        {}
 		virtual void SetData(int level, int width, int height, int samples, DataType inputType, void * data) override
 		{
 			if (storageFormat == StorageFormat::BC1 || storageFormat == StorageFormat::BC5)
@@ -687,6 +689,8 @@ namespace GLL
 		{
 			return storageFormat;
 		}
+        virtual void SetCurrentLayout(TextureLayout) override
+        {}
 		void GetSize(int & width, int & height, int & layers)
 		{
 			glBindTexture(GL_TEXTURE_2D_ARRAY, Handle);
@@ -760,6 +764,8 @@ namespace GLL
 				Handle = 0;
 			}
 		}
+        virtual void SetCurrentLayout(TextureLayout) override
+        {}
 		StorageFormat GetFormat()
 		{
 			return storageFormat;
@@ -824,7 +830,8 @@ namespace GLL
 			size = psize;
 			BindTarget = GL_TEXTURE_CUBE_MAP;
 		}
-	
+        virtual void SetCurrentLayout(TextureLayout) override
+        {}
 		StorageFormat GetFormat()
 		{
 			return storageFormat;
@@ -889,7 +896,8 @@ namespace GLL
 			count = pcount;
 			BindTarget = GL_TEXTURE_CUBE_MAP_ARRAY;
 		}
-
+        virtual void SetCurrentLayout(TextureLayout) override
+        {}
 		StorageFormat GetFormat()
 		{
 			return storageFormat;
