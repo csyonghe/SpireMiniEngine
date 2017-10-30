@@ -4,7 +4,7 @@ namespace GameEngine
 {
 	using namespace VectorMath;
 
-	CoreLib::EnumerableDictionary<const char *, PropertyTable> PropertyContainer::propertyTables;
+	CoreLib::EnumerableDictionary<const char *, CoreLib::RefPtr<PropertyTable>> PropertyContainer::propertyTables;
 
 	bool ParseBool(CoreLib::Text::TokenReader & parser)
 	{
@@ -166,7 +166,7 @@ namespace GameEngine
 
 	void PropertyContainer::FreeRegistry()
 	{
-		propertyTables = CoreLib::EnumerableDictionary<const char *, PropertyTable>();
+		propertyTables = CoreLib::EnumerableDictionary<const char *, CoreLib::RefPtr<PropertyTable>>();
 	}
 
 	void PropertyContainer::RegisterProperty(Property * prop)
@@ -189,13 +189,13 @@ namespace GameEngine
 		{
 			auto className = typeid(*this).name();
 			if (auto table = propertyTables.TryGetValue(className))
-				return table;
+				return table->Ptr();
 			else
 			{
-				PropertyTable pt;
-				pt.className = className;
+				RefPtr<PropertyTable> pt = new PropertyTable();
+				pt->className = className;
 				propertyTables[className] = pt;
-				return &propertyTables[className].GetValue();
+				return pt.Ptr();
 			}
 		};
 		if (propertyTable)

@@ -10,7 +10,7 @@
 namespace GameEngine
 {
 	class Property;
-	struct PropertyTable
+	struct PropertyTable : public CoreLib::RefObject
 	{
 		CoreLib::EnumerableDictionary<CoreLib::String, int> entries;
 		bool isComplete = false;
@@ -20,7 +20,7 @@ namespace GameEngine
 	{
 		friend class Property;
 	protected:
-		static CoreLib::EnumerableDictionary<const char *, PropertyTable> propertyTables;
+		static CoreLib::EnumerableDictionary<const char *, CoreLib::RefPtr<PropertyTable>> propertyTables;
 		PropertyTable * propertyTable = nullptr;
 	public:
 		static void FreeRegistry();
