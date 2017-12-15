@@ -247,7 +247,11 @@ namespace Spire
 			auto basicType = dynamic_cast<ILBasicType*>(this);
 			if (basicType)
 				return basicType->Type == ILBaseType::Texture2D || basicType->Type == ILBaseType::TextureCube || basicType->Type == ILBaseType::Texture2DArray ||
-				basicType->Type == ILBaseType::Texture3D || basicType->Type == ILBaseType::TextureCubeArray;
+				basicType->Type == ILBaseType::Texture3D || basicType->Type == ILBaseType::TextureCubeArray
+                || basicType->Type == ILBaseType::Image1D
+                || basicType->Type == ILBaseType::Image2D
+                || basicType->Type == ILBaseType::Image2DArray
+                || basicType->Type == ILBaseType::Image3D;
 			else
 				return false;
 		}
@@ -258,7 +262,13 @@ namespace Spire
 			if (basicType)
 				return basicType->Type == ILBaseType::Texture2D || basicType->Type == ILBaseType::TextureCube || basicType->Type == ILBaseType::Texture2DArray ||
 				basicType->Type == ILBaseType::Texture2DShadow || basicType->Type == ILBaseType::TextureCubeShadow || basicType->Type == ILBaseType::Texture2DArrayShadow ||
-				basicType->Type == ILBaseType::Texture3D || basicType->Type == ILBaseType::TextureCubeShadowArray || basicType->Type == ILBaseType::TextureCubeArray;
+				basicType->Type == ILBaseType::Texture3D 
+                || basicType->Type == ILBaseType::TextureCubeShadowArray 
+                || basicType->Type == ILBaseType::TextureCubeArray 
+                || basicType->Type == ILBaseType::Image1D
+                || basicType->Type == ILBaseType::Image2D
+                || basicType->Type == ILBaseType::Image2DArray
+                || basicType->Type == ILBaseType::Image3D;
 			else
 				return false;
 		}

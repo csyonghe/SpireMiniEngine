@@ -23,7 +23,7 @@ namespace GameEngine
 				public using geometryModule;
 				public using VertexTransform;
 				public using materialModule;
-				out @Fragment vec3 ocolor { if (opacity < 0.8f) discard; return vec3(1.0); }
+				out @Fragment float outDepth { if (opacity < 0.8f) discard; return 1.0; }
 			};
 		)";
 	protected:

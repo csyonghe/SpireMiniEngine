@@ -68,17 +68,8 @@ namespace Spire
 			{
 				AllocVarInstruction * varOp = 0;
 				RefPtr<ILType> type = TranslateExpressionType(etype);
-				auto arrType = dynamic_cast<ILArrayType*>(type.Ptr());
-
-				if (arrType)
-				{
-					varOp = codeWriter.AllocVar(arrType->BaseType, result.Program->ConstantPool->CreateConstant(arrType->ArrayLength));
-				}
-				else
-				{
-					assert(type);
-					varOp = codeWriter.AllocVar(type, result.Program->ConstantPool->CreateConstant(0));
-				}
+				assert(type);
+				varOp = codeWriter.AllocVar(type);
 				return varOp;
 			}
 			FetchArgInstruction * FetchArg(ExpressionType * etype, int argId)
@@ -346,7 +337,8 @@ namespace Spire
 				compiledShader = new ILShader();
 				compiledShader->Name = EscapeCodeName(shader->Shader->Name);
 				compiledShader->Position = shader->Shader->Position;
-
+                for (auto attribs : shader->Shader->ModuleSyntaxNode->GetLayoutAttributes())
+                    compiledShader->LayoutAttributes.Add(attribs->Key, attribs->Value.Content);
 				GenerateParameterBindingInfo(shader);
 
 				TranslateStages(pipeline->SyntaxNode);
@@ -855,6 +847,7 @@ namespace Spire
 			RefPtr<Variable> VisitDeclrVariable(Variable* varDecl)
 			{
 				AllocVarInstruction * varOp = AllocVar(varDecl->Type.Ptr());
+                varOp->Attribute = varDecl->HasModifier(ModifierFlag::Shared) ? "shared" : "";
 				varOp->Name = EscapeCodeName(varDecl->Name.Content);
 				variables.Add(varDecl->Name.Content, varOp);
 				if (varDecl->Expr)
@@ -1175,7 +1168,9 @@ namespace Spire
 					if (basicType->Func)
 					{
 						funcName = basicType->Func->SyntaxNode->IsExtern() ? basicType->Func->SyntaxNode->Name.Content : basicType->Func->SyntaxNode->InternalName;
-						for (auto & param : basicType->Func->SyntaxNode->GetParameters())
+                        if (basicType->Func->SyntaxNode->HasModifier(ModifierFlag::Out))
+                            hasSideEffect = true;
+                        for (auto & param : basicType->Func->SyntaxNode->GetParameters())
 						{
 							if (param->HasModifier(ModifierFlag::Out))
 							{

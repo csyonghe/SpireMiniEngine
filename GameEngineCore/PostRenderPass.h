@@ -35,10 +35,13 @@ namespace GameEngine
 
 	class PostRenderPass : public RenderPass
 	{
+    private:
+        bool isCompute = false;
 	protected:
 		ViewResource * viewRes = nullptr;
 		CoreLib::List<PostPassSource> sources;
 		CoreLib::List<Texture*> textures;
+        int groupCountX = 1, groupCountY = 1, groupCountZ = 1;
 	protected:
 		bool clearFrameBuffer = false;
 		CoreLib::RefPtr<RenderOutput> renderOutput;

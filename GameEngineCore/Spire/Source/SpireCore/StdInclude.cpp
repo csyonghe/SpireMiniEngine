@@ -142,9 +142,20 @@ __intrinsic vec4 SampleBias(Texture2D tex, SamplerState sampler, vec2 uv, float 
 __intrinsic vec4 SampleBias(TextureCube tex, SamplerState sampler, vec3 uv, float bias);
 __intrinsic vec4 SampleBias(TextureCubeArray tex, SamplerState sampler, vec4 uv, float bias);
 __intrinsic vec4 SampleBias(Texture2DArray tex, SamplerState sampler, vec3 uv, float bias);
-__intrinsic vec4 Load(Texture2D tex, int3 location);
-__intrinsic vec4 Load(Texture2D tex, int3 location, ivec2 offset);
-__intrinsic vec4 Load(Texture3D tex, int4 location);
+__intrinsic vec4 Load(Texture2D tex, int2 location, int lod);
+__intrinsic vec4 Load(Texture3D tex, int3 location, int lod);
+__intrinsic vec4 Load(Texture2DArray tex, int3 location, int lod);
+__intrinsic vec4 Load(Image1D tex, int location);
+__intrinsic out void Store(Image1D tex, int location, vec4 value);
+__intrinsic vec4 Load(Image2D tex, int2 location);
+__intrinsic out void Store(Image2D tex, int2 location, vec4 value);
+__intrinsic vec4 Load(Image2DArray tex, int3 location);
+__intrinsic out void Store(Image2DArray tex, int3 location, vec4 value);
+__intrinsic vec4 Load(Image3D tex, int3 location);
+__intrinsic out void Store(Image3D tex, int3 location, vec4 value);
+__intrinsic ivec2 GetDimensions(Image2D tex);
+__intrinsic ivec3 GetDimensions(Image3D tex);
+__intrinsic ivec3 GetDimensions(Image2DArray tex);
 __intrinsic float diff(float v);
 __intrinsic float mod(float x, float y);
 __intrinsic float max(float v);
@@ -265,6 +276,13 @@ __intrinsic float saturate(float v);
 __intrinsic vec2 saturate(vec2 v);
 __intrinsic vec3 saturate(vec3 v);
 __intrinsic vec4 saturate(vec4 v);
+
+__intrinsic out void barrier();
+__intrinsic out void memoryBarrier();
+__intrinsic out void groupMemoryBarrier();
+__intrinsic out void memoryBarrierShared();
+__intrinsic out void memoryBarrierImage();
+__intrinsic out void memoryBarrierBuffer();
 
 struct trait __intrinsic {};
 __intrinsic trait IsTriviallyPassable(float);

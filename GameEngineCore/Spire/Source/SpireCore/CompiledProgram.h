@@ -110,6 +110,7 @@ namespace Spire
 			EnumerableDictionary<String, RefPtr<ILModuleParameterSet>> ModuleParamSets;
 			EnumerableDictionary<String, RefPtr<ILWorld>> Worlds;
 			EnumerableDictionary<String, RefPtr<ILStage>> Stages;
+            EnumerableDictionary<String, String> LayoutAttributes;
 		};
 
 		class ILParameter

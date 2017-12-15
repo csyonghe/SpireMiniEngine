@@ -2491,6 +2491,10 @@ namespace GLL
 			else
 				throw HardwareRendererException("must bind pipeline before binding descriptor set.");
 		}
+        virtual VectorMath::ClipSpaceType GetClipSpaceType() override
+        {
+            return VectorMath::ClipSpaceType::NegativeOneToOne;
+        }
 
 		virtual void ExecuteRenderPass(GameEngine::FrameBuffer* frameBuffer, CoreLib::ArrayView<GameEngine::CommandBuffer*> commands, GameEngine::Fence * fence) override
 		{

@@ -287,7 +287,8 @@ namespace GameEngine
 				shadowMapView.ViewTransform.values[13] = -(shadowMapView.ViewTransform.values[1] * lightPos.x + shadowMapView.ViewTransform.values[5] * lightPos.y + shadowMapView.ViewTransform.values[9] * lightPos.z);
 				shadowMapView.ViewTransform.values[14] = -(shadowMapView.ViewTransform.values[2] * lightPos.x + shadowMapView.ViewTransform.values[6] * lightPos.y + shadowMapView.ViewTransform.values[10] * lightPos.z);
 				Matrix4 projMatrix;
-				Matrix4::CreatePerspectiveMatrixFromViewAngle(projMatrix, light.endAngle*(180.0f * 2.0f/Math::Pi), 1.0f, light.radius*0.001f, light.radius, ClipSpaceType::ZeroToOne);
+				Matrix4::CreatePerspectiveMatrixFromViewAngle(projMatrix, light.endAngle*(180.0f * 2.0f/Math::Pi), 1.0f, 
+                    light.radius*0.001f, light.radius, params.renderer->GetHardwareRenderer()->GetClipSpaceType());
 				Matrix4::Multiply(shadowMapView.ViewProjectionTransform, projMatrix, shadowMapView.ViewTransform);
 
 				shadowMapView.ViewProjectionTransform.Inverse(shadowMapView.InvViewProjTransform);

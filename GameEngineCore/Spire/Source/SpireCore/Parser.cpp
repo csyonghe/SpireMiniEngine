@@ -78,6 +78,10 @@ namespace Spire
 				typeNames.Add("float4x4");
 				typeNames.Add("half3x3");
 				typeNames.Add("half4x4");
+                typeNames.Add("Image1D"); 
+                typeNames.Add("Image2D");
+                typeNames.Add("Image2DArray");
+                typeNames.Add("Image3D");
 				typeNames.Add("Texture1D");
 				typeNames.Add("Texture2D");
 				typeNames.Add("Texture2DArray");
@@ -626,6 +630,10 @@ namespace Spire
 				{
 					modifiers.flags |= ModifierFlag::Extern;
 				}
+                else if (AdvanceIf(parser, "shared"))
+                {
+                    modifiers.flags |= ModifierFlag::Shared;
+                }
                 else if (AdvanceIf(parser, TokenType::LBracket))
                 {
                     auto name = parser->ReadToken(TokenType::Identifier).Content;
@@ -1333,7 +1341,7 @@ namespace Spire
 			RefPtr<StatementSyntaxNode> statement;
 			if (LookAheadToken(TokenType::LBrace))
 				statement = ParseBlockStatement();
-			else if (IsTypeKeyword() || LookAheadToken("const"))
+			else if (IsTypeKeyword() || LookAheadToken("const") || LookAheadToken("shared"))
 				statement = ParseVarDeclrStatement();
 			else if (LookAheadToken("if"))
 				statement = ParseIfStatement();

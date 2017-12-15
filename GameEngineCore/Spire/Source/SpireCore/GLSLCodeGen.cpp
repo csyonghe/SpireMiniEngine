@@ -247,6 +247,18 @@ namespace Spire
 				case ILBaseType::TextureCubeShadowArray:
 					textureName = "textureCubeArray";
 					break;
+                case ILBaseType::Image1D:
+                    textureName = "image1D";
+                    break;
+                case ILBaseType::Image2D:
+                    textureName = "image2D";
+                    break;
+                case ILBaseType::Image2DArray:
+                    textureName = "image2DArray";
+                    break;
+                case ILBaseType::Image3D:
+                    textureName = "image3D";
+                    break;
 				default:
 					throw NotImplementedException();
 				}
@@ -283,6 +295,18 @@ namespace Spire
 				case ILBaseType::TextureCubeShadowArray:
 					samplerName = "samplerCubeArrayShadow";
 					break;
+                case ILBaseType::Image1D:
+                    samplerName = "image1D";
+                    break;
+                case ILBaseType::Image2D:
+                    samplerName = "image2D";
+                    break;
+                case ILBaseType::Image2DArray:
+                    samplerName = "image2DArray";
+                    break;
+                case ILBaseType::Image3D:
+                    samplerName = "image3D";
+                    break;
 				default:
 					throw NotImplementedException();
 				}
@@ -430,6 +454,47 @@ namespace Spire
 					}
 					ctx.Body << ")";
 				}
+                else if (instr->Function == "Load")
+                {
+                    auto baseType = dynamic_cast<ILBasicType*>(instr->Arguments[0]->Type.Ptr());
+                    if (baseType)
+                    {
+                        if ((int)baseType->Type >= (int)ILBaseType::Image1D)
+                        {
+                            ctx.Body << "imageLoad(";
+                            PrintOp(ctx, instr->Arguments[0].Ptr());
+                            ctx.Body << ", ";
+                            PrintOp(ctx, instr->Arguments[1].Ptr());
+                            ctx.Body << ")";
+                        }
+                        else
+                        {
+                            ctx.Body << "texelFetch(";
+                            PrintOp(ctx, instr->Arguments[0].Ptr());
+                            ctx.Body << ", ";
+                            PrintOp(ctx, instr->Arguments[1].Ptr());
+                            ctx.Body << ", ";
+                            PrintOp(ctx, instr->Arguments[2].Ptr());
+                            ctx.Body << ")";
+                        }
+                    }
+                }
+                else if (instr->Function == "Store")
+                {
+                    ctx.Body << "imageStore(";
+                    PrintOp(ctx, instr->Arguments[0].Ptr());
+                    ctx.Body << ", ";
+                    PrintOp(ctx, instr->Arguments[1].Ptr());
+                    ctx.Body << ", ";
+                    PrintOp(ctx, instr->Arguments[2].Ptr());
+                    ctx.Body << ")";
+                }
+                else if (instr->Function == "GetDimensions")
+                {
+                    ctx.Body << "imageSize(";
+                    PrintOp(ctx, instr->Arguments[0].Ptr());
+                    ctx.Body << ")";
+                }
 				else
 					throw NotImplementedException("CodeGen for texture function '" + instr->Function + "' is not implemented.");
 			}
@@ -558,6 +623,21 @@ namespace Spire
 			void GenerateShaderParameterDefinition(CodeGenContext & ctx, ILShader * shader)
 			{
 				int oneDescBindingLoc = 0;
+                if (shader->LayoutAttributes.ContainsKey("BlockSizeX"))
+                {
+                    ctx.GlobalHeader << "layout(local_size_x=" << shader->LayoutAttributes["BlockSizeX"]() << 
+                        ", local_size_y=";
+                    if (shader->LayoutAttributes.ContainsKey("BlockSizeY"))
+                        ctx.GlobalHeader << shader->LayoutAttributes["BlockSizeY"]();
+                    else
+                        ctx.GlobalHeader << "1";
+                    ctx.GlobalHeader << ", local_size_z=";
+                    if (shader->LayoutAttributes.ContainsKey("BlockSizeZ"))
+                        ctx.GlobalHeader << shader->LayoutAttributes["BlockSizeZ"]();
+                    else
+                        ctx.GlobalHeader << "1";
+                    ctx.GlobalHeader << ") in;\n";
+                }
 				for (auto module : shader->ModuleParamSets)
 				{
 					// generate uniform buffer declaration
@@ -1117,6 +1197,7 @@ namespace Spire
 		{
 			return new ArrayOutputStrategy(this, world, pIsPatch, pArraySize, arrayIndex);
 		}
+      
 
 		CodeGenBackend * CreateGLSLCodeGen()
 		{

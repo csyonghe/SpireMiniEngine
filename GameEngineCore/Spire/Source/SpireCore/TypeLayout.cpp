@@ -105,6 +105,10 @@ struct DefaultLayoutRulesImpl : LayoutRulesImpl
 		case ILBaseType::TextureCubeShadow:
 		case ILBaseType::TextureCubeArray:
 		case ILBaseType::TextureCubeShadowArray:
+        case ILBaseType::Image1D:
+        case ILBaseType::Image2D:
+        case ILBaseType::Image2DArray:
+        case ILBaseType::Image3D:
             return{ 8, 8 };
 
         default:

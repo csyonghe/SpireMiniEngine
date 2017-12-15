@@ -869,6 +869,7 @@ namespace GameEngine
         virtual WindowSurface * CreateSurface(void * windowHandle, int width, int height) = 0;
 		virtual CoreLib::String GetRendererName() = 0;
 		virtual void TransferBarrier(int barrierId) = 0;
+        virtual VectorMath::ClipSpaceType GetClipSpaceType() = 0;
 	};
 
 	// HardwareRenderer instance constructors

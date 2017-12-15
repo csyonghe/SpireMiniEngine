@@ -242,7 +242,7 @@ namespace GameEngine
 			Matrix4 mainProjMatrix;
 			Matrix4::CreatePerspectiveMatrixFromViewAngle(mainProjMatrix,
 				params.view.FOV, w / (float)h,
-				params.view.ZNear, params.view.ZFar, ClipSpaceType::ZeroToOne);
+				params.view.ZNear, params.view.ZFar, params.renderer->GetHardwareRenderer()->GetClipSpaceType());
 			Matrix4::Multiply(viewUniform.ViewProjectionTransform, mainProjMatrix, viewUniform.ViewTransform);
 			
 			viewUniform.ViewTransform.Inverse(viewUniform.InvViewTransform);

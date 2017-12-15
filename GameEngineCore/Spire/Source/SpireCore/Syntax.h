@@ -25,25 +25,26 @@ namespace Spire
 		// TODO: consider using a real AST even for these, so we can give good
 		// error messages on confliction modifiers.
 		typedef unsigned int ModifierFlags;
-		enum ModifierFlag : ModifierFlags
-		{
-			None = 0,
-			Uniform = 1 << 0,
-			Out = 1 << 1,
-			In = 1 << 2,
-			Const = 1 << 4,
-			Instance = 1 << 5,
-			Builtin = 1 << 6,
+        enum ModifierFlag : ModifierFlags
+        {
+            None = 0,
+            Uniform = 1 << 0,
+            Out = 1 << 1,
+            In = 1 << 2,
+            Const = 1 << 4,
+            Instance = 1 << 5,
+            Builtin = 1 << 6,
 
-			Inline = 1 << 8,
-			Public = 1 << 9,
-			Require = 1 << 10,
-			Param = (1 << 11) | ModifierFlag::Public,
-			Extern = 1 << 12,
-			Input = 1 << 13,
-			Intrinsic = (1 << 14) | ModifierFlag::Extern,
-			// TODO(tfoley): This should probably be its own flag
-			InOut = ModifierFlag::In | ModifierFlag::Out,
+            Inline = 1 << 8,
+            Public = 1 << 9,
+            Require = 1 << 10,
+            Param = (1 << 11) | ModifierFlag::Public,
+            Extern = 1 << 12,
+            Input = 1 << 13,
+            Intrinsic = (1 << 14) | ModifierFlag::Extern,
+            // TODO(tfoley): This should probably be its own flag
+            InOut = ModifierFlag::In | ModifierFlag::Out,
+            Shared = (1 << 15),
 		};
 		//
 		// Other modifiers may have more elaborate data, and so
@@ -186,23 +187,27 @@ namespace Spire
 			Modifier* modifiers;
 		};
 
-		enum class BaseType
-		{
-			Void = 0,
-			Int = 16, Int2 = 17, Int3 = 18, Int4 = 19,
-			Float = 32, Float2 = 33, Float3 = 34, Float4 = 35,
-			UInt = 512, UInt2 = 513, UInt3 = 514, UInt4 = 515,
-			Bool = 128, Bool2 = 129, Bool3 = 130, Bool4 = 131,
-			Float3x3 = 40, Float4x4 = 47,
-			Texture2D = 48,
-			TextureCube = 49,
-			Texture2DArray = 50,
-			Texture2DShadow = 51,
-			TextureCubeShadow = 52,
-			Texture2DArrayShadow = 53,
-			Texture3D = 54,
-			TextureCubeArray = 55,
-			TextureCubeShadowArray = 56,
+        enum class BaseType
+        {
+            Void = 0,
+            Int = 16, Int2 = 17, Int3 = 18, Int4 = 19,
+            Float = 32, Float2 = 33, Float3 = 34, Float4 = 35,
+            UInt = 512, UInt2 = 513, UInt3 = 514, UInt4 = 515,
+            Bool = 128, Bool2 = 129, Bool3 = 130, Bool4 = 131,
+            Float3x3 = 40, Float4x4 = 47,
+            Texture2D = 48,
+            TextureCube = 49,
+            Texture2DArray = 50,
+            Texture2DShadow = 51,
+            TextureCubeShadow = 52,
+            Texture2DArrayShadow = 53,
+            Texture3D = 54,
+            TextureCubeArray = 55,
+            TextureCubeShadowArray = 56,
+            Image1D = 57,
+            Image2D = 58,
+            Image2DArray = 59,
+            Image3D = 60,
 			SamplerState = 4096, SamplerComparisonState = 4097,
 			Function = 64,
 			Shader = 256,

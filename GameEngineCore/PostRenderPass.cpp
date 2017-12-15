@@ -10,7 +10,6 @@ namespace GameEngine
 {
 	void PostRenderPass::Create(Renderer * /*renderer*/)
 	{
-		// Create deferred pipeline
 		VertexFormat deferredVertexFormat;
 		deferredVertexFormat.Attributes.Add(VertexAttributeDesc(DataType::Float2, 0, 0, 0));
 		deferredVertexFormat.Attributes.Add(VertexAttributeDesc(DataType::Float2, 0, 2 * sizeof(float), 1));
@@ -20,7 +19,7 @@ namespace GameEngine
 		auto shaderFileName = GetShaderFileName();
 		if (!CompileShader(rs, sharedRes->spireContext, sharedRes->sharedSpireEnvironment, hwRenderer->GetSpireTarget(), shaderFileName))
 			throw HardwareRendererException("Shader compilation failure");
-
+        isCompute = false;
 		for (auto& compiledShader : rs.Shaders)
 		{
 			Shader* shader = nullptr;
@@ -32,26 +31,37 @@ namespace GameEngine
 			{
 				shader = hwRenderer->CreateShader(ShaderType::FragmentShader, (char*)compiledShader.Value.Buffer(), compiledShader.Value.Count());
 			}
+            else if (compiledShader.Key == "cs")
+            {
+                isCompute = true;
+                shader = hwRenderer->CreateShader(ShaderType::ComputeShader, (char*)compiledShader.Value.Buffer(), compiledShader.Value.Count());
+            }
 			shaders.Add(shader);
 		}
-		pipelineBuilder->SetShaders(From(shaders).Select([](auto x) { return x.Ptr(); }).ToList().GetArrayView());
-		pipelineBuilder->FixedFunctionStates.PrimitiveTopology = PrimitiveType::TriangleFans;
-		descLayouts.SetSize(rs.BindingLayouts.Count());
-		for (auto & desc : rs.BindingLayouts)
-		{
-			if (desc.Value.BindingPoint == -1) continue;
-			if (desc.Value.BindingPoint >= descLayouts.Count())
-				descLayouts.SetSize(desc.Value.BindingPoint + 1);
-			descLayouts[desc.Value.BindingPoint] = hwRenderer->CreateDescriptorSetLayout(desc.Value.Descriptors.GetArrayView());
-		}
-		pipelineBuilder->SetBindingLayout(From(descLayouts).Select([](auto x) { return x.Ptr(); }).ToList().GetArrayView());
-		
-		List<AttachmentLayout> renderTargets;
-		SetupPipelineBindingLayout(pipelineBuilder.Ptr(), renderTargets);
-		renderTargetLayout = hwRenderer->CreateRenderTargetLayout(renderTargets.GetArrayView());
+        if (isCompute)
+        {
+            pipeline = pipelineBuilder->CreateComputePipeline(From(descLayouts).Select([](auto x) { return x.Ptr(); }).ToList().GetArrayView(), shaders.First().Ptr());
+        }
+        else
+        {
+            pipelineBuilder->SetShaders(From(shaders).Select([](auto x) { return x.Ptr(); }).ToList().GetArrayView());
+            pipelineBuilder->FixedFunctionStates.PrimitiveTopology = PrimitiveType::TriangleFans;
+            descLayouts.SetSize(rs.BindingLayouts.Count());
+            for (auto & desc : rs.BindingLayouts)
+            {
+                if (desc.Value.BindingPoint == -1) continue;
+                if (desc.Value.BindingPoint >= descLayouts.Count())
+                    descLayouts.SetSize(desc.Value.BindingPoint + 1);
+                descLayouts[desc.Value.BindingPoint] = hwRenderer->CreateDescriptorSetLayout(desc.Value.Descriptors.GetArrayView());
+            }
+            pipelineBuilder->SetBindingLayout(From(descLayouts).Select([](auto x) { return x.Ptr(); }).ToList().GetArrayView());
 
-		pipeline = pipelineBuilder->ToPipeline(renderTargetLayout.Ptr());
-		
+            List<AttachmentLayout> renderTargets;
+            SetupPipelineBindingLayout(pipelineBuilder.Ptr(), renderTargets);
+            renderTargetLayout = hwRenderer->CreateRenderTargetLayout(renderTargets.GetArrayView());
+
+            pipeline = pipelineBuilder->ToPipeline(renderTargetLayout.Ptr());
+        }
 		commandBuffer = new AsyncCommandBuffer(hwRenderer);
 		transferInCommandBuffer = new AsyncCommandBuffer(hwRenderer);
 		transferOutCommandBuffer = new AsyncCommandBuffer(hwRenderer);
@@ -75,21 +85,31 @@ namespace GameEngine
 		cmdBufIn->TransferLayout(textures.GetArrayView(), TextureLayoutTransfer::UndefinedToRenderAttachment);
 		cmdBufIn->EndRecording();
 
-		auto cmdBuf = commandBuffer->BeginRecording(frameBuffer.Ptr());
-		if (clearFrameBuffer)
-			cmdBuf->ClearAttachments(frameBuffer.Ptr());
-
 		DescriptorSetBindings descBindings;
 		UpdateDescriptorSetBinding(sharedModules, descBindings);
+        CommandBuffer* cmdBuf = nullptr;
+        if (isCompute) 
+        {
+            cmdBuf = commandBuffer->BeginRecording();
+            for (auto & binding : descBindings.bindings)
+                cmdBuf->BindDescriptorSet(binding.index, binding.descriptorSet);
+            cmdBuf->DispatchCompute(groupCountX, groupCountY, groupCountZ);
+            cmdBuf->EndRecording();
+        }
+        else
+        {
+            cmdBuf = commandBuffer->BeginRecording(frameBuffer.Ptr());
+            if (clearFrameBuffer)
+                cmdBuf->ClearAttachments(frameBuffer.Ptr());
 
-		cmdBuf->SetViewport(0, 0, viewRes->GetWidth(), viewRes->GetHeight());
-		cmdBuf->BindPipeline(pipeline.Ptr());
-		cmdBuf->BindVertexBuffer(sharedRes->fullScreenQuadVertBuffer.Ptr(), 0);
-		for (auto & binding : descBindings.bindings)
-			cmdBuf->BindDescriptorSet(binding.index, binding.descriptorSet);
-		cmdBuf->Draw(0, 4);
-		
-		cmdBuf->EndRecording();
+            cmdBuf->SetViewport(0, 0, viewRes->GetWidth(), viewRes->GetHeight());
+            cmdBuf->BindPipeline(pipeline.Ptr());
+            cmdBuf->BindVertexBuffer(sharedRes->fullScreenQuadVertBuffer.Ptr(), 0);
+            for (auto & binding : descBindings.bindings)
+                cmdBuf->BindDescriptorSet(binding.index, binding.descriptorSet);
+            cmdBuf->Draw(0, 4);
+            cmdBuf->EndRecording();
+        }
 
 		auto cmdBufOut = transferOutCommandBuffer->BeginRecording();
 		cmdBufOut->TransferLayout(textures.GetArrayView(), TextureLayoutTransfer::RenderAttachmentToSample);
@@ -100,7 +120,10 @@ namespace GameEngine
 		buffers.Add(cmdBuf);
 		//buffers.Add(cmdBufOut);
 		hwRenderer->ExecuteNonRenderCommandBuffers(MakeArrayView(cmdBufIn));
-		hwRenderer->ExecuteRenderPass(frameBuffer.Ptr(), buffers.GetArrayView(), nullptr);
+        if (!isCompute)
+            hwRenderer->ExecuteRenderPass(frameBuffer.Ptr(), buffers.GetArrayView(), nullptr);
+        else
+            hwRenderer->ExecuteNonRenderCommandBuffers(buffers.GetArrayView());
 		hwRenderer->ExecuteNonRenderCommandBuffers(MakeArrayView(cmdBufOut));
 
 	}

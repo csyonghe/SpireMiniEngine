@@ -26,6 +26,10 @@ namespace Spire
 			Texture3D = 54,
 			TextureCubeArray = 55,
 			TextureCubeShadowArray = 56,
+            Image1D = 57,
+            Image2D = 58,
+            Image2DArray = 59,
+            Image3D = 60,
 			Bool = 128, Bool2 = 129, Bool3 = 130, Bool4 = 131,
 			UInt = 512, UInt2 = 513, UInt3 = 514, UInt4 = 515,
 			SamplerState = 4096, SamplerComparisonState = 4097
@@ -135,6 +139,10 @@ namespace Spire
 				case ILBaseType::TextureCubeArray:
 				case ILBaseType::TextureCubeShadowArray:
 				case ILBaseType::Texture3D:
+                case ILBaseType::Image1D:
+                case ILBaseType::Image2D:
+                case ILBaseType::Image2DArray:
+                case ILBaseType::Image3D:
 					return BindableResourceType::Texture;
 				case ILBaseType::SamplerState:
 				case ILBaseType::SamplerComparisonState:
@@ -202,6 +210,14 @@ namespace Spire
 					return "samplerCubeArray";
 				else if (Type == ILBaseType::TextureCubeShadowArray)
 					return "samplerCubeArrayShadow";
+                else if (Type == ILBaseType::Image1D)
+                    return "image1D";
+                else if (Type == ILBaseType::Image2D)
+                    return "image2D";
+                else if (Type == ILBaseType::Image2DArray)
+                    return "image2DArray";
+                else if (Type == ILBaseType::Image3D)
+                    return "image3D";
 				else if (Type == ILBaseType::Bool)
 					return "bool";
 				else if (Type == ILBaseType::Bool2)
@@ -976,26 +992,20 @@ namespace Spire
 		class AllocVarInstruction : public LeaInstruction
 		{
 		public:
-			UseReference Size;
-			AllocVarInstruction(ILType * type, ILOperand * count)
-				: Size(this)
+			AllocVarInstruction(ILType * type)
 			{
 				this->Type = type;
-				this->Size = count;
 			}
-			AllocVarInstruction(RefPtr<ILType> & type, ILOperand * count)
-				: Size(this)
+			AllocVarInstruction(RefPtr<ILType> & type)
 			{
 				auto ptrType = type->Clone();
 				if (!type)
 					throw ArgumentException("type cannot be null.");
 				this->Type = ptrType;
-				this->Size = count;
 			}
 			AllocVarInstruction(const AllocVarInstruction & other)
-				:LeaInstruction(other), Size(this)
+				:LeaInstruction(other)
 			{
-				Size = other.Size.Ptr();
 			}
 			virtual bool IsDeterministic() override
 			{
@@ -1003,15 +1013,15 @@ namespace Spire
 			}
 			virtual String ToString() override
 			{
-				return Name + " = VAR " + Type->ToString() + ", " + Size.ToString();
+				return Name + " = VAR " + Type->ToString();
 			}
 			virtual OperandIterator begin() override
 			{
-				return &Size;
+				return nullptr;
 			}
 			virtual OperandIterator end() override
 			{
-				return &Size + 1;
+				return nullptr;
 			}
 			virtual String GetOperatorString() override
 			{

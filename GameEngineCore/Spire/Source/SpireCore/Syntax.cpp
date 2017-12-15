@@ -105,6 +105,10 @@ namespace Spire
 			case Compiler::BaseType::TextureCubeShadow:
 			case Compiler::BaseType::TextureCubeArray:
 			case Compiler::BaseType::TextureCubeShadowArray:
+            case Compiler::BaseType::Image1D:
+            case Compiler::BaseType::Image2D:
+            case Compiler::BaseType::Image2DArray:
+            case Compiler::BaseType::Image3D:
 				return BindableResourceType::Texture;
 			case Compiler::BaseType::SamplerState:
 			case Compiler::BaseType::SamplerComparisonState:
@@ -190,6 +194,18 @@ namespace Spire
 			case Compiler::BaseType::TextureCubeShadow:
 				res.Append("samplerCubeShadow");
 				break;
+            case Compiler::BaseType::Image1D:
+                res.Append("image1D");
+                break;
+            case Compiler::BaseType::Image2D:
+                res.Append("image2D");
+                break;
+            case Compiler::BaseType::Image2DArray:
+                res.Append("image2DArray");
+                break;
+            case Compiler::BaseType::Image3D:
+                res.Append("image3D");
+                break;
 			case Compiler::BaseType::Function:
 				res.Append(Func->SyntaxNode->InternalName);
 				break;
@@ -732,22 +748,30 @@ namespace Spire
 				basicType->BaseType == BaseType::Texture2DArrayShadow ||
 				basicType->BaseType == BaseType::TextureCubeArray ||
 				basicType->BaseType == BaseType::TextureCubeShadowArray ||
-				basicType->BaseType == BaseType::Texture3D;
+				basicType->BaseType == BaseType::Texture3D ||
+                basicType->BaseType == BaseType::Image1D ||
+                basicType->BaseType == BaseType::Image2D || 
+                basicType->BaseType == BaseType::Image2DArray || 
+                basicType->BaseType == BaseType::Image3D;
 			return false;
 		}
 		bool ExpressionType::IsTextureOrSampler() const
 		{
 			auto basicType = AsBasicType();
 			if (basicType)
-				return basicType->BaseType == BaseType::Texture2D ||
-					basicType->BaseType == BaseType::TextureCube ||
-					basicType->BaseType == BaseType::Texture2DArray ||
-					basicType->BaseType == BaseType::Texture2DShadow ||
-					basicType->BaseType == BaseType::TextureCubeShadow ||
-					basicType->BaseType == BaseType::Texture2DArrayShadow ||
-					basicType->BaseType == BaseType::Texture3D ||
-					basicType->BaseType == BaseType::TextureCubeArray ||
-					basicType->BaseType == BaseType::TextureCubeShadowArray ||
+                return basicType->BaseType == BaseType::Texture2D ||
+                    basicType->BaseType == BaseType::TextureCube ||
+                    basicType->BaseType == BaseType::Texture2DArray ||
+                    basicType->BaseType == BaseType::Texture2DShadow ||
+                    basicType->BaseType == BaseType::TextureCubeShadow ||
+                    basicType->BaseType == BaseType::Texture2DArrayShadow ||
+                    basicType->BaseType == BaseType::TextureCubeArray ||
+                    basicType->BaseType == BaseType::TextureCubeShadowArray ||
+                    basicType->BaseType == BaseType::Texture3D ||
+                    basicType->BaseType == BaseType::Image1D ||
+                    basicType->BaseType == BaseType::Image2D ||
+                    basicType->BaseType == BaseType::Image2DArray ||
+                    basicType->BaseType == BaseType::Image3D ||
 					basicType->BaseType == BaseType::SamplerState;
 			return false;
 		}

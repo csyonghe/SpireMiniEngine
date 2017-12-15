@@ -98,34 +98,42 @@ namespace Spire
 			RefPtr<TypeSyntaxNode> VisitBasicType(BasicTypeSyntaxNode * typeNode) override
 			{
 				RefPtr<BasicExpressionType> expType = new BasicExpressionType();
-				if (typeNode->TypeName == "int")
-					expType->BaseType = BaseType::Int;
-				else if (typeNode->TypeName == "uint")
-					expType->BaseType = BaseType::UInt;
-				else if (typeNode->TypeName == "float" || typeNode->TypeName == "half")
-					expType->BaseType = BaseType::Float;
-				else if (typeNode->TypeName == "ivec2" || typeNode->TypeName == "int2")
-					expType->BaseType = BaseType::Int2;
-				else if (typeNode->TypeName == "ivec3" || typeNode->TypeName == "int3")
-					expType->BaseType = BaseType::Int3;
-				else if (typeNode->TypeName == "ivec4" || typeNode->TypeName == "int4")
-					expType->BaseType = BaseType::Int4;
-				else if (typeNode->TypeName == "uvec2" || typeNode->TypeName == "uint2")
-					expType->BaseType = BaseType::UInt2;
-				else if (typeNode->TypeName == "uvec3" || typeNode->TypeName == "uint3")
-					expType->BaseType = BaseType::UInt3;
-				else if (typeNode->TypeName == "uvec4" || typeNode->TypeName == "uint4")
-					expType->BaseType = BaseType::UInt4;
-				else if (typeNode->TypeName == "vec2" || typeNode->TypeName == "float2" || typeNode->TypeName == "half2")
-					expType->BaseType = BaseType::Float2;
-				else if (typeNode->TypeName == "vec3" || typeNode->TypeName == "float3" || typeNode->TypeName == "half3")
-					expType->BaseType = BaseType::Float3;
-				else if (typeNode->TypeName == "vec4" || typeNode->TypeName == "float4" || typeNode->TypeName == "half4")
-					expType->BaseType = BaseType::Float4;
-				else if (typeNode->TypeName == "mat3" || typeNode->TypeName == "mat3x3" || typeNode->TypeName == "float3x3" || typeNode->TypeName == "half3x3")
-					expType->BaseType = BaseType::Float3x3;
-				else if (typeNode->TypeName == "mat4" || typeNode->TypeName == "mat4x4" || typeNode->TypeName == "float4x4" || typeNode->TypeName == "half4x4")
-					expType->BaseType = BaseType::Float4x4;
+                if (typeNode->TypeName == "int")
+                    expType->BaseType = BaseType::Int;
+                else if (typeNode->TypeName == "uint")
+                    expType->BaseType = BaseType::UInt;
+                else if (typeNode->TypeName == "float" || typeNode->TypeName == "half")
+                    expType->BaseType = BaseType::Float;
+                else if (typeNode->TypeName == "ivec2" || typeNode->TypeName == "int2")
+                    expType->BaseType = BaseType::Int2;
+                else if (typeNode->TypeName == "ivec3" || typeNode->TypeName == "int3")
+                    expType->BaseType = BaseType::Int3;
+                else if (typeNode->TypeName == "ivec4" || typeNode->TypeName == "int4")
+                    expType->BaseType = BaseType::Int4;
+                else if (typeNode->TypeName == "uvec2" || typeNode->TypeName == "uint2")
+                    expType->BaseType = BaseType::UInt2;
+                else if (typeNode->TypeName == "uvec3" || typeNode->TypeName == "uint3")
+                    expType->BaseType = BaseType::UInt3;
+                else if (typeNode->TypeName == "uvec4" || typeNode->TypeName == "uint4")
+                    expType->BaseType = BaseType::UInt4;
+                else if (typeNode->TypeName == "vec2" || typeNode->TypeName == "float2" || typeNode->TypeName == "half2")
+                    expType->BaseType = BaseType::Float2;
+                else if (typeNode->TypeName == "vec3" || typeNode->TypeName == "float3" || typeNode->TypeName == "half3")
+                    expType->BaseType = BaseType::Float3;
+                else if (typeNode->TypeName == "vec4" || typeNode->TypeName == "float4" || typeNode->TypeName == "half4")
+                    expType->BaseType = BaseType::Float4;
+                else if (typeNode->TypeName == "mat3" || typeNode->TypeName == "mat3x3" || typeNode->TypeName == "float3x3" || typeNode->TypeName == "half3x3")
+                    expType->BaseType = BaseType::Float3x3;
+                else if (typeNode->TypeName == "mat4" || typeNode->TypeName == "mat4x4" || typeNode->TypeName == "float4x4" || typeNode->TypeName == "half4x4")
+                    expType->BaseType = BaseType::Float4x4;
+                else if (typeNode->TypeName == "Image1D")
+                    expType->BaseType = BaseType::Image1D;
+                else if (typeNode->TypeName == "Image2D")
+                    expType->BaseType = BaseType::Image2D;
+                else if (typeNode->TypeName == "Image2DArray")
+                    expType->BaseType = BaseType::Image2DArray;
+                else if (typeNode->TypeName == "Image3D")
+                    expType->BaseType = BaseType::Image3D;
 				else if (typeNode->TypeName == "texture" || typeNode->TypeName == "Texture" || typeNode->TypeName == "Texture2D")
 					expType->BaseType = BaseType::Texture2D;
 				else if (typeNode->TypeName == "TextureCUBE" || typeNode->TypeName == "TextureCube")

@@ -419,12 +419,7 @@ namespace Spire
 
 		void CLikeCodeGen::PrintAllocVarInstr(CodeGenContext & ctx, AllocVarInstruction * instr)
 		{
-			if (dynamic_cast<ILConstOperand*>(instr->Size.Ptr()))
-			{
-				ctx.DefineVariable(instr);
-			}
-			else
-				throw InvalidProgramException("size operand of allocVar instr is not an intermediate.");
+			ctx.DefineVariable(instr);
 		}
 
 		void CLikeCodeGen::PrintFetchArgInstrExpr(CodeGenContext & ctx, FetchArgInstruction * instr)
@@ -792,6 +787,8 @@ namespace Spire
 			intrinsicTextureFunctions.Add("SampleLevel");
 			intrinsicTextureFunctions.Add("SampleCmp");
 			intrinsicTextureFunctions.Add("Load");
+            intrinsicTextureFunctions.Add("Store");
+            intrinsicTextureFunctions.Add("GetDimensions");
 		}
 
 		void CLikeCodeGen::GenerateShaderMetaData(ShaderMetaData & result, ILProgram* /*program*/, ILShader * shader, DiagnosticSink * /*err*/)
@@ -1048,7 +1045,8 @@ namespace Spire
 				if (!shader->Worlds.TryGetValue(worldName.Value, world))
 					errWriter->diagnose(worldName.Position, Diagnostics::worldIsNotDefined, worldName);
 			}
-			outputStrategy = CreatePackedBufferOutputStrategy(world.Ptr());
+            
+			outputStrategy = new DummyOutputStrategy(this, world.Ptr());
 			return GenerateSingleWorldShader(program, shader, stage);
 		}
 
@@ -1120,9 +1118,12 @@ namespace Spire
 			}
 			else
 			{
+                bool isShared = op->Attribute.Contains("shared");
+                if (isShared)
+                    Header << "shared ";
 				auto name = GenerateCodeName(op->Name, "");
 				codeGen->PrintDef(Header, op->Type.Ptr(), name);
-				if (op->Type->IsInt() || op->Type->IsUInt())
+				if (!isShared && (op->Type->IsInt() || op->Type->IsUInt()))
 				{
 					Header << " = 0";
 				}

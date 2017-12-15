@@ -4911,6 +4911,11 @@ namespace VK
 		{
             ((VkWindowSurface*)surface)->Present(srcImage);
 		}
+        virtual VectorMath::ClipSpaceType GetClipSpaceType() override
+        {
+            return VectorMath::ClipSpaceType::ZeroToOne;
+        }
+
 
 		virtual BufferObject* CreateBuffer(BufferUsage usage, int size) override
 		{

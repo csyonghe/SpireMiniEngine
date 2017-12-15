@@ -106,7 +106,21 @@ namespace Spire
 
 			virtual void DeclareOutput(CodeGenContext & ctx, ILStage * stage) = 0;
 			virtual void ProcessExportInstruction(CodeGenContext & ctx, ExportInstruction * instr) = 0;
-		};
+        };
+
+        class DummyOutputStrategy : public OutputStrategy
+        {
+        public:
+            DummyOutputStrategy(CLikeCodeGen* pCodeGen, ILWorld * world)
+                : OutputStrategy(pCodeGen, world)
+            {}
+            virtual void DeclareOutput(CodeGenContext & /*ctx*/, ILStage *) override
+            {
+            }
+            virtual void ProcessExportInstruction(CodeGenContext & /*ctx*/, ExportInstruction * /*exportInstr*/) override
+            {
+            }
+        };
 
 		class CLikeCodeGen : public CodeGenBackend
 		{
