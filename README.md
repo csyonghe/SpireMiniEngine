@@ -1,3 +1,7 @@
+NOTE: Development of this project has been moved to https://github.com/spire-engine/spire-engine.
+This repo is no longer being updated.
+
+
 # SpireMiniEngine
 
 [![Build status](https://ci.appveyor.com/api/projects/status/mw8aht0tabk677h1/branch/master?svg=true)](https://ci.appveyor.com/project/csyonghe/spireminiengine/branch/master)
